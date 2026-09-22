@@ -66,6 +66,21 @@ from db.adjustments import (
     record_stock_adjustment,
 )
 from db.suppliers import add_supplier, get_supplier, list_suppliers, update_supplier
+from db.partners import (
+    add_partner,
+    deactivate_partner,
+    get_active_percentage_total,
+    get_partner,
+    list_partners,
+    update_partner_percentage,
+)
+from db.distributions import (
+    get_partner_payout_history,
+    get_profit_distribution,
+    list_profit_distributions,
+    record_profit_distribution,
+)
+from pdf.invoice import generate_invoice_pdf
 
 
 def _prompt_non_empty(prompt: str) -> str:
@@ -843,12 +858,31 @@ def _handle_update_order_status(conn) -> None:
     print(f"Order #{order_id} status updated to {updated['order']['status']}")
 
 
+def _handle_generate_invoice_pdf(conn) -> None:
+    raw = input("\nEnter order ID to generate invoice PDF (or 0 to cancel): ").strip()
+    try:
+        order_id = int(raw)
+    except ValueError:
+        print("Invalid order ID.")
+        return
+
+    if order_id == 0:
+        return
+
+    try:
+        path = generate_invoice_pdf(conn, order_id)
+        print(f"Invoice PDF saved to: {path}")
+    except ValueError as exc:
+        print(f"Error: {exc}")
+
+
 def _handle_view_orders(conn) -> None:
     while True:
         print("\nView Orders")
         print("  1. List orders / view detail")
         print("  2. Update order status")
-        print("  3. Back")
+        print("  3. Generate PDF Invoice")
+        print("  4. Back")
         choice = input("Select option: ").strip()
 
         if choice == "1":
@@ -856,9 +890,11 @@ def _handle_view_orders(conn) -> None:
         elif choice == "2":
             _handle_update_order_status(conn)
         elif choice == "3":
+            _handle_generate_invoice_pdf(conn)
+        elif choice == "4":
             break
         else:
-            print("Invalid option. Please enter 1-3.")
+            print("Invalid option. Please enter 1-4.")
 
 
 def _handle_process_return(conn) -> None:
@@ -1730,6 +1766,252 @@ def manage_adjustments(conn) -> None:
             print("Invalid option. Please enter 1-4.")
 
 
+def _prompt_percentage(prompt: str) -> float:
+    while True:
+        raw = input(prompt).strip()
+        try:
+            value = float(raw)
+            if value <= 0 or value > 100:
+                print("Percentage must be > 0 and <= 100.")
+                continue
+            return value
+        except ValueError:
+            print("Please enter a valid number.")
+
+
+def _handle_add_partner(conn) -> None:
+    while True:
+        name = _prompt_non_empty("Partner name: ")
+        percentage = _prompt_percentage("Ownership percentage (e.g. 50 for 50%): ")
+        phone = input("Phone (optional): ").strip() or None
+        email = input("Email (optional): ").strip() or None
+        notes = input("Notes (optional): ").strip() or None
+
+        try:
+            partner_id = add_partner(
+                conn, name, percentage, phone=phone, email=email, notes=notes
+            )
+            print(f"Partner added with id {partner_id}.")
+            return
+        except ValueError as exc:
+            print(f"Error: {exc}")
+            print("Please try again.")
+
+
+def _handle_update_partner_percentage(conn) -> None:
+    partners = list_partners(conn)
+    partner_id = _prompt_choice_from_list(partners, "partner")
+    if partner_id is None:
+        return
+
+    new_percentage = _prompt_percentage("New percentage: ")
+    try:
+        update_partner_percentage(conn, partner_id, new_percentage)
+        print("Partner percentage updated.")
+    except ValueError as exc:
+        print(f"Error: {exc}")
+
+
+def _handle_deactivate_partner(conn) -> None:
+    partners = list_partners(conn)
+    partner_id = _prompt_choice_from_list(partners, "partner")
+    if partner_id is None:
+        return
+
+    try:
+        deactivate_partner(conn, partner_id)
+        print("Partner deactivated.")
+    except ValueError as exc:
+        print(f"Error: {exc}")
+
+
+def _handle_list_partners(conn) -> None:
+    partners = list_partners(conn)
+    if not partners:
+        print("No active partners found.")
+        return
+
+    total = get_active_percentage_total(conn)
+    print(f"\n{'ID':<5} {'Name':<25} {'Percentage':<12}")
+    print("-" * 45)
+    for partner in partners:
+        print(
+            f"{partner['id']:<5} {partner['name']:<25} "
+            f"{partner['current_percentage']:<12}"
+        )
+
+    print(f"\nActive percentages sum to {total:.2f}%")
+    if abs(total - 100) > 0.01:
+        print(f"⚠ Active percentages sum to {total:.2f}%, not 100%")
+
+
+def _handle_record_profit_distribution(conn) -> None:
+    period_start = _prompt_non_empty("Period start YYYY-MM-DD: ")
+    period_end = _prompt_non_empty("Period end YYYY-MM-DD: ")
+
+    pnl = get_profit_and_loss(conn, period_start, period_end)
+    print("\n--- Profit & Loss for Selected Period ---")
+    print(f"  Total Revenue:      {pnl['total_revenue']}")
+    print(f"  Total Expenses:     {pnl['total_expenses']}")
+    print(f"  NET PROFIT:         {pnl['net_profit']}")
+    print(
+        "\nYou may distribute less than the net profit if holding some back "
+        "as reserve."
+    )
+
+    total_amount = _prompt_int(
+        "Total amount to distribute (in smallest currency unit): "
+    )
+    notes = input("Notes (optional): ").strip() or None
+    distribution_date = (
+        input("Distribution date YYYY-MM-DD (optional): ").strip() or None
+    )
+
+    try:
+        distribution_id = record_profit_distribution(
+            conn,
+            period_start,
+            period_end,
+            total_amount,
+            distribution_date=distribution_date,
+            notes=notes,
+        )
+        distribution = get_profit_distribution(conn, distribution_id)
+        print(f"\nProfit distribution recorded with id {distribution_id}.")
+        print(f"  Period: {period_start} to {period_end}")
+        print(f"  Net profit available: {distribution['total_profit_available']}")
+        print(f"  Amount distributed:   {distribution['total_amount_distributed']}")
+        print("\nPer-partner breakdown:")
+        print(f"  {'Partner':<25} {'Percentage':<12} {'Amount':<10}")
+        print("  " + "-" * 50)
+        for share in distribution["shares"]:
+            print(
+                f"  {share['partner_name']:<25} "
+                f"{share['percentage_at_time']:<12} {share['amount']:<10}"
+            )
+    except ValueError as exc:
+        print(f"Error: {exc}")
+
+
+def _handle_view_distribution_history(conn) -> None:
+    start_date, end_date = _prompt_date_range()
+    distributions = list_profit_distributions(
+        conn, start_date=start_date, end_date=end_date
+    )
+    if not distributions:
+        print("No distributions found for the selected period.")
+        return
+
+    print(
+        f"\n{'ID':<5} {'Date':<20} {'Period Start':<14} {'Period End':<14} "
+        f"{'Distributed':<12}"
+    )
+    print("-" * 70)
+    for row in distributions:
+        print(
+            f"{row['id']:<5} {row['distribution_date']:<20} "
+            f"{row['period_start']:<14} {row['period_end']:<14} "
+            f"{row['total_amount_distributed']:<12}"
+        )
+
+    while True:
+        raw = input(
+            f"\nSelect distribution to view (1-{len(distributions)}, or 0 to cancel): "
+        ).strip()
+        try:
+            choice = int(raw)
+            if choice == 0:
+                return
+            if 1 <= choice <= len(distributions):
+                distribution = get_profit_distribution(
+                    conn, distributions[choice - 1]["id"]
+                )
+                print(f"\n--- Distribution #{distribution['id']} ---")
+                print(f"  Date: {distribution['distribution_date']}")
+                print(f"  Period: {distribution['period_start']} to {distribution['period_end']}")
+                print(f"  Net profit available: {distribution['total_profit_available']}")
+                print(f"  Amount distributed:   {distribution['total_amount_distributed']}")
+                notes = distribution["notes"] or "-"
+                print(f"  Notes: {notes}")
+                print("\n  Per-partner shares:")
+                print(f"  {'Partner':<25} {'Percentage':<12} {'Amount':<10}")
+                print("  " + "-" * 50)
+                for share in distribution["shares"]:
+                    print(
+                        f"  {share['partner_name']:<25} "
+                        f"{share['percentage_at_time']:<12} {share['amount']:<10}"
+                    )
+                return
+            print(f"Please enter a number between 0 and {len(distributions)}.")
+        except ValueError:
+            print("Please enter a valid number.")
+
+
+def _handle_view_partner_payout_history(conn) -> None:
+    partners = list_partners(conn, active_only=False)
+    partner_id = _prompt_choice_from_list(partners, "partner")
+    if partner_id is None:
+        return
+
+    start_date, end_date = _prompt_date_range()
+    history = get_partner_payout_history(
+        conn, partner_id, start_date=start_date, end_date=end_date
+    )
+    partner = get_partner(conn, partner_id)
+    if not history:
+        print(f"No payout history found for {partner['name']}.")
+        return
+
+    print(f"\n--- Payout History: {partner['name']} ---")
+    print(
+        f"{'Date':<20} {'Period Start':<14} {'Period End':<14} "
+        f"{'Percentage':<12} {'Amount':<10}"
+    )
+    print("-" * 75)
+    running_total = 0
+    for row in history:
+        running_total += row["amount"]
+        print(
+            f"{row['distribution_date']:<20} {row['period_start']:<14} "
+            f"{row['period_end']:<14} {row['percentage_at_time']:<12} "
+            f"{row['amount']:<10}"
+        )
+    print(f"\nTotal received: {running_total}")
+
+
+def manage_partners_and_distributions(conn) -> None:
+    while True:
+        print("\n--- Manage Partners & Profit Distribution ---")
+        print("1. Add Partner")
+        print("2. Update Partner Percentage")
+        print("3. Deactivate Partner")
+        print("4. List Partners")
+        print("5. Record Profit Distribution")
+        print("6. View Distribution History")
+        print("7. View Partner Payout History")
+        print("8. Back to main menu")
+        choice = input("\nSelect an option: ").strip()
+
+        if choice == "1":
+            _handle_add_partner(conn)
+        elif choice == "2":
+            _handle_update_partner_percentage(conn)
+        elif choice == "3":
+            _handle_deactivate_partner(conn)
+        elif choice == "4":
+            _handle_list_partners(conn)
+        elif choice == "5":
+            _handle_record_profit_distribution(conn)
+        elif choice == "6":
+            _handle_view_distribution_history(conn)
+        elif choice == "7":
+            _handle_view_partner_payout_history(conn)
+        elif choice == "8":
+            break
+        else:
+            print("Invalid option. Please enter 1-8.")
+
+
 def manage_expenses(conn) -> None:
     while True:
         print("\n--- Manage Expenses ---")
@@ -1813,6 +2095,7 @@ def main() -> None:
         print("13. Revenue Summary")
         print("14. Stock Adjustments / Waste")
         print("15. Reports")
+        print("16. Manage Partners & Profit Distribution")
         choice = input("\nSelect an option: ").strip()
 
         if choice == "1":
@@ -1902,8 +2185,14 @@ def main() -> None:
                 manage_reports(conn)
             finally:
                 conn.close()
+        elif choice == "16":
+            conn = get_connection()
+            try:
+                manage_partners_and_distributions(conn)
+            finally:
+                conn.close()
         else:
-            print("Invalid option. Please enter 1-15.")
+            print("Invalid option. Please enter 1-16.")
 
 
 if __name__ == "__main__":
