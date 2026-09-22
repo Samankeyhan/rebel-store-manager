@@ -1,5 +1,7 @@
 import sqlite3
 
+from db.connection import transaction
+from db.errors import ValidationError
 from db.partners import list_partners
 from db.reports import get_profit_and_loss
 
@@ -8,7 +10,7 @@ PERCENTAGE_SUM_TOLERANCE = 0.01
 
 def _validate_non_negative(amount: int, field_name: str) -> None:
     if amount < 0:
-        raise ValueError(f"{field_name} must be >= 0, got {amount}")
+        raise ValidationError(f"{field_name} must be >= 0, got {amount}", field=field_name)
 
 
 def _validate_percentage_sum(partners: list[dict]) -> None:
@@ -18,7 +20,7 @@ def _validate_percentage_sum(partners: list[dict]) -> None:
             f"{partner['name']}: {partner['current_percentage']}%"
             for partner in partners
         )
-        raise ValueError(
+        raise ValidationError(
             f"Active partner percentages must sum to 100% (tolerance "
             f"{PERCENTAGE_SUM_TOLERANCE}), but they sum to {total:.2f}%. "
             f"Current split: {breakdown}"
@@ -65,11 +67,12 @@ def record_profit_distribution(
 ) -> int:
     _validate_non_negative(total_amount_distributed, "total_amount_distributed")
 
-    conn.execute("BEGIN")
-    try:
+    with transaction(conn):
         active_partners = list_partners(conn, active_only=True)
         if not active_partners:
-            raise ValueError("No active partners found — add partners before distributing")
+            raise ValidationError(
+                "No active partners found — add partners before distributing"
+            )
 
         _validate_percentage_sum(active_partners)
 
@@ -130,11 +133,7 @@ def record_profit_distribution(
                 ),
             )
 
-        conn.commit()
-        return distribution_id
-    except Exception:
-        conn.rollback()
-        raise
+    return distribution_id
 
 
 def get_profit_distribution(

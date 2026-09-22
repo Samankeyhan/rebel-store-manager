@@ -1,5 +1,7 @@
 import sqlite3
 
+from db.connection import transaction
+from db.errors import InsufficientStockError, NotFoundError, ValidationError
 from db.products import get_product
 
 
@@ -33,16 +35,18 @@ def run_production_batch(
 ) -> int:
     product = get_product(conn, product_id)
     if product is None:
-        raise ValueError(f"Product with id {product_id} does not exist")
+        raise NotFoundError(f"Product with id {product_id} does not exist")
 
     if quantity_produced <= 0:
-        raise ValueError(f"quantity_produced must be > 0, got {quantity_produced}")
+        raise ValidationError(
+            f"quantity_produced must be > 0, got {quantity_produced}",
+            field="quantity_produced",
+        )
 
-    conn.execute("BEGIN")
-    try:
+    with transaction(conn):
         recipe = _fetch_recipe_for_production(conn, product_id)
         if not recipe:
-            raise ValueError(
+            raise ValidationError(
                 f"Product '{product['name']}' has no recipe defined — "
                 f"add one before running production."
             )
@@ -66,9 +70,12 @@ def run_production_batch(
                 available = req["current_stock"]
                 needed = req["total_needed"]
                 if available < needed:
-                    raise ValueError(
+                    raise InsufficientStockError(
                         f"Insufficient stock for '{req['material_name']}': "
-                        f"need {needed}, available {available}"
+                        f"need {needed}, available {available}",
+                        item_name=req["material_name"],
+                        needed=needed,
+                        available=available,
                     )
 
         total_batch_cost = sum(
@@ -143,11 +150,7 @@ def run_production_batch(
             (product_id, quantity_produced, batch_id),
         )
 
-        conn.commit()
-        return batch_id
-    except Exception:
-        conn.rollback()
-        raise
+    return batch_id
 
 
 def get_production_batch(conn: sqlite3.Connection, batch_id: int) -> dict:
@@ -155,7 +158,7 @@ def get_production_batch(conn: sqlite3.Connection, batch_id: int) -> dict:
         "SELECT * FROM production_batches WHERE id = ?", (batch_id,)
     ).fetchone()
     if batch is None:
-        raise ValueError(f"Production batch with id {batch_id} does not exist")
+        raise NotFoundError(f"Production batch with id {batch_id} does not exist")
 
     materials = conn.execute(
         """
@@ -171,12 +174,15 @@ def get_production_batch(conn: sqlite3.Connection, batch_id: int) -> dict:
         (batch_id,),
     ).fetchall()
 
-    return {"batch": batch, "materials": list(materials)}
+    return {
+        "batch": dict(batch),
+        "materials": [dict(row) for row in materials],
+    }
 
 
 def list_production_batches(
     conn: sqlite3.Connection, product_id: int | None = None
-) -> list[sqlite3.Row]:
+) -> list[dict]:
     if product_id is not None:
         rows = conn.execute(
             """
@@ -203,4 +209,4 @@ def list_production_batches(
                      production_batches.id DESC
             """
         ).fetchall()
-    return list(rows)
+    return [dict(row) for row in rows]

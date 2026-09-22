@@ -1,5 +1,7 @@
 import sqlite3
 
+from db.connection import transaction
+from db.errors import NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
 from db.suppliers import get_supplier
@@ -19,14 +21,14 @@ def _generate_invoice_number(conn: sqlite3.Connection) -> str:
 
 def _validate_total_paid(total_paid: int) -> None:
     if total_paid < 0:
-        raise ValueError(f"total_paid must be >= 0, got {total_paid}")
+        raise ValidationError(f"total_paid must be >= 0, got {total_paid}", field="total_paid")
 
 
 def _validate_supplier(conn: sqlite3.Connection, supplier_id: int | None) -> None:
     if supplier_id is None:
         return
     if get_supplier(conn, supplier_id) is None:
-        raise ValueError(f"Supplier with id {supplier_id} does not exist")
+        raise NotFoundError(f"Supplier with id {supplier_id} does not exist")
 
 
 def _compute_unit_cost(total_paid: int, quantity_bought: float) -> int:
@@ -49,24 +51,26 @@ def record_material_purchase(
 ) -> int:
     material = get_material(conn, material_id)
     if material is None:
-        raise ValueError(f"Material with id {material_id} does not exist")
+        raise NotFoundError(f"Material with id {material_id} does not exist")
     if not material["is_active"]:
-        raise ValueError(f"Material '{material['name']}' is not active")
+        raise ValidationError(f"Material '{material['name']}' is not active")
     if material["type"] == "SERVICE":
-        raise ValueError(
+        raise ValidationError(
             f"Material '{material['name']}' is a SERVICE and cannot be purchased "
             f"into stock"
         )
     if quantity_bought <= 0:
-        raise ValueError(f"quantity_bought must be > 0, got {quantity_bought}")
+        raise ValidationError(
+            f"quantity_bought must be > 0, got {quantity_bought}",
+            field="quantity_bought",
+        )
 
     _validate_total_paid(total_paid)
     _validate_supplier(conn, supplier_id)
 
     unit_cost = _compute_unit_cost(total_paid, quantity_bought)
 
-    conn.execute("BEGIN")
-    try:
+    with transaction(conn):
         invoice_number = _generate_invoice_number(conn)
 
         if purchase_date is not None:
@@ -140,11 +144,7 @@ def record_material_purchase(
                 (material_id, quantity_bought, movement_notes),
             )
 
-        conn.commit()
-        return purchase_id
-    except Exception:
-        conn.rollback()
-        raise
+    return purchase_id
 
 
 def record_product_purchase(
@@ -158,19 +158,21 @@ def record_product_purchase(
 ) -> int:
     product = get_product(conn, product_id)
     if product is None:
-        raise ValueError(f"Product with id {product_id} does not exist")
+        raise NotFoundError(f"Product with id {product_id} does not exist")
     if not product["is_active"]:
-        raise ValueError(f"Product '{product['name']}' is not active")
+        raise ValidationError(f"Product '{product['name']}' is not active")
     if quantity_bought <= 0:
-        raise ValueError(f"quantity_bought must be > 0, got {quantity_bought}")
+        raise ValidationError(
+            f"quantity_bought must be > 0, got {quantity_bought}",
+            field="quantity_bought",
+        )
 
     _validate_total_paid(total_paid)
     _validate_supplier(conn, supplier_id)
 
     unit_cost = _compute_unit_cost(total_paid, quantity_bought)
 
-    conn.execute("BEGIN")
-    try:
+    with transaction(conn):
         invoice_number = _generate_invoice_number(conn)
 
         if purchase_date is not None:
@@ -244,11 +246,7 @@ def record_product_purchase(
                 (product_id, quantity_bought, movement_notes),
             )
 
-        conn.commit()
-        return purchase_id
-    except Exception:
-        conn.rollback()
-        raise
+    return purchase_id
 
 
 def get_material_purchase(

@@ -112,7 +112,7 @@ def get_channel_breakdown(
 
 def get_low_stock_products(
     conn: sqlite3.Connection, threshold: float
-) -> list[sqlite3.Row]:
+) -> list[dict]:
     """Products at or below *threshold* stock.
 
     Recipe-built products are often kept at zero stock and produced on demand,
@@ -128,7 +128,7 @@ def get_low_stock_products(
         """,
         (threshold,),
     ).fetchall()
-    return list(rows)
+    return [dict(row) for row in rows]
 
 
 def get_waste_report(

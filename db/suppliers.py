@@ -1,12 +1,15 @@
 import sqlite3
 
+from db.connection import transaction
+from db.errors import NotFoundError, ValidationError
+
 UPDATABLE_FIELDS = ("name", "phone", "email", "website", "notes")
 
 
 def _validate_name(name: str) -> str:
     stripped = name.strip()
     if not stripped:
-        raise ValueError("name is required and cannot be empty")
+        raise ValidationError("name is required and cannot be empty", field="name")
     return stripped
 
 
@@ -20,38 +23,39 @@ def add_supplier(
 ) -> int:
     validated_name = _validate_name(name)
 
-    cursor = conn.execute(
-        """
-        INSERT INTO suppliers (name, phone, email, website, notes)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (validated_name, phone, email, website, notes),
-    )
-    conn.commit()
+    with transaction(conn):
+        cursor = conn.execute(
+            """
+            INSERT INTO suppliers (name, phone, email, website, notes)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (validated_name, phone, email, website, notes),
+        )
     return cursor.lastrowid
 
 
-def list_suppliers(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+def list_suppliers(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute("SELECT * FROM suppliers ORDER BY name").fetchall()
-    return list(rows)
+    return [dict(row) for row in rows]
 
 
-def get_supplier(conn: sqlite3.Connection, supplier_id: int) -> sqlite3.Row | None:
-    return conn.execute(
+def get_supplier(conn: sqlite3.Connection, supplier_id: int) -> dict | None:
+    row = conn.execute(
         "SELECT * FROM suppliers WHERE id = ?", (supplier_id,)
     ).fetchone()
+    return dict(row) if row is not None else None
 
 
 def update_supplier(conn: sqlite3.Connection, supplier_id: int, **fields) -> None:
     if get_supplier(conn, supplier_id) is None:
-        raise ValueError(f"Supplier with id {supplier_id} does not exist")
+        raise NotFoundError(f"Supplier with id {supplier_id} does not exist")
 
     updates: list[str] = []
     params: list = []
 
     for field_name, value in fields.items():
         if field_name not in UPDATABLE_FIELDS:
-            raise ValueError(f"Unknown field '{field_name}'")
+            raise ValidationError(f"Unknown field '{field_name}'", field=field_name)
         if field_name == "name":
             value = _validate_name(value)
         updates.append(f"{field_name} = ?")
@@ -61,8 +65,8 @@ def update_supplier(conn: sqlite3.Connection, supplier_id: int, **fields) -> Non
         return
 
     params.append(supplier_id)
-    conn.execute(
-        f"UPDATE suppliers SET {', '.join(updates)} WHERE id = ?",
-        params,
-    )
-    conn.commit()
+    with transaction(conn):
+        conn.execute(
+            f"UPDATE suppliers SET {', '.join(updates)} WHERE id = ?",
+            params,
+        )

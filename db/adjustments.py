@@ -1,5 +1,7 @@
 import sqlite3
 
+from db.connection import transaction
+from db.errors import NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
 
@@ -10,32 +12,37 @@ VALID_REASONS = ("WASTE", "ADJUSTMENT")
 def _validate_item_type(item_type: str) -> None:
     if item_type not in VALID_ITEM_TYPES:
         valid = ", ".join(VALID_ITEM_TYPES)
-        raise ValueError(f"Invalid item_type '{item_type}'. Must be one of: {valid}")
+        raise ValidationError(
+            f"Invalid item_type '{item_type}'. Must be one of: {valid}",
+            field="item_type",
+        )
 
 
 def _validate_reason(reason: str) -> None:
     if reason not in VALID_REASONS:
         valid = ", ".join(VALID_REASONS)
-        raise ValueError(f"Invalid reason '{reason}'. Must be one of: {valid}")
+        raise ValidationError(
+            f"Invalid reason '{reason}'. Must be one of: {valid}", field="reason"
+        )
 
 
 def _validate_item(conn: sqlite3.Connection, item_type: str, item_id: int) -> None:
     if item_type == "MATERIAL":
         material = get_material(conn, item_id)
         if material is None:
-            raise ValueError(f"Material with id {item_id} does not exist")
+            raise NotFoundError(f"Material with id {item_id} does not exist")
         if not material["is_active"]:
-            raise ValueError(f"Material '{material['name']}' is not active")
+            raise ValidationError(f"Material '{material['name']}' is not active")
         if material["type"] == "SERVICE":
-            raise ValueError(
+            raise ValidationError(
                 f"Material '{material['name']}' is a SERVICE and has no stock to adjust"
             )
     else:
         product = get_product(conn, item_id)
         if product is None:
-            raise ValueError(f"Product with id {item_id} does not exist")
+            raise NotFoundError(f"Product with id {item_id} does not exist")
         if not product["is_active"]:
-            raise ValueError(f"Product '{product['name']}' is not active")
+            raise ValidationError(f"Product '{product['name']}' is not active")
 
 
 def record_stock_adjustment(
@@ -51,12 +58,11 @@ def record_stock_adjustment(
     _validate_reason(reason)
 
     if quantity_change == 0:
-        raise ValueError("quantity_change must not be 0")
+        raise ValidationError("quantity_change must not be 0", field="quantity_change")
 
     _validate_item(conn, item_type, item_id)
 
-    conn.execute("BEGIN")
-    try:
+    with transaction(conn):
         if item_type == "MATERIAL":
             conn.execute(
                 """
@@ -97,11 +103,8 @@ def record_stock_adjustment(
             )
 
         movement_id = cursor.lastrowid
-        conn.commit()
-        return movement_id
-    except Exception:
-        conn.rollback()
-        raise
+
+    return movement_id
 
 
 def get_stock_movement(conn: sqlite3.Connection, movement_id: int) -> dict | None:

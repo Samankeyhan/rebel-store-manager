@@ -1,5 +1,7 @@
 import sqlite3
 
+from db.connection import transaction
+from db.errors import ConflictError, InsufficientStockError, NotFoundError, ValidationError
 from db.products import get_product
 
 VALID_CHANNELS = ("INSTAGRAM", "WEBSITE", "WHOLESALE", "IN_PERSON", "OTHER")
@@ -18,29 +20,36 @@ CREATION_ALLOWED_STATUSES = ("DRAFT", "PENDING", "PAID", "COMPLETED")
 def _validate_channel(channel: str) -> None:
     if channel not in VALID_CHANNELS:
         valid = ", ".join(VALID_CHANNELS)
-        raise ValueError(f"Invalid channel '{channel}'. Must be one of: {valid}")
+        raise ValidationError(
+            f"Invalid channel '{channel}'. Must be one of: {valid}", field="channel"
+        )
 
 
 def _validate_status(status: str) -> None:
     if status not in VALID_STATUSES:
         valid = ", ".join(VALID_STATUSES)
-        raise ValueError(f"Invalid status '{status}'. Must be one of: {valid}")
+        raise ValidationError(
+            f"Invalid status '{status}'. Must be one of: {valid}", field="status"
+        )
 
 
 def _validate_creation_status(status: str) -> None:
     if status in ("CANCELLED", "REFUNDED"):
-        raise ValueError(
+        raise ValidationError(
             f"Cannot create an order with status '{status}'. "
-            f"CANCELLED and REFUNDED are only set via process_return."
+            f"CANCELLED and REFUNDED are only set via process_return.",
+            field="status",
         )
     if status not in CREATION_ALLOWED_STATUSES:
         valid = ", ".join(CREATION_ALLOWED_STATUSES)
-        raise ValueError(f"Invalid status '{status}'. Must be one of: {valid}")
+        raise ValidationError(
+            f"Invalid status '{status}'. Must be one of: {valid}", field="status"
+        )
 
 
 def _validate_non_negative(value: int, field_name: str) -> None:
     if value < 0:
-        raise ValueError(f"{field_name} must be >= 0, got {value}")
+        raise ValidationError(f"{field_name} must be >= 0, got {value}", field=field_name)
 
 
 def _line_revenue(list_price: int, discount_amount: int) -> int:
@@ -124,10 +133,9 @@ def record_order(
     _validate_non_negative(transaction_fee, "transaction_fee")
 
     if not items:
-        raise ValueError("An order must have at least one item")
+        raise ValidationError("An order must have at least one item", field="items")
 
-    conn.execute("BEGIN")
-    try:
+    with transaction(conn):
         validated_items: list[dict] = []
 
         for index, item in enumerate(items, start=1):
@@ -139,40 +147,47 @@ def record_order(
 
             product = get_product(conn, product_id)
             if product is None:
-                raise ValueError(
+                raise NotFoundError(
                     f"Item {index}: product with id {product_id} does not exist"
                 )
             if not product["is_active"]:
-                raise ValueError(
+                raise ValidationError(
                     f"Item {index}: product '{product['name']}' is not active"
                 )
             if quantity <= 0:
-                raise ValueError(
+                raise ValidationError(
                     f"Item {index} ('{product['name']}'): quantity must be > 0, "
-                    f"got {quantity}"
+                    f"got {quantity}",
+                    field="quantity",
                 )
             if unit_price < 0:
-                raise ValueError(
+                raise ValidationError(
                     f"Item {index} ('{product['name']}'): unit_price must be >= 0, "
-                    f"got {unit_price}"
+                    f"got {unit_price}",
+                    field="unit_price",
                 )
             if discount_amount < 0:
-                raise ValueError(
+                raise ValidationError(
                     f"Item {index} ('{product['name']}'): discount_amount must be >= 0, "
-                    f"got {discount_amount}"
+                    f"got {discount_amount}",
+                    field="discount_amount",
                 )
 
             list_price = quantity * unit_price
             if discount_amount > list_price:
-                raise ValueError(
+                raise ValidationError(
                     f"Item {index} ('{product['name']}'): discount_amount ({discount_amount}) "
-                    f"cannot exceed line total ({list_price})"
+                    f"cannot exceed line total ({list_price})",
+                    field="discount_amount",
                 )
 
             if product["current_stock"] < quantity:
-                raise ValueError(
+                raise InsufficientStockError(
                     f"Item {index} ('{product['name']}'): insufficient stock — "
-                    f"need {quantity}, available {product['current_stock']}"
+                    f"need {quantity}, available {product['current_stock']}",
+                    item_name=product["name"],
+                    needed=quantity,
+                    available=product["current_stock"],
                 )
 
             effective_unit_price = (list_price - discount_amount) // quantity
@@ -251,24 +266,20 @@ def record_order(
                 (item["product_id"], -item["quantity"], order_id),
             )
 
-        conn.commit()
-        return order_id
-    except Exception:
-        conn.rollback()
-        raise
+    return order_id
 
 
 def get_order(conn: sqlite3.Connection, order_id: int) -> dict:
     order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
     if order is None:
-        raise ValueError(f"Order with id {order_id} does not exist")
+        raise NotFoundError(f"Order with id {order_id} does not exist")
 
     items = _fetch_order_items(conn, order_id)
     # total/profit are computed for any status, including CANCELLED/REFUNDED.
     # Revenue reports should exclude those statuses (see get_revenue_summary).
     return {
-        "order": order,
-        "items": items,
+        "order": dict(order),
+        "items": [dict(item) for item in items],
         "total": compute_order_total(order, items),
         "profit": compute_order_profit(order, items),
     }
@@ -280,7 +291,7 @@ def list_orders(
     status: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
-) -> list[sqlite3.Row]:
+) -> list[dict]:
     if channel is not None:
         _validate_channel(channel)
     if status is not None:
@@ -320,7 +331,7 @@ def list_orders(
     # Each row includes a total for all statuses. CANCELLED/REFUNDED orders remain
     # visible here for operational lookup; revenue reporting excludes them separately.
     rows = conn.execute(query, params).fetchall()
-    return list(rows)
+    return [dict(row) for row in rows]
 
 
 def get_revenue_summary(
@@ -372,16 +383,16 @@ def update_order_status(
 
     order = conn.execute("SELECT id FROM orders WHERE id = ?", (order_id,)).fetchone()
     if order is None:
-        raise ValueError(f"Order with id {order_id} does not exist")
+        raise NotFoundError(f"Order with id {order_id} does not exist")
 
     if new_status in ("CANCELLED", "REFUNDED"):
-        raise ValueError(
+        raise ConflictError(
             f"Use process_return to mark an order as {new_status} — "
             f"that restores stock and records RETURN movements."
         )
 
-    conn.execute(
-        "UPDATE orders SET status = ? WHERE id = ?",
-        (new_status, order_id),
-    )
-    conn.commit()
+    with transaction(conn):
+        conn.execute(
+            "UPDATE orders SET status = ? WHERE id = ?",
+            (new_status, order_id),
+        )

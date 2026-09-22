@@ -1,4 +1,6 @@
+import contextlib
 import hashlib
+import itertools
 import sqlite3
 from pathlib import Path
 
@@ -29,10 +31,44 @@ def _hash_migration_content(content: str) -> str:
 
 def get_connection(db_path: str = "data/shop.db") -> sqlite3.Connection:
     path = _resolve_db_path(db_path)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+_savepoint_counter = itertools.count()
+
+
+@contextlib.contextmanager
+def transaction(conn: sqlite3.Connection):
+    """Manual transaction control for isolation_level=None connections.
+
+    When no transaction is open, behaves like a normal BEGIN/COMMIT/ROLLBACK
+    block. When called while a transaction is already open (i.e. this call is
+    nested inside an outer `transaction(conn)`), it uses a SAVEPOINT instead,
+    so a failure here only undoes this call's own work — even if the caller
+    catches the exception and the outer transaction goes on to commit.
+    """
+    if conn.in_transaction:
+        savepoint = f"sp_{next(_savepoint_counter)}"
+        conn.execute(f"SAVEPOINT {savepoint}")
+        try:
+            yield
+            conn.execute(f"RELEASE {savepoint}")
+        except Exception:
+            conn.execute(f"ROLLBACK TO {savepoint}")
+            conn.execute(f"RELEASE {savepoint}")
+            raise
+        return
+
+    conn.execute("BEGIN")
+    try:
+        yield
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
 
 def init_db(db_path: str = "data/shop.db") -> None:

@@ -1,5 +1,7 @@
 import sqlite3
 
+from db.connection import transaction
+from db.errors import ConflictError, NotFoundError, ValidationError
 from db.orders import _fetch_order_items
 
 RETURN_STATUSES = ("CANCELLED", "REFUNDED")
@@ -13,22 +15,22 @@ def process_return(
 ) -> None:
     if new_status not in RETURN_STATUSES:
         valid = ", ".join(RETURN_STATUSES)
-        raise ValueError(
+        raise ValidationError(
             f"new_status must be one of: {valid}. "
-            f"Use update_order_status for other status changes."
+            f"Use update_order_status for other status changes.",
+            field="new_status",
         )
 
-    conn.execute("BEGIN")
-    try:
+    with transaction(conn):
         order = conn.execute(
             "SELECT * FROM orders WHERE id = ?", (order_id,)
         ).fetchone()
         if order is None:
-            raise ValueError(f"Order with id {order_id} does not exist")
+            raise NotFoundError(f"Order with id {order_id} does not exist")
 
         current_status = order["status"]
         if current_status in RETURN_STATUSES:
-            raise ValueError(
+            raise ConflictError(
                 f"Order #{order_id} is already {current_status}."
             )
 
@@ -65,8 +67,3 @@ def process_return(
             "UPDATE orders SET status = ? WHERE id = ?",
             (new_status, order_id),
         )
-
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise

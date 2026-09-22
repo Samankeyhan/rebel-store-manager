@@ -1,5 +1,8 @@
 import sqlite3
 
+from db.connection import transaction
+from db.errors import ConflictError, NotFoundError, ValidationError
+
 
 def _get_expense_category(conn: sqlite3.Connection, category_id: int) -> sqlite3.Row | None:
     return conn.execute(
@@ -10,24 +13,24 @@ def _get_expense_category(conn: sqlite3.Connection, category_id: int) -> sqlite3
 def add_expense_category(conn: sqlite3.Connection, name: str) -> int:
     stripped = name.strip()
     if not stripped:
-        raise ValueError("name is required and cannot be empty")
+        raise ValidationError("name is required and cannot be empty", field="name")
 
     try:
-        cursor = conn.execute(
-            "INSERT INTO expense_categories (name) VALUES (?)",
-            (stripped,),
-        )
-        conn.commit()
-        return cursor.lastrowid
+        with transaction(conn):
+            cursor = conn.execute(
+                "INSERT INTO expense_categories (name) VALUES (?)",
+                (stripped,),
+            )
     except sqlite3.IntegrityError:
-        raise ValueError(
+        raise ConflictError(
             f"Expense category '{stripped}' already exists."
         ) from None
+    return cursor.lastrowid
 
 
 def list_expense_categories(
     conn: sqlite3.Connection, active_only: bool = True
-) -> list[sqlite3.Row]:
+) -> list[dict]:
     if active_only:
         rows = conn.execute(
             "SELECT * FROM expense_categories WHERE is_active = 1 ORDER BY name"
@@ -36,18 +39,18 @@ def list_expense_categories(
         rows = conn.execute(
             "SELECT * FROM expense_categories ORDER BY name"
         ).fetchall()
-    return list(rows)
+    return [dict(row) for row in rows]
 
 
 def deactivate_expense_category(conn: sqlite3.Connection, category_id: int) -> None:
     if _get_expense_category(conn, category_id) is None:
-        raise ValueError(f"Expense category with id {category_id} does not exist")
+        raise NotFoundError(f"Expense category with id {category_id} does not exist")
 
-    conn.execute(
-        "UPDATE expense_categories SET is_active = 0 WHERE id = ?",
-        (category_id,),
-    )
-    conn.commit()
+    with transaction(conn):
+        conn.execute(
+            "UPDATE expense_categories SET is_active = 0 WHERE id = ?",
+            (category_id,),
+        )
 
 
 def add_expense(
@@ -58,30 +61,30 @@ def add_expense(
     expense_date: str | None = None,
 ) -> int:
     if _get_expense_category(conn, expense_category_id) is None:
-        raise ValueError(
+        raise NotFoundError(
             f"Expense category with id {expense_category_id} does not exist"
         )
     if amount < 0:
-        raise ValueError(f"amount must be >= 0, got {amount}")
+        raise ValidationError(f"amount must be >= 0, got {amount}", field="amount")
 
-    if expense_date is not None:
-        cursor = conn.execute(
-            """
-            INSERT INTO expenses (expense_category_id, amount, description, expense_date)
-            VALUES (?, ?, ?, ?)
-            """,
-            (expense_category_id, amount, description, expense_date),
-        )
-    else:
-        cursor = conn.execute(
-            """
-            INSERT INTO expenses (expense_category_id, amount, description)
-            VALUES (?, ?, ?)
-            """,
-            (expense_category_id, amount, description),
-        )
+    with transaction(conn):
+        if expense_date is not None:
+            cursor = conn.execute(
+                """
+                INSERT INTO expenses (expense_category_id, amount, description, expense_date)
+                VALUES (?, ?, ?, ?)
+                """,
+                (expense_category_id, amount, description, expense_date),
+            )
+        else:
+            cursor = conn.execute(
+                """
+                INSERT INTO expenses (expense_category_id, amount, description)
+                VALUES (?, ?, ?)
+                """,
+                (expense_category_id, amount, description),
+            )
 
-    conn.commit()
     return cursor.lastrowid
 
 
@@ -90,7 +93,7 @@ def list_expenses(
     category_id: int | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
-) -> list[sqlite3.Row]:
+) -> list[dict]:
     query = """
         SELECT
             expenses.*,
@@ -114,7 +117,7 @@ def list_expenses(
     query += " ORDER BY expenses.expense_date DESC, expenses.id DESC"
 
     rows = conn.execute(query, params).fetchall()
-    return list(rows)
+    return [dict(row) for row in rows]
 
 
 def get_total_expenses(
