@@ -1,1 +1,5 @@
 pytest
+reportlab
+arabic-reshaper
+python-bidi
+pdfplumber
