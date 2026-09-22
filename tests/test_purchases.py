@@ -72,7 +72,8 @@ def test_record_material_purchase_happy_path(purchase_setup, test_db):
 
     material = get_material(test_db, material_id)
     assert material["current_stock"] == 17.5
-    assert material["unit_cost"] == 200
+    # weighted average: (10*100 + 1500) / 17.5 = 142.86 -> 143
+    assert material["unit_cost"] == 143
 
     movement = test_db.execute(
         """
@@ -109,7 +110,8 @@ def test_record_product_purchase_happy_path(purchase_setup, test_db):
 
     product = get_product(test_db, product_id)
     assert product["current_stock"] == 9
-    assert product["unit_cost"] == 500
+    # weighted average: (5*400 + 2000) / 9 = 444.44 -> 444
+    assert product["unit_cost"] == 444
 
     movement = test_db.execute(
         """

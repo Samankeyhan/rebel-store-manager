@@ -499,9 +499,9 @@ def _handle_run_production_batch(conn) -> None:
         print(f"\nError: {exc}")
         return
 
-    total_cost = unit_cost * quantity
-    updated_product = get_product(conn, product_id)
     batch_detail = get_production_batch(conn, batch_id)
+    total_cost = batch_detail["batch"]["unit_cost"] * quantity
+    updated_product = get_product(conn, product_id)
 
     print(f"\nProduction batch #{batch_id} completed successfully.")
     print(f"  Product: {product['name']}")

@@ -5,6 +5,7 @@ from db.adjustments import (
     list_stock_adjustments,
     record_stock_adjustment,
 )
+from db.errors import InsufficientStockError
 from db.materials import add_material, deactivate_material, get_material
 from db.products import add_product, deactivate_product, get_product
 from db.purchases import record_material_purchase, record_product_purchase
@@ -218,3 +219,95 @@ def test_list_stock_adjustments_excludes_other_reasons(adjustment_setup, test_db
 
 def test_get_stock_movement_returns_none_for_missing(adjustment_setup, test_db):
     assert get_stock_movement(test_db, 99999) is None
+
+
+def test_waste_freezes_cost(test_db):
+    product_id = add_product(test_db, "Waste Cost Product", "OTHER", 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 5, unit_cost = 1200000 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+
+    movement_id = record_stock_adjustment(test_db, "PRODUCT", product_id, -1, "WASTE")
+    movement = get_stock_movement(test_db, movement_id)
+    assert movement["unit_cost_at_time"] == 1200000
+
+    test_db.execute("UPDATE products SET unit_cost = 999 WHERE id = ?", (product_id,))
+    test_db.commit()
+
+    movement_after = get_stock_movement(test_db, movement_id)
+    assert movement_after["unit_cost_at_time"] == 1200000
+
+
+def test_positive_adjustment_with_unit_cost_blends_null_cost(test_db):
+    product_id = add_product(test_db, "Null Cost Product", "OTHER", 1000, 800)
+    assert get_product(test_db, product_id)["unit_cost"] is None
+
+    record_stock_adjustment(
+        test_db, "PRODUCT", product_id, 5, "ADJUSTMENT", unit_cost=1000
+    )
+    assert get_product(test_db, product_id)["unit_cost"] == 1000
+
+
+def test_positive_adjustment_without_unit_cost_leaves_cost_null(test_db):
+    product_id = add_product(test_db, "Null Cost Product 2", "OTHER", 1000, 800)
+    record_stock_adjustment(test_db, "PRODUCT", product_id, 5, "ADJUSTMENT")
+    assert get_product(test_db, product_id)["unit_cost"] is None
+
+
+def test_waste_more_than_available_raises_and_rolls_back(adjustment_setup, test_db):
+    material_id = adjustment_setup["material_id"]
+    stock_before = get_material(test_db, material_id)["current_stock"]
+    movements_before = _count_movements(test_db)
+
+    with pytest.raises(InsufficientStockError):
+        record_stock_adjustment(
+            test_db, "MATERIAL", material_id, -(stock_before + 1), "WASTE"
+        )
+
+    assert get_material(test_db, material_id)["current_stock"] == stock_before
+    assert _count_movements(test_db) == movements_before
+
+
+def test_waste_positive_quantity_raises(adjustment_setup, test_db):
+    material_id = adjustment_setup["material_id"]
+    with pytest.raises(ValueError, match="WASTE quantity_change must be negative"):
+        record_stock_adjustment(test_db, "MATERIAL", material_id, 1, "WASTE")
+
+
+def test_product_fractional_quantity_change_raises(adjustment_setup, test_db):
+    product_id = adjustment_setup["product_id"]
+    with pytest.raises(ValueError, match="quantity_change must be a whole number"):
+        record_stock_adjustment(test_db, "PRODUCT", product_id, 1.5, "ADJUSTMENT")
+
+
+def test_product_whole_float_quantity_change_stored_as_int(adjustment_setup, test_db):
+    product_id = adjustment_setup["product_id"]
+    stock_before = get_product(test_db, product_id)["current_stock"]
+
+    record_stock_adjustment(test_db, "PRODUCT", product_id, 3.0, "ADJUSTMENT")
+
+    product = get_product(test_db, product_id)
+    assert product["current_stock"] == stock_before + 3
+    assert isinstance(product["current_stock"], int)
+
+
+def test_unit_cost_only_allowed_on_positive_adjustment(adjustment_setup, test_db):
+    material_id = adjustment_setup["material_id"]
+    with pytest.raises(ValueError, match="unit_cost is only allowed"):
+        record_stock_adjustment(
+            test_db, "MATERIAL", material_id, -1, "WASTE", unit_cost=10
+        )
+    with pytest.raises(ValueError, match="unit_cost is only allowed"):
+        record_stock_adjustment(
+            test_db, "MATERIAL", material_id, -1, "ADJUSTMENT", unit_cost=10
+        )
+
+
+def test_negative_unit_cost_raises(adjustment_setup, test_db):
+    material_id = adjustment_setup["material_id"]
+    with pytest.raises(ValueError, match="unit_cost must be >= 0"):
+        record_stock_adjustment(
+            test_db, "MATERIAL", material_id, 1, "ADJUSTMENT", unit_cost=-5
+        )

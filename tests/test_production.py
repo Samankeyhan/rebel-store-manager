@@ -2,7 +2,7 @@ import pytest
 
 from db.materials import add_material, get_material
 from db.products import add_product, get_product
-from db.recipes import add_recipe_item
+from db.recipes import add_recipe_item, update_recipe_item
 from db.production import (
     get_production_batch,
     list_production_batches,
@@ -182,7 +182,7 @@ def test_two_batches_freeze_costs_independently(test_db, production_setup):
     test_db.commit()
 
     batch2_id = run_production_batch(test_db, product_id, 2)
-    # 1*50 + 1*5000 + 2*10 = 5070 per unit
+    # batch2: 2*50 + 2*5000 + 4*10 = 10140 total -> 10140/2 = 5070 per unit
     assert get_production_batch(test_db, batch2_id)["batch"]["unit_cost"] == 5070
 
     batch1_materials = get_production_batch(test_db, batch1_id)["materials"]
@@ -191,7 +191,9 @@ def test_two_batches_freeze_costs_independently(test_db, production_setup):
     )
     assert sleeves_row["unit_cost_at_time"] == 25
 
-    assert get_product(test_db, product_id)["unit_cost"] == 5070
+    # product blend: (2*5045 + 10140) / (2+2) = 20230/4 = 5057.5 -> 5058
+    # (Python round() is half-to-even; 5058 is the even neighbor)
+    assert get_product(test_db, product_id)["unit_cost"] == 5058
 
 
 def test_list_production_batches(test_db, production_setup):
@@ -207,3 +209,75 @@ def test_list_production_batches(test_db, production_setup):
     filtered = list_production_batches(test_db, product_id=product_id)
     assert len(filtered) == 2
     assert all(b["product_name"] == "Test Vinyl" for b in filtered)
+
+
+@pytest.fixture
+def per_batch_production_setup(test_db):
+    product_id = add_product(test_db, "Batch Vinyl", "VINYL", 3000, 2000)
+    sleeves_id = add_material(
+        test_db, "Batch Sleeves", "STOCK", 25, initial_stock=100
+    )
+    label_id = add_material(test_db, "Batch Labels", "STOCK", 10, initial_stock=500)
+    mastering_id = add_material(test_db, "Batch Mastering", "SERVICE", 5000)
+
+    add_recipe_item(test_db, product_id, sleeves_id, 1)
+    add_recipe_item(test_db, product_id, label_id, 2)
+    add_recipe_item(test_db, product_id, mastering_id, 1, cost_basis="PER_BATCH")
+
+    return {
+        "product_id": product_id,
+        "sleeves_id": sleeves_id,
+        "label_id": label_id,
+        "mastering_id": mastering_id,
+    }
+
+
+def test_per_batch_production(test_db, per_batch_production_setup):
+    product_id = per_batch_production_setup["product_id"]
+    sleeves_id = per_batch_production_setup["sleeves_id"]
+    label_id = per_batch_production_setup["label_id"]
+
+    batch_id = run_production_batch(test_db, product_id, 100)
+
+    # 100*25 + 200*10 + 1*5000 (PER_BATCH, once) = 9500 -> 9500/100 = 95
+    assert get_material(test_db, sleeves_id)["current_stock"] == 0
+    assert get_material(test_db, label_id)["current_stock"] == 300
+
+    batch = get_production_batch(test_db, batch_id)
+    assert batch["batch"]["unit_cost"] == 95
+
+    product = get_product(test_db, product_id)
+    assert product["current_stock"] == 100
+    # product had no stock before -> blended cost == batch's own per-unit cost
+    assert product["unit_cost"] == 95
+
+
+def test_per_batch_toggle_to_per_unit(test_db, per_batch_production_setup):
+    product_id = per_batch_production_setup["product_id"]
+    mastering_id = per_batch_production_setup["mastering_id"]
+
+    update_recipe_item(test_db, product_id, mastering_id, 1, cost_basis="PER_UNIT")
+
+    batch_id = run_production_batch(test_db, product_id, 5)
+
+    # 5*25 + 10*10 + 5*5000 = 25225 -> 25225/5 = 5045
+    assert get_production_batch(test_db, batch_id)["batch"]["unit_cost"] == 5045
+
+
+def test_production_blends_product_unit_cost(test_db):
+    product_id = add_product(test_db, "Blend Vinyl", "VINYL", 3000, 2000)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+
+    material_id = add_material(
+        test_db, "Blend Material", "STOCK", 200, initial_stock=1000
+    )
+    add_recipe_item(test_db, product_id, material_id, 1)
+
+    run_production_batch(test_db, product_id, 10)
+
+    # batch_total_cost = 10*200 = 2000; blend: (10*100 + 2000) / (10+10) = 150
+    assert get_product(test_db, product_id)["unit_cost"] == 150

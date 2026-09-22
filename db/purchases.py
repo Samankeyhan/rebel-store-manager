@@ -1,6 +1,7 @@
 import sqlite3
 
 from db.connection import next_counter, transaction
+from db.costing import blend_unit_cost
 from db.errors import NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
@@ -58,6 +59,9 @@ def record_material_purchase(
     _validate_supplier(conn, supplier_id)
 
     unit_cost = _compute_unit_cost(total_paid, quantity_bought)
+    new_material_unit_cost = blend_unit_cost(
+        material["current_stock"], material["unit_cost"], quantity_bought, total_paid
+    )
     if purchase_date is not None:
         purchase_date = normalize_record_date(purchase_date, conn)
 
@@ -109,7 +113,7 @@ def record_material_purchase(
             SET current_stock = current_stock + ?, unit_cost = ?
             WHERE id = ?
             """,
-            (quantity_bought, unit_cost, material_id),
+            (quantity_bought, new_material_unit_cost, material_id),
         )
 
         movement_notes = (
@@ -162,6 +166,9 @@ def record_product_purchase(
     _validate_supplier(conn, supplier_id)
 
     unit_cost = _compute_unit_cost(total_paid, quantity_bought)
+    new_product_unit_cost = blend_unit_cost(
+        product["current_stock"], product["unit_cost"], quantity_bought, total_paid
+    )
     if purchase_date is not None:
         purchase_date = normalize_record_date(purchase_date, conn)
 
@@ -213,7 +220,7 @@ def record_product_purchase(
             SET current_stock = current_stock + ?, unit_cost = ?
             WHERE id = ?
             """,
-            (quantity_bought, unit_cost, product_id),
+            (quantity_bought, new_product_unit_cost, product_id),
         )
 
         movement_notes = (

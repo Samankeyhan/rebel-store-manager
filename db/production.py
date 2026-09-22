@@ -1,6 +1,7 @@
 import sqlite3
 
 from db.connection import transaction
+from db.costing import blend_unit_cost
 from db.errors import InsufficientStockError, NotFoundError, ValidationError
 from db.products import get_product
 
@@ -13,6 +14,7 @@ def _fetch_recipe_for_production(
         SELECT
             product_recipe.material_id,
             product_recipe.quantity_needed,
+            product_recipe.cost_basis,
             materials.name AS material_name,
             materials.type AS material_type,
             materials.current_stock,
@@ -53,7 +55,10 @@ def run_production_batch(
 
         requirements: list[dict] = []
         for row in recipe:
-            total_needed = row["quantity_needed"] * quantity_produced
+            if row["cost_basis"] == "PER_BATCH":
+                needed = row["quantity_needed"]
+            else:
+                needed = row["quantity_needed"] * quantity_produced
             requirements.append(
                 {
                     "material_id": row["material_id"],
@@ -61,14 +66,14 @@ def run_production_batch(
                     "material_type": row["material_type"],
                     "current_stock": row["current_stock"],
                     "unit_cost": row["material_unit_cost"],
-                    "total_needed": total_needed,
+                    "needed": needed,
                 }
             )
 
         for req in requirements:
             if req["material_type"] == "STOCK":
                 available = req["current_stock"]
-                needed = req["total_needed"]
+                needed = req["needed"]
                 if available < needed:
                     raise InsufficientStockError(
                         f"Insufficient stock for '{req['material_name']}': "
@@ -78,10 +83,10 @@ def run_production_batch(
                         available=available,
                     )
 
-        total_batch_cost = sum(
-            int(req["total_needed"] * req["unit_cost"]) for req in requirements
+        batch_total_cost = round(
+            sum(req["needed"] * req["unit_cost"] for req in requirements)
         )
-        unit_cost = total_batch_cost // quantity_produced
+        unit_cost = round(batch_total_cost / quantity_produced)
 
         cursor = conn.execute(
             """
@@ -103,7 +108,7 @@ def run_production_batch(
                 (
                     batch_id,
                     req["material_id"],
-                    req["total_needed"],
+                    req["needed"],
                     req["unit_cost"],
                 ),
             )
@@ -115,7 +120,7 @@ def run_production_batch(
                     SET current_stock = current_stock - ?
                     WHERE id = ?
                     """,
-                    (req["total_needed"], req["material_id"]),
+                    (req["needed"], req["material_id"]),
                 )
                 conn.execute(
                     """
@@ -126,10 +131,17 @@ def run_production_batch(
                     """,
                     (
                         req["material_id"],
-                        -req["total_needed"],
+                        -req["needed"],
                         batch_id,
                     ),
                 )
+
+        new_product_unit_cost = blend_unit_cost(
+            product["current_stock"],
+            product["unit_cost"],
+            quantity_produced,
+            batch_total_cost,
+        )
 
         conn.execute(
             """
@@ -137,7 +149,7 @@ def run_production_batch(
             SET current_stock = current_stock + ?, unit_cost = ?
             WHERE id = ?
             """,
-            (quantity_produced, unit_cost, product_id),
+            (quantity_produced, new_product_unit_cost, product_id),
         )
 
         conn.execute(

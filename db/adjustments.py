@@ -1,7 +1,8 @@
 import sqlite3
 
 from db.connection import transaction
-from db.errors import NotFoundError, ValidationError
+from db.costing import blend_unit_cost
+from db.errors import InsufficientStockError, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
 from db.timeutil import normalize_record_date, to_utc_range
@@ -27,7 +28,9 @@ def _validate_reason(reason: str) -> None:
         )
 
 
-def _validate_item(conn: sqlite3.Connection, item_type: str, item_id: int) -> None:
+def _get_and_validate_item(
+    conn: sqlite3.Connection, item_type: str, item_id: int
+) -> dict:
     if item_type == "MATERIAL":
         material = get_material(conn, item_id)
         if material is None:
@@ -38,12 +41,14 @@ def _validate_item(conn: sqlite3.Connection, item_type: str, item_id: int) -> No
             raise ValidationError(
                 f"Material '{material['name']}' is a SERVICE and has no stock to adjust"
             )
+        return material
     else:
         product = get_product(conn, item_id)
         if product is None:
             raise NotFoundError(f"Product with id {item_id} does not exist")
         if not product["is_active"]:
             raise ValidationError(f"Product '{product['name']}' is not active")
+        return product
 
 
 def record_stock_adjustment(
@@ -52,6 +57,7 @@ def record_stock_adjustment(
     item_id: int,
     quantity_change: float,
     reason: str,
+    unit_cost: int | None = None,
     notes: str | None = None,
     movement_date: str | None = None,
 ) -> int:
@@ -61,24 +67,70 @@ def record_stock_adjustment(
     if quantity_change == 0:
         raise ValidationError("quantity_change must not be 0", field="quantity_change")
 
-    _validate_item(conn, item_type, item_id)
+    if item_type == "PRODUCT":
+        if quantity_change != int(quantity_change):
+            raise ValidationError(
+                f"quantity_change must be a whole number for products, "
+                f"got {quantity_change}",
+                field="quantity_change",
+            )
+        quantity_change = int(quantity_change)
+
+    if reason == "WASTE" and quantity_change >= 0:
+        raise ValidationError(
+            "WASTE quantity_change must be negative", field="quantity_change"
+        )
+
+    if unit_cost is not None:
+        if not (reason == "ADJUSTMENT" and quantity_change > 0):
+            raise ValidationError(
+                "unit_cost is only allowed for a positive ADJUSTMENT",
+                field="unit_cost",
+            )
+        if unit_cost < 0:
+            raise ValidationError(
+                f"unit_cost must be >= 0, got {unit_cost}", field="unit_cost"
+            )
+
+    item = _get_and_validate_item(conn, item_type, item_id)
+
+    current_stock = item["current_stock"]
+    new_stock = current_stock + quantity_change
+    if new_stock < 0:
+        raise InsufficientStockError(
+            f"Insufficient stock for '{item['name']}': "
+            f"need {abs(quantity_change)}, available {current_stock}",
+            item_name=item["name"],
+            needed=abs(quantity_change),
+            available=current_stock,
+        )
+
+    if unit_cost is not None:
+        new_unit_cost = blend_unit_cost(
+            current_stock, item["unit_cost"], quantity_change, unit_cost * quantity_change
+        )
+    else:
+        new_unit_cost = item["unit_cost"]
+
     if movement_date is not None:
         movement_date = normalize_record_date(movement_date, conn)
 
+    table = "materials" if item_type == "MATERIAL" else "products"
+
     with transaction(conn):
-        if item_type == "MATERIAL":
+        if unit_cost is not None:
             conn.execute(
-                """
-                UPDATE materials
-                SET current_stock = current_stock + ?
+                f"""
+                UPDATE {table}
+                SET current_stock = current_stock + ?, unit_cost = ?
                 WHERE id = ?
                 """,
-                (quantity_change, item_id),
+                (quantity_change, new_unit_cost, item_id),
             )
         else:
             conn.execute(
-                """
-                UPDATE products
+                f"""
+                UPDATE {table}
                 SET current_stock = current_stock + ?
                 WHERE id = ?
                 """,
@@ -90,19 +142,28 @@ def record_stock_adjustment(
                 """
                 INSERT INTO stock_movements
                     (item_type, item_id, quantity_change, reason,
-                     movement_date, notes)
-                VALUES (?, ?, ?, ?, ?, ?)
+                     unit_cost_at_time, movement_date, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (item_type, item_id, quantity_change, reason, movement_date, notes),
+                (
+                    item_type,
+                    item_id,
+                    quantity_change,
+                    reason,
+                    new_unit_cost,
+                    movement_date,
+                    notes,
+                ),
             )
         else:
             cursor = conn.execute(
                 """
                 INSERT INTO stock_movements
-                    (item_type, item_id, quantity_change, reason, notes)
-                VALUES (?, ?, ?, ?, ?)
+                    (item_type, item_id, quantity_change, reason,
+                     unit_cost_at_time, notes)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (item_type, item_id, quantity_change, reason, notes),
+                (item_type, item_id, quantity_change, reason, new_unit_cost, notes),
             )
 
         movement_id = cursor.lastrowid
