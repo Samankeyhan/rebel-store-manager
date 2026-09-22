@@ -4,6 +4,7 @@ from db.connection import transaction
 from db.errors import ValidationError
 from db.partners import list_partners
 from db.reports import get_profit_and_loss
+from db.timeutil import normalize_record_date, to_utc_range, validate_calendar_date
 
 PERCENTAGE_SUM_TOLERANCE = 0.01
 
@@ -66,6 +67,10 @@ def record_profit_distribution(
     notes: str | None = None,
 ) -> int:
     _validate_non_negative(total_amount_distributed, "total_amount_distributed")
+    period_start = validate_calendar_date(period_start)
+    period_end = validate_calendar_date(period_end)
+    if distribution_date is not None:
+        distribution_date = normalize_record_date(distribution_date, conn)
 
     with transaction(conn):
         active_partners = list_partners(conn, active_only=True)
@@ -166,17 +171,19 @@ def get_profit_distribution(
 
 
 def _append_distribution_date_filters(
+    conn: sqlite3.Connection,
     query: str,
     params: list,
     start_date: str | None,
     end_date: str | None,
 ) -> tuple[str, list]:
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         query += " AND profit_distributions.distribution_date >= ?"
-        params.append(start_date)
-    if end_date is not None:
-        query += " AND profit_distributions.distribution_date <= ?"
-        params.append(end_date)
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        query += " AND profit_distributions.distribution_date < ?"
+        params.append(end_exclusive_utc)
     return query, params
 
 
@@ -188,7 +195,7 @@ def list_profit_distributions(
     query = "SELECT * FROM profit_distributions WHERE 1=1"
     params: list = []
     query, params = _append_distribution_date_filters(
-        query, params, start_date, end_date
+        conn, query, params, start_date, end_date
     )
     query += " ORDER BY distribution_date DESC"
 
@@ -216,7 +223,7 @@ def get_partner_payout_history(
     """
     params: list = [partner_id]
     query, params = _append_distribution_date_filters(
-        query, params, start_date, end_date
+        conn, query, params, start_date, end_date
     )
     query += " ORDER BY profit_distributions.distribution_date DESC"
 
@@ -242,7 +249,7 @@ def get_partner_totals(
     """
     params: list = []
     query, params = _append_distribution_date_filters(
-        query, params, start_date, end_date
+        conn, query, params, start_date, end_date
     )
     query += """
         GROUP BY partners.id, partners.name

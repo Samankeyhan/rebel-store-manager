@@ -54,7 +54,7 @@ def test_add_expense_happy_path(test_db):
     assert expenses[0]["category_name"] == "Ads"
     assert expenses[0]["amount"] == 5000
     assert expenses[0]["description"] == "Instagram campaign"
-    assert expenses[0]["expense_date"] == "2026-01-15"
+    assert expenses[0]["expense_date"] == "2026-01-14 20:30:00"
 
 
 def test_add_expense_nonexistent_category_raises(test_db):

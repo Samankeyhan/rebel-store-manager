@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from db.materials import add_material, get_material
@@ -81,7 +83,7 @@ def test_record_material_purchase_happy_path(purchase_setup, test_db):
     ).fetchone()
     assert movement is not None
     assert movement["quantity_change"] == 7.5
-    assert movement["movement_date"] == "2026-04-01"
+    assert movement["movement_date"] == "2026-03-31 20:30:00"
     assert movement["notes"] == "Material purchase #1 (invoice PUR-000001)"
 
 
@@ -138,6 +140,26 @@ def test_invoice_numbers_shared_across_material_and_product(purchase_setup, test
     assert get_material_purchase(test_db, first_id)["invoice_number"] == "PUR-000001"
     assert get_product_purchase(test_db, second_id)["invoice_number"] == "PUR-000002"
     assert get_material_purchase(test_db, third_id)["invoice_number"] == "PUR-000003"
+
+
+def test_duplicate_purchase_invoice_number_rejected_by_unique_index(
+    purchase_setup, test_db
+):
+    material_id = purchase_setup["material_id"]
+    purchase_id = record_material_purchase(
+        test_db, material_id, quantity_bought=1, total_paid=100
+    )
+    invoice_number = get_material_purchase(test_db, purchase_id)["invoice_number"]
+
+    with pytest.raises(sqlite3.IntegrityError):
+        test_db.execute(
+            """
+            INSERT INTO material_purchases
+                (material_id, invoice_number, quantity_bought, total_paid, unit_cost)
+            VALUES (?, ?, 1, 100, 100)
+            """,
+            (material_id, invoice_number),
+        )
 
 
 def test_service_material_purchase_raises_and_rolls_back(purchase_setup, test_db):
@@ -266,7 +288,7 @@ def test_list_material_purchases_filters(purchase_setup, test_db):
     assert list_material_purchases(test_db, start_date="2099-01-01") == []
 
     latest = list_material_purchases(test_db)[0]
-    assert latest["id"] == first_id or latest["purchase_date"] >= "2026-04-01"
+    assert latest["id"] == first_id or latest["purchase_date"] >= "2026-03-31 20:30:00"
 
 
 def test_list_product_purchases_filters(purchase_setup, test_db):

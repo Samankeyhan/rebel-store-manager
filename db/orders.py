@@ -1,18 +1,11 @@
 import sqlite3
 
-from db.connection import transaction
+from db.connection import next_counter, transaction
+from db.constants import VALID_CHANNELS, VALID_STATUSES  # re-exported for existing importers
 from db.errors import ConflictError, InsufficientStockError, NotFoundError, ValidationError
 from db.products import get_product
+from db.timeutil import to_utc_range
 
-VALID_CHANNELS = ("INSTAGRAM", "WEBSITE", "WHOLESALE", "IN_PERSON", "OTHER")
-VALID_STATUSES = (
-    "DRAFT",
-    "PENDING",
-    "PAID",
-    "COMPLETED",
-    "CANCELLED",
-    "REFUNDED",
-)
 REVENUE_ELIGIBLE_STATUSES = ("PENDING", "PAID", "COMPLETED")
 CREATION_ALLOWED_STATUSES = ("DRAFT", "PENDING", "PAID", "COMPLETED")
 
@@ -54,18 +47,6 @@ def _validate_non_negative(value: int, field_name: str) -> None:
 
 def _line_revenue(list_price: int, discount_amount: int) -> int:
     return list_price - discount_amount
-
-
-def _generate_order_invoice_number(conn: sqlite3.Connection) -> str:
-    row = conn.execute(
-        """
-        SELECT COUNT(*) AS total
-        FROM orders
-        WHERE invoice_number IS NOT NULL
-        """
-    ).fetchone()
-    next_number = row[0] + 1
-    return f"INV-{next_number:06d}"
 
 
 def compute_order_total(order: sqlite3.Row, items: list[sqlite3.Row]) -> int:
@@ -223,7 +204,7 @@ def record_order(
                 postage_cost,
                 transaction_fee,
                 notes,
-                _generate_order_invoice_number(conn),
+                f"INV-{next_counter(conn, 'INV'):06d}",
             ),
         )
         order_id = cursor.lastrowid
@@ -316,12 +297,13 @@ def list_orders(
     if status is not None:
         query += " AND orders.status = ?"
         params.append(status)
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         query += " AND orders.order_date >= ?"
-        params.append(start_date)
-    if end_date is not None:
-        query += " AND orders.order_date <= ?"
-        params.append(end_date)
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        query += " AND orders.order_date < ?"
+        params.append(end_exclusive_utc)
 
     query += """
         GROUP BY orders.id
@@ -353,12 +335,13 @@ def get_revenue_summary(
     """
     params: list = list(REVENUE_ELIGIBLE_STATUSES)
 
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         query += " AND orders.order_date >= ?"
-        params.append(start_date)
-    if end_date is not None:
-        query += " AND orders.order_date <= ?"
-        params.append(end_date)
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        query += " AND orders.order_date < ?"
+        params.append(end_exclusive_utc)
 
     orders = conn.execute(query, params).fetchall()
 

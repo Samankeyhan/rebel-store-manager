@@ -8,6 +8,7 @@ from db.orders import (
     compute_order_total,
     get_revenue_summary,
 )
+from db.timeutil import to_utc_range
 
 
 def _revenue_eligible_status_clause() -> tuple[str, list[str]]:
@@ -16,17 +17,19 @@ def _revenue_eligible_status_clause() -> tuple[str, list[str]]:
 
 
 def _append_order_date_filters(
+    conn: sqlite3.Connection,
     query: str,
     params: list,
     start_date: str | None,
     end_date: str | None,
 ) -> tuple[str, list]:
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         query += " AND orders.order_date >= ?"
-        params.append(start_date)
-    if end_date is not None:
-        query += " AND orders.order_date <= ?"
-        params.append(end_date)
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        query += " AND orders.order_date < ?"
+        params.append(end_exclusive_utc)
     return query, params
 
 
@@ -49,7 +52,7 @@ def get_product_performance(
         WHERE {status_clause}
     """
     params: list = list(status_params)
-    query, params = _append_order_date_filters(query, params, start_date, end_date)
+    query, params = _append_order_date_filters(conn, query, params, start_date, end_date)
     query += """
         GROUP BY order_items.product_id, products.name
         ORDER BY (total_revenue - total_cost) DESC
@@ -81,7 +84,7 @@ def get_channel_breakdown(
         WHERE {status_clause}
     """
     params: list = list(status_params)
-    query, params = _append_order_date_filters(query, params, start_date, end_date)
+    query, params = _append_order_date_filters(conn, query, params, start_date, end_date)
 
     orders = conn.execute(query, params).fetchall()
 
@@ -142,12 +145,13 @@ def get_waste_report(
     """
     date_filter = ""
     date_params: list = []
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         date_filter += " AND stock_movements.movement_date >= ?"
-        date_params.append(start_date)
-    if end_date is not None:
-        date_filter += " AND stock_movements.movement_date <= ?"
-        date_params.append(end_date)
+        date_params.append(start_utc)
+    if end_exclusive_utc is not None:
+        date_filter += " AND stock_movements.movement_date < ?"
+        date_params.append(end_exclusive_utc)
 
     material_rows = conn.execute(
         f"""

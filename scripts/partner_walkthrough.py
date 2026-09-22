@@ -59,7 +59,7 @@ order_id = record_order(
 )
 conn.execute(
     "UPDATE orders SET order_date = ? WHERE id = ?",
-    ("2026-03-10", order_id),
+    ("2026-03-10 08:00:00", order_id),
 )
 conn.commit()
 

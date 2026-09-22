@@ -3,3 +3,4 @@ reportlab
 arabic-reshaper
 python-bidi
 pdfplumber
+tzdata

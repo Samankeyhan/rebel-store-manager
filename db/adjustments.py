@@ -4,6 +4,7 @@ from db.connection import transaction
 from db.errors import NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
+from db.timeutil import normalize_record_date, to_utc_range
 
 VALID_ITEM_TYPES = ("MATERIAL", "PRODUCT")
 VALID_REASONS = ("WASTE", "ADJUSTMENT")
@@ -61,6 +62,8 @@ def record_stock_adjustment(
         raise ValidationError("quantity_change must not be 0", field="quantity_change")
 
     _validate_item(conn, item_type, item_id)
+    if movement_date is not None:
+        movement_date = normalize_record_date(movement_date, conn)
 
     with transaction(conn):
         if item_type == "MATERIAL":
@@ -168,12 +171,13 @@ def list_stock_adjustments(
     if reason is not None:
         query += " AND stock_movements.reason = ?"
         params.append(reason)
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         query += " AND stock_movements.movement_date >= ?"
-        params.append(start_date)
-    if end_date is not None:
-        query += " AND stock_movements.movement_date <= ?"
-        params.append(end_date)
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        query += " AND stock_movements.movement_date < ?"
+        params.append(end_exclusive_utc)
 
     query += " ORDER BY stock_movements.movement_date DESC, stock_movements.id DESC"
 

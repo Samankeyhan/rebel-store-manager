@@ -36,7 +36,7 @@ def distribution_setup(test_db):
     )
     test_db.execute(
         "UPDATE orders SET order_date = ? WHERE id = ?",
-        ("2026-03-10", order_id),
+        ("2026-03-10 08:00:00", order_id),
     )
     test_db.commit()
 
@@ -245,14 +245,14 @@ def test_list_profit_distributions_date_filtering(distribution_setup, test_db):
 
     all_distributions = list_profit_distributions(test_db)
     assert len(all_distributions) == 2
-    assert all_distributions[0]["distribution_date"] == "2026-05-01"
-    assert all_distributions[1]["distribution_date"] == "2026-04-01"
+    assert all_distributions[0]["distribution_date"] == "2026-04-30 20:30:00"
+    assert all_distributions[1]["distribution_date"] == "2026-03-31 20:30:00"
 
     april_only = list_profit_distributions(
         test_db, start_date="2026-04-01", end_date="2026-04-30"
     )
     assert len(april_only) == 1
-    assert april_only[0]["distribution_date"] == "2026-04-01"
+    assert april_only[0]["distribution_date"] == "2026-03-31 20:30:00"
 
 
 def test_deactivated_partner_excluded_from_later_distribution(

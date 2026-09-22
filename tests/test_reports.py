@@ -57,7 +57,7 @@ def report_setup(test_db):
     )
     test_db.execute(
         "UPDATE orders SET order_date = ? WHERE id = ?",
-        ("2026-03-10", order_instagram),
+        ("2026-03-10 08:00:00", order_instagram),
     )
     test_db.commit()
 
@@ -68,14 +68,14 @@ def report_setup(test_db):
     )
     test_db.execute(
         "UPDATE orders SET order_date = ? WHERE id = ?",
-        ("2026-03-12", order_website),
+        ("2026-03-12 08:00:00", order_website),
     )
     test_db.commit()
 
     cancelled_id = test_db.execute(
         """
         INSERT INTO orders (status, channel, order_date)
-        VALUES ('CANCELLED', 'OTHER', '2026-03-11')
+        VALUES ('CANCELLED', 'OTHER', '2026-03-11 08:00:00')
         """
     ).lastrowid
     test_db.execute(
@@ -91,7 +91,7 @@ def report_setup(test_db):
         """
         INSERT INTO stock_movements
             (item_type, item_id, quantity_change, reason, movement_date)
-        VALUES ('MATERIAL', ?, -3, 'WASTE', '2026-03-05')
+        VALUES ('MATERIAL', ?, -3, 'WASTE', '2026-03-05 08:00:00')
         """,
         (material_id,),
     )
@@ -99,7 +99,7 @@ def report_setup(test_db):
         """
         INSERT INTO stock_movements
             (item_type, item_id, quantity_change, reason, movement_date)
-        VALUES ('MATERIAL', ?, -2, 'WASTE', '2026-03-20')
+        VALUES ('MATERIAL', ?, -2, 'WASTE', '2026-03-20 08:00:00')
         """,
         (material_id,),
     )
@@ -107,7 +107,7 @@ def report_setup(test_db):
         """
         INSERT INTO stock_movements
             (item_type, item_id, quantity_change, reason, movement_date)
-        VALUES ('PRODUCT', ?, -1, 'WASTE', '2026-03-08')
+        VALUES ('PRODUCT', ?, -1, 'WASTE', '2026-03-08 08:00:00')
         """,
         (product_a_id,),
     )

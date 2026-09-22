@@ -2,6 +2,7 @@ import sqlite3
 
 from db.connection import transaction
 from db.errors import ConflictError, NotFoundError, ValidationError
+from db.timeutil import normalize_record_date, to_utc_range
 
 
 def _get_expense_category(conn: sqlite3.Connection, category_id: int) -> sqlite3.Row | None:
@@ -66,6 +67,8 @@ def add_expense(
         )
     if amount < 0:
         raise ValidationError(f"amount must be >= 0, got {amount}", field="amount")
+    if expense_date is not None:
+        expense_date = normalize_record_date(expense_date, conn)
 
     with transaction(conn):
         if expense_date is not None:
@@ -107,12 +110,13 @@ def list_expenses(
     if category_id is not None:
         query += " AND expenses.expense_category_id = ?"
         params.append(category_id)
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         query += " AND expenses.expense_date >= ?"
-        params.append(start_date)
-    if end_date is not None:
-        query += " AND expenses.expense_date <= ?"
-        params.append(end_date)
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        query += " AND expenses.expense_date < ?"
+        params.append(end_exclusive_utc)
 
     query += " ORDER BY expenses.expense_date DESC, expenses.id DESC"
 
@@ -128,12 +132,13 @@ def get_total_expenses(
     query = "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE 1=1"
     params: list = []
 
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         query += " AND expense_date >= ?"
-        params.append(start_date)
-    if end_date is not None:
-        query += " AND expense_date <= ?"
-        params.append(end_date)
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        query += " AND expense_date < ?"
+        params.append(end_exclusive_utc)
 
     row = conn.execute(query, params).fetchone()
     return int(row[0])

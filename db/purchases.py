@@ -1,22 +1,11 @@
 import sqlite3
 
-from db.connection import transaction
+from db.connection import next_counter, transaction
 from db.errors import NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
 from db.suppliers import get_supplier
-
-
-def _generate_invoice_number(conn: sqlite3.Connection) -> str:
-    row = conn.execute(
-        """
-        SELECT
-            (SELECT COUNT(*) FROM material_purchases)
-            + (SELECT COUNT(*) FROM product_purchases) AS total
-        """
-    ).fetchone()
-    next_number = row[0] + 1
-    return f"PUR-{next_number:06d}"
+from db.timeutil import normalize_record_date, to_utc_range
 
 
 def _validate_total_paid(total_paid: int) -> None:
@@ -69,9 +58,11 @@ def record_material_purchase(
     _validate_supplier(conn, supplier_id)
 
     unit_cost = _compute_unit_cost(total_paid, quantity_bought)
+    if purchase_date is not None:
+        purchase_date = normalize_record_date(purchase_date, conn)
 
     with transaction(conn):
-        invoice_number = _generate_invoice_number(conn)
+        invoice_number = f"PUR-{next_counter(conn, 'PUR'):06d}"
 
         if purchase_date is not None:
             cursor = conn.execute(
@@ -171,9 +162,11 @@ def record_product_purchase(
     _validate_supplier(conn, supplier_id)
 
     unit_cost = _compute_unit_cost(total_paid, quantity_bought)
+    if purchase_date is not None:
+        purchase_date = normalize_record_date(purchase_date, conn)
 
     with transaction(conn):
-        invoice_number = _generate_invoice_number(conn)
+        invoice_number = f"PUR-{next_counter(conn, 'PUR'):06d}"
 
         if purchase_date is not None:
             cursor = conn.execute(
@@ -314,12 +307,13 @@ def list_material_purchases(
     if supplier_id is not None:
         query += " AND material_purchases.supplier_id = ?"
         params.append(supplier_id)
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         query += " AND material_purchases.purchase_date >= ?"
-        params.append(start_date)
-    if end_date is not None:
-        query += " AND material_purchases.purchase_date <= ?"
-        params.append(end_date)
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        query += " AND material_purchases.purchase_date < ?"
+        params.append(end_exclusive_utc)
 
     query += " ORDER BY material_purchases.purchase_date DESC, material_purchases.id DESC"
 
@@ -352,12 +346,13 @@ def list_product_purchases(
     if supplier_id is not None:
         query += " AND product_purchases.supplier_id = ?"
         params.append(supplier_id)
-    if start_date is not None:
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    if start_utc is not None:
         query += " AND product_purchases.purchase_date >= ?"
-        params.append(start_date)
-    if end_date is not None:
-        query += " AND product_purchases.purchase_date <= ?"
-        params.append(end_date)
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        query += " AND product_purchases.purchase_date < ?"
+        params.append(end_exclusive_utc)
 
     query += " ORDER BY product_purchases.purchase_date DESC, product_purchases.id DESC"
 

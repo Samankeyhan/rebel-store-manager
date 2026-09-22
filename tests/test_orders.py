@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from db.orders import (
@@ -427,6 +429,25 @@ def test_null_invoice_orders_do_not_break_numbering(test_db, order_setup):
     )
 
     assert get_order(test_db, order_id)["order"]["invoice_number"] == "INV-000001"
+
+
+def test_duplicate_order_invoice_number_rejected_by_unique_index(test_db, order_setup):
+    product_id = order_setup["product_a_id"]
+    order_id = record_order(
+        test_db,
+        "INSTAGRAM",
+        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
+    )
+    invoice_number = get_order(test_db, order_id)["order"]["invoice_number"]
+
+    with pytest.raises(sqlite3.IntegrityError):
+        test_db.execute(
+            """
+            INSERT INTO orders (status, channel, invoice_number)
+            VALUES ('COMPLETED', 'OTHER', ?)
+            """,
+            (invoice_number,),
+        )
 
 
 def test_invoice_number_shared_sequence_across_statuses(test_db, order_setup):

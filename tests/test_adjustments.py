@@ -66,7 +66,7 @@ def test_waste_decreases_material_stock(adjustment_setup, test_db):
     assert movement["quantity_change"] == -5
     assert movement["reason"] == "WASTE"
     assert movement["notes"] == "Spilled"
-    assert movement["movement_date"] == "2026-05-01"
+    assert movement["movement_date"] == "2026-04-30 20:30:00"
 
 
 def test_waste_decreases_product_stock(adjustment_setup, test_db):
