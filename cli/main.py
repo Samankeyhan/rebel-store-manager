@@ -143,9 +143,12 @@ def _handle_add_product(conn) -> None:
         category = _prompt_category()
         retail_price = _prompt_int("Retail price (in smallest currency unit): ")
         wholesale_price = _prompt_int("Wholesale price (in smallest currency unit): ")
+        made_to_order = input("Made to order? (y/n, default n): ").strip().lower() == "y"
 
         try:
-            product_id = add_product(conn, name, category, retail_price, wholesale_price)
+            product_id = add_product(
+                conn, name, category, retail_price, wholesale_price, made_to_order
+            )
             print(f"Product added with id {product_id}.")
             return
         except ValueError as exc:
@@ -159,13 +162,16 @@ def _handle_list_products(conn) -> None:
         print("No active products found.")
         return
 
-    print(f"\n{'ID':<5} {'Name':<30} {'Category':<10} {'Retail':<8} {'Wholesale':<10} {'Stock':<6}")
-    print("-" * 75)
+    print(
+        f"\n{'ID':<5} {'Name':<30} {'Category':<10} {'Retail':<8} {'Wholesale':<10} "
+        f"{'Stock':<6} {'MTO':<4}"
+    )
+    print("-" * 80)
     for product in products:
         print(
             f"{product['id']:<5} {product['name']:<30} {product['category']:<10} "
             f"{product['retail_price']:<8} {product['wholesale_price']:<10} "
-            f"{product['current_stock']:<6}"
+            f"{product['current_stock']:<6} {'yes' if product['made_to_order'] else 'no':<4}"
         )
 
 

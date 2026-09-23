@@ -1,18 +1,8 @@
 import sqlite3
 
 from db.connection import transaction
+from db.constants import VALID_CATEGORIES  # re-exported for existing importers
 from db.errors import NotFoundError, ValidationError
-
-VALID_CATEGORIES = (
-    "ALBUM",
-    "CASSETTE",
-    "VINYL",
-    "MIRROR",
-    "POSTER",
-    "STICKER",
-    "TSHIRT",
-    "OTHER",
-)
 
 
 def _validate_category(category: str) -> None:
@@ -35,6 +25,7 @@ def add_product(
     category: str,
     retail_price: int,
     wholesale_price: int,
+    made_to_order: bool = False,
 ) -> int:
     _validate_category(category)
     _validate_price(retail_price, "retail_price")
@@ -43,10 +34,11 @@ def add_product(
     with transaction(conn):
         cursor = conn.execute(
             """
-            INSERT INTO products (name, category, retail_price, wholesale_price)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO products
+                (name, category, retail_price, wholesale_price, made_to_order)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (name, category, retail_price, wholesale_price),
+            (name, category, retail_price, wholesale_price, int(made_to_order)),
         )
     return cursor.lastrowid
 
@@ -106,3 +98,29 @@ def update_product_prices(
 def deactivate_product(conn: sqlite3.Connection, product_id: int) -> None:
     with transaction(conn):
         conn.execute("UPDATE products SET is_active = 0 WHERE id = ?", (product_id,))
+
+
+def set_made_to_order(
+    conn: sqlite3.Connection, product_id: int, made_to_order: bool
+) -> None:
+    product = get_product(conn, product_id)
+    if product is None:
+        raise NotFoundError(f"Product with id {product_id} does not exist")
+
+    if made_to_order:
+        has_recipe = conn.execute(
+            "SELECT 1 FROM product_recipe WHERE product_id = ? LIMIT 1",
+            (product_id,),
+        ).fetchone()
+        if has_recipe is None:
+            raise ValidationError(
+                f"Product '{product['name']}' has no recipe — add one before "
+                f"marking it made-to-order.",
+                field="made_to_order",
+            )
+
+    with transaction(conn):
+        conn.execute(
+            "UPDATE products SET made_to_order = ? WHERE id = ?",
+            (int(made_to_order), product_id),
+        )

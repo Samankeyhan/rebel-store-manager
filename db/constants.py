@@ -1,3 +1,14 @@
+VALID_CATEGORIES = (
+    "ALBUM",
+    "CASSETTE",
+    "VINYL",
+    "MIRROR",
+    "POSTER",
+    "STICKER",
+    "TSHIRT",
+    "OTHER",
+    "فندک",
+)
 VALID_CHANNELS = ("INSTAGRAM", "WEBSITE", "WHOLESALE", "IN_PERSON", "OTHER")
 VALID_STATUSES = (
     "DRAFT",

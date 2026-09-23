@@ -99,6 +99,43 @@ def _fetch_order_items(conn: sqlite3.Connection, order_id: int) -> list[sqlite3.
     return list(rows)
 
 
+def _fetch_recipe(conn: sqlite3.Connection, product_id: int) -> list[sqlite3.Row]:
+    return conn.execute(
+        """
+        SELECT
+            product_recipe.material_id,
+            product_recipe.quantity_needed,
+            product_recipe.cost_basis,
+            materials.name AS material_name,
+            materials.type AS material_type,
+            materials.unit_cost AS material_unit_cost
+        FROM product_recipe
+        JOIN materials ON materials.id = product_recipe.material_id
+        WHERE product_recipe.product_id = ?
+        """,
+        (product_id,),
+    ).fetchall()
+
+
+def _recipe_requirements(recipe_rows: list[sqlite3.Row], batch_qty: float) -> list[dict]:
+    requirements = []
+    for row in recipe_rows:
+        if row["cost_basis"] == "PER_BATCH":
+            needed = row["quantity_needed"]
+        else:
+            needed = row["quantity_needed"] * batch_qty
+        requirements.append(
+            {
+                "material_id": row["material_id"],
+                "material_name": row["material_name"],
+                "material_type": row["material_type"],
+                "unit_cost": row["material_unit_cost"],
+                "needed": needed,
+            }
+        )
+    return requirements
+
+
 def _resolve_packaging_kit_id(conn, channel_settings: dict, packaging_kit_id) -> int | None:
     if packaging_kit_id is USE_CHANNEL_DEFAULT:
         resolved = channel_settings["default_packaging_kit_id"]
@@ -133,23 +170,80 @@ def _commit_order(
             )
 
         products_by_id: dict[int, dict] = {}
+        made_to_order_plan: dict[int, dict] = {}
+        material_needed: dict[int, float] = {}
+
         for product_id, needed in needed_by_product.items():
             product = get_product(conn, product_id)
-            if product["unit_cost"] is None:
-                raise ValidationError(
-                    f"Cannot commit order #{order_id}: product '{product['name']}' "
-                    f"has no unit_cost",
-                    field="unit_cost",
-                )
-            if product["current_stock"] < needed:
-                raise InsufficientStockError(
-                    f"Product '{product['name']}': insufficient stock — "
-                    f"need {needed}, available {product['current_stock']}",
-                    item_name=product["name"],
-                    needed=needed,
-                    available=product["current_stock"],
-                )
             products_by_id[product_id] = product
+
+            if product["made_to_order"]:
+                recipe_rows = _fetch_recipe(conn, product_id)
+                if not recipe_rows:
+                    raise ValidationError(
+                        f"Cannot commit order #{order_id}: product '{product['name']}' "
+                        f"is made-to-order but has no recipe",
+                        field="made_to_order",
+                    )
+
+                from_stock = min(product["current_stock"], needed)
+                to_make = needed - from_stock
+
+                if from_stock > 0 and product["unit_cost"] is None:
+                    raise ValidationError(
+                        f"Cannot commit order #{order_id}: product '{product['name']}' "
+                        f"has no unit_cost",
+                        field="unit_cost",
+                    )
+
+                make_cost = 0
+                if to_make > 0:
+                    requirements = _recipe_requirements(recipe_rows, to_make)
+                    make_cost = round(
+                        sum(req["needed"] * req["unit_cost"] for req in requirements)
+                    )
+                    for req in requirements:
+                        if req["material_type"] == "STOCK":
+                            material_needed[req["material_id"]] = (
+                                material_needed.get(req["material_id"], 0)
+                                + req["needed"]
+                            )
+
+                unit_cost_at_time = round(
+                    (from_stock * (product["unit_cost"] or 0) + make_cost) / needed
+                )
+
+                made_to_order_plan[product_id] = {
+                    "from_stock": from_stock,
+                    "to_make": to_make,
+                    "unit_cost_at_time": unit_cost_at_time,
+                }
+            else:
+                if product["unit_cost"] is None:
+                    raise ValidationError(
+                        f"Cannot commit order #{order_id}: product '{product['name']}' "
+                        f"has no unit_cost",
+                        field="unit_cost",
+                    )
+                if product["current_stock"] < needed:
+                    raise InsufficientStockError(
+                        f"Product '{product['name']}': insufficient stock — "
+                        f"need {needed}, available {product['current_stock']}",
+                        item_name=product["name"],
+                        needed=needed,
+                        available=product["current_stock"],
+                    )
+
+        for material_id, needed_qty in material_needed.items():
+            material = get_material(conn, material_id)
+            if material["current_stock"] < needed_qty:
+                raise InsufficientStockError(
+                    f"Material '{material['name']}': insufficient stock — "
+                    f"need {needed_qty}, available {material['current_stock']}",
+                    item_name=material["name"],
+                    needed=needed_qty,
+                    available=material["current_stock"],
+                )
 
         kit_items: list[dict] = []
         if order["packaging_kit_id"] is not None:
@@ -171,23 +265,67 @@ def _commit_order(
                         available=material["current_stock"],
                     )
 
+        remaining_from_stock = {
+            product_id: plan["from_stock"] for product_id, plan in made_to_order_plan.items()
+        }
+
         for item in items:
             product = products_by_id[item["product_id"]]
+
+            if item["product_id"] in made_to_order_plan:
+                plan = made_to_order_plan[item["product_id"]]
+                available = remaining_from_stock[item["product_id"]]
+                line_from_stock = min(available, item["quantity"])
+                remaining_from_stock[item["product_id"]] -= line_from_stock
+
+                if line_from_stock > 0:
+                    conn.execute(
+                        "UPDATE products SET current_stock = current_stock - ? WHERE id = ?",
+                        (line_from_stock, item["product_id"]),
+                    )
+                    conn.execute(
+                        """
+                        INSERT INTO stock_movements
+                            (item_type, item_id, quantity_change, reason, reference_order_id)
+                        VALUES ('PRODUCT', ?, ?, 'SALE', ?)
+                        """,
+                        (item["product_id"], -line_from_stock, order_id),
+                    )
+
+                conn.execute(
+                    "UPDATE order_items SET unit_cost_at_time = ? WHERE id = ?",
+                    (plan["unit_cost_at_time"], item["id"]),
+                )
+            else:
+                conn.execute(
+                    "UPDATE products SET current_stock = current_stock - ? WHERE id = ?",
+                    (item["quantity"], item["product_id"]),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO stock_movements
+                        (item_type, item_id, quantity_change, reason, reference_order_id)
+                    VALUES ('PRODUCT', ?, ?, 'SALE', ?)
+                    """,
+                    (item["product_id"], -item["quantity"], order_id),
+                )
+                conn.execute(
+                    "UPDATE order_items SET unit_cost_at_time = ? WHERE id = ?",
+                    (product["unit_cost"], item["id"]),
+                )
+
+        for material_id, needed_qty in material_needed.items():
             conn.execute(
-                "UPDATE products SET current_stock = current_stock - ? WHERE id = ?",
-                (item["quantity"], item["product_id"]),
+                "UPDATE materials SET current_stock = current_stock - ? WHERE id = ?",
+                (needed_qty, material_id),
             )
             conn.execute(
                 """
                 INSERT INTO stock_movements
                     (item_type, item_id, quantity_change, reason, reference_order_id)
-                VALUES ('PRODUCT', ?, ?, 'SALE', ?)
+                VALUES ('MATERIAL', ?, ?, 'PRODUCTION_CONSUMPTION', ?)
                 """,
-                (item["product_id"], -item["quantity"], order_id),
-            )
-            conn.execute(
-                "UPDATE order_items SET unit_cost_at_time = ? WHERE id = ?",
-                (product["unit_cost"], item["id"]),
+                (material_id, -needed_qty, order_id),
             )
 
         packaging_cost = 0

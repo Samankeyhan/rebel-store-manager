@@ -6,8 +6,11 @@ from db.products import (
     deactivate_product,
     get_product,
     list_products,
+    set_made_to_order,
     update_product_prices,
 )
+from db.recipes import add_recipe_item
+from db.materials import add_material
 
 
 def test_add_and_get_product(test_db):
@@ -94,3 +97,51 @@ def test_all_valid_categories(test_db):
     for category in VALID_CATEGORIES:
         product_id = add_product(test_db, f"Product {category}", category, 100, 80)
         assert get_product(test_db, product_id)["category"] == category
+
+
+def test_lighter_category_accepted(test_db):
+    product_id = add_product(test_db, "Zippo", "فندک", 500000, 400000)
+    assert get_product(test_db, product_id)["category"] == "فندک"
+
+
+def test_add_product_defaults_made_to_order_false(test_db):
+    product_id = add_product(test_db, "Test Vinyl", "VINYL", 2500, 1800)
+    assert get_product(test_db, product_id)["made_to_order"] == 0
+
+
+def test_add_product_made_to_order_true(test_db):
+    product_id = add_product(test_db, "CD Album", "ALBUM", 2500, 1800, made_to_order=True)
+    assert get_product(test_db, product_id)["made_to_order"] == 1
+
+
+def test_list_products_includes_made_to_order(test_db):
+    add_product(test_db, "MTO Product", "ALBUM", 1000, 800, made_to_order=True)
+    products = list_products(test_db)
+    assert products[0]["made_to_order"] == 1
+
+
+def test_set_made_to_order_requires_recipe(test_db):
+    product_id = add_product(test_db, "No Recipe Product", "ALBUM", 1000, 800)
+
+    with pytest.raises(ValueError, match="no recipe") as exc_info:
+        set_made_to_order(test_db, product_id, True)
+    assert exc_info.value.field == "made_to_order"
+
+    assert get_product(test_db, product_id)["made_to_order"] == 0
+
+
+def test_set_made_to_order_succeeds_with_recipe(test_db):
+    product_id = add_product(test_db, "Recipe Product", "ALBUM", 1000, 800)
+    material_id = add_material(test_db, "Blank CD", "STOCK", 1000, initial_stock=10)
+    add_recipe_item(test_db, product_id, material_id, 1)
+
+    set_made_to_order(test_db, product_id, True)
+    assert get_product(test_db, product_id)["made_to_order"] == 1
+
+    set_made_to_order(test_db, product_id, False)
+    assert get_product(test_db, product_id)["made_to_order"] == 0
+
+
+def test_set_made_to_order_nonexistent_product_raises(test_db):
+    with pytest.raises(ValueError, match="does not exist"):
+        set_made_to_order(test_db, 9999, True)

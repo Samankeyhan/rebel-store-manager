@@ -81,6 +81,7 @@ Selling a product whose unit_cost is NULL is refused with ValidationError (field
 - Only process_return sets CANCELLED or REFUNDED:
   - CANCELLED: allowed from DRAFT, PENDING, PAID (not shipped). If stock_committed, restore products and packaging materials (reason RETURN). Excluded from all revenue and cost reporting. If transaction_fee > 0 it is a loss (payment gateways rarely refund fees); packaging and postage are not losses, since nothing was shipped.
   - REFUNDED: allowed from PAID, COMPLETED (shipped). Restore products only (RETURN); packaging was used up. packaging_cost + postage_cost + transaction_fee count as refund losses.
+  - made-to-order lines follow section 13.
 
 ## 8. Stock adjustments
 - Product quantities must be whole numbers. Material quantities may be fractional.
@@ -125,3 +126,18 @@ Order invoices INV-000001..., purchase invoices PUR-000001... (one sequence shar
 ## 12. Customer invoices
 - A customer invoice shows only what the customer is charged: item lines (quantity, unit price, per-line discount), the shipping charge, and the total the customer pays = sum(items_net) + shipping_charge (= section 7 revenue).
 - It never shows postage_cost, packaging_cost, transaction_fee, unit_cost, COGS, or profit — in any form.
+
+## 13. Made-to-order products
+- A product may be marked made_to_order. Such a product is manufactured when it sells; the shop does not hold finished units of it.
+- A made-to-order product must have a recipe. Selling one with no recipe raises ValidationError (field "made_to_order").
+- At commit (section 7), for each made-to-order line: take from finished stock first, then manufacture the shortfall from the recipe.
+    from_stock = min(current_stock, quantity)
+    to_make    = quantity − from_stock
+- from_stock units are deducted from product stock as a SALE movement, exactly as for a normal product.
+- For to_make units, the recipe is consumed at the quantities section 3 gives for a batch of to_make, using each material's unit_cost at that moment. STOCK materials are deducted with reason PRODUCTION_CONSUMPTION and reference_order_id set; SERVICE materials cost money but have no stock. If any STOCK material is short, InsufficientStockError names the material, and nothing is written. No production_batches row is created: the order itself is the record.
+- The line's unit_cost_at_time is the weighted average of the two parts, rounded once:
+    unit_cost_at_time = round((from_stock × product.unit_cost + make_cost) / quantity)
+  where make_cost is the recipe cost for to_make units per section 3. When from_stock is 0, this is simply the per-unit manufacturing cost.
+- A made-to-order product whose unit_cost is NULL is still sellable when to_make covers the whole line, since its cost comes from the recipe. The section 7 NULL-cost refusal applies only to units taken from finished stock.
+- Manufacturing at sale time does not change the product's own unit_cost: no finished units are added to stock.
+- On CANCELLED (section 7), materials consumed for this order are restored by reversing its own PRODUCTION_CONSUMPTION movements (reference_order_id = the order), exactly as packaging is. On REFUNDED, returned units are added back to product stock as finished goods at the line's unit_cost_at_time, blended in by weighted average (section 2), since a returned made item is now finished stock.
