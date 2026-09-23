@@ -50,6 +50,7 @@ from db.reports import (
     get_low_stock_products,
     get_product_performance,
     get_profit_and_loss,
+    get_shipping_summary,
     get_waste_report,
 )
 from db.purchases import (
@@ -77,6 +78,7 @@ from db.partners import (
 from db.distributions import (
     get_partner_payout_history,
     get_profit_distribution,
+    get_undistributed_profit,
     list_profit_distributions,
     record_profit_distribution,
 )
@@ -1058,15 +1060,16 @@ def _handle_report_waste(conn) -> None:
         return
 
     print(
-        f"\n{'Item':<30} {'Type':<10} {'Wasted':<10} {'Est. Cost':<12} {'Events':<8}"
+        f"\n{'Item':<30} {'Type':<10} {'Wasted':<10} {'Cost':<12} {'Events':<8} {'Unknown':<8}"
     )
-    print("-" * 75)
+    print("-" * 85)
     for row in rows:
-        cost = row["estimated_cost"]
+        cost = row["cost"]
         cost_display = "-" if cost is None else str(cost)
         print(
             f"{row['item_name']:<30} {row['item_type']:<10} "
-            f"{row['total_wasted']:<10} {cost_display:<12} {row['waste_event_count']:<8}"
+            f"{row['total_wasted']:<10} {cost_display:<12} {row['waste_event_count']:<8} "
+            f"{row['unknown_cost_count']:<8}"
         )
 
 
@@ -1091,12 +1094,39 @@ def _handle_report_profit_and_loss(conn) -> None:
     pnl = get_profit_and_loss(conn, start_date=start_date, end_date=end_date)
 
     print("\n--- Profit & Loss Summary ---")
-    print(f"  Orders counted:     {pnl['order_count']}")
-    print(f"  Total Revenue:      {pnl['total_revenue']}")
-    print(f"  Total Cost of Goods: {pnl['total_cost_of_goods']}")
-    print(f"  Total Expenses:     {pnl['total_expenses']}")
+    print(f"  Orders counted:       {pnl['order_count']}")
+    print(f"  Items revenue:        {pnl['items_revenue']}")
+    print(f"  Shipping revenue:     {pnl['shipping_revenue']}")
+    print(f"  Total revenue:        {pnl['total_revenue']}")
+    print(f"  COGS:                 {pnl['cogs']}")
+    print(f"  Packaging cost:       {pnl['packaging_cost']}")
+    print(f"  Postage (estimated):  {pnl['postage_estimated']}")
+    print(f"  Transaction fees:     {pnl['transaction_fees']}")
+    print(f"  Gross profit:         {pnl['gross_profit']}")
+    print(f"  Postage (actual):     {pnl['postage_actual']}")
+    print(f"  Postage variance:     {pnl['postage_variance']}")
+    print(f"  Refund losses:        {pnl['refund_losses']}")
+    print(f"  Waste cost:           {pnl['waste_cost']}")
+    print(f"  Operating expenses:   {pnl['operating_expenses']}")
     print("  --------------------------------")
-    print(f"  NET PROFIT:         {pnl['net_profit']}")
+    print(f"  NET PROFIT:           {pnl['net_profit']}")
+
+
+def _handle_report_shipping_summary(conn) -> None:
+    start_date, end_date = _prompt_date_range()
+    summary = get_shipping_summary(conn, start_date=start_date, end_date=end_date)
+
+    print("\n--- Shipping Summary ---")
+    print(f"  Orders counted:          {summary['order_count']}")
+    print(f"  Shipping revenue:        {summary['shipping_revenue']}")
+    print(f"  Packaging cost:          {summary['packaging_cost']}")
+    print(f"  Postage (estimated):     {summary['postage_estimated']}")
+    print(f"  Postage (actual):        {summary['postage_actual']}")
+    print(f"  Net shipping result:     {summary['net_shipping_result']}")
+    print(f"  Avg shipping/order:      {summary['avg_shipping_revenue']}")
+    print(f"  Avg packaging/order:     {summary['avg_packaging_cost']}")
+    print(f"  Avg postage actual/order:{summary['avg_postage_actual']}")
+    print(f"  Avg net result/order:    {summary['avg_net_shipping_result']}")
 
 
 def manage_reports(conn) -> None:
@@ -1109,7 +1139,8 @@ def manage_reports(conn) -> None:
         print("5. Waste Report")
         print("6. Expense Breakdown")
         print("7. Profit & Loss Summary")
-        print("8. Back to main menu")
+        print("8. Shipping Summary")
+        print("9. Back to main menu")
         choice = input("\nSelect an option: ").strip()
 
         if choice == "1":
@@ -1127,9 +1158,11 @@ def manage_reports(conn) -> None:
         elif choice == "7":
             _handle_report_profit_and_loss(conn)
         elif choice == "8":
+            _handle_report_shipping_summary(conn)
+        elif choice == "9":
             break
         else:
-            print("Invalid option. Please enter 1-8.")
+            print("Invalid option. Please enter 1-9.")
 
 
 def _handle_add_supplier(conn) -> None:
@@ -1860,10 +1893,12 @@ def _handle_record_profit_distribution(conn) -> None:
     period_end = _prompt_non_empty("Period end YYYY-MM-DD: ")
 
     pnl = get_profit_and_loss(conn, period_start, period_end)
+    undistributed = get_undistributed_profit(conn, period_end)
     print("\n--- Profit & Loss for Selected Period ---")
     print(f"  Total Revenue:      {pnl['total_revenue']}")
-    print(f"  Total Expenses:     {pnl['total_expenses']}")
+    print(f"  Operating Expenses: {pnl['operating_expenses']}")
     print(f"  NET PROFIT:         {pnl['net_profit']}")
+    print(f"  Undistributed profit as of {period_end}: {undistributed}")
     print(
         "\nYou may distribute less than the net profit if holding some back "
         "as reserve."

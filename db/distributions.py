@@ -1,7 +1,7 @@
 import sqlite3
 
 from db.connection import transaction
-from db.errors import ValidationError
+from db.errors import ConflictError, ValidationError
 from db.partners import list_partners
 from db.reports import get_profit_and_loss
 from db.timeutil import normalize_record_date, to_utc_range, validate_calendar_date
@@ -58,6 +58,26 @@ def _compute_share_amounts(
     return rounded_amounts
 
 
+def get_undistributed_profit(conn: sqlite3.Connection, as_of_date: str) -> int:
+    """Section 11: all-time net_profit through *as_of_date* minus whatever has
+    already been distributed for periods ending on or before it.
+    """
+    as_of_date = validate_calendar_date(as_of_date)
+
+    net_profit = get_profit_and_loss(conn, None, as_of_date)["net_profit"]
+
+    row = conn.execute(
+        """
+        SELECT COALESCE(SUM(total_amount_distributed), 0) AS total
+        FROM profit_distributions
+        WHERE period_end <= ?
+        """,
+        (as_of_date,),
+    ).fetchone()
+
+    return net_profit - row["total"]
+
+
 def record_profit_distribution(
     conn: sqlite3.Connection,
     period_start: str,
@@ -65,14 +85,35 @@ def record_profit_distribution(
     total_amount_distributed: int,
     distribution_date: str | None = None,
     notes: str | None = None,
+    allow_exceeding: bool = False,
 ) -> int:
     _validate_non_negative(total_amount_distributed, "total_amount_distributed")
     period_start = validate_calendar_date(period_start)
     period_end = validate_calendar_date(period_end)
+    if period_end < period_start:
+        raise ValidationError(
+            f"period_end ({period_end}) cannot be before period_start ({period_start})",
+            field="period_end",
+        )
     if distribution_date is not None:
         distribution_date = normalize_record_date(distribution_date, conn)
 
     with transaction(conn):
+        overlap = conn.execute(
+            """
+            SELECT id, period_start, period_end
+            FROM profit_distributions
+            WHERE period_start <= ? AND period_end >= ?
+            LIMIT 1
+            """,
+            (period_end, period_start),
+        ).fetchone()
+        if overlap is not None:
+            raise ConflictError(
+                f"Period {period_start}..{period_end} overlaps distribution "
+                f"#{overlap['id']} ({overlap['period_start']}..{overlap['period_end']})"
+            )
+
         active_partners = list_partners(conn, active_only=True)
         if not active_partners:
             raise ValidationError(
@@ -83,6 +124,16 @@ def record_profit_distribution(
 
         pnl = get_profit_and_loss(conn, period_start, period_end)
         total_profit_available = pnl["net_profit"]
+
+        if not allow_exceeding:
+            undistributed = get_undistributed_profit(conn, period_end)
+            if total_amount_distributed > undistributed:
+                raise ValidationError(
+                    f"total_amount_distributed ({total_amount_distributed}) exceeds "
+                    f"undistributed profit as of {period_end} ({undistributed}). "
+                    f"Pass allow_exceeding=True to distribute anyway.",
+                    field="total_amount_distributed",
+                )
 
         share_amounts = _compute_share_amounts(
             active_partners, total_amount_distributed

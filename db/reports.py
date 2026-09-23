@@ -6,9 +6,10 @@ from db.orders import (
     _fetch_order_items,
     compute_order_profit,
     compute_order_revenue,
-    get_revenue_summary,
 )
 from db.timeutil import to_utc_range
+
+REFUND_INCLUDED_STATUSES = REVENUE_ELIGIBLE_STATUSES + ("REFUNDED",)
 
 
 def _revenue_eligible_status_clause() -> tuple[str, list[str]]:
@@ -33,6 +34,157 @@ def _append_order_date_filters(
     return query, params
 
 
+def _date_range_clause(
+    conn: sqlite3.Connection,
+    column: str,
+    start_date: str | None,
+    end_date: str | None,
+) -> tuple[str, list]:
+    """An " AND <column> >= ? AND <column> < ?"-style clause plus its params."""
+    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
+    clause = ""
+    params: list = []
+    if start_utc is not None:
+        clause += f" AND {column} >= ?"
+        params.append(start_utc)
+    if end_exclusive_utc is not None:
+        clause += f" AND {column} < ?"
+        params.append(end_exclusive_utc)
+    return clause, params
+
+
+def _eligible_order_aggregates(
+    conn: sqlite3.Connection, start_date: str | None, end_date: str | None
+) -> dict:
+    """Sums over PENDING/PAID/COMPLETED orders in the date range."""
+    date_clause, date_params = _date_range_clause(
+        conn, "orders.order_date", start_date, end_date
+    )
+    status_placeholders = ", ".join("?" for _ in REVENUE_ELIGIBLE_STATUSES)
+
+    items_row = conn.execute(
+        f"""
+        SELECT
+            COALESCE(SUM(order_items.list_price - order_items.discount_amount), 0)
+                AS items_revenue,
+            COALESCE(SUM(order_items.quantity * order_items.unit_cost_at_time), 0)
+                AS cogs
+        FROM order_items
+        JOIN orders ON orders.id = order_items.order_id
+        WHERE orders.status IN ({status_placeholders})
+        {date_clause}
+        """,
+        list(REVENUE_ELIGIBLE_STATUSES) + date_params,
+    ).fetchone()
+
+    orders_row = conn.execute(
+        f"""
+        SELECT
+            COALESCE(SUM(shipping_charge), 0) AS shipping_revenue,
+            COALESCE(SUM(packaging_cost), 0) AS packaging_cost,
+            COALESCE(SUM(postage_cost), 0) AS postage_estimated,
+            COALESCE(SUM(transaction_fee), 0) AS transaction_fees,
+            COUNT(*) AS order_count
+        FROM orders
+        WHERE status IN ({status_placeholders})
+        {date_clause}
+        """,
+        list(REVENUE_ELIGIBLE_STATUSES) + date_params,
+    ).fetchone()
+
+    return {
+        "items_revenue": items_row["items_revenue"],
+        "cogs": items_row["cogs"],
+        "shipping_revenue": orders_row["shipping_revenue"],
+        "packaging_cost": orders_row["packaging_cost"],
+        "postage_estimated": orders_row["postage_estimated"],
+        "transaction_fees": orders_row["transaction_fees"],
+        "order_count": orders_row["order_count"],
+    }
+
+
+def _postage_actual(
+    conn: sqlite3.Connection, start_date: str | None, end_date: str | None
+) -> int:
+    date_clause, date_params = _date_range_clause(conn, "paid_date", start_date, end_date)
+    row = conn.execute(
+        f"SELECT COALESCE(SUM(total_paid), 0) AS total FROM postage_batches WHERE 1=1 {date_clause}",
+        date_params,
+    ).fetchone()
+    return row["total"]
+
+
+def _postage_committed_on_shipped_orders(
+    conn: sqlite3.Connection, start_date: str | None, end_date: str | None
+) -> int:
+    """Sum of postage_cost over orders that actually shipped (eligible or
+    REFUNDED) in the date range — the baseline postage_variance compares
+    postage_actual against.
+    """
+    date_clause, date_params = _date_range_clause(
+        conn, "orders.order_date", start_date, end_date
+    )
+    status_placeholders = ", ".join("?" for _ in REFUND_INCLUDED_STATUSES)
+    row = conn.execute(
+        f"""
+        SELECT COALESCE(SUM(postage_cost), 0) AS total
+        FROM orders
+        WHERE status IN ({status_placeholders})
+        {date_clause}
+        """,
+        list(REFUND_INCLUDED_STATUSES) + date_params,
+    ).fetchone()
+    return row["total"]
+
+
+def _refund_losses(
+    conn: sqlite3.Connection, start_date: str | None, end_date: str | None
+) -> int:
+    date_clause, date_params = _date_range_clause(
+        conn, "orders.order_date", start_date, end_date
+    )
+
+    refunded_row = conn.execute(
+        f"""
+        SELECT COALESCE(SUM(packaging_cost + postage_cost + transaction_fee), 0) AS total
+        FROM orders
+        WHERE status = 'REFUNDED'
+        {date_clause}
+        """,
+        date_params,
+    ).fetchone()
+
+    cancelled_row = conn.execute(
+        f"""
+        SELECT COALESCE(SUM(transaction_fee), 0) AS total
+        FROM orders
+        WHERE status = 'CANCELLED' AND stock_committed = 1
+        {date_clause}
+        """,
+        date_params,
+    ).fetchone()
+
+    return refunded_row["total"] + cancelled_row["total"]
+
+
+def _waste_cost(
+    conn: sqlite3.Connection, start_date: str | None, end_date: str | None
+) -> int:
+    date_clause, date_params = _date_range_clause(
+        conn, "movement_date", start_date, end_date
+    )
+    row = conn.execute(
+        f"""
+        SELECT COALESCE(SUM(ABS(quantity_change) * unit_cost_at_time), 0) AS total
+        FROM stock_movements
+        WHERE reason = 'WASTE'
+        {date_clause}
+        """,
+        date_params,
+    ).fetchone()
+    return row["total"]
+
+
 def get_product_performance(
     conn: sqlite3.Connection,
     start_date: str | None = None,
@@ -44,7 +196,7 @@ def get_product_performance(
             order_items.product_id,
             products.name AS product_name,
             SUM(order_items.quantity) AS units_sold,
-            SUM(order_items.quantity * order_items.unit_price) AS total_revenue,
+            SUM(order_items.list_price - order_items.discount_amount) AS total_revenue,
             SUM(order_items.quantity * order_items.unit_cost_at_time) AS total_cost
         FROM order_items
         JOIN orders ON orders.id = order_items.order_id
@@ -139,19 +291,17 @@ def get_waste_report(
     start_date: str | None = None,
     end_date: str | None = None,
 ) -> list[dict]:
-    """Waste grouped by item. *estimated_cost* uses current unit_cost on
-    materials/products — an estimate, not a frozen historical figure (same
-    caveat as calculate_recipe_cost).
+    """Waste grouped by item, valued at each movement's own frozen
+    unit_cost_at_time (never the item's current cost).
+
+    A movement with no recorded unit_cost_at_time still counts toward
+    total_wasted/waste_event_count, but is excluded from the cost sum and
+    counted separately in unknown_cost_count; if every movement for an item
+    is unknown, cost is reported as None.
     """
-    date_filter = ""
-    date_params: list = []
-    start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
-    if start_utc is not None:
-        date_filter += " AND stock_movements.movement_date >= ?"
-        date_params.append(start_utc)
-    if end_exclusive_utc is not None:
-        date_filter += " AND stock_movements.movement_date < ?"
-        date_params.append(end_exclusive_utc)
+    date_clause, date_params = _date_range_clause(
+        conn, "stock_movements.movement_date", start_date, end_date
+    )
 
     material_rows = conn.execute(
         f"""
@@ -160,13 +310,15 @@ def get_waste_report(
             materials.name AS item_name,
             SUM(ABS(stock_movements.quantity_change)) AS total_wasted,
             COUNT(*) AS waste_event_count,
-            SUM(ABS(stock_movements.quantity_change) * materials.unit_cost)
-                AS estimated_cost
+            SUM(ABS(stock_movements.quantity_change) * stock_movements.unit_cost_at_time)
+                AS cost,
+            SUM(CASE WHEN stock_movements.unit_cost_at_time IS NULL THEN 1 ELSE 0 END)
+                AS unknown_cost_count
         FROM stock_movements
         JOIN materials ON materials.id = stock_movements.item_id
         WHERE stock_movements.reason = 'WASTE'
           AND stock_movements.item_type = 'MATERIAL'
-          {date_filter}
+          {date_clause}
         GROUP BY materials.id, materials.name
         """,
         date_params,
@@ -179,13 +331,15 @@ def get_waste_report(
             products.name AS item_name,
             SUM(ABS(stock_movements.quantity_change)) AS total_wasted,
             COUNT(*) AS waste_event_count,
-            SUM(ABS(stock_movements.quantity_change) * COALESCE(products.unit_cost, 0))
-                AS estimated_cost
+            SUM(ABS(stock_movements.quantity_change) * stock_movements.unit_cost_at_time)
+                AS cost,
+            SUM(CASE WHEN stock_movements.unit_cost_at_time IS NULL THEN 1 ELSE 0 END)
+                AS unknown_cost_count
         FROM stock_movements
         JOIN products ON products.id = stock_movements.item_id
         WHERE stock_movements.reason = 'WASTE'
           AND stock_movements.item_type = 'PRODUCT'
-          {date_filter}
+          {date_clause}
         GROUP BY products.id, products.name
         """,
         date_params,
@@ -197,16 +351,14 @@ def get_waste_report(
             "item_name": row["item_name"],
             "total_wasted": row["total_wasted"],
             "waste_event_count": row["waste_event_count"],
-            "estimated_cost": row["estimated_cost"],
+            "cost": row["cost"],
+            "unknown_cost_count": row["unknown_cost_count"],
         }
         for row in material_rows + product_rows
     ]
 
     results.sort(
-        key=lambda row: (
-            row["estimated_cost"] is None,
-            -(row["estimated_cost"] or 0),
-        ),
+        key=lambda row: (row["cost"] is None, -(row["cost"] or 0)),
     )
     return results
 
@@ -242,24 +394,80 @@ def get_profit_and_loss(
     start_date: str | None = None,
     end_date: str | None = None,
 ) -> dict:
-    """Combine revenue summary and expenses into a P&L snapshot.
+    """Full profit & loss per accounting-rules.md section 9."""
+    agg = _eligible_order_aggregates(conn, start_date, end_date)
+    items_revenue = agg["items_revenue"]
+    shipping_revenue = agg["shipping_revenue"]
+    total_revenue = items_revenue + shipping_revenue
+    cogs = agg["cogs"]
+    packaging_cost = agg["packaging_cost"]
+    postage_estimated = agg["postage_estimated"]
+    transaction_fees = agg["transaction_fees"]
+    order_count = agg["order_count"]
 
-    total_cost_of_goods is derived as total_revenue minus total_profit from
-    get_revenue_summary. That profit already subtracts per-order COGS,
-    packaging, postage, and transaction fees (see compute_order_profit), so
-    this derived figure captures all of those costs relative to revenue —
-    not COGS alone.
-    """
-    revenue_summary = get_revenue_summary(conn, start_date, end_date)
-    total_expenses = get_total_expenses(conn, start_date, end_date)
+    gross_profit = (
+        total_revenue - cogs - packaging_cost - postage_estimated - transaction_fees
+    )
 
-    total_revenue = revenue_summary["total_revenue"]
-    total_profit = revenue_summary["total_profit"]
+    postage_actual = _postage_actual(conn, start_date, end_date)
+    postage_variance = postage_actual - _postage_committed_on_shipped_orders(
+        conn, start_date, end_date
+    )
+
+    refund_losses = _refund_losses(conn, start_date, end_date)
+    waste_cost = _waste_cost(conn, start_date, end_date)
+    operating_expenses = get_total_expenses(conn, start_date, end_date)
+
+    net_profit = (
+        gross_profit - postage_variance - refund_losses - waste_cost - operating_expenses
+    )
 
     return {
+        "items_revenue": items_revenue,
+        "shipping_revenue": shipping_revenue,
         "total_revenue": total_revenue,
-        "total_cost_of_goods": total_revenue - total_profit,
-        "total_expenses": total_expenses,
-        "net_profit": total_profit - total_expenses,
-        "order_count": revenue_summary["order_count"],
+        "cogs": cogs,
+        "packaging_cost": packaging_cost,
+        "postage_estimated": postage_estimated,
+        "transaction_fees": transaction_fees,
+        "gross_profit": gross_profit,
+        "postage_actual": postage_actual,
+        "postage_variance": postage_variance,
+        "refund_losses": refund_losses,
+        "waste_cost": waste_cost,
+        "operating_expenses": operating_expenses,
+        "net_profit": net_profit,
+        "order_count": order_count,
+    }
+
+
+def get_shipping_summary(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict:
+    """Shipping economics per accounting-rules.md section 9."""
+    agg = _eligible_order_aggregates(conn, start_date, end_date)
+    shipping_revenue = agg["shipping_revenue"]
+    packaging_cost = agg["packaging_cost"]
+    postage_estimated = agg["postage_estimated"]
+    order_count = agg["order_count"]
+
+    postage_actual = _postage_actual(conn, start_date, end_date)
+    net_shipping_result = shipping_revenue - packaging_cost - postage_actual
+
+    def _avg(total: int) -> int:
+        return round(total / order_count) if order_count else 0
+
+    return {
+        "shipping_revenue": shipping_revenue,
+        "packaging_cost": packaging_cost,
+        "postage_estimated": postage_estimated,
+        "postage_actual": postage_actual,
+        "net_shipping_result": net_shipping_result,
+        "order_count": order_count,
+        "avg_shipping_revenue": _avg(shipping_revenue),
+        "avg_packaging_cost": _avg(packaging_cost),
+        "avg_postage_actual": _avg(postage_actual),
+        "avg_net_shipping_result": _avg(net_shipping_result),
     }

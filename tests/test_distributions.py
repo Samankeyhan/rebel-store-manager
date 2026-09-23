@@ -4,13 +4,16 @@ from db.distributions import (
     get_partner_payout_history,
     get_partner_totals,
     get_profit_distribution,
+    get_undistributed_profit,
     list_profit_distributions,
     record_profit_distribution,
 )
+from db.errors import ConflictError, ValidationError
 from db.expenses import add_expense, add_expense_category
 from db.orders import record_order
 from db.partners import add_partner, deactivate_partner, update_partner_percentage
 from db.products import add_product
+from db.purchases import record_product_purchase
 from db.reports import get_profit_and_loss
 
 
@@ -85,12 +88,16 @@ def test_rounding_reconciliation(test_db):
     p2 = add_partner(test_db, "Partner B", 33.33)
     p3 = add_partner(test_db, "Partner C", 33.34)
 
+    # No orders/expenses exist in this fresh db, so net_profit for the period
+    # is 0 — allow_exceeding is needed since this test is only checking share
+    # rounding, not profit availability.
     distribution_id = record_profit_distribution(
         test_db,
         "2026-01-01",
         "2026-01-31",
         1000,
         distribution_date="2026-02-01",
+        allow_exceeding=True,
     )
 
     distribution = get_profit_distribution(test_db, distribution_id)
@@ -144,9 +151,11 @@ def test_total_profit_available_from_pnl(distribution_setup, test_db):
 
     distribution = get_profit_distribution(test_db, distribution_id)
     assert distribution["total_profit_available"] == expected_pnl["net_profit"]
-    # revenue 6100 (items 6000 + shipping 100) - cogs 1000 - postage 50 - fee 20
-    # = profit 5030; net_profit = 5030 - expenses(500) = 4530
-    assert distribution["total_profit_available"] == 4530
+    # gross_profit = 6100 (items 6000 + shipping 100) - cogs 1000 - postage 50
+    # - fee 20 = 5030. No postage batches recorded, so postage_actual = 0 and
+    # postage_variance = 0 - 50 = -50. No waste/refunds.
+    # net_profit = 5030 - (-50) - 0 - 0 - expenses(500) = 4580
+    assert distribution["total_profit_available"] == 4580
 
 
 def test_distribute_less_than_profit_available(distribution_setup, test_db):
@@ -299,3 +308,103 @@ def test_deactivated_partner_excluded_from_later_distribution(
         s for s in second["shares"] if s["partner_name"] == "Alice"
     )
     assert alice_second["percentage_at_time"] == 62.5
+
+
+# ---------------------------------------------------------------------------
+# get_undistributed_profit, overlap, and allow_exceeding (separate fixture:
+# no postage batches, kits, or waste, so net_profit == order profit exactly)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def simple_distribution_setup(test_db):
+    vinyl_id = add_product(test_db, "Vinyl", "VINYL", 3_000_000, 2_500_000)
+    record_product_purchase(test_db, vinyl_id, quantity_bought=10, total_paid=12_000_000)
+
+    ali_id = add_partner(test_db, "Ali", 60.0)
+    sara_id = add_partner(test_db, "Sara", 40.0)
+
+    order_id = record_order(
+        test_db,
+        "IN_PERSON",
+        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
+        transaction_fee=0,
+        order_date="2026-04-05",
+        status="COMPLETED",
+    )
+
+    return {
+        "vinyl_id": vinyl_id,
+        "ali_id": ali_id,
+        "sara_id": sara_id,
+        "order_id": order_id,
+    }
+
+
+def test_get_undistributed_profit_before_any_distribution(
+    simple_distribution_setup, test_db
+):
+    # IN_PERSON applies neither shipping nor postage, and no kit is used:
+    # revenue = 2,500,000; profit = 2,500,000 - cogs(1,200,000) = 1,300,000.
+    assert get_undistributed_profit(test_db, "2026-04-30") == 1_300_000
+
+
+def test_undistributed_profit_overlap_and_allow_exceeding(
+    simple_distribution_setup, test_db
+):
+    ali_id = simple_distribution_setup["ali_id"]
+    sara_id = simple_distribution_setup["sara_id"]
+
+    distribution_id = record_profit_distribution(
+        test_db,
+        "2026-04-01",
+        "2026-04-30",
+        1_000_000,
+        distribution_date="2026-05-01",
+    )
+    distribution = get_profit_distribution(test_db, distribution_id)
+    assert distribution["total_profit_available"] == 1_300_000
+    shares_by_id = {s["partner_id"]: s for s in distribution["shares"]}
+    assert shares_by_id[ali_id]["amount"] == 600_000
+    assert shares_by_id[sara_id]["amount"] == 400_000
+
+    assert get_undistributed_profit(test_db, "2026-04-30") == 300_000
+
+    # Overlaps the April 1-30 period already recorded.
+    with pytest.raises(ConflictError):
+        record_profit_distribution(
+            test_db,
+            "2026-04-15",
+            "2026-05-15",
+            100,
+            distribution_date="2026-05-16",
+        )
+
+    # A non-overlapping May period, but 500,000 exceeds the 300,000 still
+    # undistributed as of 2026-05-31.
+    with pytest.raises(ValueError, match="total_amount_distributed"):
+        record_profit_distribution(
+            test_db,
+            "2026-05-01",
+            "2026-05-31",
+            500_000,
+            distribution_date="2026-06-01",
+        )
+
+    record_profit_distribution(
+        test_db,
+        "2026-05-01",
+        "2026-05-31",
+        500_000,
+        distribution_date="2026-06-01",
+        allow_exceeding=True,
+    )
+
+    assert get_undistributed_profit(test_db, "2026-05-31") == -200_000
+
+
+def test_period_end_before_period_start_raises_validation_error(
+    simple_distribution_setup, test_db
+):
+    with pytest.raises(ValidationError):
+        record_profit_distribution(test_db, "2026-05-31", "2026-05-01", 100)
