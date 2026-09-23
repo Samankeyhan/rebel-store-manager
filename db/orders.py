@@ -3,11 +3,26 @@ import sqlite3
 from db.connection import next_counter, transaction
 from db.constants import VALID_CHANNELS, VALID_STATUSES  # re-exported for existing importers
 from db.errors import ConflictError, InsufficientStockError, NotFoundError, ValidationError
+from db.materials import get_material
+from db.packaging import calculate_kit_cost, get_kit
+from db.postage import get_current_postage_estimate
 from db.products import get_product
-from db.timeutil import to_utc_range
+from db.settings import get_channel_settings, get_setting
+from db.timeutil import normalize_record_date, to_utc_range
 
 REVENUE_ELIGIBLE_STATUSES = ("PENDING", "PAID", "COMPLETED")
 CREATION_ALLOWED_STATUSES = ("DRAFT", "PENDING", "PAID", "COMPLETED")
+
+USE_CHANNEL_DEFAULT = object()
+
+_RETURN_STATUSES = ("CANCELLED", "REFUNDED")
+
+_ALLOWED_TRANSITIONS = {
+    "DRAFT": {"PENDING", "PAID", "COMPLETED"},
+    "PENDING": {"PAID", "COMPLETED"},
+    "PAID": {"COMPLETED"},
+    "COMPLETED": set(),
+}
 
 
 def _validate_channel(channel: str) -> None:
@@ -49,32 +64,20 @@ def _line_revenue(list_price: int, discount_amount: int) -> int:
     return list_price - discount_amount
 
 
-def compute_order_total(order: sqlite3.Row, items: list[sqlite3.Row]) -> int:
-    # Total = sum(quantity * unit_price per item, i.e. list_price, minus discounts)
-    #         + shipping_charge + postage_cost - transaction_fee
+def compute_order_revenue(order: sqlite3.Row, items: list[sqlite3.Row]) -> int:
     items_total = sum(
         _line_revenue(item["list_price"], item["discount_amount"]) for item in items
     )
-    return (
-        items_total
-        + order["shipping_charge"]
-        + order["postage_cost"]
-        - order["transaction_fee"]
-    )
+    return items_total + order["shipping_charge"]
 
 
 def compute_order_profit(order: sqlite3.Row, items: list[sqlite3.Row]) -> int:
-    # Profit = sum(line revenue after discount)
-    #          - sum(unit_cost_at_time * quantity)
-    #          - shipping_charge - postage_cost - transaction_fee
-    items_revenue = sum(
-        _line_revenue(item["list_price"], item["discount_amount"]) for item in items
-    )
+    revenue = compute_order_revenue(order, items)
     cogs = sum(item["unit_cost_at_time"] * item["quantity"] for item in items)
     return (
-        items_revenue
+        revenue
         - cogs
-        - order["shipping_charge"]
+        - order["packaging_cost"]
         - order["postage_cost"]
         - order["transaction_fee"]
     )
@@ -96,25 +99,171 @@ def _fetch_order_items(conn: sqlite3.Connection, order_id: int) -> list[sqlite3.
     return list(rows)
 
 
+def _resolve_packaging_kit_id(conn, channel_settings: dict, packaging_kit_id) -> int | None:
+    if packaging_kit_id is USE_CHANNEL_DEFAULT:
+        resolved = channel_settings["default_packaging_kit_id"]
+    else:
+        resolved = packaging_kit_id
+
+    if resolved is not None:
+        kit = get_kit(conn, resolved)  # raises NotFoundError if missing
+        if not kit["is_active"]:
+            raise ValidationError(
+                f"Packaging kit '{kit['name']}' is not active. Choose another kit "
+                f"or update the channel's default packaging kit.",
+                field="packaging_kit_id",
+            )
+
+    return resolved
+
+
+def _commit_order(
+    conn: sqlite3.Connection, order_id: int, postage_cost_override: int | None = None
+) -> None:
+    with transaction(conn):
+        order = conn.execute(
+            "SELECT * FROM orders WHERE id = ?", (order_id,)
+        ).fetchone()
+        items = _fetch_order_items(conn, order_id)
+
+        needed_by_product: dict[int, float] = {}
+        for item in items:
+            needed_by_product[item["product_id"]] = (
+                needed_by_product.get(item["product_id"], 0) + item["quantity"]
+            )
+
+        products_by_id: dict[int, dict] = {}
+        for product_id, needed in needed_by_product.items():
+            product = get_product(conn, product_id)
+            if product["unit_cost"] is None:
+                raise ValidationError(
+                    f"Cannot commit order #{order_id}: product '{product['name']}' "
+                    f"has no unit_cost",
+                    field="unit_cost",
+                )
+            if product["current_stock"] < needed:
+                raise InsufficientStockError(
+                    f"Product '{product['name']}': insufficient stock — "
+                    f"need {needed}, available {product['current_stock']}",
+                    item_name=product["name"],
+                    needed=needed,
+                    available=product["current_stock"],
+                )
+            products_by_id[product_id] = product
+
+        kit_items: list[dict] = []
+        if order["packaging_kit_id"] is not None:
+            kit_items = get_kit(conn, order["packaging_kit_id"])["items"]
+            needed_by_material: dict[int, float] = {}
+            for kit_item in kit_items:
+                needed_by_material[kit_item["material_id"]] = (
+                    needed_by_material.get(kit_item["material_id"], 0)
+                    + kit_item["quantity"]
+                )
+            for material_id, needed in needed_by_material.items():
+                material = get_material(conn, material_id)
+                if material["current_stock"] < needed:
+                    raise InsufficientStockError(
+                        f"Material '{material['name']}': insufficient stock — "
+                        f"need {needed}, available {material['current_stock']}",
+                        item_name=material["name"],
+                        needed=needed,
+                        available=material["current_stock"],
+                    )
+
+        for item in items:
+            product = products_by_id[item["product_id"]]
+            conn.execute(
+                "UPDATE products SET current_stock = current_stock - ? WHERE id = ?",
+                (item["quantity"], item["product_id"]),
+            )
+            conn.execute(
+                """
+                INSERT INTO stock_movements
+                    (item_type, item_id, quantity_change, reason, reference_order_id)
+                VALUES ('PRODUCT', ?, ?, 'SALE', ?)
+                """,
+                (item["product_id"], -item["quantity"], order_id),
+            )
+            conn.execute(
+                "UPDATE order_items SET unit_cost_at_time = ? WHERE id = ?",
+                (product["unit_cost"], item["id"]),
+            )
+
+        packaging_cost = 0
+        if order["packaging_kit_id"] is not None:
+            for kit_item in kit_items:
+                conn.execute(
+                    "UPDATE materials SET current_stock = current_stock - ? WHERE id = ?",
+                    (kit_item["quantity"], kit_item["material_id"]),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO stock_movements
+                        (item_type, item_id, quantity_change, reason, reference_order_id)
+                    VALUES ('MATERIAL', ?, ?, 'PACKAGING', ?)
+                    """,
+                    (kit_item["material_id"], -kit_item["quantity"], order_id),
+                )
+            packaging_cost = calculate_kit_cost(conn, order["packaging_kit_id"])
+
+        if postage_cost_override is not None:
+            postage_cost = postage_cost_override
+        else:
+            channel_settings = get_channel_settings(conn, order["channel"])
+            postage_cost = (
+                get_current_postage_estimate(conn)
+                if channel_settings["applies_postage"]
+                else 0
+            )
+
+        conn.execute(
+            """
+            UPDATE orders
+            SET packaging_cost = ?, postage_cost = ?, stock_committed = 1
+            WHERE id = ?
+            """,
+            (packaging_cost, postage_cost, order_id),
+        )
+
+
 def record_order(
     conn: sqlite3.Connection,
     channel: str,
     items: list[dict],
     customer_name: str | None = None,
-    shipping_charge: int = 0,
-    postage_cost: int = 0,
+    order_date: str | None = None,
+    shipping_charge: int | None = None,
+    packaging_kit_id=USE_CHANNEL_DEFAULT,
+    postage_cost: int | None = None,
     transaction_fee: int = 0,
     notes: str | None = None,
     status: str = "COMPLETED",
 ) -> int:
     _validate_channel(channel)
     _validate_creation_status(status)
-    _validate_non_negative(shipping_charge, "shipping_charge")
-    _validate_non_negative(postage_cost, "postage_cost")
+    if shipping_charge is not None:
+        _validate_non_negative(shipping_charge, "shipping_charge")
+    if postage_cost is not None:
+        _validate_non_negative(postage_cost, "postage_cost")
     _validate_non_negative(transaction_fee, "transaction_fee")
 
     if not items:
         raise ValidationError("An order must have at least one item", field="items")
+
+    channel_settings = get_channel_settings(conn, channel)
+
+    if shipping_charge is None:
+        shipping_charge = (
+            int(get_setting(conn, "default_shipping_charge"))
+            if channel_settings["applies_shipping_charge"]
+            else 0
+        )
+
+    resolved_kit_id = _resolve_packaging_kit_id(conn, channel_settings, packaging_kit_id)
+
+    if order_date is not None:
+        order_date = normalize_record_date(order_date, conn)
 
     with transaction(conn):
         validated_items: list[dict] = []
@@ -162,50 +311,41 @@ def record_order(
                     field="discount_amount",
                 )
 
-            if product["current_stock"] < quantity:
-                raise InsufficientStockError(
-                    f"Item {index} ('{product['name']}'): insufficient stock — "
-                    f"need {quantity}, available {product['current_stock']}",
-                    item_name=product["name"],
-                    needed=quantity,
-                    available=product["current_stock"],
-                )
-
             effective_unit_price = (list_price - discount_amount) // quantity
-            unit_cost_at_time = (
+            placeholder_unit_cost = (
                 product["unit_cost"] if product["unit_cost"] is not None else 0
             )
 
             validated_items.append(
                 {
                     "product_id": product_id,
-                    "product_name": product["name"],
                     "quantity": quantity,
                     "list_price": list_price,
                     "discount_amount": discount_amount,
                     "discount_reason": discount_reason,
                     "unit_price": effective_unit_price,
-                    "unit_cost_at_time": unit_cost_at_time,
+                    "unit_cost_at_time": placeholder_unit_cost,
                 }
             )
 
+        insert_columns = [
+            "status", "channel", "customer_name", "shipping_charge",
+            "postage_cost", "transaction_fee", "notes", "invoice_number",
+            "packaging_kit_id", "packaging_cost", "stock_committed",
+        ]
+        insert_values = [
+            status, channel, customer_name, shipping_charge,
+            0, transaction_fee, notes, f"INV-{next_counter(conn, 'INV'):06d}",
+            resolved_kit_id, 0, 0,
+        ]
+        if order_date is not None:
+            insert_columns.append("order_date")
+            insert_values.append(order_date)
+
+        placeholders = ", ".join("?" for _ in insert_values)
         cursor = conn.execute(
-            """
-            INSERT INTO orders
-                (status, channel, customer_name, shipping_charge,
-                 postage_cost, transaction_fee, notes, invoice_number)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                status,
-                channel,
-                customer_name,
-                shipping_charge,
-                postage_cost,
-                transaction_fee,
-                notes,
-                f"INV-{next_counter(conn, 'INV'):06d}",
-            ),
+            f"INSERT INTO orders ({', '.join(insert_columns)}) VALUES ({placeholders})",
+            insert_values,
         )
         order_id = cursor.lastrowid
 
@@ -229,23 +369,8 @@ def record_order(
                 ),
             )
 
-            conn.execute(
-                """
-                UPDATE products
-                SET current_stock = current_stock - ?
-                WHERE id = ?
-                """,
-                (item["quantity"], item["product_id"]),
-            )
-
-            conn.execute(
-                """
-                INSERT INTO stock_movements
-                    (item_type, item_id, quantity_change, reason, reference_order_id)
-                VALUES ('PRODUCT', ?, ?, 'SALE', ?)
-                """,
-                (item["product_id"], -item["quantity"], order_id),
-            )
+        if status != "DRAFT":
+            _commit_order(conn, order_id, postage_cost_override=postage_cost)
 
     return order_id
 
@@ -256,12 +381,10 @@ def get_order(conn: sqlite3.Connection, order_id: int) -> dict:
         raise NotFoundError(f"Order with id {order_id} does not exist")
 
     items = _fetch_order_items(conn, order_id)
-    # total/profit are computed for any status, including CANCELLED/REFUNDED.
-    # Revenue reports should exclude those statuses (see get_revenue_summary).
     return {
         "order": dict(order),
         "items": [dict(item) for item in items],
-        "total": compute_order_total(order, items),
+        "customer_total": compute_order_revenue(order, items),
         "profit": compute_order_profit(order, items),
     }
 
@@ -282,9 +405,7 @@ def list_orders(
         SELECT
             orders.*,
             COALESCE(SUM(order_items.list_price - order_items.discount_amount), 0)
-                + orders.shipping_charge
-                + orders.postage_cost
-                - orders.transaction_fee AS total
+                + orders.shipping_charge AS customer_total
         FROM orders
         LEFT JOIN order_items ON order_items.order_id = orders.id
         WHERE 1=1
@@ -310,8 +431,6 @@ def list_orders(
         ORDER BY orders.order_date DESC, orders.id DESC
     """
 
-    # Each row includes a total for all statuses. CANCELLED/REFUNDED orders remain
-    # visible here for operational lookup; revenue reporting excludes them separately.
     rows = conn.execute(query, params).fetchall()
     return [dict(row) for row in rows]
 
@@ -321,15 +440,9 @@ def get_revenue_summary(
     start_date: str | None = None,
     end_date: str | None = None,
 ) -> dict:
-    # Revenue reporting excludes DRAFT, CANCELLED, and REFUNDED orders — only
-    # PENDING, PAID, and COMPLETED count toward totals.
     status_placeholders = ", ".join("?" for _ in REVENUE_ELIGIBLE_STATUSES)
     query = f"""
-        SELECT
-            orders.id,
-            orders.shipping_charge,
-            orders.postage_cost,
-            orders.transaction_fee
+        SELECT orders.*
         FROM orders
         WHERE orders.status IN ({status_placeholders})
     """
@@ -349,7 +462,7 @@ def get_revenue_summary(
     total_profit = 0
     for order in orders:
         items = _fetch_order_items(conn, order["id"])
-        total_revenue += compute_order_total(order, items)
+        total_revenue += compute_order_revenue(order, items)
         total_profit += compute_order_profit(order, items)
 
     return {
@@ -364,14 +477,21 @@ def update_order_status(
 ) -> None:
     _validate_status(new_status)
 
-    order = conn.execute("SELECT id FROM orders WHERE id = ?", (order_id,)).fetchone()
+    order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
     if order is None:
         raise NotFoundError(f"Order with id {order_id} does not exist")
 
-    if new_status in ("CANCELLED", "REFUNDED"):
+    if new_status in _RETURN_STATUSES:
         raise ConflictError(
             f"Use process_return to mark an order as {new_status} — "
             f"that restores stock and records RETURN movements."
+        )
+
+    current_status = order["status"]
+    allowed_targets = _ALLOWED_TRANSITIONS.get(current_status, set())
+    if new_status not in allowed_targets:
+        raise ConflictError(
+            f"Cannot transition order #{order_id} from {current_status} to {new_status}"
         )
 
     with transaction(conn):
@@ -379,3 +499,5 @@ def update_order_status(
             "UPDATE orders SET status = ? WHERE id = ?",
             (new_status, order_id),
         )
+        if current_status == "DRAFT":
+            _commit_order(conn, order_id, postage_cost_override=None)

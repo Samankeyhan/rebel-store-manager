@@ -144,7 +144,9 @@ def test_total_profit_available_from_pnl(distribution_setup, test_db):
 
     distribution = get_profit_distribution(test_db, distribution_id)
     assert distribution["total_profit_available"] == expected_pnl["net_profit"]
-    assert distribution["total_profit_available"] == 4330
+    # revenue 6100 (items 6000 + shipping 100) - cogs 1000 - postage 50 - fee 20
+    # = profit 5030; net_profit = 5030 - expenses(500) = 4530
+    assert distribution["total_profit_available"] == 4530
 
 
 def test_distribute_less_than_profit_available(distribution_setup, test_db):

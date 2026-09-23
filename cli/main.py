@@ -583,7 +583,13 @@ def _prompt_order_status() -> str:
         print("Please enter 1-4, or press Enter for Completed.")
 
 
-def _preview_cart_totals(conn, cart: list[dict], shipping_charge: int, postage_cost: int, transaction_fee: int) -> tuple[int, int]:
+def _preview_cart_totals(
+    conn, cart: list[dict], shipping_charge: int | None, postage_cost: int | None, transaction_fee: int
+) -> tuple[int, int]:
+    """Rough preview only — a blank shipping/postage entry resolves to the
+    channel's default inside record_order, not to 0 as shown here, and this
+    preview doesn't account for a packaging kit's cost at all.
+    """
     items_revenue = 0
     cogs = 0
     for item in cart:
@@ -594,8 +600,10 @@ def _preview_cart_totals(conn, cart: list[dict], shipping_charge: int, postage_c
         unit_cost = product["unit_cost"] if product["unit_cost"] is not None else 0
         cogs += unit_cost * item["quantity"]
 
-    total = items_revenue + shipping_charge + postage_cost - transaction_fee
-    profit = items_revenue - cogs - shipping_charge - postage_cost - transaction_fee
+    shipping_estimate = shipping_charge or 0
+    postage_estimate = postage_cost or 0
+    total = items_revenue + shipping_estimate
+    profit = items_revenue - cogs - postage_estimate - transaction_fee
     return total, profit
 
 
@@ -672,11 +680,11 @@ def _handle_record_sale(conn) -> None:
 
     customer_name = input("\nCustomer name (optional): ").strip() or None
 
-    shipping_input = input("Shipping charge (default 0): ").strip()
-    shipping_charge = int(shipping_input) if shipping_input else 0
+    shipping_input = input("Shipping charge (leave blank for channel default): ").strip()
+    shipping_charge = int(shipping_input) if shipping_input else None
 
-    postage_input = input("Postage cost (default 0): ").strip()
-    postage_cost = int(postage_input) if postage_input else 0
+    postage_input = input("Postage cost (leave blank for channel default/estimate): ").strip()
+    postage_cost = int(postage_input) if postage_input else None
 
     fee_input = input("Transaction fee (default 0): ").strip()
     transaction_fee = int(fee_input) if fee_input else 0
@@ -694,12 +702,14 @@ def _handle_record_sale(conn) -> None:
             f"  {item['quantity']}x {item['product_name']} @ {item['unit_price']} "
             f"(line total: {line_total})"
         )
-    print(f"  Shipping charge: {shipping_charge}")
-    print(f"  Postage cost: {postage_cost}")
+    shipping_display = shipping_charge if shipping_charge is not None else "(channel default)"
+    postage_display = postage_cost if postage_cost is not None else "(channel default/estimate)"
+    print(f"  Shipping charge: {shipping_display}")
+    print(f"  Postage cost: {postage_display}")
     print(f"  Transaction fee: {transaction_fee}")
     print(f"  Status: {status}")
-    print(f"  Total: {total}")
-    print(f"  Estimated profit: {profit}")
+    print(f"  Total (rough estimate): {total}")
+    print(f"  Estimated profit (rough estimate): {profit}")
 
     confirm = input("\nConfirm and record sale? (y/n): ").strip().lower()
     if confirm != "y":
@@ -736,7 +746,7 @@ def _handle_record_sale(conn) -> None:
     detail = get_order(conn, order_id)
     print(f"\nSale recorded successfully. Order #{order_id}")
     print(f"  Status: {detail['order']['status']}")
-    print(f"  Total: {detail['total']}")
+    print(f"  Total: {detail['customer_total']}")
     print(f"  Profit: {detail['profit']}")
 
 
@@ -763,7 +773,7 @@ def _display_order_detail(detail: dict) -> None:
             f"line total {line_total}"
         )
 
-    print(f"\n  Total: {detail['total']}")
+    print(f"\n  Total: {detail['customer_total']}")
     print(f"  Profit: {detail['profit']}")
 
 
@@ -783,7 +793,7 @@ def _handle_list_orders(conn) -> None:
         invoice = order["invoice_number"] or "-"
         print(
             f"{order['id']:<5} {invoice:<12} {order['order_date']:<20} "
-            f"{order['channel']:<12} {customer:<20} {order['total']:<8} "
+            f"{order['channel']:<12} {customer:<20} {order['customer_total']:<8} "
             f"{order['status']:<10}"
         )
 

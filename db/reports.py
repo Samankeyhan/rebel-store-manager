@@ -5,7 +5,7 @@ from db.orders import (
     REVENUE_ELIGIBLE_STATUSES,
     _fetch_order_items,
     compute_order_profit,
-    compute_order_total,
+    compute_order_revenue,
     get_revenue_summary,
 )
 from db.timeutil import to_utc_range
@@ -92,7 +92,7 @@ def get_channel_breakdown(
     for order in orders:
         channel = order["channel"]
         items = _fetch_order_items(conn, order["id"])
-        revenue = compute_order_total(order, items)
+        revenue = compute_order_revenue(order, items)
         profit = compute_order_profit(order, items)
 
         if channel not in by_channel:
@@ -246,7 +246,7 @@ def get_profit_and_loss(
 
     total_cost_of_goods is derived as total_revenue minus total_profit from
     get_revenue_summary. That profit already subtracts per-order COGS,
-    shipping, postage, and transaction fees (see compute_order_profit), so
+    packaging, postage, and transaction fees (see compute_order_profit), so
     this derived figure captures all of those costs relative to revenue —
     not COGS alone.
     """

@@ -58,7 +58,7 @@ channel_settings:
 ## 6. Postage
 - A postage batch records a bulk payment to the post office: paid_date, total_paid, order_count (> 0), notes.
 - Current postage estimate = round(sum(total_paid) / sum(order_count)) over the most recent N batches by paid_date (N = postage_estimate_window). With no batches: default_postage_estimate.
-- When an order commits stock, if its channel applies_postage, postage_cost = current estimate (unless overridden); otherwise 0. The value is frozen on the order.
+- When an order commits stock, postage_cost = the explicit override if one was given; otherwise the current estimate if its channel applies_postage; otherwise 0. The value is frozen on the order.
 
 ## 7. Orders
 Per line: list_price = quantity × unit_price; items_net = list_price − discount_amount.
@@ -79,7 +79,7 @@ Selling a product whose unit_cost is NULL is refused with ValidationError (field
 - orders.stock_committed (0/1) records whether this has happened.
 - Allowed transitions via update_order_status: DRAFT → PENDING, PAID, COMPLETED; PENDING → PAID, COMPLETED; PAID → COMPLETED. Anything else raises ConflictError.
 - Only process_return sets CANCELLED or REFUNDED:
-  - CANCELLED: allowed from DRAFT, PENDING, PAID (not shipped). If stock_committed, restore products and packaging materials (reason RETURN). Excluded from all revenue and cost reporting.
+  - CANCELLED: allowed from DRAFT, PENDING, PAID (not shipped). If stock_committed, restore products and packaging materials (reason RETURN). Excluded from all revenue and cost reporting. If transaction_fee > 0 it is a loss (payment gateways rarely refund fees); packaging and postage are not losses, since nothing was shipped.
   - REFUNDED: allowed from PAID, COMPLETED (shipped). Restore products only (RETURN); packaging was used up. packaging_cost + postage_cost + transaction_fee count as refund losses.
 
 ## 8. Stock adjustments
@@ -100,7 +100,7 @@ Profit & loss for a date range:
 - gross_profit = total_revenue − cogs − packaging_cost − postage_estimated − transaction_fees
 - postage_actual = sum(total_paid) of postage batches with paid_date in range
 - postage_variance = postage_actual − (sum of postage_cost over eligible AND refunded orders in range)
-- refund_losses = sum(packaging_cost + postage_cost + transaction_fee) over REFUNDED orders in range
+- refund_losses = sum(packaging_cost + postage_cost + transaction_fee) over REFUNDED orders in range + sum(transaction_fee) over CANCELLED orders in range whose stock_committed = 1
 - waste_cost = section 8, WASTE movements in range
 - operating_expenses = sum(expenses) in range
 - net_profit = gross_profit − postage_variance − refund_losses − waste_cost − operating_expenses

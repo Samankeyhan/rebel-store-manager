@@ -30,9 +30,9 @@ def invoice_order_setup(test_db, tmp_path):
         "INSTAGRAM",
         [{"product_id": product_id, "quantity": 2, "unit_price": 3000}],
         customer_name="Test Customer",
-        shipping_charge=200,
-        postage_cost=0,
-        transaction_fee=50,
+        shipping_charge=170_000,
+        postage_cost=88_888,
+        transaction_fee=77_777,
     )
     return {
         "order_id": order_id,
@@ -144,3 +144,31 @@ def test_footer_image_does_not_crash(invoice_order_setup, test_db, tmp_path):
 
     assert os.path.isfile(path)
     assert os.path.getsize(path) > 0
+
+
+def test_invoice_shows_shipping_and_total_not_postage_or_fee(invoice_order_setup, test_db):
+    order_id = invoice_order_setup["order_id"]
+    output_dir = invoice_order_setup["output_dir"]
+    detail = get_order(test_db, order_id)
+    order = detail["order"]
+
+    path = generate_invoice_pdf(test_db, order_id, output_dir=output_dir)
+
+    with pdfplumber.open(path) as pdf:
+        text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+
+    # Match just the Persian-digit number (not the " تومان" suffix): RTL/bidi
+    # reshaping can reorder the number relative to surrounding Persian words
+    # in extracted text, but the digit run itself stays contiguous.
+    def _persian_number(amount: int) -> str:
+        return f"{amount:,}".translate(invoice_module.PERSIAN_DIGIT_MAP)
+
+    shipping_text = _persian_number(order["shipping_charge"])
+    total_text = _persian_number(detail["customer_total"])
+    postage_text = _persian_number(order["postage_cost"])
+    fee_text = _persian_number(order["transaction_fee"])
+
+    assert shipping_text in text
+    assert total_text in text
+    assert postage_text not in text
+    assert fee_text not in text

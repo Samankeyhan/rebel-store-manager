@@ -155,19 +155,31 @@ def test_get_product_performance_excludes_cancelled_and_date_filter(report_setup
 
 
 def test_get_channel_breakdown(report_setup, test_db):
+    # INSTAGRAM order: shipping/postage/fee were passed explicitly (100/50/20),
+    # so those overrides are used regardless of channel defaults.
+    # revenue = items_net(6000) + shipping(100) = 6100
+    # profit = 6100 - cogs(1000) - packaging(0) - postage(50) - fee(20) = 5030
+    #
+    # WEBSITE order: no overrides given, so it picks up WEBSITE's channel
+    # defaults — shipping_charge = default_shipping_charge (180,000), postage
+    # estimate = 0 (no postage batches recorded in this fixture).
+    # revenue = items_net(1500) + shipping(180,000) = 181,500
+    # profit = 181,500 - cogs(300) - packaging(0) - postage(0) - fee(0) = 181,200
     rows = get_channel_breakdown(test_db)
     assert len(rows) == 2
 
     by_channel = {row["channel"]: row for row in rows}
     assert by_channel["INSTAGRAM"]["order_count"] == 1
-    assert by_channel["INSTAGRAM"]["total_revenue"] == 6130
-    assert by_channel["INSTAGRAM"]["total_profit"] == 4830
+    assert by_channel["INSTAGRAM"]["total_revenue"] == 6100
+    assert by_channel["INSTAGRAM"]["total_profit"] == 5030
 
     assert by_channel["WEBSITE"]["order_count"] == 1
-    assert by_channel["WEBSITE"]["total_revenue"] == 1500
-    assert by_channel["WEBSITE"]["total_profit"] == 1200
+    assert by_channel["WEBSITE"]["total_revenue"] == 181_500
+    assert by_channel["WEBSITE"]["total_profit"] == 181_200
 
-    assert rows[0]["channel"] == "INSTAGRAM"
+    # Sorted by total_revenue desc — WEBSITE's default shipping charge now
+    # puts it ahead of INSTAGRAM.
+    assert rows[0]["channel"] == "WEBSITE"
 
 
 def test_get_channel_breakdown_excludes_cancelled_and_empty_range(report_setup, test_db):
@@ -233,27 +245,37 @@ def test_get_expense_breakdown_date_filter_and_empty(report_setup, test_db):
 
 
 def test_get_profit_and_loss_hand_calculated(report_setup, test_db):
-    # Order INSTAGRAM: revenue 6130, profit 4830 (6000 - 1000 COGS - 100 ship - 50 post - 20 fee)
-    # Order WEBSITE: revenue 1500, profit 1200 (1500 - 300 COGS)
+    # Order INSTAGRAM: revenue = 6000 + shipping(100) = 6100
+    #                  profit = 6100 - cogs(1000) - postage(50) - fee(20) = 5030
+    # Order WEBSITE: no overrides given, so it picks up the channel's default
+    #                shipping charge (180,000) and a postage estimate of 0.
+    #                revenue = 1500 + 180,000 = 181,500
+    #                profit = 181,500 - cogs(300) = 181,200
     # Cancelled order excluded. Expenses: Ads 500 + Tools 200 = 700.
+    # total_revenue = 6100 + 181,500 = 187,600
+    # total_profit = 5030 + 181,200 = 186,230
+    # total_cost_of_goods = total_revenue - total_profit = 1,370
+    # net_profit = total_profit - expenses = 186,230 - 700 = 185,530
     pnl = get_profit_and_loss(test_db)
 
     assert pnl["order_count"] == 2
-    assert pnl["total_revenue"] == 7630
-    assert pnl["total_cost_of_goods"] == 1600
+    assert pnl["total_revenue"] == 187_600
+    assert pnl["total_cost_of_goods"] == 1370
     assert pnl["total_expenses"] == 700
-    assert pnl["net_profit"] == 5330
+    assert pnl["net_profit"] == 185_530
 
 
 def test_get_profit_and_loss_date_filter(report_setup, test_db):
+    # Only the INSTAGRAM order falls in this one-day range.
+    # revenue 6100, cogs+postage+fee = 1070, profit 5030.
     instagram_only = get_profit_and_loss(
         test_db, start_date="2026-03-10", end_date="2026-03-10"
     )
     assert instagram_only["order_count"] == 1
-    assert instagram_only["total_revenue"] == 6130
-    assert instagram_only["total_cost_of_goods"] == 1300
+    assert instagram_only["total_revenue"] == 6100
+    assert instagram_only["total_cost_of_goods"] == 1070
     assert instagram_only["total_expenses"] == 0
-    assert instagram_only["net_profit"] == 4830
+    assert instagram_only["net_profit"] == 5030
 
     assert get_profit_and_loss(test_db, start_date="2099-01-01") == {
         "total_revenue": 0,

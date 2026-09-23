@@ -278,24 +278,6 @@ def _draw_totals_section(
         )
         y -= TABLE_ROW_HEIGHT
 
-    if order["postage_cost"] > 0:
-        _draw_persian_right(
-            c, COL_PRODUCT, y, "هزینه پست:", font="Vazir-Bold", size=10
-        )
-        _draw_amount_right(
-            c, COL_PRODUCT - 80, y, order["postage_cost"], size=10
-        )
-        y -= TABLE_ROW_HEIGHT
-
-    if order["transaction_fee"] > 0:
-        _draw_persian_right(
-            c, COL_PRODUCT, y, "کارمزد تراکنش (کسر):", font="Vazir-Bold", size=10
-        )
-        _draw_amount_right(
-            c, COL_PRODUCT - 80, y, order["transaction_fee"], size=10
-        )
-        y -= TABLE_ROW_HEIGHT
-
     y -= 4
     _draw_persian_right(
         c, COL_PRODUCT, y, "مبلغ نهایی:", font="Vazir-Bold", size=13
@@ -321,7 +303,7 @@ def generate_invoice_pdf(
 
     order = order_data["order"]
     items = order_data["items"]
-    final_total = order_data["total"]
+    final_total = order_data["customer_total"]
 
     out_dir = _resolve_output_dir(output_dir)
     invoice_number = order["invoice_number"]
