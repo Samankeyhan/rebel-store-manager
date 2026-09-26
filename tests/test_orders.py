@@ -371,6 +371,38 @@ def test_list_orders_filters_by_channel_and_status(test_db, order_setup):
     assert pending_orders[0]["customer_total"] == 1000
 
 
+def test_list_orders_includes_profit(test_db, canonical_setup):
+    vinyl_id = canonical_setup["vinyl_id"]
+
+    order_id = record_order(
+        test_db,
+        "WEBSITE",
+        [{"product_id": vinyl_id, "quantity": 2, "unit_price": 2_500_000}],
+        transaction_fee=50_000,
+    )
+
+    rows = list_orders(test_db, channel="WEBSITE")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["customer_total"] == 5_180_000
+    assert row["profit"] == 2_435_000
+
+    detail = get_order(test_db, order_id)
+    assert row["customer_total"] == detail["customer_total"]
+    assert row["profit"] == detail["profit"]
+
+    draft_id = record_order(
+        test_db,
+        "WEBSITE",
+        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
+        status="DRAFT",
+    )
+    draft_row = next(
+        r for r in list_orders(test_db, status="DRAFT") if r["id"] == draft_id
+    )
+    assert draft_row["profit"] is None
+
+
 def test_update_order_status(test_db, order_setup):
     product_id = order_setup["product_a_id"]
     order_id = record_order(

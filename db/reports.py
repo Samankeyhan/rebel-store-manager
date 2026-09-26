@@ -137,6 +137,32 @@ def _postage_committed_on_shipped_orders(
     return row["total"]
 
 
+def _shipped_order_count(
+    conn: sqlite3.Connection, start_date: str | None, end_date: str | None
+) -> int:
+    """Revenue-eligible orders in range whose channel actually ships
+    (applies_postage = 1) — the correct denominator for shipping per-order
+    averages (a channel like IN_PERSON never ships, so it shouldn't dilute
+    the average shipping/packaging/postage cost per shipped order).
+    """
+    date_clause, date_params = _date_range_clause(
+        conn, "orders.order_date", start_date, end_date
+    )
+    status_clause, status_params = _revenue_eligible_status_clause()
+    row = conn.execute(
+        f"""
+        SELECT COUNT(*) AS total
+        FROM orders
+        JOIN channel_settings ON channel_settings.channel = orders.channel
+        WHERE {status_clause}
+          AND channel_settings.applies_postage = 1
+        {date_clause}
+        """,
+        status_params + date_params,
+    ).fetchone()
+    return row["total"]
+
+
 def _refund_losses(
     conn: sqlite3.Connection, start_date: str | None, end_date: str | None
 ) -> int:
@@ -452,12 +478,13 @@ def get_shipping_summary(
     packaging_cost = agg["packaging_cost"]
     postage_estimated = agg["postage_estimated"]
     order_count = agg["order_count"]
+    shipped_order_count = _shipped_order_count(conn, start_date, end_date)
 
     postage_actual = _postage_actual(conn, start_date, end_date)
     net_shipping_result = shipping_revenue - packaging_cost - postage_actual
 
     def _avg(total: int) -> int:
-        return round(total / order_count) if order_count else 0
+        return round(total / shipped_order_count) if shipped_order_count else 0
 
     return {
         "shipping_revenue": shipping_revenue,
@@ -466,8 +493,59 @@ def get_shipping_summary(
         "postage_actual": postage_actual,
         "net_shipping_result": net_shipping_result,
         "order_count": order_count,
+        "shipped_order_count": shipped_order_count,
         "avg_shipping_revenue": _avg(shipping_revenue),
         "avg_packaging_cost": _avg(packaging_cost),
         "avg_postage_actual": _avg(postage_actual),
         "avg_net_shipping_result": _avg(net_shipping_result),
     }
+
+
+def get_shipping_by_channel(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
+    """Shipping economics broken down per channel — only channels with at
+    least one shipped (applies_postage = 1) order in range appear, matching
+    get_channel_breakdown's precedent of omitting channels with no activity.
+    """
+    date_clause, date_params = _date_range_clause(
+        conn, "orders.order_date", start_date, end_date
+    )
+    status_clause, status_params = _revenue_eligible_status_clause()
+    rows = conn.execute(
+        f"""
+        SELECT
+            orders.channel AS channel,
+            COUNT(*) AS shipped_order_count,
+            COALESCE(SUM(orders.shipping_charge), 0) AS shipping_revenue,
+            COALESCE(SUM(orders.packaging_cost), 0) AS packaging_cost,
+            COALESCE(SUM(orders.postage_cost), 0) AS postage_estimated
+        FROM orders
+        JOIN channel_settings ON channel_settings.channel = orders.channel
+        WHERE {status_clause}
+          AND channel_settings.applies_postage = 1
+        {date_clause}
+        GROUP BY orders.channel
+        """,
+        status_params + date_params,
+    ).fetchall()
+
+    results = []
+    for row in rows:
+        shipped = row["shipped_order_count"]
+        net = row["shipping_revenue"] - row["packaging_cost"] - row["postage_estimated"]
+        results.append(
+            {
+                "channel": row["channel"],
+                "shipped_order_count": shipped,
+                "shipping_revenue": row["shipping_revenue"],
+                "packaging_cost": row["packaging_cost"],
+                "postage_estimated": row["postage_estimated"],
+                "net": net,
+                "net_per_order": round(net / shipped) if shipped else 0,
+            }
+        )
+
+    return sorted(results, key=lambda row: row["shipping_revenue"], reverse=True)

@@ -543,7 +543,15 @@ def list_orders(
         SELECT
             orders.*,
             COALESCE(SUM(order_items.list_price - order_items.discount_amount), 0)
-                + orders.shipping_charge AS customer_total
+                + orders.shipping_charge AS customer_total,
+            CASE
+                WHEN orders.status IN ('DRAFT', 'CANCELLED') THEN NULL
+                ELSE
+                    COALESCE(SUM(order_items.list_price - order_items.discount_amount), 0)
+                    + orders.shipping_charge
+                    - COALESCE(SUM(order_items.quantity * order_items.unit_cost_at_time), 0)
+                    - orders.packaging_cost - orders.postage_cost - orders.transaction_fee
+            END AS profit
         FROM orders
         LEFT JOIN order_items ON order_items.order_id = orders.id
         WHERE 1=1

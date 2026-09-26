@@ -4,3 +4,6 @@ arabic-reshaper
 python-bidi
 pdfplumber
 tzdata
+fastapi
+uvicorn[standard]
+httpx

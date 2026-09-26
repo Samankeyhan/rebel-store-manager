@@ -13,6 +13,7 @@ from db.reports import (
     get_low_stock_products,
     get_product_performance,
     get_profit_and_loss,
+    get_shipping_by_channel,
     get_shipping_summary,
     get_waste_report,
 )
@@ -381,6 +382,93 @@ def test_get_profit_and_loss_date_filter(report_setup, test_db):
         "net_profit": 0,
         "order_count": 0,
     }
+
+
+def test_get_shipping_summary_shipped_order_count(test_db):
+    # IN_PERSON does not apply postage (never shipped); WEBSITE does. Both
+    # orders are revenue-eligible, so order_count counts both, but only the
+    # WEBSITE order actually shipped, so shipped_order_count is 1 and every
+    # avg_* figure is based on that, not on order_count.
+    product_id = add_product(test_db, "Shipping Test Item", "OTHER", 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+
+    record_order(
+        test_db,
+        "IN_PERSON",
+        [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+        status="COMPLETED",
+    )
+    record_order(
+        test_db,
+        "WEBSITE",
+        [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+        status="COMPLETED",
+    )
+
+    shipping = get_shipping_summary(test_db)
+    assert shipping["order_count"] == 2
+    assert shipping["shipped_order_count"] == 1
+    # shipping_revenue = WEBSITE's default shipping charge only (IN_PERSON
+    # doesn't apply one); dividing by shipped_order_count (1), not
+    # order_count (2), the average equals the total.
+    assert shipping["shipping_revenue"] == 180_000
+    assert shipping["avg_shipping_revenue"] == 180_000
+    assert shipping["net_shipping_result"] == 180_000
+    assert shipping["avg_net_shipping_result"] == 180_000
+
+
+def test_get_shipping_by_channel(test_db):
+    product_id = add_product(test_db, "Shipping Test Item", "OTHER", 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+
+    record_order(
+        test_db,
+        "WEBSITE",
+        [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+        status="COMPLETED",
+    )
+    record_order(
+        test_db,
+        "WHOLESALE",
+        [{"product_id": product_id, "quantity": 2, "unit_price": 1000}],
+        status="COMPLETED",
+    )
+    # IN_PERSON never ships (applies_postage = 0) — must not appear at all.
+    record_order(
+        test_db,
+        "IN_PERSON",
+        [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+        status="COMPLETED",
+    )
+
+    rows = get_shipping_by_channel(test_db)
+    by_channel = {row["channel"]: row for row in rows}
+    assert set(by_channel) == {"WEBSITE", "WHOLESALE"}
+
+    website = by_channel["WEBSITE"]
+    assert website["shipped_order_count"] == 1
+    assert website["shipping_revenue"] == 180_000
+    assert website["packaging_cost"] == 0
+    assert website["postage_estimated"] == 0
+    assert website["net"] == 180_000
+    assert website["net_per_order"] == 180_000
+
+    wholesale = by_channel["WHOLESALE"]
+    assert wholesale["shipped_order_count"] == 1
+    assert wholesale["shipping_revenue"] == 0
+    assert wholesale["net"] == 0
+
+    # Sorted by shipping_revenue desc, matching get_channel_breakdown's
+    # precedent of sorting by total_revenue desc.
+    assert rows[0]["channel"] == "WEBSITE"
 
 
 # ---------------------------------------------------------------------------
