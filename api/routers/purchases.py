@@ -4,13 +4,20 @@ from fastapi import APIRouter, Depends
 
 from api.deps import get_db
 from api.schemas.common import DateStr
-from api.schemas.purchases import MaterialPurchaseOut, ProductPurchaseOut
+from api.schemas.purchases import (
+    MaterialPurchaseCreate,
+    MaterialPurchaseOut,
+    ProductPurchaseCreate,
+    ProductPurchaseOut,
+)
 from db.errors import NotFoundError
 from db.purchases import (
     get_material_purchase,
     get_product_purchase,
     list_material_purchases,
     list_product_purchases,
+    record_material_purchase,
+    record_product_purchase,
 )
 
 router = APIRouter(tags=["purchases"])
@@ -70,3 +77,35 @@ def read_product_purchase(
     if purchase is None:
         raise NotFoundError(f"Product purchase with id {purchase_id} does not exist")
     return ProductPurchaseOut.model_validate(purchase)
+
+
+@router.post("/purchases/materials", response_model=MaterialPurchaseOut, status_code=201)
+def create_material_purchase(
+    body: MaterialPurchaseCreate, conn: sqlite3.Connection = Depends(get_db)
+) -> MaterialPurchaseOut:
+    purchase_id = record_material_purchase(
+        conn,
+        body.material_id,
+        body.quantity_bought,
+        body.total_paid,
+        supplier_id=body.supplier_id,
+        purchase_date=body.purchase_date,
+        notes=body.notes,
+    )
+    return MaterialPurchaseOut.model_validate(get_material_purchase(conn, purchase_id))
+
+
+@router.post("/purchases/products", response_model=ProductPurchaseOut, status_code=201)
+def create_product_purchase(
+    body: ProductPurchaseCreate, conn: sqlite3.Connection = Depends(get_db)
+) -> ProductPurchaseOut:
+    purchase_id = record_product_purchase(
+        conn,
+        body.product_id,
+        body.quantity_bought,
+        body.total_paid,
+        supplier_id=body.supplier_id,
+        purchase_date=body.purchase_date,
+        notes=body.notes,
+    )
+    return ProductPurchaseOut.model_validate(get_product_purchase(conn, purchase_id))

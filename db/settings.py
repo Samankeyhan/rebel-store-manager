@@ -7,6 +7,13 @@ from db.errors import NotFoundError, ValidationError
 
 _UNSET = object()
 
+VALID_SETTING_KEYS = (
+    "default_shipping_charge",
+    "postage_estimate_window",
+    "default_postage_estimate",
+    "timezone",
+)
+
 _NON_NEGATIVE_INT_KEYS = {"default_shipping_charge", "default_postage_estimate"}
 _POSITIVE_INT_KEYS = {"postage_estimate_window"}
 
@@ -45,6 +52,13 @@ def get_setting(conn: sqlite3.Connection, key: str, default: str | None = None) 
 
 
 def set_setting(conn: sqlite3.Connection, key: str, value) -> None:
+    # An unknown key (e.g. a typo) would otherwise be saved silently while the
+    # real setting never changes.
+    if key not in VALID_SETTING_KEYS:
+        valid = ", ".join(VALID_SETTING_KEYS)
+        raise ValidationError(
+            f"Unknown setting '{key}'. Must be one of: {valid}", field="key"
+        )
     value_str = str(value)
     _validate_setting_value(key, value_str)
     with transaction(conn):

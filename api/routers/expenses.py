@@ -4,8 +4,20 @@ from fastapi import APIRouter, Depends
 
 from api.deps import get_db
 from api.schemas.common import DateStr
-from api.schemas.expenses import ExpenseCategoryOut, ExpenseOut
-from db.expenses import list_expense_categories, list_expenses
+from api.schemas.expenses import (
+    ExpenseCategoryCreate,
+    ExpenseCategoryOut,
+    ExpenseCreate,
+    ExpenseOut,
+)
+from db.expenses import (
+    add_expense,
+    add_expense_category,
+    get_expense,
+    get_expense_category,
+    list_expense_categories,
+    list_expenses,
+)
 
 router = APIRouter(tags=["expenses"])
 
@@ -31,3 +43,25 @@ def read_expense_categories(
         ExpenseCategoryOut.model_validate(c)
         for c in list_expense_categories(conn, active_only)
     ]
+
+
+@router.post("/expense-categories", response_model=ExpenseCategoryOut, status_code=201)
+def create_expense_category(
+    body: ExpenseCategoryCreate, conn: sqlite3.Connection = Depends(get_db)
+) -> ExpenseCategoryOut:
+    category_id = add_expense_category(conn, body.name)
+    return ExpenseCategoryOut.model_validate(get_expense_category(conn, category_id))
+
+
+@router.post("/expenses", response_model=ExpenseOut, status_code=201)
+def create_expense(
+    body: ExpenseCreate, conn: sqlite3.Connection = Depends(get_db)
+) -> ExpenseOut:
+    expense_id = add_expense(
+        conn,
+        body.expense_category_id,
+        body.amount,
+        description=body.description,
+        expense_date=body.expense_date,
+    )
+    return ExpenseOut.model_validate(get_expense(conn, expense_id))

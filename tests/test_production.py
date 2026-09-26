@@ -281,3 +281,41 @@ def test_production_blends_product_unit_cost(test_db):
 
     # batch_total_cost = 10*200 = 2000; blend: (10*100 + 2000) / (10+10) = 150
     assert get_product(test_db, product_id)["unit_cost"] == 150
+
+
+def test_production_date_is_normalized_and_dates_movements(test_db, production_setup):
+    batch_id = run_production_batch(
+        test_db, production_setup["product_id"], 2, production_date="2026-01-15"
+    )
+
+    batch = get_production_batch(test_db, batch_id)
+    # Local midnight Asia/Tehran (+03:30) stored as UTC.
+    assert batch["batch"]["production_date"] == "2026-01-14 20:30:00"
+
+    movement_dates = {
+        m["movement_date"]
+        for m in test_db.execute(
+            "SELECT movement_date FROM stock_movements "
+            "WHERE reference_production_batch_id = ?",
+            (batch_id,),
+        ).fetchall()
+    }
+    assert movement_dates == {"2026-01-14 20:30:00"}
+
+
+def test_production_date_omitted_uses_now(test_db, production_setup):
+    batch_id = run_production_batch(test_db, production_setup["product_id"], 1)
+
+    production_date = get_production_batch(test_db, batch_id)["batch"]["production_date"]
+    assert production_date is not None
+    assert len(production_date) == len("YYYY-MM-DD HH:MM:SS")
+
+
+def test_invalid_production_date_writes_nothing(test_db, production_setup):
+    with pytest.raises(ValueError):
+        run_production_batch(
+            test_db, production_setup["product_id"], 1, production_date="15/01/2026"
+        )
+
+    assert _count_rows(test_db, "production_batches") == 0
+    assert _count_rows(test_db, "stock_movements") == 0

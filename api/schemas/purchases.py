@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.common import DateStr, Money
+
 
 class MaterialPurchaseOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -31,3 +33,25 @@ class ProductPurchaseOut(BaseModel):
     notes: str | None
     product_name: str
     supplier_name: str | None
+
+
+class MaterialPurchaseCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    material_id: int
+    quantity_bought: float
+    total_paid: Money
+    supplier_id: int | None = None
+    purchase_date: DateStr | None = None
+    notes: str | None = None
+
+
+class ProductPurchaseCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    product_id: int
+    quantity_bought: int
+    total_paid: Money
+    supplier_id: int | None = None
+    purchase_date: DateStr | None = None
+    notes: str | None = None

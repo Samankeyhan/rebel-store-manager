@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.common import DateStr
+
 
 class ProductionBatchListOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -41,3 +43,12 @@ class ProductionBatchDetailOut(BaseModel):
 
     batch: ProductionBatchOut
     materials: list[ProductionBatchMaterialOut]
+
+
+class ProductionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    product_id: int
+    quantity_produced: int
+    production_date: DateStr | None = None
+    notes: str | None = None

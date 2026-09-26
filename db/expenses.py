@@ -11,6 +11,11 @@ def _get_expense_category(conn: sqlite3.Connection, category_id: int) -> sqlite3
     ).fetchone()
 
 
+def get_expense_category(conn: sqlite3.Connection, category_id: int) -> dict | None:
+    row = _get_expense_category(conn, category_id)
+    return dict(row) if row is not None else None
+
+
 def add_expense_category(conn: sqlite3.Connection, name: str) -> int:
     stripped = name.strip()
     if not stripped:
@@ -89,6 +94,21 @@ def add_expense(
             )
 
     return cursor.lastrowid
+
+
+def get_expense(conn: sqlite3.Connection, expense_id: int) -> dict | None:
+    row = conn.execute(
+        """
+        SELECT
+            expenses.*,
+            expense_categories.name AS category_name
+        FROM expenses
+        JOIN expense_categories ON expense_categories.id = expenses.expense_category_id
+        WHERE expenses.id = ?
+        """,
+        (expense_id,),
+    ).fetchone()
+    return dict(row) if row is not None else None
 
 
 def list_expenses(

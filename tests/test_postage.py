@@ -56,3 +56,18 @@ def test_estimate_uses_most_recent_batches_within_window(test_db):
     # Oldest batch (10,000,000/40) drops out of the 3-batch window:
     # sum = 3,500,000 / 15 = 233,333.33... -> 233,333
     assert postage.get_current_postage_estimate(test_db) == 233_333
+
+
+def test_get_postage_batch(test_db):
+    batch_id = postage.record_postage_batch(
+        test_db, total_paid=500_000, order_count=4, paid_date="2026-01-15", notes="Feb"
+    )
+
+    batch = postage.get_postage_batch(test_db, batch_id)
+    assert batch["id"] == batch_id
+    assert batch["total_paid"] == 500_000
+    assert batch["order_count"] == 4
+    assert batch["paid_date"] == "2026-01-14 20:30:00"
+    assert batch["notes"] == "Feb"
+
+    assert postage.get_postage_batch(test_db, 999) is None

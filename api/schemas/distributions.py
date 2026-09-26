@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.common import DateStr, Money
+
 
 class DistributionListOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -42,3 +44,14 @@ class UndistributedProfitOut(BaseModel):
 
     undistributed_profit: int
     as_of: str
+
+
+class DistributionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    period_start: DateStr
+    period_end: DateStr
+    total_amount_distributed: Money
+    distribution_date: DateStr | None = None
+    notes: str | None = None
+    allow_exceeding: bool = False

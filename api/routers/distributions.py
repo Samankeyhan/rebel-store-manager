@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from api.deps import get_db
 from api.schemas.common import DateStr
 from api.schemas.distributions import (
+    DistributionCreate,
     DistributionDetailOut,
     DistributionListOut,
     UndistributedProfitOut,
@@ -13,6 +14,7 @@ from db.distributions import (
     get_profit_distribution,
     get_undistributed_profit,
     list_profit_distributions,
+    record_profit_distribution,
 )
 from db.errors import NotFoundError
 
@@ -50,3 +52,27 @@ def read_distribution(
     if distribution is None:
         raise NotFoundError(f"Distribution with id {distribution_id} does not exist")
     return DistributionDetailOut.model_validate(distribution)
+
+
+@router.post("/distributions", response_model=DistributionDetailOut, status_code=201)
+def create_distribution(
+    body: DistributionCreate, conn: sqlite3.Connection = Depends(get_db)
+) -> DistributionDetailOut:
+    """Record a profit payout to the active partners, split by ownership.
+
+    If total_amount_distributed exceeds the undistributed profit as of
+    period_end, this returns 422 with field "total_amount_distributed" unless
+    allow_exceeding is true (the UI's "distribute anyway" confirmation).
+    """
+    distribution_id = record_profit_distribution(
+        conn,
+        body.period_start,
+        body.period_end,
+        body.total_amount_distributed,
+        distribution_date=body.distribution_date,
+        notes=body.notes,
+        allow_exceeding=body.allow_exceeding,
+    )
+    return DistributionDetailOut.model_validate(
+        get_profit_distribution(conn, distribution_id)
+    )

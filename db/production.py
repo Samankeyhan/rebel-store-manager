@@ -4,6 +4,7 @@ from db.connection import transaction
 from db.costing import blend_unit_cost
 from db.errors import InsufficientStockError, NotFoundError, ValidationError
 from db.products import get_product
+from db.timeutil import normalize_record_date
 
 
 def _fetch_recipe_for_production(
@@ -34,6 +35,7 @@ def run_production_batch(
     product_id: int,
     quantity_produced: int,
     notes: str | None = None,
+    production_date: str | None = None,
 ) -> int:
     product = get_product(conn, product_id)
     if product is None:
@@ -44,6 +46,11 @@ def run_production_batch(
             f"quantity_produced must be > 0, got {quantity_produced}",
             field="quantity_produced",
         )
+
+    # None keeps the column default (now); the batch's stock movements are
+    # dated the same way, like purchases date theirs.
+    if production_date is not None:
+        production_date = normalize_record_date(production_date, conn)
 
     with transaction(conn):
         recipe = _fetch_recipe_for_production(conn, product_id)
@@ -91,10 +98,10 @@ def run_production_batch(
         cursor = conn.execute(
             """
             INSERT INTO production_batches
-                (product_id, quantity_produced, unit_cost, notes)
-            VALUES (?, ?, ?, ?)
+                (product_id, quantity_produced, unit_cost, notes, production_date)
+            VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))
             """,
-            (product_id, quantity_produced, unit_cost, notes),
+            (product_id, quantity_produced, unit_cost, notes, production_date),
         )
         batch_id = cursor.lastrowid
 
@@ -126,13 +133,15 @@ def run_production_batch(
                     """
                     INSERT INTO stock_movements
                         (item_type, item_id, quantity_change, reason,
-                         reference_production_batch_id)
-                    VALUES ('MATERIAL', ?, ?, 'PRODUCTION_CONSUMPTION', ?)
+                         reference_production_batch_id, movement_date)
+                    VALUES ('MATERIAL', ?, ?, 'PRODUCTION_CONSUMPTION', ?,
+                            COALESCE(?, datetime('now')))
                     """,
                     (
                         req["material_id"],
                         -req["needed"],
                         batch_id,
+                        production_date,
                     ),
                 )
 
@@ -156,10 +165,11 @@ def run_production_batch(
             """
             INSERT INTO stock_movements
                 (item_type, item_id, quantity_change, reason,
-                 reference_production_batch_id)
-            VALUES ('PRODUCT', ?, ?, 'PRODUCTION_OUTPUT', ?)
+                 reference_production_batch_id, movement_date)
+            VALUES ('PRODUCT', ?, ?, 'PRODUCTION_OUTPUT', ?,
+                    COALESCE(?, datetime('now')))
             """,
-            (product_id, quantity_produced, batch_id),
+            (product_id, quantity_produced, batch_id, production_date),
         )
 
     return batch_id

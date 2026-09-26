@@ -4,6 +4,8 @@ from db.expenses import (
     add_expense,
     add_expense_category,
     deactivate_expense_category,
+    get_expense,
+    get_expense_category,
     get_total_expenses,
     list_expense_categories,
     list_expenses,
@@ -100,3 +102,24 @@ def test_get_total_expenses(test_db):
     assert get_total_expenses(test_db) == 500
     assert get_total_expenses(test_db, start_date="2026-02-01", end_date="2026-03-31") == 400
     assert get_total_expenses(test_db, start_date="2099-01-01") == 0
+
+
+def test_get_expense_category(test_db):
+    category_id = add_expense_category(test_db, "Ads")
+
+    category = get_expense_category(test_db, category_id)
+    assert category["id"] == category_id
+    assert category["name"] == "Ads"
+    assert category["is_active"] == 1
+
+    assert get_expense_category(test_db, 999) is None
+
+
+def test_get_expense_matches_list_row(test_db):
+    category_id = add_expense_category(test_db, "Ads")
+    expense_id = add_expense(
+        test_db, category_id, 5000, description="Campaign", expense_date="2026-01-15"
+    )
+
+    assert get_expense(test_db, expense_id) == list_expenses(test_db)[0]
+    assert get_expense(test_db, 999) is None

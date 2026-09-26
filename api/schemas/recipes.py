@@ -21,3 +21,19 @@ class RecipeOut(BaseModel):
     items: list[RecipeItemOut]
     unit_cost_at_qty_1: int
     unit_cost_at_batch_qty: int
+
+
+class RecipeItemCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    material_id: int
+    quantity_needed: float
+    cost_basis: str = "PER_UNIT"
+
+
+class RecipeItemUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    quantity_needed: float
+    # None (or omitted) keeps the line's existing cost_basis.
+    cost_basis: str | None = None

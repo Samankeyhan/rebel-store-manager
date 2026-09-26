@@ -31,3 +31,19 @@ class PartnerTotalOut(BaseModel):
     partner_name: str
     total_received: int
     distribution_count: int
+
+
+class PartnerCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    current_percentage: float
+    phone: str | None = None
+    email: str | None = None
+    notes: str | None = None
+
+
+class PartnerPercentageUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_percentage: float

@@ -49,6 +49,13 @@ def record_postage_batch(
     return cursor.lastrowid
 
 
+def get_postage_batch(conn: sqlite3.Connection, batch_id: int) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM postage_batches WHERE id = ?", (batch_id,)
+    ).fetchone()
+    return dict(row) if row is not None else None
+
+
 def list_postage_batches(
     conn: sqlite3.Connection,
     start_date: str | None = None,

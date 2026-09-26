@@ -21,12 +21,18 @@ def test_get_setting_missing_key_returns_default(test_db):
     assert get_setting(test_db, "does_not_exist", default="fallback") == "fallback"
 
 
-def test_set_setting_updates_existing_and_creates_new_key(test_db):
+def test_set_setting_updates_existing_key(test_db):
     set_setting(test_db, "default_shipping_charge", 200000)
     assert get_setting(test_db, "default_shipping_charge") == "200000"
 
-    set_setting(test_db, "custom_key", "hello")
-    assert get_setting(test_db, "custom_key") == "hello"
+
+def test_set_setting_rejects_unknown_key(test_db):
+    with pytest.raises(ValidationError) as exc_info:
+        set_setting(test_db, "default_shiping_charge", 200000)
+    assert exc_info.value.field == "key"
+
+    assert get_setting(test_db, "default_shiping_charge") is None
+    assert get_setting(test_db, "default_shipping_charge") == "180000"
 
 
 def test_set_setting_rejects_negative_money(test_db):

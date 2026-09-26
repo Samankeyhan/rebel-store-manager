@@ -32,3 +32,22 @@ class KitDetailOut(BaseModel):
     updated_at: str | None
     items: list[KitItemOut]
     kit_cost: int
+
+
+class KitCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+
+
+class KitItemCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    material_id: int
+    quantity: float
+
+
+class KitItemUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    quantity: float

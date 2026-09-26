@@ -1,4 +1,8 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
+
+from api.schemas.common import DateStr, Money
 
 
 class OrderListItemOut(BaseModel):
@@ -61,3 +65,45 @@ class OrderDetailOut(BaseModel):
     items: list[OrderItemOut]
     customer_total: int
     profit: int
+
+
+class OrderItemCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    product_id: int
+    quantity: int
+    unit_price: Money
+    discount_amount: Money = 0
+    discount_reason: str | None = None
+
+
+class OrderCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    channel: str
+    items: list[OrderItemCreate]
+    customer_name: str | None = None
+    order_date: DateStr | None = None
+    # null = use the channel default; 0 = a real zero override.
+    shipping_charge: Money | None = None
+    # "default" = the channel's default kit; null = no packaging; int = that kit.
+    packaging_kit_id: int | Literal["default"] | None = "default"
+    # null = use the channel default (current estimate if the channel applies
+    # postage, else 0); 0 = a real zero override.
+    postage_cost: Money | None = None
+    transaction_fee: Money = 0
+    notes: str | None = None
+    status: str = "COMPLETED"
+
+
+class OrderStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: str
+
+
+class OrderReturn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["CANCELLED", "REFUNDED"]
+    reason: str | None = None
