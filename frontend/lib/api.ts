@@ -1,0 +1,102 @@
+/**
+ * Typed client for the FastAPI backend. Types come from lib/api-types.ts,
+ * generated from the backend's OpenAPI schema — regenerate with
+ * `npm run gen:api` after any api/schemas change; never hand-edit it.
+ *
+ * The app is a static export, so every call happens in the browser
+ * (client components only).
+ */
+
+import type { components } from "@/lib/api-types"
+
+export type Schemas = components["schemas"]
+export type Catalog = Schemas["CatalogOut"]
+
+export const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+).replace(/\/+$/, "")
+
+/**
+ * A failed API call. `type` is the backend error class (NotFoundError,
+ * ValidationError, InsufficientStockError, ConflictError, AppError),
+ * "RequestValidationError" for FastAPI's own 422s (bad body shape),
+ * or "NetworkError" when the backend couldn't be reached at all.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly type: string,
+    readonly field: string | null = null,
+    readonly details: Record<string, unknown> = {}
+  ) {
+    super(message)
+    this.name = "ApiError"
+  }
+}
+
+type AppErrorBody = {
+  error: {
+    type: string
+    message: string
+    field: string | null
+    details: Record<string, unknown>
+  }
+}
+type FastApiErrorBody = {
+  detail: string | { loc: (string | number)[]; msg: string }[]
+}
+
+function toApiError(status: number, body: unknown): ApiError {
+  if (body && typeof body === "object" && "error" in body) {
+    const e = (body as AppErrorBody).error
+    return new ApiError(e.message, status, e.type, e.field, e.details)
+  }
+  if (body && typeof body === "object" && "detail" in body) {
+    const detail = (body as FastApiErrorBody).detail
+    if (typeof detail === "string") {
+      return new ApiError(detail, status, "HTTPError")
+    }
+    const first = detail[0]
+    // loc is e.g. ["body", "items", 0, "unit_price"]; drop the "body" prefix.
+    const field = first ? first.loc.slice(1).join(".") || null : null
+    return new ApiError(
+      first?.msg ?? "Invalid request",
+      status,
+      "RequestValidationError",
+      field,
+      { errors: detail }
+    )
+  }
+  return new ApiError(`HTTP ${status}`, status, "HTTPError")
+}
+
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: {
+        Accept: "application/json",
+        ...(init?.body ? { "Content-Type": "application/json" } : {}),
+        ...init?.headers,
+      },
+    })
+  } catch {
+    throw new ApiError(
+      `Backend not reachable at ${API_URL}`,
+      0,
+      "NetworkError"
+    )
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    throw toApiError(res.status, body)
+  }
+  return (await res.json()) as T
+}
+
+export function getCatalog(): Promise<Catalog> {
+  return apiFetch<Catalog>("/catalog")
+}
