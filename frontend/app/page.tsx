@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { CircleAlert, Package } from "lucide-react"
+import { CircleAlert, PlugZap } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -33,7 +33,8 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function CatalogCard() {
+// Proves the API connection works by showing a few live figures from /catalog.
+function ConnectionStatusCard() {
   const [state, setState] = React.useState<CatalogState>({ status: "loading" })
 
   React.useEffect(() => {
@@ -59,10 +60,10 @@ function CatalogCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Package className="size-5 text-primary" />
-          کاتالوگ
+          <PlugZap className="size-5 text-primary" />
+          وضعیت اتصال
         </CardTitle>
-        <CardDescription>داده‌ی زنده از سرور</CardDescription>
+        <CardDescription>بررسی اتصال با دریافت داده‌ی زنده از سرور</CardDescription>
       </CardHeader>
       <CardContent>
         {state.status === "loading" && (
@@ -79,7 +80,7 @@ function CatalogCard() {
               <p className="font-medium">
                 {state.error.type === "NetworkError"
                   ? "سرور در دسترس نیست."
-                  : "خطا در دریافت کاتالوگ."}
+                  : "خطا در دریافت داده از سرور."}
               </p>
               <p className="text-xs opacity-80" dir="ltr">
                 {state.error.message}
@@ -163,7 +164,7 @@ export default function DashboardPage() {
         {today ? `امروز ${formatJalali(today, "EEEE d MMMM yyyy")}` : " "}
       </p>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <CatalogCard />
+        <ConnectionStatusCard />
         <PlaceholderCard title="فروش امروز" />
         <PlaceholderCard title="موجودی کم" />
         <DatePickerDemo />

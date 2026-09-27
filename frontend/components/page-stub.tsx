@@ -1,9 +1,9 @@
+import type { LucideIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getNavItem } from "@/lib/nav"
 
-/** Placeholder for screens that aren't built yet. */
-export function PageStub({ href }: { href: string }) {
-  const { title, icon: Icon } = getNavItem(href)
+/** Placeholder card for a screen (or tab) that isn't built yet. */
+export function StubCard({ title, icon: Icon }: { title: string; icon: LucideIcon }) {
   return (
     <Card className="max-w-xl">
       <CardHeader>
@@ -17,4 +17,10 @@ export function PageStub({ href }: { href: string }) {
       </CardContent>
     </Card>
   )
+}
+
+/** Placeholder for a whole page, titled from its nav item. */
+export function PageStub({ href }: { href: string }) {
+  const { title, icon } = getNavItem(href)
+  return <StubCard title={title} icon={icon} />
 }

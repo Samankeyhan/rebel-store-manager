@@ -23,7 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", title: "داشبورد", icon: LayoutDashboard },
   { href: "/sales/new", title: "فروش جدید", icon: ShoppingCart },
   { href: "/orders", title: "سفارش‌ها", icon: ReceiptText },
-  { href: "/catalog", title: "کاتالوگ", icon: Package },
+  { href: "/products", title: "محصولات و مواد اولیه", icon: Package },
   { href: "/production", title: "تولید", icon: Factory },
   { href: "/purchases", title: "خریدها", icon: Truck },
   { href: "/packaging", title: "بسته‌بندی", icon: Box },
