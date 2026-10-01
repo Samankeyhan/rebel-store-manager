@@ -35,7 +35,10 @@ def _hash_migration_content(content: str) -> str:
 
 def get_connection(db_path: str = "data/shop.db") -> sqlite3.Connection:
     path = _resolve_db_path(db_path)
-    conn = sqlite3.connect(path, isolation_level=None)
+    # check_same_thread=False: the API's get_db dependency may open and close
+    # a connection on different threadpool threads within one request. Safe
+    # because a connection is never shared across requests or used concurrently.
+    conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

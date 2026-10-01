@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -387,3 +389,23 @@ def test_catalog(seeded):
     }
     assert len(body["products"]) >= 1
     assert all("made_to_order" in p for p in body["products"])
+
+
+def test_catalog_concurrent_requests_never_500(seeded):
+    """Regression: a sync yield dependency's setup and teardown may run on
+    different threadpool threads, so get_db's conn.close() used to raise
+    sqlite3.ProgrammingError (same-thread check) under concurrent requests,
+    surfacing as an intermittent 500."""
+    # The `with` block keeps one event loop (and so one shared anyio worker
+    # threadpool) for every request, as uvicorn does; without it each
+    # request gets its own loop and the thread hop never happens.
+    # raise_server_exceptions=False: a server error comes back as a 500
+    # response instead of being re-raised in the calling thread.
+    with TestClient(app, raise_server_exceptions=False) as client:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            statuses = list(
+                pool.map(lambda _: client.get("/catalog").status_code, range(64))
+            )
+
+    assert 500 not in statuses
+    assert statuses == [200] * len(statuses)
