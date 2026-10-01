@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>پوسته برنامه — موبایل</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="{{theme}}" style="width: 390px; height: 844px;">
+<dc-import name="MobileBar" title="سفارش‌ها" theme="{{theme}}" hint-size="390px,56px"></dc-import>
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div class="sk" style="height: 44px; border-radius: 10px;"></div>
+<div class="sk" style="height: 96px; border-radius: 12px;"></div>
+<div class="sk" style="height: 96px; border-radius: 12px;"></div>
+<div class="sk" style="height: 96px; border-radius: 12px;"></div>
+</div>
+<sc-if value="{{drawer}}" hint-placeholder-val="{{ true }}">
+<div class="overlay"></div>
+<div style="position: absolute; top: 0; right: 0; width: 264px; height: 844px; box-shadow: var(--shadow-lg);">
+<dc-import name="Sidebar" active="orders" theme="{{theme}}" h="844" hint-size="264px,844px"></dc-import>
+</div>
+<button type="button" class="btn btn-icon" aria-label="بستن منو" style="position: absolute; top: 14px; right: 276px; width: 44px; height: 44px; border-radius: 50%; background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"drawer":{"editor":"boolean","default":true},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { drawer: !(this.props.drawer === false || this.props.drawer === 'false'), theme: this.props.theme || 'light' };
+  }
+}
+</script>
+</body>
+</html>

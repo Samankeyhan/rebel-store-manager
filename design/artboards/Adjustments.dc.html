@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>تعدیل موجودی</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="{{theme}}" style="width: 1440px; height: {{h}}px; display: flex;">
+<div style="width: 264px; height: {{h}}px; flex-shrink: 0;"><dc-import name="Sidebar" active="adjust" theme="{{theme}}" h="{{h}}" hint-size="264px,{{h}}px"></dc-import></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<dc-import name="Topbar" title="تعدیل موجودی" theme="{{theme}}" w="1176" hint-size="1176px,64px"></dc-import>
+<main style="padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px;">
+<sc-if value="{{isReady}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; gap: 24px; align-items: flex-start;">
+<section class="card" style="width: 440px; flex-shrink: 0;" aria-labelledby="af">
+<div class="card-h"><h2 id="af" class="t-h2">ثبت تعدیل</h2></div>
+<div class="card-b" style="display: flex; flex-direction: column; gap: 14px;">
+<div class="field"><span class="label">نوع تعدیل</span>
+<div role="radiogroup" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+<button type="button" role="radio" aria-checked="{{kindW}}" class="opt {{onW}}" onClick="{{setW}}"><span class="o-t"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"></path></svg>ضایعات</span><span class="o-s">همیشه موجودی را کم می‌کند</span><span class="o-s neg b">زیان واقعی است و در سود و زیان می‌آید</span></button>
+<button type="button" role="radio" aria-checked="{{kindC}}" class="opt {{onC}}" onClick="{{setC}}"><span class="o-t"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg>اصلاح موجودی</span><span class="o-s">شمارش انبار با سیستم نمی‌خواند (+ یا −)</span><span class="o-s b">فقط شمارش را درست می‌کند و در سود و زیان نمی‌آید</span></button>
+</div></div>
+<div class="field"><label class="label">کالا</label>
+<div class="seg" style="width: 100%; flex-wrap: wrap;"><sc-for list="{{items}}" as="it" hint-placeholder-count="4"><button type="button" class="{{it.on}}" style="flex-grow: 1; font-size: 12.5px; padding: 0 8px;" onClick="{{it.pick}}">{{it.short}}</button></sc-for></div>
+<span class="help">{{itemMeta}}</span></div>
+<sc-if value="{{isC}}" hint-placeholder-val="{{ false }}">
+<div class="field"><span class="label">جهت</span><div class="seg" style="width: 100%;"><button type="button" class="{{dirP}}" style="flex-grow: 1;" onClick="{{setP}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg> افزایش</button><button type="button" class="{{dirM}}" style="flex-grow: 1;" onClick="{{setM}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path></svg> کاهش</button></div></div>
+</sc-if>
+<div class="field"><label class="label" for="aq">مقدار</label><div class="ig" style="max-width: 220px;"><input id="aq" class="input input-num {{qCls}}" value="{{qStr}}" onChange="{{onQ}}"><span class="sfx">{{unit}}</span></div>
+<sc-if value="{{hasErr}}" hint-placeholder-val="{{ false }}"><span class="err" role="alert"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>{{errT}}</span></sc-if>
+<span class="help">{{qHelp}}</span></div>
+<sc-if value="{{showCost}}" hint-placeholder-val="{{ false }}">
+<div class="field"><label class="label" for="uc">بهای واحد موجودی اضافه‌شده <span class="opt">(اختیاری)</span></label><div class="ig" style="max-width: 220px;"><input id="uc" class="input input-num" value="{{ucT}}" onChange="{{onUc}}"><span class="sfx">تومان</span></div><span class="help">خالی بماند = بهای فعلی ({{curCostT}}). اگر وارد شود، میانگین موزون به‌روز می‌شود.</span></div>
+</sc-if>
+<div class="field"><label class="label" for="ar">دلیل</label><input id="ar" class="input" value="{{reason}}"></div>
+</div>
+</section>
+
+<section class="card grow" aria-labelledby="ap">
+<div class="card-h"><h2 id="ap" class="t-h2">پیش‌نمایش</h2><span class="{{kindBadge}}">{{kindT}}</span></div>
+<div class="card-b" style="display: flex; flex-direction: column; gap: 16px;">
+<div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; background: var(--surface-2); border-radius: 12px; padding: 18px 20px;">
+<div style="display: flex; flex-direction: column;"><span class="t-cap muted b">موجودی فعلی</span><span class="num b" style="font-size: 28px; line-height: 40px;">{{beforeT}}</span><span class="t-cap muted">{{unit}}</span></div>
+<span style="color: var(--text-3);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></span>
+<div style="display: flex; flex-direction: column;"><span class="t-cap muted b">پس از ثبت</span><span class="num b {{afterCls}}" style="font-size: 28px; line-height: 40px;">{{afterT}}</span><span class="t-cap muted">{{unit}}</span></div>
+</div>
+<div class="sl"><span class="muted2">{{valueLabel}}</span><span class="v b {{valueCls}}">{{valueT}}</span></div>
+<sc-if value="{{showAvg}}" hint-placeholder-val="{{ false }}"><div class="sl"><span class="muted2">میانگین بهای واحد</span><span class="v"><span class="muted">{{curCostT}}</span> ← <b>{{newAvgT}}</b></span></div></sc-if>
+<p class="t-cap muted">{{note}}</p>
+<button type="button" class="btn btn-primary" style="align-self: flex-start;" disabled="{{hasErr}}">ثبت تعدیل</button>
+</div>
+</section>
+</div>
+
+<section class="card" style="overflow: hidden;" aria-labelledby="ah">
+<div class="card-h"><h2 id="ah" class="t-h2">تاریخچه تعدیل‌ها</h2>
+<div style="display: flex; gap: 8px;"><div class="seg"><button type="button" class="on">همه</button><button type="button">ضایعات</button><button type="button">اصلاح</button></div><button type="button" class="select" style="width: auto; height: 36px; gap: 8px;"><span class="muted">کالا:</span><b>همه</b><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button><button type="button" class="select" style="width: auto; height: 36px; gap: 8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><b class="num t-sm">شهریور ۱۴۰۵</b></button></div></div>
+<table class="tbl">
+<thead><tr><th>تاریخ</th><th>کالا</th><th>نوع</th><th class="n">مقدار</th><th class="n">قبل ← بعد</th><th class="n">ارزش (تومان)</th><th>اثر در سود و زیان</th><th>دلیل</th></tr></thead>
+<tbody>
+<tr><td class="num muted2">۱۴۰۵/۰۶/۲۷</td><td class="b">پوستر تور ۱۴۰۴</td><td><span class="badge st-loss">ضایعات</span></td><td class="n num">−۳ عدد</td><td class="n num muted2">۴۵ ← ۴۲</td><td class="n num neg">−۲۸۵٬۰۰۰</td><td class="t-cap neg b">ردیف ضایعات</td><td class="muted2">آب‌دیدگی در انبار</td></tr>
+<tr><td class="num muted2">۱۴۰۵/۰۶/۲۲</td><td class="b">تی‌شرت خام مشکی L</td><td><span class="badge st-loss">ضایعات</span></td><td class="n num">−۲ عدد</td><td class="n num muted2">۸ ← ۶</td><td class="n num neg">−۵۲۰٬۰۰۰</td><td class="t-cap neg b">ردیف ضایعات</td><td class="muted2">خطای چاپ سیلک</td></tr>
+<tr><td class="num muted2">۱۴۰۵/۰۶/۱۶</td><td class="b">کاغذ پرکننده</td><td><span class="badge st-paid">اصلاح +</span></td><td class="n num">+۰٫۵ کیلوگرم</td><td class="n num muted2">۱ ← ۱٫۵</td><td class="n num">+۴۵٬۰۰۰</td><td class="t-cap muted">بدون اثر</td><td class="muted2">شمارش ماهانه</td></tr>
+<tr><td class="num muted2">۱۴۰۵/۰۶/۱۱</td><td class="b">جعبه وینیل</td><td><span class="badge st-loss">ضایعات</span></td><td class="n num">−۲ عدد</td><td class="n num muted2">۱۰ ← ۸</td><td class="n num neg">−۱۹۰٬۰۰۰</td><td class="t-cap neg b">ردیف ضایعات</td><td class="muted2">له‌شدگی در حمل</td></tr>
+<tr><td class="num muted2">۱۴۰۵/۰۶/۰۹</td><td class="b">استیکر پک</td><td><span class="badge st-pending">اصلاح −</span></td><td class="n num">−۷ عدد</td><td class="n num muted2">۱۲۷ ← ۱۲۰</td><td class="n num neg">−۲۶۶٬۰۰۰</td><td class="t-cap muted">بدون اثر</td><td class="muted2">شمارش ماهانه</td></tr>
+</tbody>
+</table>
+<p class="t-cap muted" style="padding: 12px 20px;">فقط ردیف‌های «ضایعات» به گزارش سود و زیان می‌روند و با بهای تمام‌شده همان روز ارزش‌گذاری می‌شوند. «اصلاح موجودی» هیچ‌وقت در سود و زیان نمی‌آید.</p>
+</section>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 96px 24px;"><div class="e-art"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></div><div class="e-t">هنوز تعدیلی ثبت نشده</div><div class="e-d">وقتی کالا خراب می‌شود یا شمارش انبار با سیستم نمی‌خواند، این‌جا ثبت کنید تا موجودی و گزارش‌ها درست بمانند.</div><button type="button" class="btn btn-primary" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>ثبت تعدیل</button></div></section>
+</sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{ false }}">
+<section aria-busy="true" aria-label="در حال بارگذاری" style="display: flex; flex-direction: column; gap: 12px;"><div class="sk" style="height: 20px; width: 180px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div></section>
+</sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 96px 24px;"><div class="e-art" style="background: var(--loss-soft); color: var(--loss);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M8 7.5A6 6 0 0 1 18 11a4 4 0 0 1 2.4 7M17 19H7a5 5 0 0 1-2.6-9.3"></path></svg></div><div class="e-t">تاریخچه تعدیل موجودی بارگذاری نشد</div><div class="e-d">اتصال به سرور برقرار نشد. داده‌های شما سالم است؛ دوباره تلاش کنید.</div><button type="button" class="btn btn-outline" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"></path><path d="M20 4v5h-5"></path></svg>تلاش دوباره</button></div></section>
+</sc-if>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"preset":{"editor":"enum","options":["default","over","fraction","add"],"default":"default"},"state":{"editor":"enum","options":["ready","empty","loading","error"],"default":"ready"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"h":{"editor":"int","default":1080},"$preview":{"width":1440,"height":1080}}'>
+var FA_D = '۰۱۲۳۴۵۶۷۸۹';
+function fa(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0;
+  var s = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '٬').replace(/\d/g, function (d) { return FA_D[d]; });
+  return (neg ? '−' : '') + s;
+}
+function faT(n) { return fa(n) + ' تومان'; }
+function faD(s) { return String(s).replace(/\d/g, function (d) { return FA_D[d]; }); }
+function num(v) {
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^0-9]/g, '');
+  return s === '' ? 0 : parseInt(s, 10);
+}
+var CH = {
+  web: { name: 'وب‌سایت', cls: 'ch-web' }, insta: { name: 'اینستاگرام', cls: 'ch-insta' },
+  wholesale: { name: 'عمده‌فروشی', cls: 'ch-wholesale' }, inperson: { name: 'حضوری', cls: 'ch-inperson' }, other: { name: 'سایر', cls: 'ch-other' }
+};
+var ST = {
+  draft: { name: 'پیش‌نویس', cls: 'st-draft' }, pending: { name: 'در انتظار', cls: 'st-pending' }, paid: { name: 'پرداخت‌شده', cls: 'st-paid' },
+  done: { name: 'تکمیل‌شده', cls: 'st-done' }, cancel: { name: 'لغوشده', cls: 'st-cancel' }, refund: { name: 'مرجوعی', cls: 'st-refund' }
+};
+var ORDERS = [
+  ['INV-000041', '1405/06/31', '13:42', 'insta', 'علی ر.', 'done', 950000, 327727],
+  ['INV-000040', '1405/06/31', '11:05', 'inperson', 'مشتری حضوری', 'done', 1040000, 592000],
+  ['INV-000039', '1405/06/31', '09:20', 'insta', 'رها س.', 'pending', 800000, 215727],
+  ['INV-000038', '1405/06/30', '16:24', 'web', 'نگار ک.', 'paid', 3130000, 1189727],
+  ['INV-000037', '1405/06/30', '12:10', 'wholesale', 'فروشگاه نوای شهر', 'done', 4300000, 2295727],
+  ['INV-000036', '1405/06/29', '18:37', 'web', 'مهدی ت.', 'cancel', 1430000, null],
+  ['INV-000035', '1405/06/29', '10:02', 'insta', 'پریا ن.', 'refund', 1070000, -294273],
+  ['INV-000034', '1405/06/28', '19:15', 'other', '—', 'draft', 480000, null],
+  ['INV-000033', '1405/06/28', '14:48', 'inperson', 'مشتری حضوری', 'done', 2450000, 1070000],
+  ['INV-000032', '1405/06/27', '20:31', 'web', 'کیان ب.', 'done', 1070000, 350727],
+  ['INV-000031', '1405/06/27', '11:26', 'insta', 'پرستو ج.', 'paid', 3680000, 1290727],
+  ['INV-000030', '1405/06/26', '15:02', 'wholesale', 'فروشگاه صفحه‌گردان', 'done', 9750000, 2510727]
+];
+function orderRows(limit) {
+  return ORDERS.slice(0, limit || ORDERS.length).map(function (o) {
+    var pc = o[7] === null ? 'nil' : (o[7] < 0 ? 'neg' : 'pos');
+    return {
+      inv: o[0], date: faD(o[1]), time: faD(o[2]), dt: faD(o[1]) + ' · ' + faD(o[2]), ch: CH[o[3]].name, chCls: 'ch ' + CH[o[3]].cls, cust: o[4],
+      st: ST[o[5]].name, stCls: 'badge ' + ST[o[5]].cls, stKey: o[5], total: fa(o[6]), profit: o[7] === null ? '—' : fa(o[7]), pCls: 'n num b ' + pc, pClsM: 'num b ' + pc,
+      profitT: o[7] === null ? 'سود: —' : 'سود ' + fa(o[7])
+    };
+  });
+}
+/* Jalali month grid, week starts Saturday. startIdx = weekday index of day 1 (0=Sat … 6=Fri). opt: {today, sel, from, to} */
+function monthGrid(startIdx, days, opt) {
+  opt = opt || {};
+  var cells = [];
+  for (var i = 0; i < startIdx; i++) cells.push({ l: '', c: 'cal-d x' });
+  for (var d = 1; d <= days; d++) {
+    var wd = (startIdx + d - 1) % 7, c = 'cal-d';
+    if (wd === 6) c += ' fri';
+    if (opt.today === d) c += ' today';
+    if (opt.sel === d) c += ' sel';
+    if (opt.from && opt.to) {
+      if (d === opt.from) c += ' s';
+      if (d === opt.to) c += ' e';
+      if (d > opt.from && d < opt.to) c += ' in';
+    }
+    cells.push({ l: faD(d), c: c });
+  }
+  while (cells.length % 7) cells.push({ l: '', c: 'cal-d x' });
+  return cells;
+}
+function faQ(n) { /* quantities: may be fractional, Persian decimal separator */
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0, a = Math.abs(n), ip = Math.floor(a), fp = Math.round((a - ip) * 1000);
+  var s = fa(ip).replace('−', '');
+  if (fp) s += '٫' + faD(String(fp).padStart(3, '0').replace(/0+$/, ''));
+  return (neg ? '−' : '') + s;
+}
+function numQ(v) { /* parse a possibly-fractional quantity typed in any digits */
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫\/]/g, '.').replace(/[^0-9.]/g, '');
+  var n = parseFloat(s); return isNaN(n) ? 0 : n;
+}
+function stateVals(props, defH) {
+  var s = props.state || 'ready';
+  return { theme: props.theme || 'light', h: props.h || defH, isReady: s === 'ready', isEmpty: s === 'empty', isLoading: s === 'loading', isError: s === 'error', st: s };
+}
+var CATALOG = [
+  { id: 'p1', name: 'وینیل آلبوم اول', cat: 'وینیل', retail: 2450000, ws: 1950000, cost: 1380000, stock: 14, min: 5, active: true },
+  { id: 'p2', name: 'وینیل نسخه رنگی', cat: 'وینیل', retail: 3500000, ws: 2900000, cost: 2050000, stock: 2, min: 3, active: true },
+  { id: 'p3', name: 'کاست نسخه محدود', cat: 'کاست', retail: 620000, ws: 480000, cost: 290000, stock: 3, min: 5, active: true },
+  { id: 'p10', name: 'کاست آلبوم اول', cat: 'کاست', retail: 450000, ws: 350000, cost: 190000, stock: 0, min: 5, active: true },
+  { id: 'p4', name: 'سی‌دی آلبوم اول', cat: 'آلبوم', retail: 480000, ws: 380000, cost: 210000, stock: 22, min: 5, active: true },
+  { id: 'p5', name: 'پوستر تور ۱۴۰۴', cat: 'پوستر', retail: 290000, ws: 210000, cost: 95000, stock: 42, min: 10, active: true },
+  { id: 'p6', name: 'تی‌شرت لوگو مشکی (L)', cat: 'تی‌شرت', retail: 890000, ws: 690000, cost: 410000, stock: 7, min: 5, active: true },
+  { id: 'p7', name: 'تی‌شرت تور سفید (M)', cat: 'تی‌شرت', retail: 950000, ws: 740000, cost: null, stock: 12, min: 5, active: true },
+  { id: 'p8', name: 'استیکر پک', cat: 'استیکر', retail: 150000, ws: 110000, cost: 38000, stock: 120, min: 30, active: true },
+  { id: 'p9', name: 'آینه لوگو گرد', cat: 'آینه', retail: 1250000, ws: 980000, cost: 560000, stock: 4, min: 5, active: true },
+  { id: 'p11', name: 'پوستر تور ۱۴۰۳', cat: 'پوستر', retail: 250000, ws: 180000, cost: 90000, stock: 6, min: 0, active: false }
+];
+var MATERIALS = [
+  { id: 'm1', name: 'صفحه خام وینیل ۱۲ اینچ', type: 'goods', unit: 'عدد', stock: 38, cost: 620000, min: 20, use: 'تولید' },
+  { id: 'm2', name: 'کاور چاپی وینیل', type: 'goods', unit: 'عدد', stock: 45, cost: 180000, min: 20, use: 'تولید' },
+  { id: 'm3', name: 'نوار کاست خام', type: 'goods', unit: 'عدد', stock: 12, cost: 95000, min: 20, use: 'تولید' },
+  { id: 'm4', name: 'قاب و جلد کاست', type: 'goods', unit: 'عدد', stock: 60, cost: 45000, min: 20, use: 'تولید' },
+  { id: 'm5', name: 'تی‌شرت خام مشکی L', type: 'goods', unit: 'عدد', stock: 6, cost: 260000, min: 10, use: 'تولید' },
+  { id: 'm6', name: 'چاپ سیلک تی‌شرت', type: 'service', unit: 'عدد', stock: null, cost: 120000, min: null, use: 'تولید' },
+  { id: 'm7', name: 'مسترینگ و کات لاکر', type: 'service', unit: 'نوبت', stock: null, cost: 12000000, min: null, use: 'تولید' },
+  { id: 'm8', name: 'طراحی جلد', type: 'service', unit: 'نوبت', stock: null, cost: 4000000, min: null, use: 'تولید' },
+  { id: 'm9', name: 'کارتن جعبه استاندارد', type: 'goods', unit: 'عدد', stock: 64, cost: 60000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm10', name: 'جعبه وینیل', type: 'goods', unit: 'عدد', stock: 8, cost: 95000, min: 20, use: 'بسته‌بندی' },
+  { id: 'm11', name: 'پاکت حباب‌دار کوچک', type: 'goods', unit: 'عدد', stock: 15, cost: 24000, min: 40, use: 'بسته‌بندی' },
+  { id: 'm12', name: 'نوار چسب لوگودار', type: 'goods', unit: 'رول', stock: 2, cost: 150000, min: 5, use: 'بسته‌بندی' },
+  { id: 'm13', name: 'کاغذ پرکننده', type: 'goods', unit: 'کیلوگرم', stock: 1.5, cost: 90000, min: 3, use: 'بسته‌بندی' },
+  { id: 'm14', name: 'برچسب آدرس', type: 'goods', unit: 'عدد', stock: 400, cost: 2000, min: 100, use: 'بسته‌بندی' },
+  { id: 'm15', name: 'محافظ گوشه', type: 'goods', unit: 'عدد', stock: 90, cost: 10000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm16', name: 'کاغذ کرافت', type: 'goods', unit: 'متر', stock: 42.5, cost: 12000, min: 10, use: 'بسته‌بندی' }
+];
+function stockCls(stock, min) { return stock === 0 ? 'stock out' : (min && stock <= min ? 'stock low' : 'stock'); }
+
+var ITEMS = [
+  { id: 'a1', name: 'پوستر تور ۱۴۰۴', short: 'پوستر تور ۱۴۰۴', kind: 'محصول', stock: 42, cost: 95000, unit: 'عدد', int: true },
+  { id: 'a2', name: 'جعبه وینیل', short: 'جعبه وینیل', kind: 'ماده', stock: 8, cost: 95000, unit: 'عدد', int: false },
+  { id: 'a3', name: 'نوار چسب لوگودار', short: 'نوار چسب', kind: 'ماده', stock: 2, cost: 150000, unit: 'رول', int: false },
+  { id: 'a4', name: 'کاغذ پرکننده', short: 'کاغذ پرکننده', kind: 'ماده', stock: 1.5, cost: 90000, unit: 'کیلوگرم', int: false }
+];
+var PRE = {
+  default: { item: 'a1', kind: 'w', dir: 'm', q: '۳', uc: 0, reason: 'پارگی هنگام بسته‌بندی' },
+  over: { item: 'a2', kind: 'w', dir: 'm', q: '۱۰', uc: 0, reason: 'له‌شدگی' },
+  fraction: { item: 'a1', kind: 'c', dir: 'm', q: '۱٫۵', uc: 0, reason: 'شمارش انبار' },
+  add: { item: 'a4', kind: 'c', dir: 'p', q: '۰٫۵', uc: 92000, reason: 'بسته پیدا شد در شمارش' }
+};
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = Object.assign({}, PRE[p.preset || 'default']); }
+  renderVals() {
+    var self = this, S = this.state, it = ITEMS.filter(function (x) { return x.id === S.item; })[0];
+    var q = numQ(S.q), plus = S.kind === 'c' && S.dir === 'p', sign = plus ? 1 : -1, err = '';
+    if (!(q > 0)) err = 'مقدار را وارد کنید.';
+    else if (it.int && Math.floor(q) !== q) err = 'تعداد محصول باید عدد صحیح باشد؛ فقط مواد می‌توانند اعشاری باشند.';
+    else if (!plus && q > it.stock) err = 'بیشتر از موجودی فعلی است — فقط ' + faQ(it.stock) + ' ' + it.unit + ' «' + it.name + '» موجود است.';
+    var after = it.stock + sign * (q || 0), value = q * it.cost;
+    var uc = S.uc || it.cost, newAvg = plus && q > 0 ? (it.stock * it.cost + q * uc) / (it.stock + q) : it.cost;
+    function set(o) { return function () { self.setState(o); }; }
+    return Object.assign(stateVals(this.props, 1080), {
+      kindW: S.kind === 'w' ? 'true' : 'false', kindC: S.kind === 'c' ? 'true' : 'false', onW: S.kind === 'w' ? 'on' : '', onC: S.kind === 'c' ? 'on' : '',
+      setW: set({ kind: 'w', dir: 'm' }), setC: set({ kind: 'c' }), isC: S.kind === 'c',
+      dirP: S.dir === 'p' ? 'on' : '', dirM: S.dir === 'm' ? 'on' : '', setP: set({ dir: 'p' }), setM: set({ dir: 'm' }),
+      items: ITEMS.map(function (x) { return { short: x.short, on: x.id === S.item ? 'on' : '', pick: set({ item: x.id }) }; }),
+      itemMeta: it.kind + ' · موجودی ' + faQ(it.stock) + ' ' + it.unit + ' · بهای واحد ' + fa(it.cost) + ' تومان',
+      unit: it.unit, qStr: S.q, onQ: function (e) { self.setState({ q: e.target.value }); }, qCls: err ? 'is-error' : '',
+      hasErr: !!err, errT: err, qHelp: it.int ? 'محصول: فقط عدد صحیح' : 'ماده: اعشار مجاز است (مثلاً ۰٫۵)',
+      showCost: plus, ucT: S.uc ? fa(S.uc) : '', onUc: function (e) { self.setState({ uc: num(e.target.value) }); }, curCostT: fa(it.cost) + ' تومان',
+      reason: S.reason,
+      kindT: S.kind === 'w' ? 'ضایعات' : (plus ? 'اصلاح +' : 'اصلاح −'), kindBadge: S.kind === 'w' ? 'badge st-loss' : (plus ? 'badge st-paid' : 'badge st-pending'),
+      beforeT: faQ(it.stock), afterT: err && !plus ? '—' : faQ(after), afterCls: err ? 'neg' : '',
+      valueLabel: S.kind === 'w' ? 'زیان ضایعات (در سود و زیان)' : (plus ? 'افزایش ارزش موجودی (بدون اثر در سود و زیان)' : 'کاهش ارزش موجودی (بدون اثر در سود و زیان)'),
+      valueT: q > 0 && !err ? (plus ? '+' : '−') + fa(plus ? q * uc : value) + ' تومان' : '—', valueCls: plus ? '' : 'neg',
+      showAvg: plus && q > 0, newAvgT: fa(newAvg) + ' تومان',
+      note: S.kind === 'w' ? 'ضایعات زیان واقعی است و در سود و زیان می‌آید — در ردیف «ضایعات». ارزش آن با بهای تمام‌شده همین امروز ثبت و ذخیره می‌شود و با تغییر بعدی بهای تمام‌شده عوض نمی‌شود.' : 'اصلاح موجودی فقط شمارش را درست می‌کند و در سود و زیان نمی‌آید؛ فقط موجودی و ارزش انبار تغییر می‌کند.'
+    });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>خانه — داشبورد</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="{{theme}}" style="width: 1440px; height: {{h}}px; display: flex;">
+<div style="width: 264px; height: {{h}}px; flex-shrink: 0;">
+<dc-import name="Sidebar" active="home" theme="{{theme}}" h="{{h}}" hint-size="264px,{{h}}px"></dc-import>
+</div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+<dc-import name="Topbar" title="خانه" theme="{{theme}}" w="1176" hint-size="1176px,64px"></dc-import>
+<main style="padding: 24px 32px 32px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<span class="t-body b" style="color: var(--heading);">سه‌شنبه، ۳۱ شهریور ۱۴۰۵</span>
+<span class="t-sm muted">· آخرین به‌روزرسانی ۱۴:۰۵</span>
+</div>
+<div style="display: flex; gap: 8px;">
+<button type="button" class="btn btn-outline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>شهریور ۱۴۰۵<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<a href="RecordSale.dc.html" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>ثبت فروش</a>
+</div>
+</div>
+
+<sc-if value="{{isReady}}" hint-placeholder-val="{{ true }}">
+<section aria-label="شاخص‌های کلیدی" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px;">
+<div class="card kpi">
+<div class="kpi-l">فروش امروز<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg></div>
+<div class="t-kpi num">۲٬۷۹۰٬۰۰۰ <span class="kpi-u">تومان</span></div>
+<div class="t-cap muted">۳ سفارش · ۱ در انتظار پرداخت</div>
+</div>
+<div class="card kpi">
+<div class="kpi-l">درآمد این ماه<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18v3.5"></path><path d="M3 7.5V18a2 2 0 0 0 2 2h15V9H5.5A2.5 2.5 0 0 1 3 7.5z"></path><circle cx="16" cy="14.5" r="1.2"></circle></svg></div>
+<div class="t-kpi num">۱۸۶٬۴۲۰٬۰۰۰ <span class="kpi-u">تومان</span></div>
+<div class="t-cap muted"><span class="delta pos"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"></path><path d="M15 7h6v6"></path></svg>۱۲٪</span> نسبت به مرداد</div>
+</div>
+<div class="card kpi">
+<div class="kpi-l">سود خالص این ماه<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"></path><path d="M8 16v-4M12 16V8M16 16v-7"></path></svg></div>
+<div class="t-kpi num pos">۴۲٬۰۴۶٬۰۰۰ <span class="kpi-u">تومان</span></div>
+<div class="t-cap muted"><span class="delta neg"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 7 6 6 4-4 8 8"></path><path d="M15 17h6v-6"></path></svg>۳٪</span> نسبت به مرداد · حاشیه سود ۲۳٪</div>
+</div>
+<div class="card kpi">
+<div class="kpi-l">سفارش‌های این ماه<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"></path><path d="m3 8 9 5 9-5M12 13v8"></path></svg></div>
+<div class="t-kpi num">۸۷ <span class="kpi-u">سفارش</span></div>
+<div class="t-cap muted">۶۴ ارسالی · ۸ عمده · ۱۵ حضوری</div>
+</div>
+</section>
+
+<div style="display: flex; gap: 20px; align-items: stretch;">
+<section class="card" style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;" aria-labelledby="econ-t">
+<div class="card-h">
+<div style="display: flex; flex-direction: column;">
+<h2 id="econ-t" class="t-h2">اقتصاد ارسال این ماه</h2>
+<span class="t-cap muted">۶۴ سفارش ارسالی وب‌سایت و اینستاگرام · شهریور ۱۴۰۵</span>
+</div>
+<span class="badge st-loss">زیان‌ده</span>
+</div>
+<div class="card-b" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span class="t-cap muted2 b">دریافتی از مشتری</span>
+<span class="num b" style="font-size: 20px;">۱۸۰٬۰۰۰</span>
+<span class="t-cap muted">تومان برای هر سفارش</span>
+<span class="t-cap muted num">جمع ماه: ۱۱٬۵۲۰٬۰۰۰</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span class="t-cap muted2 b">هزینه بسته‌بندی</span>
+<span class="num b" style="font-size: 20px;">۹۵٬۰۰۰</span>
+<span class="t-cap muted">تومان برای هر سفارش</span>
+<span class="t-cap muted num">جمع ماه: ۶٬۰۸۰٬۰۰۰</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span class="t-cap muted2 b">هزینه پست (تخمینی)</span>
+<span class="num b" style="font-size: 20px;">۱۹۹٬۲۷۳</span>
+<span class="t-cap muted">جمع پرداختی ÷ جمع سفارش‌ها</span>
+<span class="t-cap muted num">جمع ماه: ۱۲٬۷۵۳٬۴۷۲</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; background: var(--loss-soft); border-radius: 10px; padding: 10px 12px; margin: -10px 0;">
+<span class="t-cap b neg">نتیجه هر سفارش</span>
+<span class="num b neg" style="font-size: 22px;">−۱۱۴٬۲۷۳</span>
+<span class="t-cap neg">تومان زیان</span>
+<span class="t-cap b neg num">جمع ماه: −۷٬۳۱۳٬۴۷۲</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px;" role="img" aria-label="مقایسه دریافتی ۱۸۰ هزار تومان با هزینه ۲۹۴ هزار تومان برای هر سفارش">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span class="t-cap b muted2" style="width: 64px;">دریافتی</span>
+<div style="flex-grow: 1; height: 26px; display: flex; gap: 0;">
+<div style="width: 61%; background: var(--bar-a); border-radius: 0 6px 6px 0; color: #ffffff; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; padding: 0 10px;">۱۸۰٬۰۰۰</div>
+<div class="hatch" style="width: 39%; border-radius: 6px 0 0 6px; color: var(--loss); font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center;">کسری ۱۱۴٬۲۷۳</div>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 12px;">
+<span class="t-cap b muted2" style="width: 64px;">هزینه</span>
+<div style="flex-grow: 1; height: 26px; display: flex; gap: 2px;">
+<div style="width: 32%; background: var(--bar-b); border-radius: 0 6px 6px 0; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; padding: 0 10px; color: var(--text);">بسته‌بندی ۹۵٬۰۰۰</div>
+<div style="width: 68%; background: var(--bar-c); border-radius: 6px 0 0 6px; color: #ffffff; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; padding: 0 10px;">پست ۱۹۹٬۲۷۳</div>
+</div>
+</div>
+</div>
+<div class="alert alert-info" style="padding: 10px 14px;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8v.01"></path></svg>
+<div class="grow">برای سربه‌سر شدن، هزینه ارسال دریافتی باید دست‌کم <b class="num">۲۹۴٬۲۷۳ تومان</b> باشد، یا هزینه بسته‌بندی و پست <b class="num">۱۱۴٬۲۷۳ تومان</b> کمتر شود.</div>
+<a href="#" class="b" style="white-space: nowrap;">هزینه‌های ارسال</a>
+</div>
+</div>
+</section>
+
+<section class="card" style="width: 400px; flex-shrink: 0; display: flex; flex-direction: column;" aria-labelledby="low-t">
+<div class="card-h" style="border-bottom: 0; padding-bottom: 8px;">
+<h2 id="low-t" class="t-h2">هشدار کمبود موجودی</h2>
+<span class="badge st-warn">۹ مورد</span>
+</div>
+<div class="tabs" role="tablist" style="padding: 0 16px;">
+<button type="button" role="tab" class="tab {{tabP}}" onClick="{{showP}}">محصولات<span class="cnt">۴</span></button>
+<button type="button" role="tab" class="tab {{tabM}}" onClick="{{showM}}">بسته‌بندی و مواد<span class="cnt">۵</span></button>
+</div>
+<div style="display: flex; flex-direction: column; padding: 6px 20px 12px; flex-grow: 1;">
+<sc-for list="{{lowList}}" as="it" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border);">
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px;">
+<div style="display: flex; justify-content: space-between; gap: 8px;">
+<span class="t-sm b" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{it.name}}</span>
+<span class="{{it.qCls}}">{{it.q}}</span>
+</div>
+<div class="meter"><i style="width: {{it.pct}}%; background: {{it.color}};"></i></div>
+<span class="t-cap muted">{{it.meta}}</span>
+</div>
+<a href="#" class="btn btn-outline btn-sm">{{it.act}}</a>
+</div>
+</sc-for>
+</div>
+<div style="padding: 0 20px 16px;"><a href="#" class="t-sm b">مشاهده همه در محصولات و مواد<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></a></div>
+</section>
+</div>
+
+<section class="card" aria-labelledby="rec-t">
+<div class="card-h">
+<h2 id="rec-t" class="t-h2">آخرین سفارش‌ها</h2>
+<a href="Orders.dc.html" class="t-sm b" style="display: inline-flex; align-items: center; gap: 4px;">همه سفارش‌ها<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></a>
+</div>
+<table class="tbl">
+<thead><tr><th>شماره فاکتور</th><th>تاریخ</th><th>کانال</th><th>مشتری</th><th>وضعیت</th><th class="n">مبلغ کل (تومان)</th><th class="n">سود (تومان)</th></tr></thead>
+<tbody>
+<sc-for list="{{orders}}" as="o" hint-placeholder-count="8">
+<tr>
+<td><a href="OrderDetail.dc.html" class="inv">{{o.inv}}</a></td>
+<td class="num muted2">{{o.dt}}</td>
+<td><span class="{{o.chCls}}">{{o.ch}}</span></td>
+<td>{{o.cust}}</td>
+<td><span class="{{o.stCls}}">{{o.st}}</span></td>
+<td class="n num b">{{o.total}}</td>
+<td class="{{o.pCls}}">{{o.profit}}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</section>
+</sc-if>
+
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<div class="alert alert-info">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8v.01"></path></svg>
+<div class="grow"><div class="a-t">به مدیریت ربل شاپ خوش آمدید</div>برای دیدن گزارش‌ها، ابتدا محصولات و کیت‌های بسته‌بندی را تعریف کنید و سپس اولین فروش را ثبت کنید.</div>
+<a href="#" class="btn btn-outline btn-sm">تعریف محصولات</a>
+</div>
+<section style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px;">
+<div class="card kpi"><div class="kpi-l">فروش امروز<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg></div><div class="t-kpi num nil">۰ <span class="kpi-u">تومان</span></div><div class="t-cap muted">هنوز فروشی ثبت نشده</div></div>
+<div class="card kpi"><div class="kpi-l">درآمد این ماه<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18v3.5"></path><path d="M3 7.5V18a2 2 0 0 0 2 2h15V9H5.5A2.5 2.5 0 0 1 3 7.5z"></path><circle cx="16" cy="14.5" r="1.2"></circle></svg></div><div class="t-kpi num nil">۰ <span class="kpi-u">تومان</span></div><div class="t-cap muted">—</div></div>
+<div class="card kpi"><div class="kpi-l">سود خالص این ماه<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"></path><path d="M8 16v-4M12 16V8M16 16v-7"></path></svg></div><div class="t-kpi num nil">۰ <span class="kpi-u">تومان</span></div><div class="t-cap muted">—</div></div>
+<div class="card kpi"><div class="kpi-l">سفارش‌های این ماه<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"></path><path d="m3 8 9 5 9-5M12 13v8"></path></svg></div><div class="t-kpi num nil">۰ <span class="kpi-u">سفارش</span></div><div class="t-cap muted">—</div></div>
+</section>
+<div style="display: flex; gap: 20px;">
+<section class="card" style="flex-grow: 1;"><div class="card-h"><h2 class="t-h2">اقتصاد ارسال این ماه</h2></div>
+<div class="empty"><div class="e-art"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flip"><path d="M2 6h12v10H2zM14 10h4l4 3.5V16h-8"></path><circle cx="6.5" cy="18" r="2"></circle><circle cx="17.5" cy="18" r="2"></circle></svg></div><div class="e-t">هنوز سفارش ارسالی ندارید</div><div class="e-d">پس از ثبت اولین سفارش وب‌سایت یا اینستاگرام، این‌جا می‌بینید هزینه ارسال دریافتی چقدر از هزینه بسته‌بندی و پست را پوشش می‌دهد.</div></div>
+</section>
+<section class="card" style="width: 400px; flex-shrink: 0;"><div class="card-h"><h2 class="t-h2">هشدار کمبود موجودی</h2></div>
+<div class="empty"><div class="e-art" style="background: var(--profit-soft); color: var(--profit);"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></div><div class="e-t">کمبودی وجود ندارد</div><div class="e-d">وقتی موجودی کالا یا بسته‌بندی به حداقل تعیین‌شده برسد، این‌جا هشدار می‌گیرید.</div></div>
+</section>
+</div>
+<section class="card"><div class="card-h"><h2 class="t-h2">آخرین سفارش‌ها</h2></div>
+<div class="empty" style="padding: 56px 24px;"><div class="e-art"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg></div><div class="e-t">هنوز سفارشی ثبت نشده</div><div class="e-d">اولین فروش را ثبت کنید تا فهرست سفارش‌ها و سود هر کدام این‌جا نمایش داده شود.</div><a href="RecordSale.dc.html" class="btn btn-primary" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>ثبت اولین فروش</a></div>
+</section>
+</sc-if>
+
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{ false }}">
+<section aria-busy="true" aria-label="در حال بارگذاری" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px;">
+<div class="card kpi"><div class="sk" style="width: 90px; height: 14px;"></div><div class="sk" style="width: 170px; height: 30px; margin-top: 6px;"></div><div class="sk" style="width: 120px; height: 12px; margin-top: 4px;"></div></div>
+<div class="card kpi"><div class="sk" style="width: 90px; height: 14px;"></div><div class="sk" style="width: 170px; height: 30px; margin-top: 6px;"></div><div class="sk" style="width: 120px; height: 12px; margin-top: 4px;"></div></div>
+<div class="card kpi"><div class="sk" style="width: 90px; height: 14px;"></div><div class="sk" style="width: 170px; height: 30px; margin-top: 6px;"></div><div class="sk" style="width: 120px; height: 12px; margin-top: 4px;"></div></div>
+<div class="card kpi"><div class="sk" style="width: 90px; height: 14px;"></div><div class="sk" style="width: 170px; height: 30px; margin-top: 6px;"></div><div class="sk" style="width: 120px; height: 12px; margin-top: 4px;"></div></div>
+</section>
+<div style="display: flex; gap: 20px;">
+<section class="card" style="flex-grow: 1; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+<div class="sk" style="width: 180px; height: 18px;"></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;"><div class="sk" style="height: 70px;"></div><div class="sk" style="height: 70px;"></div><div class="sk" style="height: 70px;"></div><div class="sk" style="height: 70px;"></div></div>
+<div class="sk" style="height: 26px;"></div><div class="sk" style="height: 26px;"></div><div class="sk" style="height: 44px;"></div>
+</section>
+<section class="card" style="width: 400px; flex-shrink: 0; padding: 20px; display: flex; flex-direction: column; gap: 18px;">
+<div class="sk" style="width: 160px; height: 18px;"></div>
+<div class="sk" style="height: 40px;"></div><div class="sk" style="height: 40px;"></div><div class="sk" style="height: 40px;"></div><div class="sk" style="height: 40px;"></div>
+</section>
+</div>
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+<div class="sk" style="width: 140px; height: 18px;"></div>
+<div class="sk" style="height: 36px;"></div><div class="sk" style="height: 36px;"></div><div class="sk" style="height: 36px;"></div><div class="sk" style="height: 36px;"></div><div class="sk" style="height: 36px;"></div>
+</section>
+</sc-if>
+
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}">
+<div class="alert alert-err" role="alert">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M8 7.5A6 6 0 0 1 18 11a4 4 0 0 1 2.4 7M17 19H7a5 5 0 0 1-2.6-9.3"></path></svg>
+<div class="grow"><div class="a-t">اطلاعات داشبورد بارگذاری نشد</div>اتصال به سرور برقرار نشد. داده‌های شما سالم است؛ دوباره تلاش کنید. اگر مشکل ادامه داشت، اتصال اینترنت را بررسی کنید.<div class="t-cap muted" style="margin-top: 4px;">کد خطا: <span class="ltr">NET_TIMEOUT</span> · آخرین بارگذاری موفق: امروز ۱۰:۴۲</div></div>
+<button type="button" class="btn btn-outline btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"></path><path d="M20 4v5h-5"></path></svg>تلاش دوباره</button>
+</div>
+<section style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px;">
+<div class="card kpi"><div class="kpi-l">فروش امروز<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg></div><div class="t-kpi nil">—</div><div class="t-cap muted">در دسترس نیست</div></div>
+<div class="card kpi"><div class="kpi-l">درآمد این ماه<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18v3.5"></path><path d="M3 7.5V18a2 2 0 0 0 2 2h15V9H5.5A2.5 2.5 0 0 1 3 7.5z"></path><circle cx="16" cy="14.5" r="1.2"></circle></svg></div><div class="t-kpi nil">—</div><div class="t-cap muted">در دسترس نیست</div></div>
+<div class="card kpi"><div class="kpi-l">سود خالص این ماه<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"></path><path d="M8 16v-4M12 16V8M16 16v-7"></path></svg></div><div class="t-kpi nil">—</div><div class="t-cap muted">در دسترس نیست</div></div>
+<div class="card kpi"><div class="kpi-l">سفارش‌های این ماه<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"></path><path d="m3 8 9 5 9-5M12 13v8"></path></svg></div><div class="t-kpi nil">—</div><div class="t-cap muted">در دسترس نیست</div></div>
+</section>
+<section class="card"><div class="empty" style="padding: 72px 24px;"><div class="e-art" style="background: var(--loss-soft); color: var(--loss);"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4M12 17v.01"></path></svg></div><div class="e-t">نمودارها و فهرست سفارش‌ها نمایش داده نمی‌شوند</div><div class="e-d">پس از برقراری اتصال، این بخش خودکار به‌روز می‌شود. ثبت فروش جدید همچنان در دسترس است.</div><div style="display: flex; gap: 8px; margin-top: 6px;"><button type="button" class="btn btn-outline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"></path><path d="M20 4v5h-5"></path></svg>تلاش دوباره</button><a href="RecordSale.dc.html" class="btn btn-ghost">رفتن به ثبت فروش</a></div></div></section>
+</sc-if>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["ready","empty","loading","error"],"default":"ready"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"h":{"editor":"int","default":1440},"$preview":{"width":1440,"height":1440}}'>
+var FA_D = '۰۱۲۳۴۵۶۷۸۹';
+function fa(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0;
+  var s = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '٬').replace(/\d/g, function (d) { return FA_D[d]; });
+  return (neg ? '−' : '') + s;
+}
+function faT(n) { return fa(n) + ' تومان'; }
+function faD(s) { return String(s).replace(/\d/g, function (d) { return FA_D[d]; }); }
+function num(v) {
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^0-9]/g, '');
+  return s === '' ? 0 : parseInt(s, 10);
+}
+var CH = {
+  web: { name: 'وب‌سایت', cls: 'ch-web' }, insta: { name: 'اینستاگرام', cls: 'ch-insta' },
+  wholesale: { name: 'عمده‌فروشی', cls: 'ch-wholesale' }, inperson: { name: 'حضوری', cls: 'ch-inperson' }, other: { name: 'سایر', cls: 'ch-other' }
+};
+var ST = {
+  draft: { name: 'پیش‌نویس', cls: 'st-draft' }, pending: { name: 'در انتظار', cls: 'st-pending' }, paid: { name: 'پرداخت‌شده', cls: 'st-paid' },
+  done: { name: 'تکمیل‌شده', cls: 'st-done' }, cancel: { name: 'لغوشده', cls: 'st-cancel' }, refund: { name: 'مرجوعی', cls: 'st-refund' }
+};
+var ORDERS = [
+  ['INV-000041', '1405/06/31', '13:42', 'insta', 'علی ر.', 'done', 950000, 327727],
+  ['INV-000040', '1405/06/31', '11:05', 'inperson', 'مشتری حضوری', 'done', 1040000, 592000],
+  ['INV-000039', '1405/06/31', '09:20', 'insta', 'رها س.', 'pending', 800000, 215727],
+  ['INV-000038', '1405/06/30', '16:24', 'web', 'نگار ک.', 'paid', 3130000, 1189727],
+  ['INV-000037', '1405/06/30', '12:10', 'wholesale', 'فروشگاه نوای شهر', 'done', 4300000, 2295727],
+  ['INV-000036', '1405/06/29', '18:37', 'web', 'مهدی ت.', 'cancel', 1430000, null],
+  ['INV-000035', '1405/06/29', '10:02', 'insta', 'پریا ن.', 'refund', 1070000, -294273],
+  ['INV-000034', '1405/06/28', '19:15', 'other', '—', 'draft', 480000, null],
+  ['INV-000033', '1405/06/28', '14:48', 'inperson', 'مشتری حضوری', 'done', 2450000, 1070000],
+  ['INV-000032', '1405/06/27', '20:31', 'web', 'کیان ب.', 'done', 1070000, 350727],
+  ['INV-000031', '1405/06/27', '11:26', 'insta', 'پرستو ج.', 'paid', 3680000, 1290727],
+  ['INV-000030', '1405/06/26', '15:02', 'wholesale', 'فروشگاه صفحه‌گردان', 'done', 9750000, 2510727]
+];
+function orderRows(limit) {
+  return ORDERS.slice(0, limit || ORDERS.length).map(function (o) {
+    var pc = o[7] === null ? 'nil' : (o[7] < 0 ? 'neg' : 'pos');
+    return {
+      inv: o[0], date: faD(o[1]), time: faD(o[2]), dt: faD(o[1]) + ' · ' + faD(o[2]), ch: CH[o[3]].name, chCls: 'ch ' + CH[o[3]].cls, cust: o[4],
+      st: ST[o[5]].name, stCls: 'badge ' + ST[o[5]].cls, stKey: o[5], total: fa(o[6]), profit: o[7] === null ? '—' : fa(o[7]), pCls: 'n num b ' + pc, pClsM: 'num b ' + pc,
+      profitT: o[7] === null ? 'سود: —' : 'سود ' + fa(o[7])
+    };
+  });
+}
+/* Jalali month grid, week starts Saturday. startIdx = weekday index of day 1 (0=Sat … 6=Fri). opt: {today, sel, from, to} */
+function monthGrid(startIdx, days, opt) {
+  opt = opt || {};
+  var cells = [];
+  for (var i = 0; i < startIdx; i++) cells.push({ l: '', c: 'cal-d x' });
+  for (var d = 1; d <= days; d++) {
+    var wd = (startIdx + d - 1) % 7, c = 'cal-d';
+    if (wd === 6) c += ' fri';
+    if (opt.today === d) c += ' today';
+    if (opt.sel === d) c += ' sel';
+    if (opt.from && opt.to) {
+      if (d === opt.from) c += ' s';
+      if (d === opt.to) c += ' e';
+      if (d > opt.from && d < opt.to) c += ' in';
+    }
+    cells.push({ l: faD(d), c: c });
+  }
+  while (cells.length % 7) cells.push({ l: '', c: 'cal-d x' });
+  return cells;
+}
+function faQ(n) { /* quantities: may be fractional, Persian decimal separator */
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0, a = Math.abs(n), ip = Math.floor(a), fp = Math.round((a - ip) * 1000);
+  var s = fa(ip).replace('−', '');
+  if (fp) s += '٫' + faD(String(fp).padStart(3, '0').replace(/0+$/, ''));
+  return (neg ? '−' : '') + s;
+}
+function numQ(v) { /* parse a possibly-fractional quantity typed in any digits */
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫\/]/g, '.').replace(/[^0-9.]/g, '');
+  var n = parseFloat(s); return isNaN(n) ? 0 : n;
+}
+function stateVals(props, defH) {
+  var s = props.state || 'ready';
+  return { theme: props.theme || 'light', h: props.h || defH, isReady: s === 'ready', isEmpty: s === 'empty', isLoading: s === 'loading', isError: s === 'error', st: s };
+}
+var CATALOG = [
+  { id: 'p1', name: 'وینیل آلبوم اول', cat: 'وینیل', retail: 2450000, ws: 1950000, cost: 1380000, stock: 14, min: 5, active: true },
+  { id: 'p2', name: 'وینیل نسخه رنگی', cat: 'وینیل', retail: 3500000, ws: 2900000, cost: 2050000, stock: 2, min: 3, active: true },
+  { id: 'p3', name: 'کاست نسخه محدود', cat: 'کاست', retail: 620000, ws: 480000, cost: 290000, stock: 3, min: 5, active: true },
+  { id: 'p10', name: 'کاست آلبوم اول', cat: 'کاست', retail: 450000, ws: 350000, cost: 190000, stock: 0, min: 5, active: true },
+  { id: 'p4', name: 'سی‌دی آلبوم اول', cat: 'آلبوم', retail: 480000, ws: 380000, cost: 210000, stock: 22, min: 5, active: true },
+  { id: 'p5', name: 'پوستر تور ۱۴۰۴', cat: 'پوستر', retail: 290000, ws: 210000, cost: 95000, stock: 42, min: 10, active: true },
+  { id: 'p6', name: 'تی‌شرت لوگو مشکی (L)', cat: 'تی‌شرت', retail: 890000, ws: 690000, cost: 410000, stock: 7, min: 5, active: true },
+  { id: 'p7', name: 'تی‌شرت تور سفید (M)', cat: 'تی‌شرت', retail: 950000, ws: 740000, cost: null, stock: 12, min: 5, active: true },
+  { id: 'p8', name: 'استیکر پک', cat: 'استیکر', retail: 150000, ws: 110000, cost: 38000, stock: 120, min: 30, active: true },
+  { id: 'p9', name: 'آینه لوگو گرد', cat: 'آینه', retail: 1250000, ws: 980000, cost: 560000, stock: 4, min: 5, active: true },
+  { id: 'p11', name: 'پوستر تور ۱۴۰۳', cat: 'پوستر', retail: 250000, ws: 180000, cost: 90000, stock: 6, min: 0, active: false }
+];
+var MATERIALS = [
+  { id: 'm1', name: 'صفحه خام وینیل ۱۲ اینچ', type: 'goods', unit: 'عدد', stock: 38, cost: 620000, min: 20, use: 'تولید' },
+  { id: 'm2', name: 'کاور چاپی وینیل', type: 'goods', unit: 'عدد', stock: 45, cost: 180000, min: 20, use: 'تولید' },
+  { id: 'm3', name: 'نوار کاست خام', type: 'goods', unit: 'عدد', stock: 12, cost: 95000, min: 20, use: 'تولید' },
+  { id: 'm4', name: 'قاب و جلد کاست', type: 'goods', unit: 'عدد', stock: 60, cost: 45000, min: 20, use: 'تولید' },
+  { id: 'm5', name: 'تی‌شرت خام مشکی L', type: 'goods', unit: 'عدد', stock: 6, cost: 260000, min: 10, use: 'تولید' },
+  { id: 'm6', name: 'چاپ سیلک تی‌شرت', type: 'service', unit: 'عدد', stock: null, cost: 120000, min: null, use: 'تولید' },
+  { id: 'm7', name: 'مسترینگ و کات لاکر', type: 'service', unit: 'نوبت', stock: null, cost: 12000000, min: null, use: 'تولید' },
+  { id: 'm8', name: 'طراحی جلد', type: 'service', unit: 'نوبت', stock: null, cost: 4000000, min: null, use: 'تولید' },
+  { id: 'm9', name: 'کارتن جعبه استاندارد', type: 'goods', unit: 'عدد', stock: 64, cost: 60000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm10', name: 'جعبه وینیل', type: 'goods', unit: 'عدد', stock: 8, cost: 95000, min: 20, use: 'بسته‌بندی' },
+  { id: 'm11', name: 'پاکت حباب‌دار کوچک', type: 'goods', unit: 'عدد', stock: 15, cost: 24000, min: 40, use: 'بسته‌بندی' },
+  { id: 'm12', name: 'نوار چسب لوگودار', type: 'goods', unit: 'رول', stock: 2, cost: 150000, min: 5, use: 'بسته‌بندی' },
+  { id: 'm13', name: 'کاغذ پرکننده', type: 'goods', unit: 'کیلوگرم', stock: 1.5, cost: 90000, min: 3, use: 'بسته‌بندی' },
+  { id: 'm14', name: 'برچسب آدرس', type: 'goods', unit: 'عدد', stock: 400, cost: 2000, min: 100, use: 'بسته‌بندی' },
+  { id: 'm15', name: 'محافظ گوشه', type: 'goods', unit: 'عدد', stock: 90, cost: 10000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm16', name: 'کاغذ کرافت', type: 'goods', unit: 'متر', stock: 42.5, cost: 12000, min: 10, use: 'بسته‌بندی' }
+];
+function stockCls(stock, min) { return stock === 0 ? 'stock out' : (min && stock <= min ? 'stock low' : 'stock'); }
+
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { tab: 'p' }; }
+  renderVals() {
+    var s = this.props.state || 'ready';
+    var self = this;
+    var P = [
+      { name: 'کاست آلبوم اول', q: 'ناموجود', qCls: 'stock out', pct: 2, color: 'var(--loss)', meta: 'کاست · حداقل ۵ عدد', act: 'تولید' },
+      { name: 'وینیل نسخه رنگی', q: '۲ عدد', qCls: 'stock out', pct: 40, color: 'var(--loss)', meta: 'وینیل · حداقل ۳ عدد', act: 'خرید' },
+      { name: 'کاست نسخه محدود', q: '۳ عدد', qCls: 'stock low', pct: 60, color: 'var(--warn)', meta: 'کاست · حداقل ۵ عدد', act: 'تولید' },
+      { name: 'آینه لوگو گرد', q: '۴ عدد', qCls: 'stock low', pct: 80, color: 'var(--warn)', meta: 'آینه · حداقل ۵ عدد', act: 'خرید' }
+    ];
+    var M = [
+      { name: 'جعبه وینیل', q: '۸ عدد', qCls: 'stock out', pct: 40, color: 'var(--loss)', meta: 'بسته‌بندی · حداقل ۲۰ · حدود ۵ روز', act: 'خرید' },
+      { name: 'نوار چسب لوگودار', q: '۲ رول', qCls: 'stock out', pct: 40, color: 'var(--loss)', meta: 'بسته‌بندی · حداقل ۵ رول', act: 'خرید' },
+      { name: 'پاکت حباب‌دار کوچک', q: '۱۵ عدد', qCls: 'stock low', pct: 38, color: 'var(--warn)', meta: 'بسته‌بندی · حداقل ۴۰', act: 'خرید' },
+      { name: 'تی‌شرت خام مشکی L', q: '۶ عدد', qCls: 'stock low', pct: 60, color: 'var(--warn)', meta: 'ماده اولیه · حداقل ۱۰', act: 'خرید' },
+      { name: 'کاغذ پرکننده', q: '۱ بسته', qCls: 'stock low', pct: 33, color: 'var(--warn)', meta: 'بسته‌بندی · حداقل ۳ بسته', act: 'خرید' }
+    ];
+    var tab = this.state.tab;
+    return {
+      theme: this.props.theme || 'light', h: this.props.h || 1440,
+      isReady: s === 'ready', isEmpty: s === 'empty', isLoading: s === 'loading', isError: s === 'error',
+      tabP: tab === 'p' ? 'on' : '', tabM: tab === 'm' ? 'on' : '',
+      showP: function () { self.setState({ tab: 'p' }); }, showM: function () { self.setState({ tab: 'm' }); },
+      lowList: tab === 'p' ? P : M,
+      orders: orderRows(8)
+    };
+  }
+}
+</script>
+</body>
+</html>

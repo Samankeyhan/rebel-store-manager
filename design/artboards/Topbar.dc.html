@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>نوار بالا</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<header class="rs topbar" data-theme="{{theme}}" style="width: {{w}}px; height: 64px;">
+<div style="display: flex; flex-direction: column; justify-content: center; min-width: 0; flex-grow: 1;">
+<sc-if value="{{hasCrumb}}" hint-placeholder-val="{{ false }}">
+<nav class="crumb" aria-label="مسیر">
+<a href="{{crumbHref}}" style="color: var(--text-3);">{{crumb}}</a>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg>
+<span class="t-h1" style="font-size: 18px;">{{title}}</span>
+</nav>
+</sc-if>
+<sc-if value="{{noCrumb}}" hint-placeholder-val="{{ true }}">
+<h1 class="t-h1" style="font-size: 18px;">{{title}}</h1>
+</sc-if>
+</div>
+<div class="ig" style="width: 380px; flex-shrink: 0;">
+<span class="pfx"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span>
+<input class="input" type="search" aria-label="جستجوی سراسری" placeholder="جستجوی فاکتور، محصول یا مشتری…" style="background: var(--surface-2); border-color: var(--border); height: 38px;">
+<span class="sfx" style="left: 8px;"><span class="kbd">Ctrl K</span></span>
+</div>
+<button type="button" class="btn btn-ghost btn-icon" aria-label="تغییر پوسته روشن و تیره"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg></button>
+<button type="button" class="btn btn-ghost" style="padding: 0 8px 0 6px; gap: 10px;" aria-label="منوی کاربر">
+<span class="avatar">م</span>
+<span style="display: flex; flex-direction: column; line-height: 1.25; text-align: right;">
+<span style="font-size: 13px; font-weight: 700; color: var(--text);">مدیر فروشگاه</span>
+<span style="font-size: 11px; color: var(--text-3); font-weight: 500;">مالک</span>
+</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+</button>
+</header>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"title":{"editor":"text","default":"خانه"},"crumb":{"editor":"text","default":""},"crumbHref":{"editor":"text","default":"Orders.dc.html"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"w":{"editor":"int","default":1176},"$preview":{"width":1176,"height":64}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var crumb = this.props.crumb || '';
+    return {
+      title: this.props.title || 'خانه', crumb: crumb, crumbHref: this.props.crumbHref || 'Orders.dc.html',
+      hasCrumb: !!crumb, noCrumb: !crumb, theme: this.props.theme || 'light', w: this.props.w || 1176
+    };
+  }
+}
+</script>
+</body>
+</html>

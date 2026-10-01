@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>ثبت فروش — موبایل</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="{{theme}}" style="width: 390px; height: {{h}}px;">
+<dc-import name="MobileBar" title="ثبت فروش" theme="{{theme}}" hint-size="390px,56px"></dc-import>
+
+<sc-if value="{{showForm}}" hint-placeholder-val="{{ true }}">
+<main style="padding: 16px 16px 150px; display: flex; flex-direction: column; gap: 14px;">
+<section class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 12px;">
+<h2 class="t-h3" style="color: var(--heading);">کانال فروش</h2>
+<div role="radiogroup" aria-label="کانال فروش" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<button type="button" role="radio" aria-checked="true" class="opt on" style="align-items: center; min-height: 64px; justify-content: center;"><span style="color: var(--ch-web); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"></path></svg></span><span class="o-t" style="font-size: 12.5px;">وب‌سایت</span></button>
+<button type="button" role="radio" aria-checked="false" class="opt" style="align-items: center; min-height: 64px; justify-content: center;"><span style="color: var(--ch-insta); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z"></path><circle cx="12" cy="13.5" r="3.5"></circle></svg></span><span class="o-t" style="font-size: 12.5px;">اینستاگرام</span></button>
+<button type="button" role="radio" aria-checked="false" class="opt" style="align-items: center; min-height: 64px; justify-content: center;"><span style="color: var(--ch-wholesale); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13h8v8H3zM13 13h8v8h-8zM8 3h8v8H8z"></path></svg></span><span class="o-t" style="font-size: 12.5px;">عمده‌فروشی</span></button>
+<button type="button" role="radio" aria-checked="false" class="opt" style="align-items: center; min-height: 64px; justify-content: center;"><span style="color: var(--ch-inperson); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v11h16V10"></path><path d="M3 10l2-6h14l2 6z"></path><path d="M9 21v-6h6v6"></path></svg></span><span class="o-t" style="font-size: 12.5px;">حضوری</span></button>
+<button type="button" role="radio" aria-checked="false" class="opt" style="align-items: center; min-height: 64px; justify-content: center;"><span style="color: var(--ch-other); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="18" cy="12" r="1.3"></circle></svg></span><span class="o-t" style="font-size: 12.5px;">سایر</span></button>
+</div>
+<p class="help">وب‌سایت: ارسال ۱۸۰٬۰۰۰ · با هزینه پست · جعبه استاندارد</p>
+<div class="field"><label class="label" for="mc">نام مشتری <span class="opt">(اختیاری)</span></label><input id="mc" class="input" value="نگار ک." style="height: 44px;"></div>
+</section>
+
+<section class="card" style="display: flex; flex-direction: column;">
+<div style="padding: 14px 14px 4px; display: flex; justify-content: space-between;"><h2 class="t-h3" style="color: var(--heading);">اقلام سفارش</h2><span class="t-cap muted">۲ ردیف</span></div>
+<div style="padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; gap: 8px; align-items: center;">
+<button type="button" class="select" style="height: 48px;"><span style="display: flex; flex-direction: column; line-height: 1.3;"><span class="b">وینیل آلبوم اول</span><span class="t-cap muted">وینیل · قیمت خرده</span></span><span class="stock">موجودی ۱۴</span></button>
+<button type="button" class="btn btn-ghost btn-icon" style="width: 44px; height: 44px;" aria-label="حذف ردیف"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"></path></svg></button>
+</div>
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px;">
+<div class="stepper" style="height: 44px;"><button type="button" style="width: 40px;" aria-label="افزایش"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><input value="۱" aria-label="تعداد"><button type="button" style="width: 40px;" aria-label="کاهش"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button></div>
+<div class="ig"><input class="input input-num" value="۲٬۴۵۰٬۰۰۰" style="height: 44px;" aria-label="قیمت واحد"><span class="sfx">تومان</span></div>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center;"><button type="button" class="btn btn-link t-cap" style="background: none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="8" r="1.2"></circle></svg>افزودن تخفیف</button><span class="t-sm">جمع: <b class="num">۲٬۴۵۰٬۰۰۰</b></span></div>
+</div>
+<div style="padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; gap: 8px; align-items: center;">
+<button type="button" class="select" style="height: 48px;"><span style="display: flex; flex-direction: column; line-height: 1.3;"><span class="b">پوستر تور ۱۴۰۴</span><span class="t-cap muted">پوستر · قیمت خرده</span></span><span class="stock">موجودی ۴۲</span></button>
+<button type="button" class="btn btn-ghost btn-icon" style="width: 44px; height: 44px;" aria-label="حذف ردیف"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"></path></svg></button>
+</div>
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px;">
+<div class="stepper" style="height: 44px;"><button type="button" style="width: 40px;" aria-label="افزایش"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><input value="۲" aria-label="تعداد"><button type="button" style="width: 40px;" aria-label="کاهش"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button></div>
+<div class="ig"><input class="input input-num" value="۲۹۰٬۰۰۰" style="height: 44px;" aria-label="قیمت واحد"><span class="sfx">تومان</span></div>
+</div>
+<div style="background: var(--surface-2); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+<div class="field"><label class="label t-cap">مبلغ تخفیف</label><div class="ig"><input class="input input-num" value="۸۰٬۰۰۰" style="height: 44px;"><span class="sfx">تومان</span></div></div>
+<div class="field"><label class="label t-cap">دلیل تخفیف <span class="opt">(اختیاری)</span></label><input class="input" value="مشتری ثابت" style="height: 44px;"></div>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center;"><button type="button" class="btn btn-ghost btn-sm">حذف تخفیف</button><span class="t-sm">جمع: <span class="num t-cap muted" style="text-decoration: line-through;">۵۸۰٬۰۰۰</span> <b class="num">۵۰۰٬۰۰۰</b></span></div>
+</div>
+<div style="padding: 12px 14px;"><button type="button" class="btn btn-outline" style="width: 100%; height: 44px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>افزودن محصول</button></div>
+</section>
+
+<section class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 14px;">
+<h2 class="t-h3" style="color: var(--heading);">ارسال و بسته‌بندی</h2>
+<div class="field"><label class="label" for="ms">هزینه ارسال دریافتی</label><div class="ig"><input id="ms" class="input input-num is-warn" value="۱۵۰٬۰۰۰" style="height: 44px;"><span class="sfx">تومان</span></div>
+<span class="help" style="color: var(--warn); display: flex; gap: 6px; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg>مقدار دستی — پیش‌فرض ۱۸۰٬۰۰۰ تومان · <button type="button" style="background: none; border: 0; padding: 0; color: var(--heading); font-weight: 700; font-size: 12px;">بازگردانی</button></span></div>
+<div class="field"><span class="label">کیت بسته‌بندی</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+<button type="button" class="opt on" style="min-height: 56px;"><span class="o-t">جعبه استاندارد</span><span class="o-s num">۹۵٬۰۰۰ تومان</span></button>
+<button type="button" class="opt" style="min-height: 56px;"><span class="o-t">جعبه وینیل</span><span class="o-s num">۱۴۰٬۰۰۰ تومان</span></button>
+<button type="button" class="opt" style="min-height: 56px;"><span class="o-t">پاکت کوچک</span><span class="o-s num">۳۵٬۰۰۰ تومان</span></button>
+<button type="button" class="opt" style="min-height: 56px;"><span class="o-t">بدون بسته‌بندی</span><span class="o-s">بدون هزینه</span></button>
+</div></div>
+</section>
+
+<section class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 14px; background: var(--surface-2);">
+<h2 class="t-h3" style="color: var(--heading); display: flex; gap: 6px; align-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>هزینه‌های داخلی</h2>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+<div class="field"><span class="label t-cap">پست (تخمینی)</span><div style="height: 44px; display: flex; align-items: center; padding: 0 12px; border-radius: 8px; border: 1px dashed var(--border-strong); background: var(--surface);"><b class="num">۱۹۹٬۲۷۳</b></div><span class="help" style="font-size: 11px;">جمع پرداختی ÷ جمع سفارش‌ها در ۳ پرداخت اخیر</span></div>
+<div class="field"><label class="label t-cap">کارمزد تراکنش</label><div class="ig"><input class="input input-num" value="۳۰٬۰۰۰" style="height: 44px; padding-left: 12px;"></div></div>
+</div>
+<span class="help">مبالغ به تومان · به مشتری نمایش داده نمی‌شود.</span>
+</section>
+
+<section class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+<h2 class="t-h3" style="color: var(--heading);">وضعیت سفارش</h2>
+<div class="seg" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));"><button type="button" style="height: 40px;">پیش‌نویس</button><button type="button" style="height: 40px;">در انتظار</button><button type="button" style="height: 40px;">پرداخت‌شده</button><button type="button" class="on" style="height: 40px;">تکمیل‌شده</button></div>
+<p class="help"><b>پیش‌نویس موجودی را رزرو نمی‌کند</b>؛ سایر وضعیت‌ها کالا و بسته‌بندی را همان لحظه از موجودی کم می‌کنند.</p>
+</section>
+</main>
+</sc-if>
+
+<sc-if value="{{isDefault}}" hint-placeholder-val="{{ true }}">
+<div class="m-sheet" style="padding: 0 16px 20px;">
+<div class="grab"></div>
+<button type="button" style="width: 100%; background: none; border: 0; padding: 10px 0; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" aria-expanded="false" aria-label="نمایش خلاصه کامل">
+<span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.35;"><span class="t-cap muted">مبلغ قابل پرداخت</span><span class="num b" style="font-size: 19px;">۳٬۱۰۰٬۰۰۰ <span class="t-cap muted" style="font-weight: 500;">تومان</span></span></span>
+<span style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.35;"><span class="t-cap muted" style="display: flex; gap: 4px; align-items: center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>سود</span><span class="num b pos">۱٬۲۰۵٬۷۲۷</span></span>
+<span style="color: var(--text-3); display: flex;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"></path></svg></span>
+</button>
+<button type="button" class="btn btn-primary btn-lg" style="width: 100%;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>ثبت فروش</button>
+</div>
+</sc-if>
+
+<sc-if value="{{isSheet}}" hint-placeholder-val="{{ false }}">
+<div class="overlay"></div>
+<div class="m-sheet" style="border-radius: 18px 18px 0 0; padding: 0 16px 20px;" role="dialog" aria-label="خلاصه سفارش">
+<div class="grab"></div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0 4px;"><h2 class="t-h2">خلاصه سفارش</h2><button type="button" class="btn btn-ghost btn-icon" style="width: 44px; height: 44px;" aria-label="بستن"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px;">
+<div class="t-cap b muted" style="display: flex; gap: 6px; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>پرداختی مشتری</div>
+<div class="sl"><span class="muted2">جمع اقلام (۳ عدد)</span><span class="v">۳٬۰۳۰٬۰۰۰</span></div>
+<div class="sl"><span class="muted2">تخفیف</span><span class="v">−۸۰٬۰۰۰</span></div>
+<div class="sl"><span class="muted2">هزینه ارسال <span class="chip" style="height: 18px; font-size: 10.5px; background: var(--warn-soft); color: var(--warn);">دستی</span></span><span class="v">۱۵۰٬۰۰۰</span></div>
+<div class="sl total"><span>مبلغ قابل پرداخت</span><span class="v">۳٬۱۰۰٬۰۰۰</span></div>
+</div>
+<div style="background: var(--surface-2); border-top: 2px dashed var(--border-strong); margin: 0 -16px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px;">
+<div class="t-cap b muted" style="display: flex; gap: 6px; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>داخلی — به مشتری نمایش داده نمی‌شود</div>
+<div class="sl"><span class="muted2">بهای تمام‌شده کالا</span><span class="v">−۱٬۵۷۰٬۰۰۰</span></div>
+<div class="sl"><span class="muted2">بسته‌بندی · جعبه استاندارد</span><span class="v">−۹۵٬۰۰۰</span></div>
+<div class="sl"><span class="muted2" style="display: flex; flex-direction: column; line-height: 1.35;">پست (تخمینی)<span style="font-size: 11px; color: var(--text-3);">جمع پرداختی ÷ جمع سفارش‌ها</span></span><span class="v">−۱۹۹٬۲۷۳</span></div>
+<div class="sl"><span class="muted2">کارمزد تراکنش</span><span class="v">−۳۰٬۰۰۰</span></div>
+<div class="sl total" style="background: var(--profit-soft); border-radius: 8px; padding: 6px 10px; margin: 2px -10px 0;"><span class="pos">سود این سفارش</span><span class="v pos">۱٬۲۰۵٬۷۲۷</span></div>
+<div class="t-cap" style="color: var(--text-2);">ارسال این سفارش: دریافتی ۱۵۰٬۰۰۰ − هزینه ۲۹۴٬۲۷۳ = <b class="neg">−۱۴۴٬۲۷۳</b></div>
+</div>
+<button type="button" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>ثبت فروش</button>
+</div>
+</sc-if>
+
+<sc-if value="{{isSuccess}}" hint-placeholder-val="{{ false }}">
+<main style="padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;">
+<div style="width: 64px; height: 64px; border-radius: 50%; background: var(--profit-soft); color: var(--profit); display: flex; align-items: center; justify-content: center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></div>
+<h2 class="t-h1">فروش ثبت شد</h2>
+<span class="inv" style="font-size: 18px;">INV-000042</span>
+<div style="display: flex; gap: 8px;"><span class="badge st-done">تکمیل‌شده</span><span class="ch ch-web">وب‌سایت</span></div>
+<div class="card" style="width: 100%; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+<div class="sl"><span class="muted2">مبلغ کل</span><span class="v b">۳٬۱۰۰٬۰۰۰ تومان</span></div>
+<div class="sl"><span class="muted2">سود</span><span class="v b pos">۱٬۲۰۵٬۷۲۷ تومان</span></div>
+<div class="t-cap muted" style="text-align: right;">موجودی ۳ کالا و ۱ «جعبه استاندارد» کسر شد.</div>
+</div>
+<div style="width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+<button type="button" class="btn btn-primary btn-lg" style="width: 100%;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>ثبت فروش جدید</button>
+<button type="button" class="btn btn-outline btn-lg" style="width: 100%;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6"></path><rect x="3" y="9" width="18" height="8" rx="2"></rect><path d="M7 14h10v7H7z"></path></svg>چاپ فاکتور (PDF)</button>
+<a href="OrderDetailMobile.dc.html" class="btn btn-ghost btn-lg" style="width: 100%;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"></path><path d="M18 14v6H4V6h6"></path></svg>مشاهده سفارش</a>
+</div>
+</main>
+</sc-if>
+
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{ false }}">
+<main aria-busy="true" style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+<div class="sk" style="height: 200px; border-radius: 12px;"></div><div class="sk" style="height: 260px; border-radius: 12px;"></div><div class="sk" style="height: 160px; border-radius: 12px;"></div>
+</main>
+</sc-if>
+
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}">
+<main style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+<div class="alert alert-err" role="alert" style="flex-direction: column;"><div style="display: flex; gap: 10px; align-items: center; color: var(--loss);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M8 7.5A6 6 0 0 1 18 11a4 4 0 0 1 2.4 7M17 19H7a5 5 0 0 1-2.6-9.3"></path></svg><span class="a-t" style="color: var(--text); margin: 0;">فهرست محصولات بارگذاری نشد</span></div><span>بدون موجودی و بهای تمام‌شده به‌روز نمی‌توان فروش را ثبت کرد.</span><button type="button" class="btn btn-outline" style="height: 44px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"></path><path d="M20 4v5h-5"></path></svg>تلاش دوباره</button></div>
+</main>
+</sc-if>
+
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<main style="padding: 16px;"><section class="card"><div class="empty" style="padding: 48px 20px;"><div class="e-art"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"></path><path d="m3 8 9 5 9-5M12 13v8"></path></svg></div><div class="e-t">ابتدا محصول تعریف کنید</div><div class="e-d">هر محصول به قیمت خرده، قیمت عمده و بهای تمام‌شده نیاز دارد تا سود هر فروش محاسبه شود.</div><a href="#" class="btn btn-primary btn-lg" style="margin-top: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>افزودن محصول</a></div></section></main>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"preset":{"editor":"enum","options":["default","sheet","success","loading","error","empty"],"default":"default"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"h":{"editor":"int","default":1920},"$preview":{"width":390,"height":1920}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var p = this.props.preset || 'default';
+    return {
+      theme: this.props.theme || 'light', h: this.props.h || 1920,
+      showForm: p === 'default' || p === 'sheet', isDefault: p === 'default', isSheet: p === 'sheet',
+      isSuccess: p === 'success', isLoading: p === 'loading', isError: p === 'error', isEmpty: p === 'empty'
+    };
+  }
+}
+</script>
+</body>
+</html>

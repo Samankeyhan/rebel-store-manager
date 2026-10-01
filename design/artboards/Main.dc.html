@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>سیستم طراحی ربل شاپ</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="light" style="width: 1440px; height: 6000px; padding: 56px 64px; display: flex; flex-direction: column; gap: 56px;">
+
+<header style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 32px; border-bottom: 1px solid var(--border);">
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<span class="t-cap b" style="color: var(--red); letter-spacing: 0.4px;">نسخه ۰٫۱ · شهریور ۱۴۰۵</span>
+<h1 style="font-size: 34px; line-height: 48px; font-weight: 800; color: var(--heading);">سیستم طراحی مدیریت ربل شاپ</h1>
+<p class="t-body muted2" style="max-width: 680px;">راست‌به‌چپ، فارسی، تقویم جلالی و مبالغ به تومان. همه اجزا به کامپوننت‌های <span class="ltr">shadcn/ui</span> نگاشت می‌شوند و رنگ‌ها به‌صورت متغیرهای CSS در تم <span class="ltr">Tailwind</span> تعریف شده‌اند.</p>
+</div>
+<img src="../assets/wordmark-on-light.png" alt="ربل شاپ" style="height: 96px; width: auto; display: block;">
+</header>
+
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><h2 class="t-h1">۱. رنگ‌ها</h2><span class="t-sm muted">رنگ‌های برند از لوگو نمونه‌برداری شده‌اند؛ قرمز دکمه کمی تیره‌تر است تا متن سفید روی آن خوانا باشد (کنتراست ۵:۱).</span></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+<sc-for list="{{themes}}" as="th" hint-placeholder-count="2">
+<div class="rs card" data-theme="{{th.id}}" style="padding: 24px; display: flex; flex-direction: column; gap: 18px; border-radius: 16px;">
+<div style="display: flex; justify-content: space-between; align-items: center;"><h3 class="t-h2">{{th.name}}</h3><span class="t-cap muted">پس‌زمینه <span class="ltr mono">{{th.bg}}</span></span></div>
+<sc-for list="{{th.groups}}" as="g" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<span class="sec-title">{{g.name}}</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<sc-for list="{{g.items}}" as="c" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<div style="height: 52px; border-radius: 10px; background: var({{c.v}}); border: 1px solid var(--border);"></div>
+<span class="t-cap b">{{c.fa}}</span>
+<span class="mono muted ltr" style="font-size: 11px; text-align: left;">{{c.v}} · {{c.hex}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px;">
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۲. تایپوگرافی — وزیرمتن</h2>
+<div class="card" style="padding: 8px 24px;">
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--border);"><span class="mono muted ltr" style="text-align: left;">kpi 26/38 · 700</span><span class="t-kpi num">۱۸۶٬۴۲۰٬۰۰۰ <span class="kpi-u">تومان</span></span></div>
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--border);"><span class="mono muted ltr" style="text-align: left;">h1 20/32 · 700</span><span class="t-h1">سفارش‌ها</span></div>
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--border);"><span class="mono muted ltr" style="text-align: left;">h2 16/26 · 700</span><span class="t-h2">اقتصاد ارسال این ماه</span></div>
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--border);"><span class="mono muted ltr" style="text-align: left;">h3 14/22 · 700</span><span class="t-h3">هزینه‌های داخلی</span></div>
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--border);"><span class="mono muted ltr" style="text-align: left;">body 14/23 · 400</span><span class="t-body">پیش‌نویس موجودی را رزرو نمی‌کند و در گزارش فروش حساب نمی‌شود.</span></div>
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--border);"><span class="mono muted ltr" style="text-align: left;">sm 13/21 · 400</span><span class="t-sm muted2">جدول‌ها، منوها و متن کمکی فیلدها</span></div>
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0;"><span class="mono muted ltr" style="text-align: left;">cap 12/19 · 400</span><span class="t-cap muted">برچسب‌ها، زمان‌ها و توضیح زیر عدد</span></div>
+</div>
+<p class="t-sm muted">ارقام همیشه فارسی و با جداکننده هزارگان «٬» (U+066C). ارقام فارسی وزیرمتن به‌طور پیش‌فرض هم‌عرض نیستند؛ ویژگی <span class="ltr mono">tnum</span> روی کل برنامه روشن است تا همه ارقام هم‌عرض باشند و مبالغ بر اساس ارزش مکانی زیر هم قرار بگیرند. فونت از فایل خود برنامه بارگذاری می‌شود (نه Google Fonts) تا این ویژگی حفظ شود.</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۳. دکمه‌ها</h2>
+<div class="card" style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+<button type="button" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>ثبت فروش</button>
+<button type="button" class="btn btn-secondary">ذخیره</button>
+<button type="button" class="btn btn-outline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6"></path><rect x="3" y="9" width="18" height="8" rx="2"></rect><path d="M7 14h10v7H7z"></path></svg>چاپ فاکتور</button>
+<button type="button" class="btn btn-ghost">انصراف</button>
+<button type="button" class="btn btn-link" style="background: none;">مشاهده همه<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></button>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+<button type="button" class="btn btn-danger-o"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg>لغو سفارش</button>
+<button type="button" class="btn btn-danger"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg>تأیید لغو</button>
+<span class="t-cap muted">مخرب: در صفحه حاشیه‌دار، در دیالوگ تأیید پُر</span>
+</div>
+<div class="sep"></div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+<button type="button" class="btn btn-primary btn-lg">بزرگ ۴۸ · موبایل</button>
+<button type="button" class="btn btn-primary">پیش‌فرض ۴۰</button>
+<button type="button" class="btn btn-primary btn-sm">کوچک ۳۲</button>
+<button type="button" class="btn btn-outline btn-icon" aria-label="بیشتر"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="12" cy="19" r="1.3"></circle></svg></button>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+<button type="button" class="btn btn-primary is-hover">هاور</button>
+<button type="button" class="btn btn-primary is-focus">فوکوس</button>
+<button type="button" class="btn btn-primary" disabled="{{ true }}">غیرفعال</button>
+<button type="button" class="btn btn-primary" aria-busy="true"><span class="spin"></span>در حال ثبت…</button>
+</div>
+<p class="t-cap muted">آیکون‌ها پیش از متن (سمت راست) می‌آیند؛ آیکون‌های جهت‌دار (پیکان، کامیون، بازگشت) در RTL قرینه می‌شوند.</p>
+</div>
+</section>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۴. ورودی‌ها و انتخابگرها</h2>
+<div class="card" style="padding: 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 20px; align-items: start;">
+<div class="field"><label class="label">نام مشتری <span class="opt">(اختیاری)</span></label><input class="input" placeholder="مثلاً: خریدار اینستاگرام"><span class="help">حالت پیش‌فرض</span></div>
+<div class="field"><label class="label">نام مشتری</label><input class="input is-focus" value="نگار ک."><span class="help">فوکوس</span></div>
+<div class="field"><label class="label">قیمت واحد</label><div class="ig"><input class="input input-num is-error" value="۰"><span class="sfx">تومان</span></div><span class="err"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>قیمت باید بیشتر از صفر باشد.</span></div>
+<div class="field"><label class="label">کد فاکتور</label><input class="input is-disabled" value="INV-000042" disabled="{{ true }}" style="direction: ltr; text-align: right;"><span class="help">غیرفعال · خودکار</span></div>
+<div class="field"><label class="label">هزینه ارسال</label><div class="ig"><input class="input input-num" value="۱۸۰٬۰۰۰"><span class="sfx">تومان</span></div><span class="help">مبلغ با پسوند «تومان» درون فیلد</span></div>
+<div class="field"><label class="label">هزینه ارسال</label><div class="ig"><input class="input input-num is-warn" value="۱۵۰٬۰۰۰"><span class="sfx">تومان</span></div><span class="help" style="color: var(--warn); display: flex; gap: 6px; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg>مقدار دستی — پیش‌فرض ۱۸۰٬۰۰۰</span></div>
+<div class="field"><label class="label">تعداد</label><div class="stepper" style="width: 120px;"><button type="button" aria-label="افزایش"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><input value="۲" aria-label="تعداد"><button type="button" aria-label="کاهش"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button></div><span class="help">Stepper · حداقل ۱</span></div>
+<div class="field"><label class="label">جستجو</label><div class="ig"><span class="pfx"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span><input class="input" placeholder="شماره فاکتور یا مشتری"></div></div>
+
+<div class="field"><label class="label">دسته‌بندی</label><button type="button" class="select">آلبوم<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<div class="menu" role="listbox" style="margin-top: 4px;">
+<button type="button" class="mi">آلبوم</button><button type="button" class="mi">کاست</button><button type="button" class="mi hl" style="font-weight: 700;">وینیل<span style="margin-right: auto; display: flex;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span></button><button type="button" class="mi">آینه</button><button type="button" class="mi">پوستر</button><button type="button" class="mi">استیکر</button><button type="button" class="mi">تی‌شرت</button><button type="button" class="mi">سایر</button>
+</div></div>
+<div class="field"><label class="label">کانال</label><button type="button" class="select"><span class="ph">انتخاب کانال…</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button><span class="help">Select با placeholder</span>
+<span class="label" style="margin-top: 14px;">چندانتخابی (Checkbox)</span>
+<label style="display: flex; gap: 8px; align-items: center;" class="t-sm"><span class="check on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>وب‌سایت</label>
+<label style="display: flex; gap: 8px; align-items: center;" class="t-sm"><span class="check on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>اینستاگرام</label>
+<label style="display: flex; gap: 8px; align-items: center;" class="t-sm"><span class="check"></span>عمده‌فروشی</label>
+<span class="label" style="margin-top: 14px;">Switch</span>
+<label style="display: flex; gap: 10px; align-items: center;" class="t-sm"><span class="switch on"></span>هشدار کمبود موجودی</label>
+</div>
+<div class="field" style="grid-column: span 2;"><span class="label">انتخاب گزینه‌ای (RadioGroup کارتی)</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+<button type="button" class="opt on"><span class="o-t">جعبه استاندارد</span><span class="o-s">۹۵٬۰۰۰ تومان</span><span class="o-tag">پیش‌فرض</span></button>
+<button type="button" class="opt"><span class="o-t">پاکت کوچک</span><span class="o-s">۳۵٬۰۰۰ تومان</span></button>
+<button type="button" class="opt"><span class="o-t">بدون بسته‌بندی</span><span class="o-s">بدون هزینه</span></button>
+</div>
+<span class="label" style="margin-top: 14px;">ToggleGroup / Tabs</span>
+<div class="seg"><button type="button">پیش‌نویس</button><button type="button">در انتظار</button><button type="button">پرداخت‌شده</button><button type="button" class="on">تکمیل‌شده</button></div>
+<div class="tabs" style="margin-top: 10px;"><button type="button" class="tab on">محصولات<span class="cnt">۴</span></button><button type="button" class="tab">بسته‌بندی و مواد<span class="cnt">۵</span></button></div>
+</div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><h2 class="t-h1">۵. انتخابگر تاریخ جلالی</h2><span class="t-sm muted">هفته از شنبه · جمعه قرمز · امروز با حلقه قرمز · قالب نمایش ۱۴۰۵/۰۶/۳۱</span></div>
+<div style="display: flex; gap: 24px; align-items: flex-start;">
+<div style="display: flex; flex-direction: column; gap: 8px; width: 300px;">
+<label class="label">تاریخ سفارش</label>
+<button type="button" class="select is-focus" style="border-color: var(--navy-2);"><span style="display: flex; gap: 8px; align-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><b class="num">۱۴۰۵/۰۶/۳۱</b></span><span class="t-cap muted">امروز</span></button>
+<div class="menu" style="padding: 12px; width: 300px;">
+<div class="cal" style="width: 266px;">
+<div class="cal-h"><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ماه قبل"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></button><button type="button" class="btn btn-ghost btn-sm m" style="font-weight: 700; color: var(--heading);">شهریور ۱۴۰۵<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ماه بعد"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></button></div>
+<div class="cal-g"><span class="cal-w">ش</span><span class="cal-w">ی</span><span class="cal-w">د</span><span class="cal-w">س</span><span class="cal-w">چ</span><span class="cal-w">پ</span><span class="cal-w" style="color: var(--loss);">ج</span>
+<sc-for list="{{calSingle}}" as="c" hint-placeholder-count="35"><button type="button" class="{{c.c}}">{{c.l}}</button></sc-for></div>
+</div>
+<div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;"><button type="button" class="btn btn-ghost btn-sm">امروز</button><button type="button" class="btn btn-ghost btn-sm">پاک کردن</button></div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<label class="label">بازه تاریخ (DateRangePicker)</label>
+<button type="button" class="select" style="width: 340px;"><span style="display: flex; gap: 8px; align-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><b class="num">۱۴۰۵/۰۵/۲۵ تا ۱۴۰۵/۰۶/۱۰</b></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<div class="menu" style="padding: 0; flex-direction: row;">
+<div style="width: 140px; border-left: 1px solid var(--border); padding: 8px; display: flex; flex-direction: column; gap: 2px;">
+<button type="button" class="mi">امروز</button><button type="button" class="mi">۷ روز اخیر</button><button type="button" class="mi">این ماه</button><button type="button" class="mi">ماه گذشته</button><button type="button" class="mi">سال ۱۴۰۵</button><button type="button" class="mi hl" style="font-weight: 700; color: var(--red);">بازه دلخواه</button>
+</div>
+<div style="display: flex; flex-direction: column;">
+<div style="display: flex; gap: 24px; padding: 12px 16px;">
+<div class="cal"><div class="cal-h"><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ماه قبل"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></button><span class="m">مرداد ۱۴۰۵</span><span style="width: 32px;"></span></div>
+<div class="cal-g"><span class="cal-w">ش</span><span class="cal-w">ی</span><span class="cal-w">د</span><span class="cal-w">س</span><span class="cal-w">چ</span><span class="cal-w">پ</span><span class="cal-w" style="color: var(--loss);">ج</span>
+<sc-for list="{{calR1}}" as="c" hint-placeholder-count="35"><button type="button" class="{{c.c}}">{{c.l}}</button></sc-for></div></div>
+<div class="cal"><div class="cal-h"><span style="width: 32px;"></span><span class="m">شهریور ۱۴۰۵</span><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ماه بعد"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></button></div>
+<div class="cal-g"><span class="cal-w">ش</span><span class="cal-w">ی</span><span class="cal-w">د</span><span class="cal-w">س</span><span class="cal-w">چ</span><span class="cal-w">پ</span><span class="cal-w" style="color: var(--loss);">ج</span>
+<sc-for list="{{calR2}}" as="c" hint-placeholder-count="35"><button type="button" class="{{c.c}}">{{c.l}}</button></sc-for></div></div>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border);"><span class="t-sm"><span class="muted">از</span> <b class="num">۲۵ مرداد</b> <span class="muted">تا</span> <b class="num">۱۰ شهریور</b> <span class="muted">(۱۷ روز)</span></span><div style="display: flex; gap: 8px;"><button type="button" class="btn btn-ghost btn-sm">انصراف</button><button type="button" class="btn btn-primary btn-sm">اعمال</button></div></div>
+</div>
+</div>
+</div>
+<div class="card" style="flex-grow: 1; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+<h3 class="t-h3">ماه‌های جلالی</h3>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;" class="t-sm">
+<span>۱ فروردین</span><span>۲ اردیبهشت</span><span>۳ خرداد</span><span>۴ تیر</span><span>۵ مرداد</span><span class="b" style="color: var(--red);">۶ شهریور</span><span>۷ مهر</span><span>۸ آبان</span><span>۹ آذر</span><span>۱۰ دی</span><span>۱۱ بهمن</span><span>۱۲ اسفند</span>
+</div>
+<div class="sep" style="margin: 6px 0;"></div>
+<h3 class="t-h3">روزهای هفته</h3>
+<p class="t-sm muted2">شنبه، یک‌شنبه، دوشنبه، سه‌شنبه، چهارشنبه، پنج‌شنبه، جمعه</p>
+<div class="sep" style="margin: 6px 0;"></div>
+<h3 class="t-h3">قالب‌ها</h3>
+<div class="sl t-sm"><span class="muted2">جدول و فیلد</span><span class="num">۱۴۰۵/۰۶/۳۱</span></div>
+<div class="sl t-sm"><span class="muted2">با زمان</span><span class="num">۱۴۰۵/۰۶/۳۱ · ۱۳:۴۲</span></div>
+<div class="sl t-sm"><span class="muted2">عنوان صفحه</span><span>سه‌شنبه، ۳۱ شهریور ۱۴۰۵</span></div>
+<div class="sl t-sm"><span class="muted2">نسبی</span><span>امروز · دیروز · ۳ روز پیش</span></div>
+</div>
+</div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px;">
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۶. نشان‌ها</h2>
+<div class="card" style="padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+<div style="display: flex; flex-direction: column; gap: 10px;"><span class="sec-title">وضعیت سفارش — نشان پُر با نقطه</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;"><span class="badge st-draft">پیش‌نویس</span><span class="badge st-pending">در انتظار</span><span class="badge st-paid">پرداخت‌شده</span><span class="badge st-done">تکمیل‌شده</span><span class="badge st-cancel">لغوشده</span><span class="badge st-refund">مرجوعی</span></div></div>
+<div class="rs" data-theme="dark" style="padding: 12px; border-radius: 10px; display: flex; flex-wrap: wrap; gap: 8px; background: var(--surface);"><span class="badge st-draft">پیش‌نویس</span><span class="badge st-pending">در انتظار</span><span class="badge st-paid">پرداخت‌شده</span><span class="badge st-done">تکمیل‌شده</span><span class="badge st-cancel">لغوشده</span><span class="badge st-refund">مرجوعی</span></div>
+<div style="display: flex; flex-direction: column; gap: 10px;"><span class="sec-title">کانال فروش — برچسب حاشیه‌دار با مربع رنگی (در انتخابگر با آیکون)</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;"><span class="ch ch-web">وب‌سایت</span><span class="ch ch-insta">اینستاگرام</span><span class="ch ch-wholesale">عمده‌فروشی</span><span class="ch ch-inperson">حضوری</span><span class="ch ch-other">سایر</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;"><span class="ch ico ch-web"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"></path></svg>وب‌سایت</span><span class="ch ico ch-insta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z"></path><circle cx="12" cy="13.5" r="3.5"></circle></svg>اینستاگرام</span><span class="ch ico ch-wholesale"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13h8v8H3zM13 13h8v8h-8zM8 3h8v8H8z"></path></svg>عمده‌فروشی</span><span class="ch ico ch-inperson"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v11h16V10"></path><path d="M3 10l2-6h14l2 6z"></path><path d="M9 21v-6h6v6"></path></svg>حضوری</span><span class="ch ico ch-other"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="1.3"></circle><circle cx="12" cy="12" r="1.3"></circle><circle cx="18" cy="12" r="1.3"></circle></svg>سایر</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 10px;"><span class="sec-title">دسته محصول — خنثی</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;"><span class="chip">آلبوم</span><span class="chip">کاست</span><span class="chip">وینیل</span><span class="chip">آینه</span><span class="chip">پوستر</span><span class="chip">استیکر</span><span class="chip">تی‌شرت</span><span class="chip">سایر</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 10px;"><span class="sec-title">موجودی</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;"><span class="stock">موجودی ۴۲</span><span class="stock low">موجودی ۳ · کم</span><span class="stock out">ناموجود</span><span class="badge st-loss">زیان‌ده</span></div><span class="t-cap muted">محصول ناموجود قابل انتخاب است؛ کمبود موجودی فقط در وضعیت‌های در انتظار، پرداخت‌شده و تکمیل‌شده مانع ثبت می‌شود.</span></div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۷. نمایش مبلغ</h2>
+<div class="card" style="padding: 24px; display: flex; flex-direction: column; gap: 12px;">
+<div class="sl"><span class="muted2">عادی</span><span class="v">۱۸۰٬۰۰۰ تومان</span></div>
+<div class="sl"><span class="muted2">سود</span><span class="v pos b">۱٬۲۳۵٬۰۰۰ تومان</span></div>
+<div class="sl"><span class="muted2">زیان — همیشه با علامت منفی و رنگ</span><span class="v neg b">−۱۱۵٬۰۰۰ تومان</span></div>
+<div class="sl"><span class="muted2">کسر در خلاصه</span><span class="v">−۹۵٬۰۰۰</span></div>
+<div class="sl"><span class="muted2" style="display: flex; flex-direction: column; line-height: 1.35;">پست (تخمینی)<span style="font-size: 11px; color: var(--text-3);">جمع پرداختی ÷ جمع سفارش‌ها در ۳ پرداخت اخیر</span></span><span class="v">۱۹۹٬۲۷۳ تومان</span></div>
+<div class="sl"><span class="muted2">صفر</span><span class="v">۰ تومان</span></div>
+<div class="sl"><span class="muted2">نامشخص یا بی‌معنا (لغوشده، پیش‌نویس)</span><span class="v nil">—</span></div>
+<div class="sl"><span class="muted2">شاخص کلیدی</span><span class="t-kpi num">۴۲٬۰۴۶٬۰۰۰ <span class="kpi-u">تومان</span></span></div>
+<div class="sep"></div>
+<ul class="t-sm muted2" style="margin: 0; padding-right: 18px; display: flex; flex-direction: column; gap: 4px;">
+<li>بدون اعشار؛ همیشه گرد به نزدیک‌ترین تومان.</li>
+<li>در جدول‌ها واحد در سرستون می‌آید: «مبلغ کل (تومان)»؛ خانه‌ها فقط عدد.</li>
+<li>ستون‌های مبلغ از راست تراز می‌شوند تا یکان‌ها زیر هم باشند.</li>
+<li>در فیلد، «تومان» پسوند ثابت داخل ورودی است و در مقدار ذخیره نمی‌شود.</li>
+<li>ورودی ارقام لاتین و عربی را هم می‌پذیرد و به فارسی تبدیل می‌کند.</li>
+</ul>
+</div>
+</section>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۸. جدول</h2>
+<div class="card" style="overflow: hidden;">
+<table class="tbl">
+<thead><tr><th>شماره فاکتور</th><th>تاریخ</th><th>کانال</th><th>مشتری</th><th>وضعیت</th><th class="n">مبلغ کل (تومان)</th><th class="n">سود (تومان)</th></tr></thead>
+<tbody>
+<tr><td><a href="OrderDetail.dc.html" class="inv">INV-000037</a></td><td class="num muted2">۱۴۰۵/۰۶/۳۰ · ۱۲:۱۰</td><td><span class="ch ch-wholesale">عمده‌فروشی</span></td><td>فروشگاه نوای شهر</td><td><span class="badge st-done">تکمیل‌شده</span></td><td class="n num b">۴٬۳۰۰٬۰۰۰</td><td class="n num b pos">۲٬۲۹۵٬۷۲۷</td></tr>
+<tr><td><a href="OrderDetail.dc.html" class="inv">INV-000041</a></td><td class="num muted2">۱۴۰۵/۰۶/۳۱ · ۱۳:۴۲</td><td><span class="ch ch-insta">اینستاگرام</span></td><td>علی ر.</td><td><span class="badge st-done">تکمیل‌شده</span></td><td class="n num b">۹۵۰٬۰۰۰</td><td class="n num b pos">۳۲۷٬۷۲۷</td></tr>
+<tr><td><a href="OrderDetail.dc.html" class="inv">INV-000035</a></td><td class="num muted2">۱۴۰۵/۰۶/۲۹ · ۱۰:۰۲</td><td><span class="ch ch-insta">اینستاگرام</span></td><td>پریا ن.</td><td><span class="badge st-refund">مرجوعی</span></td><td class="n num b">۱٬۰۷۰٬۰۰۰</td><td class="n num b neg">−۲۹۴٬۲۷۳</td></tr>
+<tr><td><a href="OrderDetail.dc.html" class="inv">INV-000036</a></td><td class="num muted2">۱۴۰۵/۰۶/۲۹ · ۱۸:۳۷</td><td><span class="ch ch-web">وب‌سایت</span></td><td>مهدی ت.</td><td><span class="badge st-cancel">لغوشده</span></td><td class="n num b">۱٬۴۳۰٬۰۰۰</td><td class="n num nil">—</td></tr>
+</tbody>
+<tfoot><tr><td colspan="5">جمع (بدون لغوشده‌ها)</td><td class="n num">۶٬۳۲۰٬۰۰۰</td><td class="n num pos">۲٬۳۲۹٬۱۸۱</td></tr></tfoot>
+</table>
+</div>
+<p class="t-sm muted">سرستون ۴۰، ردیف ۵۲؛ هاور ردیف با رنگ سطح دوم؛ شماره فاکتور لینک به جزئیات؛ ستون عملیات همیشه آخرین ستون (سمت چپ).</p>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px;">
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۹. حالت خالی و بارگذاری</h2>
+<div class="card"><div class="empty"><div class="e-art"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg></div><div class="e-t">هنوز سفارشی ثبت نشده</div><div class="e-d">اولین فروش را ثبت کنید تا فهرست سفارش‌ها و سود هر کدام این‌جا نمایش داده شود.</div><button type="button" class="btn btn-primary" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>ثبت اولین فروش</button></div></div>
+<div class="card"><div class="empty" style="padding: 28px 24px;"><div class="e-art"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></div><div class="e-t">نتیجه‌ای برای «وینیل آبی» پیدا نشد</div><div class="e-d">املای نام را بررسی کنید یا فیلترها را پاک کنید.</div><button type="button" class="btn btn-outline btn-sm">پاک کردن فیلترها</button></div></div>
+<div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px;" aria-busy="true"><div class="sk" style="width: 140px; height: 16px;"></div><div class="sk" style="height: 36px;"></div><div class="sk" style="height: 36px;"></div><div class="sk" style="height: 36px; width: 70%;"></div><span class="t-cap muted">اسکلت بارگذاری: شکل محتوای واقعی را تقلید می‌کند؛ بیش از ۱۰ ثانیه ← پیام خطا.</span></div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۱۰. خطا و اعتبارسنجی</h2>
+<div class="card" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+<div class="field"><label class="label">تعداد</label><div style="display: flex; gap: 10px; align-items: center;"><div class="stepper is-error" style="width: 120px;"><button type="button" aria-label="افزایش"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><input value="۵" aria-label="تعداد"><button type="button" aria-label="کاهش"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button></div></div><span class="err"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>موجودی کافی نیست — فقط ۳ عدد «کاست نسخه محدود» موجود است.</span><span class="help">وضعیت در انتظار / پرداخت‌شده / تکمیل‌شده ← خطای مسدودکننده</span></div>
+<div class="field"><label class="label">تعداد</label><div class="stepper is-warn" style="width: 120px;"><button type="button" aria-label="افزایش"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><input value="۱" aria-label="تعداد"><button type="button" aria-label="کاهش"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button></div><span class="warn-t"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8v.01"></path></svg>پیش‌نویس موجودی را رزرو نمی‌کند — «کاست آلبوم اول» ناموجود است.</span><span class="help">وضعیت پیش‌نویس ← هشدار نرم، ثبت آزاد</span></div>
+<div class="field"><label class="label">مبلغ تخفیف</label><div class="ig" style="width: 240px;"><input class="input input-num is-error" value="۳۵۰٬۰۰۰"><span class="sfx">تومان</span></div><span class="err"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>تخفیف (۳۵۰٬۰۰۰ تومان) از جمع ردیف (۳۰۰٬۰۰۰ تومان) بیشتر است.</span></div>
+<div class="alert alert-err" role="alert"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><div><div class="a-t">مسدودکننده: «تی‌شرت تور سفید (M)» بهای تمام‌شده ندارد</div>تا بهای تمام‌شده ثبت نشود، فروش ثبت نمی‌شود.</div></div>
+<div class="alert alert-warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4M12 17v.01"></path></svg><div><div class="a-t">هشدار</div>موجودی «جعبه وینیل» به ۸ عدد رسیده است (حداقل ۲۰).</div></div>
+<div class="alert alert-info"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8v.01"></path></svg><div>پیش‌نویس موجودی را رزرو نمی‌کند.</div></div>
+<div class="alert alert-err"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M8 7.5A6 6 0 0 1 18 11a4 4 0 0 1 2.4 7M17 19H7a5 5 0 0 1-2.6-9.3"></path></svg><div class="grow"><div class="a-t">اتصال برقرار نشد</div>داده‌های شما سالم است.</div><button type="button" class="btn btn-outline btn-sm">تلاش دوباره</button></div>
+<p class="t-cap muted">خطای فیلد: زیر همان فیلد، هنگام خروج از فیلد یا ثبت. خطای مسدودکننده: بالای فرم و در خلاصه کنار دکمه ثبت. خطای سرور: بنر با «تلاش دوباره».</p>
+</div>
+</section>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px;">
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۱۱. اعلان‌ها (Toast)</h2>
+<div style="background: var(--surface-2); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px; align-items: flex-end;">
+<div class="toast" role="status"><span style="color: var(--profit); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></span><div class="grow"><div class="t-t">سفارش INV-000042 ثبت شد</div><div class="t-d">موجودی و گزارش‌ها به‌روز شدند.</div></div><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="بستن"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+<div class="toast" role="status"><span style="color: var(--heading); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8v.01"></path></svg></span><div class="grow"><div class="t-t">وضعیت به «تکمیل‌شده» تغییر کرد</div><div class="t-d">INV-000038</div></div><button type="button" class="btn btn-outline btn-sm">واگرد</button></div>
+<div class="toast" role="status"><span style="color: var(--warn); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4M12 17v.01"></path></svg></span><div class="grow"><div class="t-t">موجودی «کاست نسخه محدود» کم است</div><div class="t-d">۳ عدد باقی مانده</div></div></div>
+<div class="toast" role="alert"><span style="color: var(--loss); display: flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg></span><div class="grow"><div class="t-t">ذخیره انجام نشد</div><div class="t-d">اتصال قطع شد؛ فرم شما حفظ شده است.</div></div><button type="button" class="btn btn-outline btn-sm">تلاش دوباره</button></div>
+<span class="t-cap muted" style="align-self: stretch;">محل نمایش: پایین-چپ صفحه · موفقیت ۴ ثانیه · خطا تا بستن دستی.</span>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۱۲. دیالوگ تأیید</h2>
+<div style="background: var(--overlay); border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 20px; align-items: center;">
+<div class="dialog" role="alertdialog" style="width: 100%;">
+<div class="d-h"><span class="d-ico info"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></span><div style="display: flex; flex-direction: column; gap: 2px;"><h3 class="t-h2">تغییر وضعیت به «تکمیل‌شده»؟</h3><span class="t-sm muted">سفارش INV-000038 ارسال‌شده ثبت می‌شود. موجودی تغییری نمی‌کند.</span></div></div>
+<div class="d-f" style="margin-top: 16px;"><button type="button" class="btn btn-primary" style="justify-content: center; flex-direction: row">تأیید</button><button type="button" class="btn btn-outline" style="justify-content: center; flex-direction: row">انصراف</button></div>
+</div>
+<div class="dialog" role="alertdialog" style="width: 100%;">
+<div class="d-h"><span class="d-ico danger"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg></span><div style="display: flex; flex-direction: column; gap: 2px;"><h3 class="t-h2">لغو سفارش INV-000039؟</h3><span class="t-sm muted">سفارش «در انتظار» است و پولی دریافت نشده.</span></div></div>
+<div class="d-b">
+<div class="effect"><span class="e-ico e-up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"></path><path d="m3 8 9 5 9-5M12 13v8"></path></svg></span><div>۱ «کاست نسخه محدود» به موجودی برمی‌گردد.</div></div>
+<div class="effect"><span class="e-ico e-up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"></rect><path d="M5 9v11h14V9M10 13h4"></path></svg></span><div>۱ «جعبه استاندارد» به موجودی بسته‌بندی برمی‌گردد.</div></div>
+<div class="effect"><span class="e-ico e-flat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flip"><path d="M2 6h12v10H2zM14 10h4l4 3.5V16h-8"></path><circle cx="6.5" cy="18" r="2"></circle><circle cx="17.5" cy="18" r="2"></circle></svg></span><div>ارسال نشده؛ هزینه پستی ثبت نمی‌شود.</div></div>
+<div class="effect"><span class="e-ico e-flat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18v3.5"></path><path d="M3 7.5V18a2 2 0 0 0 2 2h15V9H5.5A2.5 2.5 0 0 1 3 7.5z"></path><circle cx="16" cy="14.5" r="1.2"></circle></svg></span><div>پولی دریافت نشده و کارمزدی ندارد؛ زیانی ثبت نمی‌شود.</div></div>
+</div>
+<div class="d-f"><button type="button" class="btn btn-danger">لغو سفارش</button><button type="button" class="btn btn-outline">انصراف</button></div>
+</div>
+<span class="t-cap" style="color: #ffffff; align-self: stretch;">دیالوگ مخرب: هر اثر روی موجودی و پول یک ردیف جدا با آیکون ↑ برگشت / ↓ زیان. دکمه مخرب اول (راست)، انصراف دوم؛ فوکوس اولیه روی «انصراف».</span>
+</div>
+</section>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 20px;">
+<h2 class="t-h1">۱۳. عملیات مجاز بر اساس وضعیت</h2>
+<div class="card" style="overflow: hidden;">
+<table class="tbl">
+<thead><tr><th>وضعیت فعلی</th><th>تغییر وضعیت مجاز</th><th>لغو سفارش</th><th>ثبت مرجوعی</th><th>اثر بر موجودی</th></tr></thead>
+<tbody>
+<tr><td><span class="badge st-draft">پیش‌نویس</span></td><td><div style="display: flex; gap: 6px;"><span class="badge st-pending">در انتظار</span><span class="badge st-paid">پرداخت‌شده</span><span class="badge st-done">تکمیل‌شده</span></div></td><td class="pos b">✓ مجاز</td><td class="nil">—</td><td class="muted2">رزرو نمی‌کند</td></tr>
+<tr><td><span class="badge st-pending">در انتظار</span></td><td><div style="display: flex; gap: 6px;"><span class="badge st-paid">پرداخت‌شده</span><span class="badge st-done">تکمیل‌شده</span></div></td><td class="pos b">✓ کالا و بسته‌بندی برمی‌گردد</td><td class="nil">—</td><td class="muted2">کسر شده</td></tr>
+<tr><td><span class="badge st-paid">پرداخت‌شده</span></td><td><span class="badge st-done">تکمیل‌شده</span></td><td class="pos b">✓ کالا و بسته‌بندی برمی‌گردد؛ فقط کارمزد زیان</td><td class="pos b">✓ فقط کالا برمی‌گردد</td><td class="muted2">کسر شده</td></tr>
+<tr><td><span class="badge st-done">تکمیل‌شده</span></td><td class="nil">—</td><td class="nil">— ارسال شده</td><td class="pos b">✓ فقط کالا؛ بسته‌بندی، پست و کارمزد زیان</td><td class="muted2">کسر شده</td></tr>
+<tr><td><span class="badge st-cancel">لغوشده</span> <span class="badge st-refund">مرجوعی</span></td><td class="nil">— وضعیت پایانی</td><td class="nil">—</td><td class="nil">—</td><td class="muted2">برگشت داده شده</td></tr>
+</tbody>
+</table>
+</div>
+<p class="t-sm muted">در صفحه سفارش فقط دکمه‌های مجاز نمایش داده می‌شوند (نه غیرفعال). عملیات مخرب جدا و در انتهای نوار عملیات (سمت چپ) قرار می‌گیرند.</p>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":6000}}'>
+var FA_D = '۰۱۲۳۴۵۶۷۸۹';
+function fa(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0;
+  var s = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '٬').replace(/\d/g, function (d) { return FA_D[d]; });
+  return (neg ? '−' : '') + s;
+}
+function faT(n) { return fa(n) + ' تومان'; }
+function faD(s) { return String(s).replace(/\d/g, function (d) { return FA_D[d]; }); }
+function num(v) {
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^0-9]/g, '');
+  return s === '' ? 0 : parseInt(s, 10);
+}
+var CH = {
+  web: { name: 'وب‌سایت', cls: 'ch-web' }, insta: { name: 'اینستاگرام', cls: 'ch-insta' },
+  wholesale: { name: 'عمده‌فروشی', cls: 'ch-wholesale' }, inperson: { name: 'حضوری', cls: 'ch-inperson' }, other: { name: 'سایر', cls: 'ch-other' }
+};
+var ST = {
+  draft: { name: 'پیش‌نویس', cls: 'st-draft' }, pending: { name: 'در انتظار', cls: 'st-pending' }, paid: { name: 'پرداخت‌شده', cls: 'st-paid' },
+  done: { name: 'تکمیل‌شده', cls: 'st-done' }, cancel: { name: 'لغوشده', cls: 'st-cancel' }, refund: { name: 'مرجوعی', cls: 'st-refund' }
+};
+var ORDERS = [
+  ['INV-000041', '1405/06/31', '13:42', 'insta', 'علی ر.', 'done', 950000, 327727],
+  ['INV-000040', '1405/06/31', '11:05', 'inperson', 'مشتری حضوری', 'done', 1040000, 592000],
+  ['INV-000039', '1405/06/31', '09:20', 'insta', 'رها س.', 'pending', 800000, 215727],
+  ['INV-000038', '1405/06/30', '16:24', 'web', 'نگار ک.', 'paid', 3130000, 1189727],
+  ['INV-000037', '1405/06/30', '12:10', 'wholesale', 'فروشگاه نوای شهر', 'done', 4300000, 2295727],
+  ['INV-000036', '1405/06/29', '18:37', 'web', 'مهدی ت.', 'cancel', 1430000, null],
+  ['INV-000035', '1405/06/29', '10:02', 'insta', 'پریا ن.', 'refund', 1070000, -294273],
+  ['INV-000034', '1405/06/28', '19:15', 'other', '—', 'draft', 480000, null],
+  ['INV-000033', '1405/06/28', '14:48', 'inperson', 'مشتری حضوری', 'done', 2450000, 1070000],
+  ['INV-000032', '1405/06/27', '20:31', 'web', 'کیان ب.', 'done', 1070000, 350727],
+  ['INV-000031', '1405/06/27', '11:26', 'insta', 'پرستو ج.', 'paid', 3680000, 1290727],
+  ['INV-000030', '1405/06/26', '15:02', 'wholesale', 'فروشگاه صفحه‌گردان', 'done', 9750000, 2510727]
+];
+function orderRows(limit) {
+  return ORDERS.slice(0, limit || ORDERS.length).map(function (o) {
+    var pc = o[7] === null ? 'nil' : (o[7] < 0 ? 'neg' : 'pos');
+    return {
+      inv: o[0], date: faD(o[1]), time: faD(o[2]), dt: faD(o[1]) + ' · ' + faD(o[2]), ch: CH[o[3]].name, chCls: 'ch ' + CH[o[3]].cls, cust: o[4],
+      st: ST[o[5]].name, stCls: 'badge ' + ST[o[5]].cls, stKey: o[5], total: fa(o[6]), profit: o[7] === null ? '—' : fa(o[7]), pCls: 'n num b ' + pc, pClsM: 'num b ' + pc,
+      profitT: o[7] === null ? 'سود: —' : 'سود ' + fa(o[7])
+    };
+  });
+}
+/* Jalali month grid, week starts Saturday. startIdx = weekday index of day 1 (0=Sat … 6=Fri). opt: {today, sel, from, to} */
+function monthGrid(startIdx, days, opt) {
+  opt = opt || {};
+  var cells = [];
+  for (var i = 0; i < startIdx; i++) cells.push({ l: '', c: 'cal-d x' });
+  for (var d = 1; d <= days; d++) {
+    var wd = (startIdx + d - 1) % 7, c = 'cal-d';
+    if (wd === 6) c += ' fri';
+    if (opt.today === d) c += ' today';
+    if (opt.sel === d) c += ' sel';
+    if (opt.from && opt.to) {
+      if (d === opt.from) c += ' s';
+      if (d === opt.to) c += ' e';
+      if (d > opt.from && d < opt.to) c += ' in';
+    }
+    cells.push({ l: faD(d), c: c });
+  }
+  while (cells.length % 7) cells.push({ l: '', c: 'cal-d x' });
+  return cells;
+}
+function faQ(n) { /* quantities: may be fractional, Persian decimal separator */
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0, a = Math.abs(n), ip = Math.floor(a), fp = Math.round((a - ip) * 1000);
+  var s = fa(ip).replace('−', '');
+  if (fp) s += '٫' + faD(String(fp).padStart(3, '0').replace(/0+$/, ''));
+  return (neg ? '−' : '') + s;
+}
+function numQ(v) { /* parse a possibly-fractional quantity typed in any digits */
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫\/]/g, '.').replace(/[^0-9.]/g, '');
+  var n = parseFloat(s); return isNaN(n) ? 0 : n;
+}
+function stateVals(props, defH) {
+  var s = props.state || 'ready';
+  return { theme: props.theme || 'light', h: props.h || defH, isReady: s === 'ready', isEmpty: s === 'empty', isLoading: s === 'loading', isError: s === 'error', st: s };
+}
+var CATALOG = [
+  { id: 'p1', name: 'وینیل آلبوم اول', cat: 'وینیل', retail: 2450000, ws: 1950000, cost: 1380000, stock: 14, min: 5, active: true },
+  { id: 'p2', name: 'وینیل نسخه رنگی', cat: 'وینیل', retail: 3500000, ws: 2900000, cost: 2050000, stock: 2, min: 3, active: true },
+  { id: 'p3', name: 'کاست نسخه محدود', cat: 'کاست', retail: 620000, ws: 480000, cost: 290000, stock: 3, min: 5, active: true },
+  { id: 'p10', name: 'کاست آلبوم اول', cat: 'کاست', retail: 450000, ws: 350000, cost: 190000, stock: 0, min: 5, active: true },
+  { id: 'p4', name: 'سی‌دی آلبوم اول', cat: 'آلبوم', retail: 480000, ws: 380000, cost: 210000, stock: 22, min: 5, active: true },
+  { id: 'p5', name: 'پوستر تور ۱۴۰۴', cat: 'پوستر', retail: 290000, ws: 210000, cost: 95000, stock: 42, min: 10, active: true },
+  { id: 'p6', name: 'تی‌شرت لوگو مشکی (L)', cat: 'تی‌شرت', retail: 890000, ws: 690000, cost: 410000, stock: 7, min: 5, active: true },
+  { id: 'p7', name: 'تی‌شرت تور سفید (M)', cat: 'تی‌شرت', retail: 950000, ws: 740000, cost: null, stock: 12, min: 5, active: true },
+  { id: 'p8', name: 'استیکر پک', cat: 'استیکر', retail: 150000, ws: 110000, cost: 38000, stock: 120, min: 30, active: true },
+  { id: 'p9', name: 'آینه لوگو گرد', cat: 'آینه', retail: 1250000, ws: 980000, cost: 560000, stock: 4, min: 5, active: true },
+  { id: 'p11', name: 'پوستر تور ۱۴۰۳', cat: 'پوستر', retail: 250000, ws: 180000, cost: 90000, stock: 6, min: 0, active: false }
+];
+var MATERIALS = [
+  { id: 'm1', name: 'صفحه خام وینیل ۱۲ اینچ', type: 'goods', unit: 'عدد', stock: 38, cost: 620000, min: 20, use: 'تولید' },
+  { id: 'm2', name: 'کاور چاپی وینیل', type: 'goods', unit: 'عدد', stock: 45, cost: 180000, min: 20, use: 'تولید' },
+  { id: 'm3', name: 'نوار کاست خام', type: 'goods', unit: 'عدد', stock: 12, cost: 95000, min: 20, use: 'تولید' },
+  { id: 'm4', name: 'قاب و جلد کاست', type: 'goods', unit: 'عدد', stock: 60, cost: 45000, min: 20, use: 'تولید' },
+  { id: 'm5', name: 'تی‌شرت خام مشکی L', type: 'goods', unit: 'عدد', stock: 6, cost: 260000, min: 10, use: 'تولید' },
+  { id: 'm6', name: 'چاپ سیلک تی‌شرت', type: 'service', unit: 'عدد', stock: null, cost: 120000, min: null, use: 'تولید' },
+  { id: 'm7', name: 'مسترینگ و کات لاکر', type: 'service', unit: 'نوبت', stock: null, cost: 12000000, min: null, use: 'تولید' },
+  { id: 'm8', name: 'طراحی جلد', type: 'service', unit: 'نوبت', stock: null, cost: 4000000, min: null, use: 'تولید' },
+  { id: 'm9', name: 'کارتن جعبه استاندارد', type: 'goods', unit: 'عدد', stock: 64, cost: 60000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm10', name: 'جعبه وینیل', type: 'goods', unit: 'عدد', stock: 8, cost: 95000, min: 20, use: 'بسته‌بندی' },
+  { id: 'm11', name: 'پاکت حباب‌دار کوچک', type: 'goods', unit: 'عدد', stock: 15, cost: 24000, min: 40, use: 'بسته‌بندی' },
+  { id: 'm12', name: 'نوار چسب لوگودار', type: 'goods', unit: 'رول', stock: 2, cost: 150000, min: 5, use: 'بسته‌بندی' },
+  { id: 'm13', name: 'کاغذ پرکننده', type: 'goods', unit: 'کیلوگرم', stock: 1.5, cost: 90000, min: 3, use: 'بسته‌بندی' },
+  { id: 'm14', name: 'برچسب آدرس', type: 'goods', unit: 'عدد', stock: 400, cost: 2000, min: 100, use: 'بسته‌بندی' },
+  { id: 'm15', name: 'محافظ گوشه', type: 'goods', unit: 'عدد', stock: 90, cost: 10000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm16', name: 'کاغذ کرافت', type: 'goods', unit: 'متر', stock: 42.5, cost: 12000, min: 10, use: 'بسته‌بندی' }
+];
+function stockCls(stock, min) { return stock === 0 ? 'stock out' : (min && stock <= min ? 'stock low' : 'stock'); }
+
+var TOK = [
+  ['برند', [['قرمز لوگو', '--brand-red', '#F03045', '#F03045'], ['اقدام اصلی', '--red', '#D21F37', '#EC4257'], ['سرمه‌ای', '--navy', '#26364C', '#A9B8D6'], ['نوار کناری', '--side-bg', '#26364C', '#111628']]],
+  ['سطوح', [['پس‌زمینه', '--bg', '#F5F5F2', '#0E1220'], ['سطح', '--surface', '#FFFFFF', '#161B29'], ['سطح ۲', '--surface-2', '#F2F2EE', '#1C2232'], ['حاشیه', '--border', '#E1E1DA', '#262E43']]],
+  ['متن', [['متن اصلی', '--text', '#171A21', '#E8EAF0'], ['متن ثانویه', '--text-2', '#454C59', '#B4BACA'], ['متن کم‌رنگ', '--text-3', '#5D6471', '#959DB0'], ['عنوان', '--heading', '#26364C', '#DCE2F0']]],
+  ['معنایی', [['سود', '--profit', '#137A38', '#4CC476'], ['زیان', '--loss', '#B42318', '#F4776C'], ['هشدار', '--warn', '#955104', '#EBA94D'], ['اطلاع', '--info', '#1E4FC0', '#86A9F8']]]
+];
+function groups(dark) {
+  return TOK.map(function (g) { return { name: g[0], items: g[1].map(function (c) { return { fa: c[0], v: c[1], hex: dark ? c[3] : c[2] }; }) }; });
+}
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      themes: [{ id: 'light', name: 'تم روشن', bg: '#F5F5F2', groups: groups(false) }, { id: 'dark', name: 'تم تیره', bg: '#0E1220', groups: groups(true) }],
+      calSingle: monthGrid(1, 31, { today: 31, sel: 31 }),
+      calR1: monthGrid(5, 31, { from: 25, to: 99 }),
+      calR2: monthGrid(1, 31, { today: 31, from: -1, to: 10 })
+    };
+  }
+}
+</script>
+</body>
+</html>

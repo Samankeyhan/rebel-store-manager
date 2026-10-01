@@ -1,0 +1,1225 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Dashboard-Dark.dc.html": {
+      "h": 1440,
+      "page": "dashboard",
+      "title": "خانه — تم تیره",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Dashboard-Empty.dc.html": {
+      "h": 1100,
+      "page": "dashboard",
+      "title": "خانه — خالی",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "Dashboard-Error.dc.html": {
+      "h": 1100,
+      "page": "dashboard",
+      "title": "خانه — خطا",
+      "w": 1440,
+      "x": 6080,
+      "y": 0
+    },
+    "Dashboard-Loading.dc.html": {
+      "h": 1100,
+      "page": "dashboard",
+      "title": "خانه — در حال بارگذاری",
+      "w": 1440,
+      "x": 4560,
+      "y": 0
+    },
+    "Dashboard.dc.html": {
+      "h": 1440,
+      "is_interactive": true,
+      "page": "dashboard",
+      "title": "خانه — دسکتاپ",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "DashboardMobile-Empty.dc.html": {
+      "h": 844,
+      "page": "dashboard",
+      "title": "خانه موبایل — خالی",
+      "w": 390,
+      "x": 470,
+      "y": 1600
+    },
+    "DashboardMobile-Error.dc.html": {
+      "h": 844,
+      "page": "dashboard",
+      "title": "خانه موبایل — خطا",
+      "w": 390,
+      "x": 1410,
+      "y": 1600
+    },
+    "DashboardMobile-Loading.dc.html": {
+      "h": 844,
+      "page": "dashboard",
+      "title": "خانه موبایل — بارگذاری",
+      "w": 390,
+      "x": 940,
+      "y": 1600
+    },
+    "DashboardMobile.dc.html": {
+      "h": 2000,
+      "page": "dashboard",
+      "title": "خانه — موبایل",
+      "w": 390,
+      "x": 0,
+      "y": 1600
+    },
+    "Main.dc.html": {
+      "h": 6000,
+      "page": "system",
+      "title": "سیستم طراحی",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "MobileBar.dc.html": {
+      "h": 56,
+      "page": "shell",
+      "title": "کامپوننت: نوار بالای موبایل",
+      "w": 390,
+      "x": 814,
+      "y": 1080
+    },
+    "OrderDetail-Cancel.dc.html": {
+      "h": 1080,
+      "page": "detail",
+      "title": "جزئیات — دیالوگ لغو سفارش",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "OrderDetail-Completed.dc.html": {
+      "h": 1180,
+      "page": "detail",
+      "title": "جزئیات — تکمیل‌شده (فقط مرجوعی)",
+      "w": 1440,
+      "x": 6080,
+      "y": 0
+    },
+    "OrderDetail-Dark.dc.html": {
+      "h": 1080,
+      "page": "detail",
+      "title": "جزئیات — تم تیره",
+      "w": 1440,
+      "x": 7600,
+      "y": 0
+    },
+    "OrderDetail-Draft.dc.html": {
+      "h": 1080,
+      "page": "detail",
+      "title": "جزئیات — پیش‌نویس (۳ انتقال مجاز)",
+      "w": 1440,
+      "x": 4560,
+      "y": 0
+    },
+    "OrderDetail-Error.dc.html": {
+      "h": 760,
+      "page": "detail",
+      "title": "جزئیات — پیدا نشد / خطا",
+      "w": 1440,
+      "x": 10640,
+      "y": 0
+    },
+    "OrderDetail-Loading.dc.html": {
+      "h": 760,
+      "page": "detail",
+      "title": "جزئیات — بارگذاری",
+      "w": 1440,
+      "x": 9120,
+      "y": 0
+    },
+    "OrderDetail-Refund.dc.html": {
+      "h": 1080,
+      "page": "detail",
+      "title": "جزئیات — دیالوگ ثبت مرجوعی",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "OrderDetail.dc.html": {
+      "h": 1080,
+      "is_interactive": true,
+      "page": "detail",
+      "title": "جزئیات سفارش — پرداخت‌شده",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "OrderDetailMobile-Cancel.dc.html": {
+      "h": 844,
+      "page": "detail",
+      "title": "جزئیات موبایل — لغو",
+      "w": 390,
+      "x": 470,
+      "y": 1340
+    },
+    "OrderDetailMobile-Error.dc.html": {
+      "h": 844,
+      "page": "detail",
+      "title": "جزئیات موبایل — خطا",
+      "w": 390,
+      "x": 1410,
+      "y": 1340
+    },
+    "OrderDetailMobile-Loading.dc.html": {
+      "h": 844,
+      "page": "detail",
+      "title": "جزئیات موبایل — بارگذاری",
+      "w": 390,
+      "x": 940,
+      "y": 1340
+    },
+    "OrderDetailMobile.dc.html": {
+      "h": 1560,
+      "page": "detail",
+      "title": "جزئیات سفارش — موبایل",
+      "w": 390,
+      "x": 0,
+      "y": 1340
+    },
+    "Orders-Dark.dc.html": {
+      "h": 1080,
+      "page": "orders",
+      "title": "سفارش‌ها — تم تیره",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "Orders-DateRange.dc.html": {
+      "h": 1080,
+      "page": "orders",
+      "title": "سفارش‌ها — بازه تاریخ جلالی",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Orders-Empty.dc.html": {
+      "h": 760,
+      "page": "orders",
+      "title": "سفارش‌ها — خالی",
+      "w": 1440,
+      "x": 4560,
+      "y": 0
+    },
+    "Orders-Error.dc.html": {
+      "h": 760,
+      "page": "orders",
+      "title": "سفارش‌ها — خطا",
+      "w": 1440,
+      "x": 7600,
+      "y": 0
+    },
+    "Orders-Loading.dc.html": {
+      "h": 860,
+      "page": "orders",
+      "title": "سفارش‌ها — بارگذاری",
+      "w": 1440,
+      "x": 6080,
+      "y": 0
+    },
+    "Orders.dc.html": {
+      "h": 1080,
+      "is_interactive": true,
+      "page": "orders",
+      "title": "سفارش‌ها — فهرست (تب‌ها تعاملی)",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "OrdersMobile-Empty.dc.html": {
+      "h": 844,
+      "page": "orders",
+      "title": "سفارش‌ها موبایل — خالی",
+      "w": 390,
+      "x": 940,
+      "y": 1240
+    },
+    "OrdersMobile-Error.dc.html": {
+      "h": 844,
+      "page": "orders",
+      "title": "سفارش‌ها موبایل — خطا",
+      "w": 390,
+      "x": 1880,
+      "y": 1240
+    },
+    "OrdersMobile-Filters.dc.html": {
+      "h": 844,
+      "page": "orders",
+      "title": "سفارش‌ها موبایل — فیلترها",
+      "w": 390,
+      "x": 470,
+      "y": 1240
+    },
+    "OrdersMobile-Loading.dc.html": {
+      "h": 844,
+      "page": "orders",
+      "title": "سفارش‌ها موبایل — بارگذاری",
+      "w": 390,
+      "x": 1410,
+      "y": 1240
+    },
+    "OrdersMobile.dc.html": {
+      "h": 1400,
+      "page": "orders",
+      "title": "سفارش‌ها — موبایل",
+      "w": 390,
+      "x": 0,
+      "y": 1240
+    },
+    "RecordSale-Dark.dc.html": {
+      "h": 1640,
+      "page": "sale",
+      "title": "ثبت فروش — تم تیره",
+      "w": 1440,
+      "x": 6080,
+      "y": 0
+    },
+    "RecordSale-DraftStock.dc.html": {
+      "h": 1640,
+      "page": "sale",
+      "title": "ثبت فروش — پیش‌نویس با کالای ناموجود و بدون بهای تمام‌شده (هشدار نرم)",
+      "w": 1440,
+      "x": 4560,
+      "y": 0
+    },
+    "RecordSale-Empty.dc.html": {
+      "h": 900,
+      "page": "sale",
+      "title": "ثبت فروش — بدون محصول",
+      "w": 1440,
+      "x": 9120,
+      "y": 0
+    },
+    "RecordSale-Error.dc.html": {
+      "h": 900,
+      "page": "sale",
+      "title": "ثبت فروش — خطا",
+      "w": 1440,
+      "x": 12160,
+      "y": 0
+    },
+    "RecordSale-Loading.dc.html": {
+      "h": 900,
+      "page": "sale",
+      "title": "ثبت فروش — بارگذاری",
+      "w": 1440,
+      "x": 10640,
+      "y": 0
+    },
+    "RecordSale-Picker.dc.html": {
+      "h": 1640,
+      "page": "sale",
+      "title": "ثبت فروش — انتخاب محصول با جستجو",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "RecordSale-Success.dc.html": {
+      "h": 900,
+      "page": "sale",
+      "title": "ثبت فروش — ثبت موفق",
+      "w": 1440,
+      "x": 7600,
+      "y": 0
+    },
+    "RecordSale-Validation.dc.html": {
+      "h": 1640,
+      "page": "sale",
+      "title": "ثبت فروش — خطاهای اعتبارسنجی",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "RecordSale.dc.html": {
+      "h": 1640,
+      "is_interactive": true,
+      "page": "sale",
+      "title": "ثبت فروش — تعاملی (Play)",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "RecordSaleMobile-Empty.dc.html": {
+      "h": 844,
+      "page": "sale",
+      "title": "ثبت فروش موبایل — خالی",
+      "w": 390,
+      "x": 1410,
+      "y": 1800
+    },
+    "RecordSaleMobile-Error.dc.html": {
+      "h": 844,
+      "page": "sale",
+      "title": "ثبت فروش موبایل — خطا",
+      "w": 390,
+      "x": 2350,
+      "y": 1800
+    },
+    "RecordSaleMobile-Loading.dc.html": {
+      "h": 844,
+      "page": "sale",
+      "title": "ثبت فروش موبایل — بارگذاری",
+      "w": 390,
+      "x": 1880,
+      "y": 1800
+    },
+    "RecordSaleMobile-Sheet.dc.html": {
+      "h": 844,
+      "page": "sale",
+      "title": "ثبت فروش موبایل — خلاصه باز",
+      "w": 390,
+      "x": 470,
+      "y": 1800
+    },
+    "RecordSaleMobile-Success.dc.html": {
+      "h": 844,
+      "page": "sale",
+      "title": "ثبت فروش موبایل — موفق",
+      "w": 390,
+      "x": 940,
+      "y": 1800
+    },
+    "RecordSaleMobile.dc.html": {
+      "h": 1920,
+      "page": "sale",
+      "title": "ثبت فروش — موبایل (نوار خلاصه پایین)",
+      "w": 390,
+      "x": 0,
+      "y": 1800
+    },
+    "Shell-Collapsed.dc.html": {
+      "h": 920,
+      "page": "shell",
+      "title": "پوسته — منوی جمع‌شده + منوی کاربر",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Shell-Dark.dc.html": {
+      "h": 920,
+      "page": "shell",
+      "title": "پوسته — تم تیره",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "Shell.dc.html": {
+      "h": 920,
+      "page": "shell",
+      "title": "پوسته — دسکتاپ، جستجوی سراسری باز",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "ShellMobile.dc.html": {
+      "h": 844,
+      "page": "shell",
+      "title": "پوسته — موبایل، منوی کشویی",
+      "w": 390,
+      "x": 0,
+      "y": 1080
+    },
+    "Sidebar.dc.html": {
+      "h": 900,
+      "page": "shell",
+      "title": "کامپوننت: نوار کناری",
+      "w": 264,
+      "x": 470,
+      "y": 1080
+    },
+    "Topbar.dc.html": {
+      "h": 64,
+      "page": "shell",
+      "title": "کامپوننت: نوار بالا",
+      "w": 1176,
+      "x": 4560,
+      "y": 0
+    },
+    "Products.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1060,
+      "title": "محصولات و مواد — دسکتاپ",
+      "page": "products",
+      "is_interactive": true
+    },
+    "Products-Materials.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1240,
+      "title": "محصولات و مواد — تب مواد و خدمات",
+      "page": "products"
+    },
+    "Products-EditProduct.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1060,
+      "title": "محصولات و مواد — ویرایش محصول بدون بها",
+      "page": "products"
+    },
+    "Products-EditMaterial.dc.html": {
+      "x": 4560,
+      "y": 0,
+      "w": 1440,
+      "h": 1240,
+      "title": "محصولات و مواد — ویرایش ماده",
+      "page": "products"
+    },
+    "Products-Deactivate.dc.html": {
+      "x": 6080,
+      "y": 0,
+      "w": 1440,
+      "h": 1060,
+      "title": "محصولات و مواد — غیرفعال‌سازی",
+      "page": "products"
+    },
+    "Products-States.dc.html": {
+      "x": 0,
+      "y": 1400,
+      "w": 4416,
+      "h": 760,
+      "title": "محصولات و مواد — خالی · بارگذاری · خطا",
+      "page": "products"
+    },
+    "ProductsMobile.dc.html": {
+      "x": 0,
+      "y": 2320,
+      "w": 390,
+      "h": 1640,
+      "title": "محصولات و مواد — موبایل",
+      "page": "products"
+    },
+    "ProductsMobile-States.dc.html": {
+      "x": 470,
+      "y": 2320,
+      "w": 1266,
+      "h": 844,
+      "title": "محصولات و مواد موبایل — خالی · بارگذاری · خطا",
+      "page": "products"
+    },
+    "Production.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1000,
+      "title": "تولید — دسکتاپ",
+      "page": "production",
+      "is_interactive": true
+    },
+    "Production-Shortage.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1060,
+      "title": "تولید — کمبود مواد (مسدود)",
+      "page": "production"
+    },
+    "Production-Recipe.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1000,
+      "title": "تولید — ویرایش دستور تولید",
+      "page": "production"
+    },
+    "Production-History.dc.html": {
+      "x": 4560,
+      "y": 0,
+      "w": 1440,
+      "h": 760,
+      "title": "تولید — سوابق تولید",
+      "page": "production"
+    },
+    "Production-States.dc.html": {
+      "x": 0,
+      "y": 1220,
+      "w": 4416,
+      "h": 760,
+      "title": "تولید — خالی · بارگذاری · خطا",
+      "page": "production"
+    },
+    "ProductionMobile.dc.html": {
+      "x": 0,
+      "y": 2140,
+      "w": 390,
+      "h": 1060,
+      "title": "تولید — موبایل",
+      "page": "production"
+    },
+    "ProductionMobile-States.dc.html": {
+      "x": 470,
+      "y": 2140,
+      "w": 1266,
+      "h": 844,
+      "title": "تولید موبایل — خالی · بارگذاری · خطا",
+      "page": "production"
+    },
+    "Purchases.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "خرید — دسکتاپ",
+      "page": "purchases",
+      "is_interactive": true
+    },
+    "Purchases-Form.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "خرید — فرم ثبت خرید و میانگین موزون",
+      "page": "purchases"
+    },
+    "Purchases-States.dc.html": {
+      "x": 0,
+      "y": 1060,
+      "w": 4416,
+      "h": 760,
+      "title": "خرید — خالی · بارگذاری · خطا",
+      "page": "purchases"
+    },
+    "PurchasesMobile.dc.html": {
+      "x": 0,
+      "y": 1980,
+      "w": 390,
+      "h": 1140,
+      "title": "خرید — موبایل",
+      "page": "purchases"
+    },
+    "PurchasesMobile-States.dc.html": {
+      "x": 470,
+      "y": 1980,
+      "w": 1266,
+      "h": 844,
+      "title": "خرید موبایل — خالی · بارگذاری · خطا",
+      "page": "purchases"
+    },
+    "Packaging.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "بسته‌بندی — دسکتاپ",
+      "page": "packaging",
+      "is_interactive": true
+    },
+    "Packaging-VinylBox.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "بسته‌بندی — کیت جعبه وینیل",
+      "page": "packaging"
+    },
+    "Packaging-States.dc.html": {
+      "x": 0,
+      "y": 1060,
+      "w": 4416,
+      "h": 760,
+      "title": "بسته‌بندی — خالی · بارگذاری · خطا",
+      "page": "packaging"
+    },
+    "PackagingMobile.dc.html": {
+      "x": 0,
+      "y": 1980,
+      "w": 390,
+      "h": 900,
+      "title": "بسته‌بندی — موبایل",
+      "page": "packaging"
+    },
+    "PackagingMobile-States.dc.html": {
+      "x": 470,
+      "y": 1980,
+      "w": 1266,
+      "h": 844,
+      "title": "بسته‌بندی موبایل — خالی · بارگذاری · خطا",
+      "page": "packaging"
+    },
+    "Postage.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 940,
+      "title": "هزینه‌های ارسال — دسکتاپ",
+      "page": "postage",
+      "is_interactive": true
+    },
+    "Postage-Dark.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 940,
+      "title": "هزینه‌های ارسال — تم تیره",
+      "page": "postage"
+    },
+    "Postage-States.dc.html": {
+      "x": 0,
+      "y": 1100,
+      "w": 4416,
+      "h": 760,
+      "title": "هزینه‌های ارسال — خالی · بارگذاری · خطا",
+      "page": "postage"
+    },
+    "PostageMobile.dc.html": {
+      "x": 0,
+      "y": 2020,
+      "w": 390,
+      "h": 1060,
+      "title": "هزینه‌های ارسال — موبایل",
+      "page": "postage"
+    },
+    "PostageMobile-States.dc.html": {
+      "x": 470,
+      "y": 2020,
+      "w": 1266,
+      "h": 844,
+      "title": "هزینه‌های ارسال موبایل — خالی · بارگذاری · خطا",
+      "page": "postage"
+    },
+    "Adjustments.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1120,
+      "title": "تعدیل موجودی — دسکتاپ",
+      "page": "adjust",
+      "is_interactive": true
+    },
+    "Adjustments-Over.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1120,
+      "title": "تعدیل موجودی — بیش از موجودی (مسدود)",
+      "page": "adjust"
+    },
+    "Adjustments-Fraction.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1120,
+      "title": "تعدیل موجودی — اعشار برای محصول (خطا)",
+      "page": "adjust"
+    },
+    "Adjustments-Add.dc.html": {
+      "x": 4560,
+      "y": 0,
+      "w": 1440,
+      "h": 1120,
+      "title": "تعدیل موجودی — اصلاح + با بهای واحد",
+      "page": "adjust"
+    },
+    "Adjustments-States.dc.html": {
+      "x": 0,
+      "y": 1280,
+      "w": 4416,
+      "h": 760,
+      "title": "تعدیل موجودی — خالی · بارگذاری · خطا",
+      "page": "adjust"
+    },
+    "AdjustmentsMobile.dc.html": {
+      "x": 0,
+      "y": 2200,
+      "w": 390,
+      "h": 900,
+      "title": "تعدیل موجودی — موبایل",
+      "page": "adjust"
+    },
+    "AdjustmentsMobile-States.dc.html": {
+      "x": 470,
+      "y": 2200,
+      "w": 1266,
+      "h": 844,
+      "title": "تعدیل موجودی موبایل — خالی · بارگذاری · خطا",
+      "page": "adjust"
+    },
+    "Expenses.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 860,
+      "title": "هزینه‌ها — دسکتاپ",
+      "page": "expenses",
+      "is_interactive": true
+    },
+    "Expenses-Form.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 860,
+      "title": "هزینه‌ها — ثبت هزینه",
+      "page": "expenses"
+    },
+    "Expenses-States.dc.html": {
+      "x": 0,
+      "y": 1020,
+      "w": 4416,
+      "h": 760,
+      "title": "هزینه‌ها — خالی · بارگذاری · خطا",
+      "page": "expenses"
+    },
+    "ExpensesMobile.dc.html": {
+      "x": 0,
+      "y": 1940,
+      "w": 390,
+      "h": 1080,
+      "title": "هزینه‌ها — موبایل",
+      "page": "expenses"
+    },
+    "ExpensesMobile-States.dc.html": {
+      "x": 470,
+      "y": 1940,
+      "w": 1266,
+      "h": 844,
+      "title": "هزینه‌ها موبایل — خالی · بارگذاری · خطا",
+      "page": "expenses"
+    },
+    "Reports.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 940,
+      "title": "گزارش‌ها — دسکتاپ",
+      "page": "reports",
+      "is_interactive": true
+    },
+    "Reports-Products.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 860,
+      "title": "گزارش‌ها — عملکرد محصولات",
+      "page": "reports"
+    },
+    "Reports-Channels.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 960,
+      "title": "گزارش‌ها — کانال‌ها",
+      "page": "reports"
+    },
+    "Reports-Shipping.dc.html": {
+      "x": 4560,
+      "y": 0,
+      "w": 1440,
+      "h": 860,
+      "title": "گزارش‌ها — خلاصه ارسال",
+      "page": "reports"
+    },
+    "Reports-Waste.dc.html": {
+      "x": 6080,
+      "y": 0,
+      "w": 1440,
+      "h": 800,
+      "title": "گزارش‌ها — ضایعات و هزینه‌ها",
+      "page": "reports"
+    },
+    "Reports-Dark.dc.html": {
+      "x": 7600,
+      "y": 0,
+      "w": 1440,
+      "h": 940,
+      "title": "گزارش‌ها — تم تیره",
+      "page": "reports"
+    },
+    "Reports-States.dc.html": {
+      "x": 0,
+      "y": 1120,
+      "w": 4416,
+      "h": 760,
+      "title": "گزارش‌ها — خالی · بارگذاری · خطا",
+      "page": "reports"
+    },
+    "ReportsMobile.dc.html": {
+      "x": 0,
+      "y": 2040,
+      "w": 390,
+      "h": 900,
+      "title": "گزارش‌ها — موبایل",
+      "page": "reports"
+    },
+    "ReportsMobile-States.dc.html": {
+      "x": 470,
+      "y": 2040,
+      "w": 1266,
+      "h": 844,
+      "title": "گزارش‌ها موبایل — خالی · بارگذاری · خطا",
+      "page": "reports"
+    },
+    "Partners.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1400,
+      "title": "شرکا و تقسیم سود — دسکتاپ",
+      "page": "partners",
+      "is_interactive": true
+    },
+    "Partners-Overlap.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1400,
+      "title": "شرکا و تقسیم سود — دوره هم‌پوشان (مسدود)",
+      "page": "partners"
+    },
+    "Partners-Exceed.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1480,
+      "title": "شرکا و تقسیم سود — بیش از سود تقسیم‌نشده",
+      "page": "partners"
+    },
+    "Partners-Shares.dc.html": {
+      "x": 4560,
+      "y": 0,
+      "w": 1440,
+      "h": 1400,
+      "title": "شرکا و تقسیم سود — جمع سهم‌ها ≠ ۱۰۰٪",
+      "page": "partners"
+    },
+    "Partners-States.dc.html": {
+      "x": 0,
+      "y": 1640,
+      "w": 4416,
+      "h": 760,
+      "title": "شرکا و تقسیم سود — خالی · بارگذاری · خطا",
+      "page": "partners"
+    },
+    "PartnersMobile.dc.html": {
+      "x": 0,
+      "y": 2560,
+      "w": 390,
+      "h": 1020,
+      "title": "شرکا و تقسیم سود — موبایل",
+      "page": "partners"
+    },
+    "PartnersMobile-States.dc.html": {
+      "x": 470,
+      "y": 2560,
+      "w": 1266,
+      "h": 844,
+      "title": "شرکا و تقسیم سود موبایل — خالی · بارگذاری · خطا",
+      "page": "partners"
+    },
+    "Suppliers.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 760,
+      "title": "تأمین‌کنندگان — دسکتاپ",
+      "page": "suppliers",
+      "is_interactive": true
+    },
+    "Suppliers-Form.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 760,
+      "title": "تأمین‌کنندگان — افزودن / ویرایش",
+      "page": "suppliers"
+    },
+    "Suppliers-States.dc.html": {
+      "x": 0,
+      "y": 920,
+      "w": 4416,
+      "h": 760,
+      "title": "تأمین‌کنندگان — خالی · بارگذاری · خطا",
+      "page": "suppliers"
+    },
+    "SuppliersMobile.dc.html": {
+      "x": 0,
+      "y": 1840,
+      "w": 390,
+      "h": 844,
+      "title": "تأمین‌کنندگان — موبایل",
+      "page": "suppliers"
+    },
+    "SuppliersMobile-States.dc.html": {
+      "x": 470,
+      "y": 1840,
+      "w": 1266,
+      "h": 844,
+      "title": "تأمین‌کنندگان موبایل — خالی · بارگذاری · خطا",
+      "page": "suppliers"
+    },
+    "Settings.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1200,
+      "title": "تنظیمات — دسکتاپ",
+      "page": "settings",
+      "is_interactive": true
+    },
+    "Settings-Dark.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1200,
+      "title": "تنظیمات — تم تیره",
+      "page": "settings"
+    },
+    "Settings-States.dc.html": {
+      "x": 0,
+      "y": 1360,
+      "w": 4416,
+      "h": 760,
+      "title": "تنظیمات — خالی · بارگذاری · خطا",
+      "page": "settings"
+    },
+    "SettingsMobile.dc.html": {
+      "x": 0,
+      "y": 2280,
+      "w": 390,
+      "h": 1100,
+      "title": "تنظیمات — موبایل",
+      "page": "settings"
+    },
+    "SettingsMobile-States.dc.html": {
+      "x": 470,
+      "y": 2280,
+      "w": 1266,
+      "h": 844,
+      "title": "تنظیمات موبایل — خالی · بارگذاری · خطا",
+      "page": "settings"
+    },
+    "Invoice.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 794,
+      "h": 1123,
+      "title": "فاکتور مشتری — A4",
+      "page": "invoice",
+      "paper": "a4"
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-09-22T12:40:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "page": "system",
+    "view": "canvas"
+  },
+  "notes": {},
+  "order": [
+    "Shell.dc.html",
+    "Shell-Collapsed.dc.html",
+    "Shell-Dark.dc.html",
+    "ShellMobile.dc.html",
+    "Sidebar.dc.html",
+    "Topbar.dc.html",
+    "MobileBar.dc.html",
+    "Dashboard.dc.html",
+    "Dashboard-Dark.dc.html",
+    "Dashboard-Empty.dc.html",
+    "Dashboard-Loading.dc.html",
+    "Dashboard-Error.dc.html",
+    "DashboardMobile.dc.html",
+    "DashboardMobile-Empty.dc.html",
+    "DashboardMobile-Loading.dc.html",
+    "DashboardMobile-Error.dc.html",
+    "RecordSale.dc.html",
+    "RecordSale-Picker.dc.html",
+    "RecordSale-Validation.dc.html",
+    "RecordSale-DraftStock.dc.html",
+    "RecordSale-Dark.dc.html",
+    "RecordSale-Success.dc.html",
+    "RecordSale-Empty.dc.html",
+    "RecordSale-Loading.dc.html",
+    "RecordSale-Error.dc.html",
+    "RecordSaleMobile.dc.html",
+    "RecordSaleMobile-Sheet.dc.html",
+    "RecordSaleMobile-Success.dc.html",
+    "RecordSaleMobile-Empty.dc.html",
+    "RecordSaleMobile-Loading.dc.html",
+    "RecordSaleMobile-Error.dc.html",
+    "Orders.dc.html",
+    "Orders-DateRange.dc.html",
+    "Orders-Dark.dc.html",
+    "Orders-Empty.dc.html",
+    "Orders-Loading.dc.html",
+    "Orders-Error.dc.html",
+    "OrdersMobile.dc.html",
+    "OrdersMobile-Filters.dc.html",
+    "OrdersMobile-Empty.dc.html",
+    "OrdersMobile-Loading.dc.html",
+    "OrdersMobile-Error.dc.html",
+    "OrderDetail.dc.html",
+    "OrderDetail-Cancel.dc.html",
+    "OrderDetail-Refund.dc.html",
+    "OrderDetail-Draft.dc.html",
+    "OrderDetail-Completed.dc.html",
+    "OrderDetail-Dark.dc.html",
+    "OrderDetail-Loading.dc.html",
+    "OrderDetail-Error.dc.html",
+    "OrderDetailMobile.dc.html",
+    "OrderDetailMobile-Cancel.dc.html",
+    "OrderDetailMobile-Loading.dc.html",
+    "OrderDetailMobile-Error.dc.html",
+    "Main.dc.html",
+    "Products.dc.html",
+    "Products-Materials.dc.html",
+    "Products-EditProduct.dc.html",
+    "Products-EditMaterial.dc.html",
+    "Products-Deactivate.dc.html",
+    "Products-States.dc.html",
+    "ProductsMobile.dc.html",
+    "ProductsMobile-States.dc.html",
+    "Production.dc.html",
+    "Production-Shortage.dc.html",
+    "Production-Recipe.dc.html",
+    "Production-History.dc.html",
+    "Production-States.dc.html",
+    "ProductionMobile.dc.html",
+    "ProductionMobile-States.dc.html",
+    "Purchases.dc.html",
+    "Purchases-Form.dc.html",
+    "Purchases-States.dc.html",
+    "PurchasesMobile.dc.html",
+    "PurchasesMobile-States.dc.html",
+    "Packaging.dc.html",
+    "Packaging-VinylBox.dc.html",
+    "Packaging-States.dc.html",
+    "PackagingMobile.dc.html",
+    "PackagingMobile-States.dc.html",
+    "Postage.dc.html",
+    "Postage-Dark.dc.html",
+    "Postage-States.dc.html",
+    "PostageMobile.dc.html",
+    "PostageMobile-States.dc.html",
+    "Adjustments.dc.html",
+    "Adjustments-Over.dc.html",
+    "Adjustments-Fraction.dc.html",
+    "Adjustments-Add.dc.html",
+    "Adjustments-States.dc.html",
+    "AdjustmentsMobile.dc.html",
+    "AdjustmentsMobile-States.dc.html",
+    "Expenses.dc.html",
+    "Expenses-Form.dc.html",
+    "Expenses-States.dc.html",
+    "ExpensesMobile.dc.html",
+    "ExpensesMobile-States.dc.html",
+    "Reports.dc.html",
+    "Reports-Products.dc.html",
+    "Reports-Channels.dc.html",
+    "Reports-Shipping.dc.html",
+    "Reports-Waste.dc.html",
+    "Reports-Dark.dc.html",
+    "Reports-States.dc.html",
+    "ReportsMobile.dc.html",
+    "ReportsMobile-States.dc.html",
+    "Partners.dc.html",
+    "Partners-Overlap.dc.html",
+    "Partners-Exceed.dc.html",
+    "Partners-Shares.dc.html",
+    "Partners-States.dc.html",
+    "PartnersMobile.dc.html",
+    "PartnersMobile-States.dc.html",
+    "Suppliers.dc.html",
+    "Suppliers-Form.dc.html",
+    "Suppliers-States.dc.html",
+    "SuppliersMobile.dc.html",
+    "SuppliersMobile-States.dc.html",
+    "Settings.dc.html",
+    "Settings-Dark.dc.html",
+    "Settings-States.dc.html",
+    "SettingsMobile.dc.html",
+    "SettingsMobile-States.dc.html",
+    "Invoice.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "system",
+      "name": "سیستم طراحی"
+    },
+    {
+      "id": "shell",
+      "name": "پوسته برنامه"
+    },
+    {
+      "id": "dashboard",
+      "name": "خانه"
+    },
+    {
+      "id": "sale",
+      "name": "ثبت فروش"
+    },
+    {
+      "id": "orders",
+      "name": "سفارش‌ها"
+    },
+    {
+      "id": "detail",
+      "name": "جزئیات سفارش"
+    },
+    {
+      "id": "products",
+      "name": "محصولات و مواد"
+    },
+    {
+      "id": "production",
+      "name": "تولید"
+    },
+    {
+      "id": "purchases",
+      "name": "خرید"
+    },
+    {
+      "id": "packaging",
+      "name": "بسته‌بندی"
+    },
+    {
+      "id": "postage",
+      "name": "هزینه‌های ارسال"
+    },
+    {
+      "id": "adjust",
+      "name": "تعدیل موجودی"
+    },
+    {
+      "id": "expenses",
+      "name": "هزینه‌ها"
+    },
+    {
+      "id": "reports",
+      "name": "گزارش‌ها"
+    },
+    {
+      "id": "partners",
+      "name": "شرکا و تقسیم سود"
+    },
+    {
+      "id": "suppliers",
+      "name": "تأمین‌کنندگان"
+    },
+    {
+      "id": "settings",
+      "name": "تنظیمات"
+    },
+    {
+      "id": "invoice",
+      "name": "فاکتور (چاپ)"
+    }
+  ],
+  "title": "مدیریت ربل شاپ — طراحی رابط کاربری"
+}

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>پوسته برنامه — دسکتاپ</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="{{theme}}" style="width: 1440px; height: 920px; display: flex;">
+<div style="width: {{sideW}}px; height: 920px; flex-shrink: 0;">
+<dc-import name="Sidebar" active="orders" collapsed="{{collapsed}}" theme="{{theme}}" h="920" hint-size="{{sideW}}px,920px"></dc-import>
+</div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+<dc-import name="Topbar" title="سفارش‌ها" theme="{{theme}}" w="{{mainW}}" hint-size="{{mainW}}px,64px"></dc-import>
+<main style="padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; flex-grow: 1;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span class="t-sm muted">۸۷ سفارش در شهریور ۱۴۰۵</span>
+</div>
+<div style="display: flex; gap: 8px;">
+<button type="button" class="btn btn-outline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"></path></svg>خروجی Excel</button>
+<a href="RecordSale.dc.html" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>ثبت فروش</a>
+</div>
+</div>
+<div style="flex-grow: 1; border: 1.5px dashed var(--border-strong); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; color: var(--text-3);">
+<span class="t-h3" style="color: var(--text-2);">ناحیه محتوای صفحه</span>
+<span class="t-sm">فاصله از لبه‌ها ۳۲ · فاصله بین بخش‌ها ۲۴ · کارت‌ها با گوشه ۱۲</span>
+</div>
+</main>
+</div>
+<sc-if value="{{searchOpen}}" hint-placeholder-val="{{ false }}">
+<div class="menu" style="position: absolute; left: {{searchLeft}}px; top: 58px; width: 470px; padding: 8px;" role="listbox" aria-label="نتایج جستجو">
+<div class="ig" style="margin-bottom: 6px;">
+<span class="pfx"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span>
+<input class="input is-focus" value="وینیل" aria-label="جستجو">
+<span class="sfx"><span class="kbd">Esc</span></span>
+</div>
+<div class="ml">محصولات</div>
+<button type="button" class="mi hl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="2.5"></circle></svg><span class="grow">وینیل <b>آلبوم اول</b></span><span class="stock">موجودی ۱۴</span></button>
+<button type="button" class="mi"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="2.5"></circle></svg><span class="grow">وینیل نسخه رنگی</span><span class="stock low">موجودی ۲</span></button>
+<div class="ml">سفارش‌ها</div>
+<button type="button" class="mi"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg><span class="inv">INV-000038</span><span class="grow muted t-sm">نگار ک. · وینیل آلبوم اول، پوستر تور ۱۴۰۴</span><span class="badge st-paid">پرداخت‌شده</span></button>
+<button type="button" class="mi"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg><span class="inv">INV-000030</span><span class="grow muted t-sm">فروشگاه صفحه‌گردان · ۵ وینیل</span><span class="badge st-done">تکمیل‌شده</span></button>
+<div class="msep"></div>
+<div style="display: flex; gap: 14px; padding: 4px 10px; font-size: 11.5px; color: var(--text-3);"><span><span class="kbd">↑↓</span> جابه‌جایی</span><span><span class="kbd">Enter</span> باز کردن</span></div>
+</div>
+</sc-if>
+<sc-if value="{{userOpen}}" hint-placeholder-val="{{ false }}">
+<div class="menu" style="position: absolute; left: 24px; top: 58px; width: 250px;" role="menu" aria-label="منوی کاربر">
+<div style="display: flex; gap: 10px; align-items: center; padding: 8px 10px 10px;">
+<span class="avatar" style="width: 38px; height: 38px;">م</span>
+<div style="display: flex; flex-direction: column; line-height: 1.35;"><span class="b t-sm">مدیر فروشگاه</span><span class="t-cap muted">کاربر اصلی · تنها کاربر</span></div>
+</div>
+<div class="msep"></div>
+<button type="button" class="mi" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>حساب کاربری<span class="chip" style="margin-right: auto; height: 20px; font-size: 11px;">به‌زودی</span></button>
+<button type="button" class="mi" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20a6.5 6.5 0 0 1 13 0"></path><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2c2 .9 3.5 3 3.5 5.8"></path></svg>کاربران و دسترسی‌ها<span class="chip" style="margin-right: auto; height: 20px; font-size: 11px;">به‌زودی</span></button>
+<div class="ml">پوسته</div>
+<div style="padding: 0 6px 6px;"><div class="seg" style="width: 100%;"><button type="button" class="on" style="flex-grow: 1;">روشن</button><button type="button" style="flex-grow: 1;">تیره</button><button type="button" style="flex-grow: 1;">خودکار</button></div></div>
+<div class="msep"></div>
+<button type="button" class="mi danger" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="flip"><path d="M15 4h4v16h-4"></path><path d="M10 8l-4 4 4 4M6 12h10"></path></svg>خروج</button>
+</div>
+</sc-if>
+<sc-if value="{{collapsed}}" hint-placeholder-val="{{ false }}">
+<div class="tip" style="position: absolute; right: 80px; top: 164px;">سفارش‌ها</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"collapsed":{"editor":"boolean","default":false},"menu":{"editor":"enum","options":["search","user","none"],"default":"search"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":920}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var col = this.props.collapsed === true || this.props.collapsed === 'true';
+    var menu = this.props.menu || 'search';
+    var sideW = col ? 72 : 264;
+    return { collapsed: col, searchOpen: menu === 'search', userOpen: menu === 'user', sideW: sideW, mainW: 1440 - sideW, theme: this.props.theme || 'light', searchLeft: 246 };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>سفارش‌ها — موبایل</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="{{theme}}" style="width: 390px; height: {{h}}px;">
+<dc-import name="MobileBar" title="سفارش‌ها" theme="{{theme}}" hint-size="390px,56px"></dc-import>
+<main style="padding: 12px 16px 96px; display: flex; flex-direction: column; gap: 12px;">
+<div class="ig"><span class="pfx"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span><input class="input" placeholder="شماره فاکتور یا نام مشتری" style="height: 44px;" aria-label="جستجو"></div>
+<div style="display: flex; gap: 8px; overflow: hidden;">
+<button type="button" class="btn btn-outline btn-sm" style="height: 36px; border-color: var(--navy-2);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4z"></path></svg>فیلترها<span class="cnt" style="background: var(--red); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 6px;">۱</span></button>
+<button type="button" class="btn btn-outline btn-sm" style="height: 36px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>شهریور ۱۴۰۵</button>
+<button type="button" class="btn btn-outline btn-sm" style="height: 36px;">همه وضعیت‌ها</button>
+<button type="button" class="btn btn-outline btn-sm" style="height: 36px;">همه کانال‌ها</button>
+</div>
+
+<sc-if value="{{isReady}}" hint-placeholder-val="{{ true }}">
+<div class="t-cap muted" style="display: flex; justify-content: space-between;"><span>۸۷ سفارش</span><span>جمع فروش: <b class="num" style="color: var(--text);">۱۸۶٬۴۲۰٬۰۰۰</b></span></div>
+<sc-for list="{{rows}}" as="o" hint-placeholder-count="10">
+<a href="OrderDetailMobile.dc.html" class="card" style="display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; color: var(--text);">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span class="inv">{{o.inv}}</span><span class="{{o.stCls}}">{{o.st}}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;"><span class="t-sm" style="display: flex; gap: 8px; align-items: center; min-width: 0;"><span class="{{o.chCls}}">{{o.ch}}</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{o.cust}}</span></span><span class="num b">{{o.total}}</span></div>
+<div style="display: flex; justify-content: space-between;"><span class="t-cap muted num">{{o.dt}}</span><span class="t-cap {{o.pClsM}}">{{o.profitT}}</span></div>
+</a>
+</sc-for>
+<button type="button" class="btn btn-outline" style="height: 44px;">نمایش ۱۲ سفارش بعدی</button>
+</sc-if>
+
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 48px 20px;"><div class="e-art"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg></div><div class="e-t">هنوز سفارشی ثبت نشده</div><div class="e-d">هر فروشی که ثبت کنید این‌جا فهرست می‌شود.</div><a href="RecordSaleMobile.dc.html" class="btn btn-primary btn-lg" style="margin-top: 6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>ثبت اولین فروش</a></div></section>
+</sc-if>
+
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{ false }}">
+<div class="sk" style="height: 92px; border-radius: 12px;"></div><div class="sk" style="height: 92px; border-radius: 12px;"></div><div class="sk" style="height: 92px; border-radius: 12px;"></div><div class="sk" style="height: 92px; border-radius: 12px;"></div><div class="sk" style="height: 92px; border-radius: 12px;"></div>
+</sc-if>
+
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 48px 20px;"><div class="e-art" style="background: var(--loss-soft); color: var(--loss);"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M8 7.5A6 6 0 0 1 18 11a4 4 0 0 1 2.4 7M17 19H7a5 5 0 0 1-2.6-9.3"></path></svg></div><div class="e-t">سفارش‌ها بارگذاری نشد</div><div class="e-d">سرور پاسخ نداد. فیلترهای شما حفظ شده‌اند.</div><button type="button" class="btn btn-outline btn-lg" style="margin-top: 6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"></path><path d="M20 4v5h-5"></path></svg>تلاش دوباره</button></div></section>
+</sc-if>
+</main>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 20px; background: var(--surface); border-top: 1px solid var(--border);"><a href="RecordSaleMobile.dc.html" class="btn btn-primary btn-lg" style="width: 100%;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>ثبت فروش</a></div>
+
+<sc-if value="{{isFilters}}" hint-placeholder-val="{{ false }}">
+<div class="overlay"></div>
+<div class="m-sheet" style="border-radius: 18px 18px 0 0; padding: 0 16px 20px; display: flex; flex-direction: column; gap: 14px;" role="dialog" aria-label="فیلتر سفارش‌ها">
+<div class="grab"></div>
+<div style="display: flex; justify-content: space-between; align-items: center;"><h2 class="t-h2">فیلترها</h2><button type="button" class="btn btn-ghost btn-sm">پاک کردن همه</button></div>
+<div class="field"><span class="label">وضعیت</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<button type="button" class="badge st-draft" style="height: 36px; padding: 0 12px; cursor: pointer;">پیش‌نویس</button>
+<button type="button" class="badge st-pending" style="height: 36px; padding: 0 12px; cursor: pointer; box-shadow: 0 0 0 2px var(--warn);">در انتظار <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></button>
+<button type="button" class="badge st-paid" style="height: 36px; padding: 0 12px; cursor: pointer; box-shadow: 0 0 0 2px var(--info);">پرداخت‌شده <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></button>
+<button type="button" class="badge st-done" style="height: 36px; padding: 0 12px; cursor: pointer;">تکمیل‌شده</button>
+<button type="button" class="badge st-cancel" style="height: 36px; padding: 0 12px; cursor: pointer;">لغوشده</button>
+<button type="button" class="badge st-refund" style="height: 36px; padding: 0 12px; cursor: pointer;">مرجوعی</button>
+</div></div>
+<div class="field"><span class="label">کانال</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<button type="button" class="ch ch-web" style="height: 36px; padding: 0 12px;">وب‌سایت</button><button type="button" class="ch ch-insta" style="height: 36px; padding: 0 12px;">اینستاگرام</button><button type="button" class="ch ch-wholesale" style="height: 36px; padding: 0 12px;">عمده‌فروشی</button><button type="button" class="ch ch-inperson" style="height: 36px; padding: 0 12px;">حضوری</button><button type="button" class="ch ch-other" style="height: 36px; padding: 0 12px;">سایر</button>
+</div></div>
+<div class="field"><span class="label">بازه تاریخ</span>
+<div class="seg" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));"><button type="button" style="height: 40px;">۷ روز</button><button type="button" class="on" style="height: 40px;">این ماه</button><button type="button" style="height: 40px;">دلخواه</button></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+<button type="button" class="select" style="height: 44px;"><span><span class="t-cap muted">از </span><b class="num">۱۴۰۵/۰۶/۰۱</b></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg></button>
+<button type="button" class="select" style="height: 44px;"><span><span class="t-cap muted">تا </span><b class="num">۱۴۰۵/۰۶/۳۱</b></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg></button>
+</div></div>
+<button type="button" class="btn btn-primary btn-lg" style="width: 100%;">نمایش ۱۰ سفارش</button>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["ready","filters","empty","loading","error"],"default":"ready"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"h":{"editor":"int","default":1400},"$preview":{"width":390,"height":1400}}'>
+var FA_D = '۰۱۲۳۴۵۶۷۸۹';
+function fa(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0;
+  var s = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '٬').replace(/\d/g, function (d) { return FA_D[d]; });
+  return (neg ? '−' : '') + s;
+}
+function faT(n) { return fa(n) + ' تومان'; }
+function faD(s) { return String(s).replace(/\d/g, function (d) { return FA_D[d]; }); }
+function num(v) {
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^0-9]/g, '');
+  return s === '' ? 0 : parseInt(s, 10);
+}
+var CH = {
+  web: { name: 'وب‌سایت', cls: 'ch-web' }, insta: { name: 'اینستاگرام', cls: 'ch-insta' },
+  wholesale: { name: 'عمده‌فروشی', cls: 'ch-wholesale' }, inperson: { name: 'حضوری', cls: 'ch-inperson' }, other: { name: 'سایر', cls: 'ch-other' }
+};
+var ST = {
+  draft: { name: 'پیش‌نویس', cls: 'st-draft' }, pending: { name: 'در انتظار', cls: 'st-pending' }, paid: { name: 'پرداخت‌شده', cls: 'st-paid' },
+  done: { name: 'تکمیل‌شده', cls: 'st-done' }, cancel: { name: 'لغوشده', cls: 'st-cancel' }, refund: { name: 'مرجوعی', cls: 'st-refund' }
+};
+var ORDERS = [
+  ['INV-000041', '1405/06/31', '13:42', 'insta', 'علی ر.', 'done', 950000, 327727],
+  ['INV-000040', '1405/06/31', '11:05', 'inperson', 'مشتری حضوری', 'done', 1040000, 592000],
+  ['INV-000039', '1405/06/31', '09:20', 'insta', 'رها س.', 'pending', 800000, 215727],
+  ['INV-000038', '1405/06/30', '16:24', 'web', 'نگار ک.', 'paid', 3130000, 1189727],
+  ['INV-000037', '1405/06/30', '12:10', 'wholesale', 'فروشگاه نوای شهر', 'done', 4300000, 2295727],
+  ['INV-000036', '1405/06/29', '18:37', 'web', 'مهدی ت.', 'cancel', 1430000, null],
+  ['INV-000035', '1405/06/29', '10:02', 'insta', 'پریا ن.', 'refund', 1070000, -294273],
+  ['INV-000034', '1405/06/28', '19:15', 'other', '—', 'draft', 480000, null],
+  ['INV-000033', '1405/06/28', '14:48', 'inperson', 'مشتری حضوری', 'done', 2450000, 1070000],
+  ['INV-000032', '1405/06/27', '20:31', 'web', 'کیان ب.', 'done', 1070000, 350727],
+  ['INV-000031', '1405/06/27', '11:26', 'insta', 'پرستو ج.', 'paid', 3680000, 1290727],
+  ['INV-000030', '1405/06/26', '15:02', 'wholesale', 'فروشگاه صفحه‌گردان', 'done', 9750000, 2510727]
+];
+function orderRows(limit) {
+  return ORDERS.slice(0, limit || ORDERS.length).map(function (o) {
+    var pc = o[7] === null ? 'nil' : (o[7] < 0 ? 'neg' : 'pos');
+    return {
+      inv: o[0], date: faD(o[1]), time: faD(o[2]), dt: faD(o[1]) + ' · ' + faD(o[2]), ch: CH[o[3]].name, chCls: 'ch ' + CH[o[3]].cls, cust: o[4],
+      st: ST[o[5]].name, stCls: 'badge ' + ST[o[5]].cls, stKey: o[5], total: fa(o[6]), profit: o[7] === null ? '—' : fa(o[7]), pCls: 'n num b ' + pc, pClsM: 'num b ' + pc,
+      profitT: o[7] === null ? 'سود: —' : 'سود ' + fa(o[7])
+    };
+  });
+}
+/* Jalali month grid, week starts Saturday. startIdx = weekday index of day 1 (0=Sat … 6=Fri). opt: {today, sel, from, to} */
+function monthGrid(startIdx, days, opt) {
+  opt = opt || {};
+  var cells = [];
+  for (var i = 0; i < startIdx; i++) cells.push({ l: '', c: 'cal-d x' });
+  for (var d = 1; d <= days; d++) {
+    var wd = (startIdx + d - 1) % 7, c = 'cal-d';
+    if (wd === 6) c += ' fri';
+    if (opt.today === d) c += ' today';
+    if (opt.sel === d) c += ' sel';
+    if (opt.from && opt.to) {
+      if (d === opt.from) c += ' s';
+      if (d === opt.to) c += ' e';
+      if (d > opt.from && d < opt.to) c += ' in';
+    }
+    cells.push({ l: faD(d), c: c });
+  }
+  while (cells.length % 7) cells.push({ l: '', c: 'cal-d x' });
+  return cells;
+}
+function faQ(n) { /* quantities: may be fractional, Persian decimal separator */
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0, a = Math.abs(n), ip = Math.floor(a), fp = Math.round((a - ip) * 1000);
+  var s = fa(ip).replace('−', '');
+  if (fp) s += '٫' + faD(String(fp).padStart(3, '0').replace(/0+$/, ''));
+  return (neg ? '−' : '') + s;
+}
+function numQ(v) { /* parse a possibly-fractional quantity typed in any digits */
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫\/]/g, '.').replace(/[^0-9.]/g, '');
+  var n = parseFloat(s); return isNaN(n) ? 0 : n;
+}
+function stateVals(props, defH) {
+  var s = props.state || 'ready';
+  return { theme: props.theme || 'light', h: props.h || defH, isReady: s === 'ready', isEmpty: s === 'empty', isLoading: s === 'loading', isError: s === 'error', st: s };
+}
+var CATALOG = [
+  { id: 'p1', name: 'وینیل آلبوم اول', cat: 'وینیل', retail: 2450000, ws: 1950000, cost: 1380000, stock: 14, min: 5, active: true },
+  { id: 'p2', name: 'وینیل نسخه رنگی', cat: 'وینیل', retail: 3500000, ws: 2900000, cost: 2050000, stock: 2, min: 3, active: true },
+  { id: 'p3', name: 'کاست نسخه محدود', cat: 'کاست', retail: 620000, ws: 480000, cost: 290000, stock: 3, min: 5, active: true },
+  { id: 'p10', name: 'کاست آلبوم اول', cat: 'کاست', retail: 450000, ws: 350000, cost: 190000, stock: 0, min: 5, active: true },
+  { id: 'p4', name: 'سی‌دی آلبوم اول', cat: 'آلبوم', retail: 480000, ws: 380000, cost: 210000, stock: 22, min: 5, active: true },
+  { id: 'p5', name: 'پوستر تور ۱۴۰۴', cat: 'پوستر', retail: 290000, ws: 210000, cost: 95000, stock: 42, min: 10, active: true },
+  { id: 'p6', name: 'تی‌شرت لوگو مشکی (L)', cat: 'تی‌شرت', retail: 890000, ws: 690000, cost: 410000, stock: 7, min: 5, active: true },
+  { id: 'p7', name: 'تی‌شرت تور سفید (M)', cat: 'تی‌شرت', retail: 950000, ws: 740000, cost: null, stock: 12, min: 5, active: true },
+  { id: 'p8', name: 'استیکر پک', cat: 'استیکر', retail: 150000, ws: 110000, cost: 38000, stock: 120, min: 30, active: true },
+  { id: 'p9', name: 'آینه لوگو گرد', cat: 'آینه', retail: 1250000, ws: 980000, cost: 560000, stock: 4, min: 5, active: true },
+  { id: 'p11', name: 'پوستر تور ۱۴۰۳', cat: 'پوستر', retail: 250000, ws: 180000, cost: 90000, stock: 6, min: 0, active: false }
+];
+var MATERIALS = [
+  { id: 'm1', name: 'صفحه خام وینیل ۱۲ اینچ', type: 'goods', unit: 'عدد', stock: 38, cost: 620000, min: 20, use: 'تولید' },
+  { id: 'm2', name: 'کاور چاپی وینیل', type: 'goods', unit: 'عدد', stock: 45, cost: 180000, min: 20, use: 'تولید' },
+  { id: 'm3', name: 'نوار کاست خام', type: 'goods', unit: 'عدد', stock: 12, cost: 95000, min: 20, use: 'تولید' },
+  { id: 'm4', name: 'قاب و جلد کاست', type: 'goods', unit: 'عدد', stock: 60, cost: 45000, min: 20, use: 'تولید' },
+  { id: 'm5', name: 'تی‌شرت خام مشکی L', type: 'goods', unit: 'عدد', stock: 6, cost: 260000, min: 10, use: 'تولید' },
+  { id: 'm6', name: 'چاپ سیلک تی‌شرت', type: 'service', unit: 'عدد', stock: null, cost: 120000, min: null, use: 'تولید' },
+  { id: 'm7', name: 'مسترینگ و کات لاکر', type: 'service', unit: 'نوبت', stock: null, cost: 12000000, min: null, use: 'تولید' },
+  { id: 'm8', name: 'طراحی جلد', type: 'service', unit: 'نوبت', stock: null, cost: 4000000, min: null, use: 'تولید' },
+  { id: 'm9', name: 'کارتن جعبه استاندارد', type: 'goods', unit: 'عدد', stock: 64, cost: 60000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm10', name: 'جعبه وینیل', type: 'goods', unit: 'عدد', stock: 8, cost: 95000, min: 20, use: 'بسته‌بندی' },
+  { id: 'm11', name: 'پاکت حباب‌دار کوچک', type: 'goods', unit: 'عدد', stock: 15, cost: 24000, min: 40, use: 'بسته‌بندی' },
+  { id: 'm12', name: 'نوار چسب لوگودار', type: 'goods', unit: 'رول', stock: 2, cost: 150000, min: 5, use: 'بسته‌بندی' },
+  { id: 'm13', name: 'کاغذ پرکننده', type: 'goods', unit: 'کیلوگرم', stock: 1.5, cost: 90000, min: 3, use: 'بسته‌بندی' },
+  { id: 'm14', name: 'برچسب آدرس', type: 'goods', unit: 'عدد', stock: 400, cost: 2000, min: 100, use: 'بسته‌بندی' },
+  { id: 'm15', name: 'محافظ گوشه', type: 'goods', unit: 'عدد', stock: 90, cost: 10000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm16', name: 'کاغذ کرافت', type: 'goods', unit: 'متر', stock: 42.5, cost: 12000, min: 10, use: 'بسته‌بندی' }
+];
+function stockCls(stock, min) { return stock === 0 ? 'stock out' : (min && stock <= min ? 'stock low' : 'stock'); }
+
+class Component extends DCLogic {
+  renderVals() {
+    var s = this.props.state || 'ready';
+    return {
+      theme: this.props.theme || 'light', h: this.props.h || 1400,
+      isReady: s === 'ready' || s === 'filters', isFilters: s === 'filters', isEmpty: s === 'empty', isLoading: s === 'loading', isError: s === 'error',
+      rows: orderRows(10)
+    };
+  }
+}
+</script>
+</body>
+</html>

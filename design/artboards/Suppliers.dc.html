@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>تأمین‌کنندگان</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="{{theme}}" style="width: 1440px; height: {{h}}px; display: flex;">
+<div style="width: 264px; height: {{h}}px; flex-shrink: 0;"><dc-import name="Sidebar" active="suppliers" theme="{{theme}}" h="{{h}}" hint-size="264px,{{h}}px"></dc-import></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<dc-import name="Topbar" title="تأمین‌کنندگان" theme="{{theme}}" w="1176" hint-size="1176px,64px"></dc-import>
+<main style="padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+<div style="display: flex; gap: 10px; align-items: center;"><div class="ig" style="width: 280px;"><span class="pfx"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span><input class="input" placeholder="جستجوی نام یا کالا" aria-label="جستجو"></div><label class="t-sm" style="display: flex; gap: 8px; align-items: center;"><span class="switch"></span>نمایش غیرفعال‌ها</label></div>
+<button type="button" class="btn btn-primary" onClick="{{open}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>تأمین‌کننده جدید</button>
+</div>
+<sc-if value="{{isReady}}" hint-placeholder-val="{{ true }}">
+<section class="card" style="overflow: hidden;">
+<table class="tbl">
+<thead><tr><th>نام</th><th>اقلام تأمین</th><th>مسئول تماس</th><th class="n">خرید امسال (تومان)</th><th>آخرین خرید</th><th>وضعیت</th><th style="width: 56px;"></th></tr></thead>
+<tbody>
+<tr><td class="b">کارخانه پرس صفحه آوا</td><td><div style="display: flex; gap: 4px;"><span class="chip">صفحه خام وینیل</span><span class="chip">وینیل آماده</span></div></td><td class="muted2">واحد فروش</td><td class="n num b">۸۶٬۴۵۰٬۰۰۰</td><td class="num muted2">۱۴۰۵/۰۶/۲۰</td><td><span class="badge st-done">فعال</span></td><td><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ویرایش" onClick="{{open}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button></td></tr>
+<tr><td class="b">چاپخانه نقش</td><td><div style="display: flex; gap: 4px;"><span class="chip">کاور چاپی</span><span class="chip">پوستر</span><span class="chip">نوار چسب</span></div></td><td class="muted2">مدیر تولید</td><td class="n num b">۲۴٬۳۰۰٬۰۰۰</td><td class="num muted2">۱۴۰۵/۰۶/۱۰</td><td><span class="badge st-done">فعال</span></td><td><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ویرایش"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button></td></tr>
+<tr><td class="b">تولیدی پوشاک سپید</td><td><div style="display: flex; gap: 4px;"><span class="chip">تی‌شرت خام</span></div></td><td class="muted2">واحد فروش</td><td class="n num b">۱۵٬۶۰۰٬۰۰۰</td><td class="num muted2">۱۴۰۵/۰۶/۲۵</td><td><span class="badge st-done">فعال</span></td><td><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ویرایش"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button></td></tr>
+<tr><td class="b">بسته‌بندی کارتن‌سازان</td><td><div style="display: flex; gap: 4px;"><span class="chip">کارتن</span><span class="chip">جعبه وینیل</span><span class="chip">پرکننده</span></div></td><td class="muted2">فروش عمده</td><td class="n num b">۱۲٬۸۵۰٬۰۰۰</td><td class="num muted2">۱۴۰۵/۰۶/۲۹</td><td><span class="badge st-done">فعال</span></td><td><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ویرایش"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button></td></tr>
+<tr><td class="b">استودیو صدای روشن</td><td><div style="display: flex; gap: 4px;"><span class="chip">مسترینگ</span></div></td><td class="muted2">هماهنگی پروژه</td><td class="n num b">۲۴٬۰۰۰٬۰۰۰</td><td class="num muted2">۱۴۰۵/۰۳/۱۸</td><td><span class="badge st-done">فعال</span></td><td><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ویرایش"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button></td></tr>
+<tr style="opacity: 0.55;"><td class="b">چاپ دیجیتال پرتو</td><td><div style="display: flex; gap: 4px;"><span class="chip">استیکر</span></div></td><td class="muted2">—</td><td class="n num b">۰</td><td class="num muted2">۱۴۰۴/۱۱/۰۴</td><td><span class="badge st-draft">غیرفعال</span></td><td><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ویرایش"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button></td></tr>
+</tbody>
+</table>
+</section>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 96px 24px;"><div class="e-art"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V8l7-4v17"></path><path d="M10 21h11V11l-7-3"></path><path d="M14 13h3M14 17h3M6 11h1M6 15h1"></path></svg></div><div class="e-t">هنوز تأمین‌کننده‌ای ثبت نشده</div><div class="e-d">تأمین‌کنندگان را ثبت کنید تا در «خرید» انتخاب شوند و مجموع خرید از هر کدام را ببینید.</div><button type="button" class="btn btn-primary" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>افزودن تأمین‌کننده</button></div></section>
+</sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{ false }}">
+<section aria-busy="true" aria-label="در حال بارگذاری" style="display: flex; flex-direction: column; gap: 12px;"><div class="sk" style="height: 20px; width: 180px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div></section>
+</sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 96px 24px;"><div class="e-art" style="background: var(--loss-soft); color: var(--loss);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M8 7.5A6 6 0 0 1 18 11a4 4 0 0 1 2.4 7M17 19H7a5 5 0 0 1-2.6-9.3"></path></svg></div><div class="e-t">فهرست تأمین‌کنندگان بارگذاری نشد</div><div class="e-d">اتصال به سرور برقرار نشد. داده‌های شما سالم است؛ دوباره تلاش کنید.</div><button type="button" class="btn btn-outline" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"></path><path d="M20 4v5h-5"></path></svg>تلاش دوباره</button></div></section>
+</sc-if>
+</main>
+</div>
+<sc-if value="{{showForm}}" hint-placeholder-val="{{ false }}">
+<div class="overlay"></div>
+<aside class="dialog" role="dialog" aria-labelledby="sf" style="position: absolute; top: 0; left: 0; bottom: 0; width: 460px; border-radius: 0 14px 14px 0;">
+<div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;"><h2 id="sf" class="t-h2">ویرایش تأمین‌کننده</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="بستن" onClick="{{close}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+<div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; flex-grow: 1;">
+<div class="field"><label class="label" for="s1">نام</label><input id="s1" class="input" value="کارخانه پرس صفحه آوا"></div>
+<div class="field"><label class="label" for="s2">مسئول تماس <span class="opt">(اختیاری)</span></label><input id="s2" class="input" value="واحد فروش"></div>
+<div class="field"><label class="label" for="s3">شماره تماس <span class="opt">(اختیاری)</span></label><input id="s3" class="input input-num" placeholder="۰۲۱-۰۰۰۰۰۰۰۰" style="direction: ltr; text-align: right;"></div>
+<div class="field"><label class="label" for="s4">نشانی یا شناسه آنلاین <span class="opt">(اختیاری)</span></label><input id="s4" class="input" placeholder="مثلاً نشانی کارگاه یا صفحه اینستاگرام"></div>
+<div class="field"><span class="label">اقلام تأمین</span><div style="display: flex; gap: 6px; flex-wrap: wrap;"><span class="chip">صفحه خام وینیل <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></span><span class="chip">وینیل نسخه رنگی <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></span><button type="button" class="btn btn-ghost btn-sm" style="height: 24px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>افزودن</button></div></div>
+<div class="field"><label class="label" for="s5">یادداشت</label><textarea id="s5" class="input" style="height: 80px; padding: 10px 12px; resize: none;">حداقل سفارش پرس: ۳۰ عدد · زمان تحویل حدود ۶ هفته</textarea></div>
+<label class="t-sm" style="display: flex; gap: 10px; align-items: center;"><span class="switch on"></span>فعال</label>
+<p class="t-cap muted">تأمین‌کننده حذف نمی‌شود تا سوابق خرید حفظ شود؛ غیرفعال‌ها در انتخاب «خرید» نمایش داده نمی‌شوند.</p>
+</div>
+<div class="d-f" style="border-radius: 0 0 14px 0;"><button type="button" class="btn btn-primary">ذخیره</button><button type="button" class="btn btn-outline" onClick="{{close}}">انصراف</button></div>
+</aside>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"form":{"editor":"boolean","default":false},"state":{"editor":"enum","options":["ready","empty","loading","error"],"default":"ready"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"h":{"editor":"int","default":760},"$preview":{"width":1440,"height":760}}'>
+var FA_D = '۰۱۲۳۴۵۶۷۸۹';
+function fa(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0;
+  var s = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '٬').replace(/\d/g, function (d) { return FA_D[d]; });
+  return (neg ? '−' : '') + s;
+}
+function faT(n) { return fa(n) + ' تومان'; }
+function faD(s) { return String(s).replace(/\d/g, function (d) { return FA_D[d]; }); }
+function num(v) {
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^0-9]/g, '');
+  return s === '' ? 0 : parseInt(s, 10);
+}
+var CH = {
+  web: { name: 'وب‌سایت', cls: 'ch-web' }, insta: { name: 'اینستاگرام', cls: 'ch-insta' },
+  wholesale: { name: 'عمده‌فروشی', cls: 'ch-wholesale' }, inperson: { name: 'حضوری', cls: 'ch-inperson' }, other: { name: 'سایر', cls: 'ch-other' }
+};
+var ST = {
+  draft: { name: 'پیش‌نویس', cls: 'st-draft' }, pending: { name: 'در انتظار', cls: 'st-pending' }, paid: { name: 'پرداخت‌شده', cls: 'st-paid' },
+  done: { name: 'تکمیل‌شده', cls: 'st-done' }, cancel: { name: 'لغوشده', cls: 'st-cancel' }, refund: { name: 'مرجوعی', cls: 'st-refund' }
+};
+var ORDERS = [
+  ['INV-000041', '1405/06/31', '13:42', 'insta', 'علی ر.', 'done', 950000, 327727],
+  ['INV-000040', '1405/06/31', '11:05', 'inperson', 'مشتری حضوری', 'done', 1040000, 592000],
+  ['INV-000039', '1405/06/31', '09:20', 'insta', 'رها س.', 'pending', 800000, 215727],
+  ['INV-000038', '1405/06/30', '16:24', 'web', 'نگار ک.', 'paid', 3130000, 1189727],
+  ['INV-000037', '1405/06/30', '12:10', 'wholesale', 'فروشگاه نوای شهر', 'done', 4300000, 2295727],
+  ['INV-000036', '1405/06/29', '18:37', 'web', 'مهدی ت.', 'cancel', 1430000, null],
+  ['INV-000035', '1405/06/29', '10:02', 'insta', 'پریا ن.', 'refund', 1070000, -294273],
+  ['INV-000034', '1405/06/28', '19:15', 'other', '—', 'draft', 480000, null],
+  ['INV-000033', '1405/06/28', '14:48', 'inperson', 'مشتری حضوری', 'done', 2450000, 1070000],
+  ['INV-000032', '1405/06/27', '20:31', 'web', 'کیان ب.', 'done', 1070000, 350727],
+  ['INV-000031', '1405/06/27', '11:26', 'insta', 'پرستو ج.', 'paid', 3680000, 1290727],
+  ['INV-000030', '1405/06/26', '15:02', 'wholesale', 'فروشگاه صفحه‌گردان', 'done', 9750000, 2510727]
+];
+function orderRows(limit) {
+  return ORDERS.slice(0, limit || ORDERS.length).map(function (o) {
+    var pc = o[7] === null ? 'nil' : (o[7] < 0 ? 'neg' : 'pos');
+    return {
+      inv: o[0], date: faD(o[1]), time: faD(o[2]), dt: faD(o[1]) + ' · ' + faD(o[2]), ch: CH[o[3]].name, chCls: 'ch ' + CH[o[3]].cls, cust: o[4],
+      st: ST[o[5]].name, stCls: 'badge ' + ST[o[5]].cls, stKey: o[5], total: fa(o[6]), profit: o[7] === null ? '—' : fa(o[7]), pCls: 'n num b ' + pc, pClsM: 'num b ' + pc,
+      profitT: o[7] === null ? 'سود: —' : 'سود ' + fa(o[7])
+    };
+  });
+}
+/* Jalali month grid, week starts Saturday. startIdx = weekday index of day 1 (0=Sat … 6=Fri). opt: {today, sel, from, to} */
+function monthGrid(startIdx, days, opt) {
+  opt = opt || {};
+  var cells = [];
+  for (var i = 0; i < startIdx; i++) cells.push({ l: '', c: 'cal-d x' });
+  for (var d = 1; d <= days; d++) {
+    var wd = (startIdx + d - 1) % 7, c = 'cal-d';
+    if (wd === 6) c += ' fri';
+    if (opt.today === d) c += ' today';
+    if (opt.sel === d) c += ' sel';
+    if (opt.from && opt.to) {
+      if (d === opt.from) c += ' s';
+      if (d === opt.to) c += ' e';
+      if (d > opt.from && d < opt.to) c += ' in';
+    }
+    cells.push({ l: faD(d), c: c });
+  }
+  while (cells.length % 7) cells.push({ l: '', c: 'cal-d x' });
+  return cells;
+}
+function faQ(n) { /* quantities: may be fractional, Persian decimal separator */
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0, a = Math.abs(n), ip = Math.floor(a), fp = Math.round((a - ip) * 1000);
+  var s = fa(ip).replace('−', '');
+  if (fp) s += '٫' + faD(String(fp).padStart(3, '0').replace(/0+$/, ''));
+  return (neg ? '−' : '') + s;
+}
+function numQ(v) { /* parse a possibly-fractional quantity typed in any digits */
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫\/]/g, '.').replace(/[^0-9.]/g, '');
+  var n = parseFloat(s); return isNaN(n) ? 0 : n;
+}
+function stateVals(props, defH) {
+  var s = props.state || 'ready';
+  return { theme: props.theme || 'light', h: props.h || defH, isReady: s === 'ready', isEmpty: s === 'empty', isLoading: s === 'loading', isError: s === 'error', st: s };
+}
+var CATALOG = [
+  { id: 'p1', name: 'وینیل آلبوم اول', cat: 'وینیل', retail: 2450000, ws: 1950000, cost: 1380000, stock: 14, min: 5, active: true },
+  { id: 'p2', name: 'وینیل نسخه رنگی', cat: 'وینیل', retail: 3500000, ws: 2900000, cost: 2050000, stock: 2, min: 3, active: true },
+  { id: 'p3', name: 'کاست نسخه محدود', cat: 'کاست', retail: 620000, ws: 480000, cost: 290000, stock: 3, min: 5, active: true },
+  { id: 'p10', name: 'کاست آلبوم اول', cat: 'کاست', retail: 450000, ws: 350000, cost: 190000, stock: 0, min: 5, active: true },
+  { id: 'p4', name: 'سی‌دی آلبوم اول', cat: 'آلبوم', retail: 480000, ws: 380000, cost: 210000, stock: 22, min: 5, active: true },
+  { id: 'p5', name: 'پوستر تور ۱۴۰۴', cat: 'پوستر', retail: 290000, ws: 210000, cost: 95000, stock: 42, min: 10, active: true },
+  { id: 'p6', name: 'تی‌شرت لوگو مشکی (L)', cat: 'تی‌شرت', retail: 890000, ws: 690000, cost: 410000, stock: 7, min: 5, active: true },
+  { id: 'p7', name: 'تی‌شرت تور سفید (M)', cat: 'تی‌شرت', retail: 950000, ws: 740000, cost: null, stock: 12, min: 5, active: true },
+  { id: 'p8', name: 'استیکر پک', cat: 'استیکر', retail: 150000, ws: 110000, cost: 38000, stock: 120, min: 30, active: true },
+  { id: 'p9', name: 'آینه لوگو گرد', cat: 'آینه', retail: 1250000, ws: 980000, cost: 560000, stock: 4, min: 5, active: true },
+  { id: 'p11', name: 'پوستر تور ۱۴۰۳', cat: 'پوستر', retail: 250000, ws: 180000, cost: 90000, stock: 6, min: 0, active: false }
+];
+var MATERIALS = [
+  { id: 'm1', name: 'صفحه خام وینیل ۱۲ اینچ', type: 'goods', unit: 'عدد', stock: 38, cost: 620000, min: 20, use: 'تولید' },
+  { id: 'm2', name: 'کاور چاپی وینیل', type: 'goods', unit: 'عدد', stock: 45, cost: 180000, min: 20, use: 'تولید' },
+  { id: 'm3', name: 'نوار کاست خام', type: 'goods', unit: 'عدد', stock: 12, cost: 95000, min: 20, use: 'تولید' },
+  { id: 'm4', name: 'قاب و جلد کاست', type: 'goods', unit: 'عدد', stock: 60, cost: 45000, min: 20, use: 'تولید' },
+  { id: 'm5', name: 'تی‌شرت خام مشکی L', type: 'goods', unit: 'عدد', stock: 6, cost: 260000, min: 10, use: 'تولید' },
+  { id: 'm6', name: 'چاپ سیلک تی‌شرت', type: 'service', unit: 'عدد', stock: null, cost: 120000, min: null, use: 'تولید' },
+  { id: 'm7', name: 'مسترینگ و کات لاکر', type: 'service', unit: 'نوبت', stock: null, cost: 12000000, min: null, use: 'تولید' },
+  { id: 'm8', name: 'طراحی جلد', type: 'service', unit: 'نوبت', stock: null, cost: 4000000, min: null, use: 'تولید' },
+  { id: 'm9', name: 'کارتن جعبه استاندارد', type: 'goods', unit: 'عدد', stock: 64, cost: 60000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm10', name: 'جعبه وینیل', type: 'goods', unit: 'عدد', stock: 8, cost: 95000, min: 20, use: 'بسته‌بندی' },
+  { id: 'm11', name: 'پاکت حباب‌دار کوچک', type: 'goods', unit: 'عدد', stock: 15, cost: 24000, min: 40, use: 'بسته‌بندی' },
+  { id: 'm12', name: 'نوار چسب لوگودار', type: 'goods', unit: 'رول', stock: 2, cost: 150000, min: 5, use: 'بسته‌بندی' },
+  { id: 'm13', name: 'کاغذ پرکننده', type: 'goods', unit: 'کیلوگرم', stock: 1.5, cost: 90000, min: 3, use: 'بسته‌بندی' },
+  { id: 'm14', name: 'برچسب آدرس', type: 'goods', unit: 'عدد', stock: 400, cost: 2000, min: 100, use: 'بسته‌بندی' },
+  { id: 'm15', name: 'محافظ گوشه', type: 'goods', unit: 'عدد', stock: 90, cost: 10000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm16', name: 'کاغذ کرافت', type: 'goods', unit: 'متر', stock: 42.5, cost: 12000, min: 10, use: 'بسته‌بندی' }
+];
+function stockCls(stock, min) { return stock === 0 ? 'stock out' : (min && stock <= min ? 'stock low' : 'stock'); }
+
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { form: p.form === true || p.form === 'true' }; }
+  renderVals() {
+    var self = this;
+    return Object.assign(stateVals(this.props, 760), { showForm: this.state.form, open: function () { self.setState({ form: true }); }, close: function () { self.setState({ form: false }); } });
+  }
+}
+</script>
+</body>
+</html>

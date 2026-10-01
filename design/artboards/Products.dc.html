@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>محصولات و مواد</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="{{theme}}" style="width: 1440px; height: {{h}}px; display: flex;">
+<div style="width: 264px; height: {{h}}px; flex-shrink: 0;"><dc-import name="Sidebar" active="products" theme="{{theme}}" h="{{h}}" hint-size="264px,{{h}}px"></dc-import></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<dc-import name="Topbar" title="محصولات و مواد" theme="{{theme}}" w="1176" hint-size="1176px,64px"></dc-import>
+<main style="padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+<div style="display: flex; gap: 10px; align-items: center;">
+<div class="ig" style="width: 280px;"><span class="pfx"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span><input class="input" placeholder="جستجوی نام" aria-label="جستجو"></div>
+<button type="button" class="select" style="width: auto; gap: 10px;"><span class="muted">دسته:</span><span class="b">همه</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<label class="t-sm" style="display: flex; gap: 8px; align-items: center;"><span class="switch"></span>نمایش غیرفعال‌ها</label>
+</div>
+<div style="display: flex; gap: 8px;">
+<button type="button" class="btn btn-outline" onClick="{{openMat}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>افزودن ماده</button>
+<button type="button" class="btn btn-primary" onClick="{{openProd}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>افزودن محصول</button>
+</div>
+</div>
+
+<sc-if value="{{isReady}}" hint-placeholder-val="{{ true }}">
+<div class="tabs" role="tablist">
+<button type="button" role="tab" class="tab {{tabP}}" onClick="{{showP}}">محصولات<span class="cnt">۱۱</span></button>
+<button type="button" role="tab" class="tab {{tabM}}" onClick="{{showM}}">مواد و خدمات<span class="cnt">۱۶</span></button>
+</div>
+
+<sc-if value="{{isP}}" hint-placeholder-val="{{ true }}">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<div class="alert alert-err" style="padding: 10px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><div class="grow"><b>۱ محصول بدون بهای تمام‌شده</b> — «تی‌شرت تور سفید (M)» تا تعیین بها قابل فروش نیست.</div><button type="button" class="btn btn-outline btn-sm" onClick="{{openProd}}">ثبت بها</button></div>
+<div class="alert alert-warn" style="padding: 10px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4M12 17v.01"></path></svg><div class="grow"><b>۴ محصول</b> به حداقل موجودی رسیده‌اند یا ناموجودند.</div><a href="Production.dc.html" class="btn btn-outline btn-sm">برنامه تولید</a></div>
+</div>
+<section class="card" style="overflow: hidden;">
+<table class="tbl">
+<thead><tr><th>نام محصول</th><th>دسته</th><th>موجودی</th><th class="n">بهای تمام‌شده (تومان)</th><th class="n">قیمت خرده (تومان)</th><th class="n">قیمت عمده (تومان)</th><th>وضعیت</th><th style="width: 88px;"></th></tr></thead>
+<tbody>
+<sc-for list="{{products}}" as="p" hint-placeholder-count="11">
+<tr style="opacity: {{p.op}}; background: {{p.bg}};">
+<td><div style="display: flex; flex-direction: column; line-height: 1.4;"><span class="b">{{p.name}}</span><span class="t-cap muted">{{p.sub}}</span></div></td>
+<td><span class="chip">{{p.cat}}</span></td>
+<td><span class="{{p.stockCls}}">{{p.stockT}}</span></td>
+<td class="n num">
+<sc-if value="{{p.noCost}}" hint-placeholder-val="{{ false }}"><span class="badge st-loss">بدون بهای تمام‌شده</span></sc-if>
+<sc-if value="{{p.hasCost}}" hint-placeholder-val="{{ true }}"><span>{{p.costT}}</span></sc-if>
+</td>
+<td class="n num b">{{p.retailT}}</td>
+<td class="n num">{{p.wsT}}</td>
+<td><span class="{{p.actCls}}">{{p.actT}}</span></td>
+<td><div style="display: flex; gap: 2px;"><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ویرایش" onClick="{{openProd}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="غیرفعال کردن" onClick="{{openDeact}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg></button></div></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</section>
+<p class="t-cap muted">بهای تمام‌شده میانگین موزون است و از «تولید» و «خرید» به‌روز می‌شود. محصولات حذف نمی‌شوند؛ غیرفعال‌سازی سوابق فروش را حفظ می‌کند.</p>
+</sc-if>
+
+<sc-if value="{{isM}}" hint-placeholder-val="{{ false }}">
+<section class="card" style="overflow: hidden;">
+<table class="tbl">
+<thead><tr><th>نام</th><th>نوع</th><th>کاربرد</th><th>واحد</th><th>موجودی</th><th class="n">بهای واحد (تومان)</th><th class="n">ارزش موجودی (تومان)</th><th style="width: 56px;"></th></tr></thead>
+<tbody>
+<sc-for list="{{materials}}" as="m" hint-placeholder-count="16">
+<tr style="background: {{m.bg}};">
+<td class="b">{{m.name}}</td>
+<td><span class="{{m.typeCls}}">{{m.typeT}}</span></td>
+<td class="muted2">{{m.use}}</td>
+<td>{{m.unit}}</td>
+<td><span class="{{m.stockCls}}">{{m.stockT}}</span></td>
+<td class="n num">{{m.costT}}</td>
+<td class="n num muted2">{{m.valueT}}</td>
+<td><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="ویرایش" onClick="{{openMat}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg></button></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</section>
+<p class="t-cap muted">«خدماتی» (مثل مسترینگ یا چاپ سیلک) موجودی ندارد و فقط هزینه‌اش در تولید حساب می‌شود. مقدار مواد می‌تواند اعشاری باشد (۱٫۵ کیلوگرم).</p>
+</sc-if>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 96px 24px;"><div class="e-art"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"></path><path d="m3 8 9 5 9-5M12 13v8"></path></svg></div><div class="e-t">هنوز محصولی تعریف نشده</div><div class="e-d">اولین محصول را با دسته، قیمت خرده و قیمت عمده تعریف کنید. بهای تمام‌شده از تولید یا خرید محاسبه می‌شود.</div><button type="button" class="btn btn-primary" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>افزودن اولین محصول</button></div></section>
+</sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{ false }}">
+<section aria-busy="true" aria-label="در حال بارگذاری" style="display: flex; flex-direction: column; gap: 12px;"><div class="sk" style="height: 20px; width: 180px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div></section>
+</sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 96px 24px;"><div class="e-art" style="background: var(--loss-soft); color: var(--loss);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M8 7.5A6 6 0 0 1 18 11a4 4 0 0 1 2.4 7M17 19H7a5 5 0 0 1-2.6-9.3"></path></svg></div><div class="e-t">فهرست محصولات و مواد بارگذاری نشد</div><div class="e-d">اتصال به سرور برقرار نشد. داده‌های شما سالم است؛ دوباره تلاش کنید.</div><button type="button" class="btn btn-outline" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"></path><path d="M20 4v5h-5"></path></svg>تلاش دوباره</button></div></section>
+</sc-if>
+</main>
+</div>
+
+<sc-if value="{{showProd}}" hint-placeholder-val="{{ false }}">
+<div class="overlay"></div>
+<aside class="dialog" role="dialog" aria-labelledby="pf-t" style="position: absolute; top: 0; left: 0; bottom: 0; width: 460px; border-radius: 0 14px 14px 0;">
+<div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;"><h2 id="pf-t" class="t-h2">ویرایش محصول</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="بستن" onClick="{{close}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+<div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; flex-grow: 1;">
+<div class="field"><label class="label" for="pn">نام محصول</label><input id="pn" class="input" value="تی‌شرت تور سفید (M)"></div>
+<div class="field"><label class="label">دسته</label><button type="button" class="select">تی‌شرت<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<div class="field"><label class="label" for="pr">قیمت خرده</label><div class="ig"><input id="pr" class="input input-num" value="۹۵۰٬۰۰۰"><span class="sfx">تومان</span></div></div>
+<div class="field"><label class="label" for="pw">قیمت عمده</label><div class="ig"><input id="pw" class="input input-num" value="۷۴۰٬۰۰۰"><span class="sfx">تومان</span></div></div>
+</div>
+<div class="field" style="background: var(--loss-soft); border-radius: 10px; padding: 12px;">
+<label class="label" for="pc" style="display: flex; gap: 6px; align-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>بهای تمام‌شده اولیه</label>
+<div class="ig"><input id="pc" class="input input-num is-error" placeholder="مثلاً ۴۳۰٬۰۰۰"><span class="sfx">تومان</span></div>
+<span class="err"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>این محصول بهای تمام‌شده ندارد و تا ثبت آن قابل فروش نیست.</span>
+<span class="help">برای کالایی که قبلاً ساخته یا خریده‌اید، بهای هر عدد را وارد کنید. از این پس «تولید» و «خرید» آن را به‌صورت میانگین موزون به‌روز می‌کنند.</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<div class="field"><label class="label">موجودی فعلی</label><div class="input is-disabled num" style="display: flex; align-items: center;">۱۲ عدد</div><span class="help">فقط از تولید، خرید، فروش و تعدیل تغییر می‌کند.</span></div>
+<div class="field"><label class="label" for="pm">حداقل موجودی (هشدار)</label><input id="pm" class="input input-num" value="۵"></div>
+</div>
+<label class="t-sm" style="display: flex; gap: 10px; align-items: center;"><span class="switch on"></span>فعال — در انتخاب محصول ثبت فروش نمایش داده می‌شود</label>
+</div>
+<div class="d-f" style="border-radius: 0 0 14px 0;"><button type="button" class="btn btn-primary">ذخیره</button><button type="button" class="btn btn-outline" onClick="{{close}}">انصراف</button><span style="flex-grow: 1;"></span><button type="button" class="btn btn-danger-o btn-sm" onClick="{{openDeact}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg>غیرفعال کردن</button></div>
+</aside>
+</sc-if>
+
+<sc-if value="{{showMat}}" hint-placeholder-val="{{ false }}">
+<div class="overlay"></div>
+<aside class="dialog" role="dialog" aria-labelledby="mf-t" style="position: absolute; top: 0; left: 0; bottom: 0; width: 460px; border-radius: 0 14px 14px 0;">
+<div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;"><h2 id="mf-t" class="t-h2">ویرایش ماده</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="بستن" onClick="{{close}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+<div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; flex-grow: 1;">
+<div class="field"><label class="label" for="mn">نام</label><input id="mn" class="input" value="نوار چسب لوگودار"></div>
+<div class="field"><span class="label">نوع</span><div class="seg" style="width: 100%;"><button type="button" class="on" style="flex-grow: 1;">کالایی — موجودی دارد</button><button type="button" style="flex-grow: 1;">خدماتی — بدون موجودی</button></div><span class="help">خدماتی مثل مسترینگ، طراحی یا چاپ سیلک: فقط هزینه دارد و موجودی نگه داشته نمی‌شود.</span></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<div class="field"><label class="label">واحد</label><button type="button" class="select">رول<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button><span class="help">عدد، متر، کیلوگرم، رول، لیتر، نوبت</span></div>
+<div class="field"><label class="label">کاربرد</label><button type="button" class="select">بسته‌بندی<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<div class="field"><label class="label">بهای واحد</label><div class="ig"><input class="input input-num" value="۱۵۰٬۰۰۰"><span class="sfx">تومان</span></div><span class="help">میانگین موزون خریدها</span></div>
+<div class="field"><label class="label">حداقل موجودی (هشدار)</label><div class="ig"><input class="input input-num" value="۵"><span class="sfx">رول</span></div></div>
+</div>
+<div class="alert alert-warn" style="padding: 10px 12px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4M12 17v.01"></path></svg><div>موجودی فعلی <b class="num">۲ رول</b> — کمتر از حداقل. هر «جعبه استاندارد» ۰٫۱ رول مصرف می‌کند.</div></div>
+<label class="t-sm" style="display: flex; gap: 10px; align-items: center;"><span class="switch on"></span>فعال</label>
+</div>
+<div class="d-f" style="border-radius: 0 0 14px 0;"><button type="button" class="btn btn-primary">ذخیره</button><button type="button" class="btn btn-outline" onClick="{{close}}">انصراف</button></div>
+</aside>
+</sc-if>
+
+<sc-if value="{{showDeact}}" hint-placeholder-val="{{ false }}">
+<div class="overlay"></div>
+<div class="dialog" role="alertdialog" aria-labelledby="dd-t" style="position: absolute; top: 200px; left: 50%; margin-left: -260px; width: 520px;">
+<div class="d-h"><span class="d-ico danger"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg></span><div style="display: flex; flex-direction: column; gap: 2px;"><h2 id="dd-t" class="t-h2">غیرفعال کردن «پوستر تور ۱۴۰۳»؟</h2><span class="t-sm muted">محصولات حذف نمی‌شوند تا سوابق حفظ شود.</span></div></div>
+<div class="d-b">
+<div class="effect"><span class="e-ico e-flat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.4"></circle><circle cx="18" cy="20" r="1.4"></circle><path d="M2 3h3l2.6 12.2h11.6L22 7H6"></path></svg></span><div>از فهرست انتخاب محصول در «ثبت فروش» و «تولید» پنهان می‌شود.</div></div>
+<div class="effect"><span class="e-ico e-flat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"></path><path d="M8 16v-4M12 16V8M16 16v-7"></path></svg></span><div>سفارش‌ها، گزارش‌ها و تاریخچه موجودی آن دست‌نخورده می‌مانند.</div></div>
+<div class="effect"><span class="e-ico e-flat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"></path><path d="m3 8 9 5 9-5M12 13v8"></path></svg></span><div>موجودی فعلی (<span class="num">۶ عدد</span>) باقی می‌ماند و در ارزش انبار حساب می‌شود.</div></div>
+<p class="t-cap muted">هر زمان با روشن کردن «نمایش غیرفعال‌ها» می‌توانید دوباره فعالش کنید.</p>
+</div>
+<div class="d-f"><button type="button" class="btn btn-danger">غیرفعال کردن</button><button type="button" class="btn btn-outline" onClick="{{close}}">انصراف</button></div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["products","materials"],"default":"products"},"panel":{"editor":"enum","options":["none","product","material","deactivate"],"default":"none"},"state":{"editor":"enum","options":["ready","empty","loading","error"],"default":"ready"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"h":{"editor":"int","default":1000},"$preview":{"width":1440,"height":1000}}'>
+var FA_D = '۰۱۲۳۴۵۶۷۸۹';
+function fa(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0;
+  var s = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '٬').replace(/\d/g, function (d) { return FA_D[d]; });
+  return (neg ? '−' : '') + s;
+}
+function faT(n) { return fa(n) + ' تومان'; }
+function faD(s) { return String(s).replace(/\d/g, function (d) { return FA_D[d]; }); }
+function num(v) {
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^0-9]/g, '');
+  return s === '' ? 0 : parseInt(s, 10);
+}
+var CH = {
+  web: { name: 'وب‌سایت', cls: 'ch-web' }, insta: { name: 'اینستاگرام', cls: 'ch-insta' },
+  wholesale: { name: 'عمده‌فروشی', cls: 'ch-wholesale' }, inperson: { name: 'حضوری', cls: 'ch-inperson' }, other: { name: 'سایر', cls: 'ch-other' }
+};
+var ST = {
+  draft: { name: 'پیش‌نویس', cls: 'st-draft' }, pending: { name: 'در انتظار', cls: 'st-pending' }, paid: { name: 'پرداخت‌شده', cls: 'st-paid' },
+  done: { name: 'تکمیل‌شده', cls: 'st-done' }, cancel: { name: 'لغوشده', cls: 'st-cancel' }, refund: { name: 'مرجوعی', cls: 'st-refund' }
+};
+var ORDERS = [
+  ['INV-000041', '1405/06/31', '13:42', 'insta', 'علی ر.', 'done', 950000, 327727],
+  ['INV-000040', '1405/06/31', '11:05', 'inperson', 'مشتری حضوری', 'done', 1040000, 592000],
+  ['INV-000039', '1405/06/31', '09:20', 'insta', 'رها س.', 'pending', 800000, 215727],
+  ['INV-000038', '1405/06/30', '16:24', 'web', 'نگار ک.', 'paid', 3130000, 1189727],
+  ['INV-000037', '1405/06/30', '12:10', 'wholesale', 'فروشگاه نوای شهر', 'done', 4300000, 2295727],
+  ['INV-000036', '1405/06/29', '18:37', 'web', 'مهدی ت.', 'cancel', 1430000, null],
+  ['INV-000035', '1405/06/29', '10:02', 'insta', 'پریا ن.', 'refund', 1070000, -294273],
+  ['INV-000034', '1405/06/28', '19:15', 'other', '—', 'draft', 480000, null],
+  ['INV-000033', '1405/06/28', '14:48', 'inperson', 'مشتری حضوری', 'done', 2450000, 1070000],
+  ['INV-000032', '1405/06/27', '20:31', 'web', 'کیان ب.', 'done', 1070000, 350727],
+  ['INV-000031', '1405/06/27', '11:26', 'insta', 'پرستو ج.', 'paid', 3680000, 1290727],
+  ['INV-000030', '1405/06/26', '15:02', 'wholesale', 'فروشگاه صفحه‌گردان', 'done', 9750000, 2510727]
+];
+function orderRows(limit) {
+  return ORDERS.slice(0, limit || ORDERS.length).map(function (o) {
+    var pc = o[7] === null ? 'nil' : (o[7] < 0 ? 'neg' : 'pos');
+    return {
+      inv: o[0], date: faD(o[1]), time: faD(o[2]), dt: faD(o[1]) + ' · ' + faD(o[2]), ch: CH[o[3]].name, chCls: 'ch ' + CH[o[3]].cls, cust: o[4],
+      st: ST[o[5]].name, stCls: 'badge ' + ST[o[5]].cls, stKey: o[5], total: fa(o[6]), profit: o[7] === null ? '—' : fa(o[7]), pCls: 'n num b ' + pc, pClsM: 'num b ' + pc,
+      profitT: o[7] === null ? 'سود: —' : 'سود ' + fa(o[7])
+    };
+  });
+}
+/* Jalali month grid, week starts Saturday. startIdx = weekday index of day 1 (0=Sat … 6=Fri). opt: {today, sel, from, to} */
+function monthGrid(startIdx, days, opt) {
+  opt = opt || {};
+  var cells = [];
+  for (var i = 0; i < startIdx; i++) cells.push({ l: '', c: 'cal-d x' });
+  for (var d = 1; d <= days; d++) {
+    var wd = (startIdx + d - 1) % 7, c = 'cal-d';
+    if (wd === 6) c += ' fri';
+    if (opt.today === d) c += ' today';
+    if (opt.sel === d) c += ' sel';
+    if (opt.from && opt.to) {
+      if (d === opt.from) c += ' s';
+      if (d === opt.to) c += ' e';
+      if (d > opt.from && d < opt.to) c += ' in';
+    }
+    cells.push({ l: faD(d), c: c });
+  }
+  while (cells.length % 7) cells.push({ l: '', c: 'cal-d x' });
+  return cells;
+}
+function faQ(n) { /* quantities: may be fractional, Persian decimal separator */
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0, a = Math.abs(n), ip = Math.floor(a), fp = Math.round((a - ip) * 1000);
+  var s = fa(ip).replace('−', '');
+  if (fp) s += '٫' + faD(String(fp).padStart(3, '0').replace(/0+$/, ''));
+  return (neg ? '−' : '') + s;
+}
+function numQ(v) { /* parse a possibly-fractional quantity typed in any digits */
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫\/]/g, '.').replace(/[^0-9.]/g, '');
+  var n = parseFloat(s); return isNaN(n) ? 0 : n;
+}
+function stateVals(props, defH) {
+  var s = props.state || 'ready';
+  return { theme: props.theme || 'light', h: props.h || defH, isReady: s === 'ready', isEmpty: s === 'empty', isLoading: s === 'loading', isError: s === 'error', st: s };
+}
+var CATALOG = [
+  { id: 'p1', name: 'وینیل آلبوم اول', cat: 'وینیل', retail: 2450000, ws: 1950000, cost: 1380000, stock: 14, min: 5, active: true },
+  { id: 'p2', name: 'وینیل نسخه رنگی', cat: 'وینیل', retail: 3500000, ws: 2900000, cost: 2050000, stock: 2, min: 3, active: true },
+  { id: 'p3', name: 'کاست نسخه محدود', cat: 'کاست', retail: 620000, ws: 480000, cost: 290000, stock: 3, min: 5, active: true },
+  { id: 'p10', name: 'کاست آلبوم اول', cat: 'کاست', retail: 450000, ws: 350000, cost: 190000, stock: 0, min: 5, active: true },
+  { id: 'p4', name: 'سی‌دی آلبوم اول', cat: 'آلبوم', retail: 480000, ws: 380000, cost: 210000, stock: 22, min: 5, active: true },
+  { id: 'p5', name: 'پوستر تور ۱۴۰۴', cat: 'پوستر', retail: 290000, ws: 210000, cost: 95000, stock: 42, min: 10, active: true },
+  { id: 'p6', name: 'تی‌شرت لوگو مشکی (L)', cat: 'تی‌شرت', retail: 890000, ws: 690000, cost: 410000, stock: 7, min: 5, active: true },
+  { id: 'p7', name: 'تی‌شرت تور سفید (M)', cat: 'تی‌شرت', retail: 950000, ws: 740000, cost: null, stock: 12, min: 5, active: true },
+  { id: 'p8', name: 'استیکر پک', cat: 'استیکر', retail: 150000, ws: 110000, cost: 38000, stock: 120, min: 30, active: true },
+  { id: 'p9', name: 'آینه لوگو گرد', cat: 'آینه', retail: 1250000, ws: 980000, cost: 560000, stock: 4, min: 5, active: true },
+  { id: 'p11', name: 'پوستر تور ۱۴۰۳', cat: 'پوستر', retail: 250000, ws: 180000, cost: 90000, stock: 6, min: 0, active: false }
+];
+var MATERIALS = [
+  { id: 'm1', name: 'صفحه خام وینیل ۱۲ اینچ', type: 'goods', unit: 'عدد', stock: 38, cost: 620000, min: 20, use: 'تولید' },
+  { id: 'm2', name: 'کاور چاپی وینیل', type: 'goods', unit: 'عدد', stock: 45, cost: 180000, min: 20, use: 'تولید' },
+  { id: 'm3', name: 'نوار کاست خام', type: 'goods', unit: 'عدد', stock: 12, cost: 95000, min: 20, use: 'تولید' },
+  { id: 'm4', name: 'قاب و جلد کاست', type: 'goods', unit: 'عدد', stock: 60, cost: 45000, min: 20, use: 'تولید' },
+  { id: 'm5', name: 'تی‌شرت خام مشکی L', type: 'goods', unit: 'عدد', stock: 6, cost: 260000, min: 10, use: 'تولید' },
+  { id: 'm6', name: 'چاپ سیلک تی‌شرت', type: 'service', unit: 'عدد', stock: null, cost: 120000, min: null, use: 'تولید' },
+  { id: 'm7', name: 'مسترینگ و کات لاکر', type: 'service', unit: 'نوبت', stock: null, cost: 12000000, min: null, use: 'تولید' },
+  { id: 'm8', name: 'طراحی جلد', type: 'service', unit: 'نوبت', stock: null, cost: 4000000, min: null, use: 'تولید' },
+  { id: 'm9', name: 'کارتن جعبه استاندارد', type: 'goods', unit: 'عدد', stock: 64, cost: 60000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm10', name: 'جعبه وینیل', type: 'goods', unit: 'عدد', stock: 8, cost: 95000, min: 20, use: 'بسته‌بندی' },
+  { id: 'm11', name: 'پاکت حباب‌دار کوچک', type: 'goods', unit: 'عدد', stock: 15, cost: 24000, min: 40, use: 'بسته‌بندی' },
+  { id: 'm12', name: 'نوار چسب لوگودار', type: 'goods', unit: 'رول', stock: 2, cost: 150000, min: 5, use: 'بسته‌بندی' },
+  { id: 'm13', name: 'کاغذ پرکننده', type: 'goods', unit: 'کیلوگرم', stock: 1.5, cost: 90000, min: 3, use: 'بسته‌بندی' },
+  { id: 'm14', name: 'برچسب آدرس', type: 'goods', unit: 'عدد', stock: 400, cost: 2000, min: 100, use: 'بسته‌بندی' },
+  { id: 'm15', name: 'محافظ گوشه', type: 'goods', unit: 'عدد', stock: 90, cost: 10000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm16', name: 'کاغذ کرافت', type: 'goods', unit: 'متر', stock: 42.5, cost: 12000, min: 10, use: 'بسته‌بندی' }
+];
+function stockCls(stock, min) { return stock === 0 ? 'stock out' : (min && stock <= min ? 'stock low' : 'stock'); }
+
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { tab: p.tab || 'products', panel: p.panel || 'none' }; }
+  renderVals() {
+    var self = this, S = this.state;
+    var products = CATALOG.map(function (p) {
+      var low = p.stock <= p.min && p.active;
+      return {
+        name: p.name, sub: p.stock === 0 ? 'ناموجود' : (low ? 'کمتر از حداقل (' + fa(p.min) + ')' : 'حداقل ' + fa(p.min)), cat: p.cat,
+        stockT: p.stock === 0 ? 'ناموجود' : fa(p.stock) + ' عدد', stockCls: p.active ? stockCls(p.stock, p.min) : 'stock',
+        noCost: p.cost == null, hasCost: p.cost != null, costT: fa(p.cost), retailT: fa(p.retail), wsT: fa(p.ws),
+        actT: p.active ? 'فعال' : 'غیرفعال', actCls: p.active ? 'badge st-done' : 'badge st-draft',
+        op: p.active ? 1 : 0.55, bg: p.cost == null ? 'var(--loss-soft)' : (low ? 'color-mix(in srgb, var(--warn-soft) 55%, transparent)' : 'transparent')
+      };
+    });
+    var materials = MATERIALS.map(function (m) {
+      var svc = m.type === 'service', low = !svc && m.stock <= m.min;
+      return {
+        name: m.name, typeT: svc ? 'خدماتی' : 'کالایی', typeCls: svc ? 'badge st-refund' : 'badge st-paid', use: m.use, unit: m.unit,
+        stockT: svc ? 'بدون موجودی' : faQ(m.stock) + ' ' + m.unit, stockCls: svc ? 'chip' : stockCls(m.stock, m.min),
+        costT: fa(m.cost), valueT: svc ? '—' : fa(m.stock * m.cost),
+        bg: low ? 'color-mix(in srgb, var(--warn-soft) 55%, transparent)' : 'transparent'
+      };
+    });
+    function set(k) { return function () { self.setState({ panel: k }); }; }
+    return Object.assign(stateVals(this.props, 1000), {
+      tabP: S.tab === 'products' ? 'on' : '', tabM: S.tab === 'materials' ? 'on' : '', isP: S.tab === 'products', isM: S.tab === 'materials',
+      showP: function () { self.setState({ tab: 'products' }); }, showM: function () { self.setState({ tab: 'materials' }); },
+      products: products, materials: materials,
+      showProd: S.panel === 'product', showMat: S.panel === 'material', showDeact: S.panel === 'deactivate',
+      openProd: set('product'), openMat: set('material'), openDeact: set('deactivate'), close: set('none')
+    });
+  }
+}
+</script>
+</body>
+</html>

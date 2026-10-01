@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>بسته‌بندی</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./rebel.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>@font-face{font-family:'Vazirmatn';src:url('../assets/Vazirmatn-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}body{margin:0}</style>
+</helmet>
+<div class="rs" data-theme="{{theme}}" style="width: 1440px; height: {{h}}px; display: flex;">
+<div style="width: 264px; height: {{h}}px; flex-shrink: 0;"><dc-import name="Sidebar" active="packaging" theme="{{theme}}" h="{{h}}" hint-size="264px,{{h}}px"></dc-import></div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<dc-import name="Topbar" title="بسته‌بندی" theme="{{theme}}" w="1176" hint-size="1176px,64px"></dc-import>
+<main style="padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<span class="t-sm muted">هزینه هر کیت از بهای فعلی مواد محاسبه می‌شود و با هر خرید جدید به‌روز می‌شود.</span>
+<button type="button" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>کیت جدید</button>
+</div>
+<sc-if value="{{isReady}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; gap: 24px; align-items: flex-start;">
+<section style="width: 340px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;" aria-label="کیت‌ها">
+<sc-for list="{{kits}}" as="k" hint-placeholder-count="4">
+<button type="button" class="card" style="text-align: right; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; border-color: {{k.bc}}; box-shadow: {{k.sh}}; font: inherit; color: var(--text);" onClick="{{k.pick}}">
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;"><span class="b">{{k.name}}</span><span class="num b">{{k.costT}}</span></div>
+<div class="t-cap muted" style="width: 100%;">{{k.meta}}</div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap;"><sc-for list="{{k.chs}}" as="c" hint-placeholder-count="2"><span class="{{c.cls}}">{{c.name}}</span></sc-for><span class="t-cap muted">{{k.noDef}}</span></div>
+<span class="{{k.availCls}}">{{k.availT}}</span>
+</button>
+</sc-for>
+</section>
+
+<section class="card grow" style="overflow: hidden;" aria-labelledby="ke">
+<div class="card-h"><div style="display: flex; flex-direction: column;"><h2 id="ke" class="t-h2">{{sel.name}}</h2><span class="t-cap muted">{{sel.use}}</span></div><div style="display: flex; gap: 8px;"><button type="button" class="btn btn-danger-o btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg>غیرفعال کردن</button><button type="button" class="btn btn-primary btn-sm">ذخیره کیت</button></div></div>
+<div class="card-b" style="display: flex; flex-direction: column; gap: 14px;">
+<div class="field" style="max-width: 360px;"><label class="label" for="kn">نام کیت</label><input id="kn" class="input" value="{{sel.name}}"></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 120px 150px 130px 36px; gap: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border);" class="t-cap muted b"><span>ماده</span><span>مقدار در هر کیت</span><span>بهای واحد فعلی</span><span>هزینه در کیت</span><span></span></div>
+<sc-for list="{{sel.rows}}" as="r" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 120px 150px 130px 36px; gap: 12px; align-items: center;">
+<button type="button" class="select"><span style="display: flex; flex-direction: column; line-height: 1.3;"><span class="b">{{r.name}}</span><span class="t-cap muted">موجودی {{r.stockT}}</span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<div class="ig"><input class="input input-num" value="{{r.qtyT}}" style="padding-left: 56px;"><span class="sfx">{{r.unit}}</span></div>
+<span class="num muted2">{{r.unitCostT}} / {{r.unit}}</span>
+<span class="num b">{{r.costT}}</span>
+<button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="حذف"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"></path></svg></button>
+</div>
+</sc-for>
+<sc-if value="{{sel.isEmpty}}" hint-placeholder-val="{{ false }}"><div class="t-sm muted" style="padding: 12px 0;">این کیت ماده‌ای ندارد و هزینه آن صفر است — برای فروش حضوری.</div></sc-if>
+<button type="button" class="btn btn-outline btn-sm" style="align-self: flex-start;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>افزودن ماده</button>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 4px;">
+<div style="background: var(--surface-2); border-radius: 10px; padding: 12px;"><div class="t-cap muted b">هزینه هر کیت</div><div class="num b" style="font-size: 22px;">{{sel.costT}} <span class="t-cap muted" style="font-weight: 500;">تومان</span></div><div class="t-cap muted">با بهای فعلی مواد</div></div>
+<div style="background: var(--surface-2); border-radius: 10px; padding: 12px;"><div class="t-cap muted b">پیش‌فرض کانال‌ها</div><div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;"><sc-for list="{{sel.chs}}" as="c" hint-placeholder-count="2"><span class="{{c.cls}}">{{c.name}}</span></sc-for><span class="t-sm muted">{{sel.noDef}}</span></div><a href="Settings.dc.html" class="t-cap b">تغییر در تنظیمات</a></div>
+<div style="background: {{sel.availBg}}; border-radius: 10px; padding: 12px;"><div class="t-cap muted b">کیت قابل آماده‌سازی</div><div class="num b" style="font-size: 22px;">{{sel.availN}}</div><div class="t-cap {{sel.limitCls}}">{{sel.limitT}}</div></div>
+</div>
+</div>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 96px 24px;"><div class="e-art"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"></rect><path d="M5 9v11h14V9M10 13h4"></path></svg></div><div class="e-t">هنوز کیتی تعریف نشده</div><div class="e-d">کیت بسته‌بندی مجموعه‌ای از مواد است (مثلاً کارتن، نوار چسب، پرکننده) که با هر سفارش ارسالی از موجودی کم می‌شود.</div><button type="button" class="btn btn-primary" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>تعریف اولین کیت</button></div></section>
+</sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{ false }}">
+<section aria-busy="true" aria-label="در حال بارگذاری" style="display: flex; flex-direction: column; gap: 12px;"><div class="sk" style="height: 20px; width: 180px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div><div class="sk" style="height: 40px; border-radius: 10px;"></div></section>
+</sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}">
+<section class="card"><div class="empty" style="padding: 96px 24px;"><div class="e-art" style="background: var(--loss-soft); color: var(--loss);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M8 7.5A6 6 0 0 1 18 11a4 4 0 0 1 2.4 7M17 19H7a5 5 0 0 1-2.6-9.3"></path></svg></div><div class="e-t">کیت‌های بسته‌بندی بارگذاری نشد</div><div class="e-d">اتصال به سرور برقرار نشد. داده‌های شما سالم است؛ دوباره تلاش کنید.</div><button type="button" class="btn btn-outline" style="margin-top: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"></path><path d="M20 4v5h-5"></path></svg>تلاش دوباره</button></div></section>
+</sc-if>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"kit":{"editor":"enum","options":["k1","k2","k3","k0"],"default":"k1"},"state":{"editor":"enum","options":["ready","empty","loading","error"],"default":"ready"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"h":{"editor":"int","default":900},"$preview":{"width":1440,"height":900}}'>
+var FA_D = '۰۱۲۳۴۵۶۷۸۹';
+function fa(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0;
+  var s = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '٬').replace(/\d/g, function (d) { return FA_D[d]; });
+  return (neg ? '−' : '') + s;
+}
+function faT(n) { return fa(n) + ' تومان'; }
+function faD(s) { return String(s).replace(/\d/g, function (d) { return FA_D[d]; }); }
+function num(v) {
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^0-9]/g, '');
+  return s === '' ? 0 : parseInt(s, 10);
+}
+var CH = {
+  web: { name: 'وب‌سایت', cls: 'ch-web' }, insta: { name: 'اینستاگرام', cls: 'ch-insta' },
+  wholesale: { name: 'عمده‌فروشی', cls: 'ch-wholesale' }, inperson: { name: 'حضوری', cls: 'ch-inperson' }, other: { name: 'سایر', cls: 'ch-other' }
+};
+var ST = {
+  draft: { name: 'پیش‌نویس', cls: 'st-draft' }, pending: { name: 'در انتظار', cls: 'st-pending' }, paid: { name: 'پرداخت‌شده', cls: 'st-paid' },
+  done: { name: 'تکمیل‌شده', cls: 'st-done' }, cancel: { name: 'لغوشده', cls: 'st-cancel' }, refund: { name: 'مرجوعی', cls: 'st-refund' }
+};
+var ORDERS = [
+  ['INV-000041', '1405/06/31', '13:42', 'insta', 'علی ر.', 'done', 950000, 327727],
+  ['INV-000040', '1405/06/31', '11:05', 'inperson', 'مشتری حضوری', 'done', 1040000, 592000],
+  ['INV-000039', '1405/06/31', '09:20', 'insta', 'رها س.', 'pending', 800000, 215727],
+  ['INV-000038', '1405/06/30', '16:24', 'web', 'نگار ک.', 'paid', 3130000, 1189727],
+  ['INV-000037', '1405/06/30', '12:10', 'wholesale', 'فروشگاه نوای شهر', 'done', 4300000, 2295727],
+  ['INV-000036', '1405/06/29', '18:37', 'web', 'مهدی ت.', 'cancel', 1430000, null],
+  ['INV-000035', '1405/06/29', '10:02', 'insta', 'پریا ن.', 'refund', 1070000, -294273],
+  ['INV-000034', '1405/06/28', '19:15', 'other', '—', 'draft', 480000, null],
+  ['INV-000033', '1405/06/28', '14:48', 'inperson', 'مشتری حضوری', 'done', 2450000, 1070000],
+  ['INV-000032', '1405/06/27', '20:31', 'web', 'کیان ب.', 'done', 1070000, 350727],
+  ['INV-000031', '1405/06/27', '11:26', 'insta', 'پرستو ج.', 'paid', 3680000, 1290727],
+  ['INV-000030', '1405/06/26', '15:02', 'wholesale', 'فروشگاه صفحه‌گردان', 'done', 9750000, 2510727]
+];
+function orderRows(limit) {
+  return ORDERS.slice(0, limit || ORDERS.length).map(function (o) {
+    var pc = o[7] === null ? 'nil' : (o[7] < 0 ? 'neg' : 'pos');
+    return {
+      inv: o[0], date: faD(o[1]), time: faD(o[2]), dt: faD(o[1]) + ' · ' + faD(o[2]), ch: CH[o[3]].name, chCls: 'ch ' + CH[o[3]].cls, cust: o[4],
+      st: ST[o[5]].name, stCls: 'badge ' + ST[o[5]].cls, stKey: o[5], total: fa(o[6]), profit: o[7] === null ? '—' : fa(o[7]), pCls: 'n num b ' + pc, pClsM: 'num b ' + pc,
+      profitT: o[7] === null ? 'سود: —' : 'سود ' + fa(o[7])
+    };
+  });
+}
+/* Jalali month grid, week starts Saturday. startIdx = weekday index of day 1 (0=Sat … 6=Fri). opt: {today, sel, from, to} */
+function monthGrid(startIdx, days, opt) {
+  opt = opt || {};
+  var cells = [];
+  for (var i = 0; i < startIdx; i++) cells.push({ l: '', c: 'cal-d x' });
+  for (var d = 1; d <= days; d++) {
+    var wd = (startIdx + d - 1) % 7, c = 'cal-d';
+    if (wd === 6) c += ' fri';
+    if (opt.today === d) c += ' today';
+    if (opt.sel === d) c += ' sel';
+    if (opt.from && opt.to) {
+      if (d === opt.from) c += ' s';
+      if (d === opt.to) c += ' e';
+      if (d > opt.from && d < opt.to) c += ' in';
+    }
+    cells.push({ l: faD(d), c: c });
+  }
+  while (cells.length % 7) cells.push({ l: '', c: 'cal-d x' });
+  return cells;
+}
+function faQ(n) { /* quantities: may be fractional, Persian decimal separator */
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  var neg = n < 0, a = Math.abs(n), ip = Math.floor(a), fp = Math.round((a - ip) * 1000);
+  var s = fa(ip).replace('−', '');
+  if (fp) s += '٫' + faD(String(fp).padStart(3, '0').replace(/0+$/, ''));
+  return (neg ? '−' : '') + s;
+}
+function numQ(v) { /* parse a possibly-fractional quantity typed in any digits */
+  var s = String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return FA_D.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[٫\/]/g, '.').replace(/[^0-9.]/g, '');
+  var n = parseFloat(s); return isNaN(n) ? 0 : n;
+}
+function stateVals(props, defH) {
+  var s = props.state || 'ready';
+  return { theme: props.theme || 'light', h: props.h || defH, isReady: s === 'ready', isEmpty: s === 'empty', isLoading: s === 'loading', isError: s === 'error', st: s };
+}
+var CATALOG = [
+  { id: 'p1', name: 'وینیل آلبوم اول', cat: 'وینیل', retail: 2450000, ws: 1950000, cost: 1380000, stock: 14, min: 5, active: true },
+  { id: 'p2', name: 'وینیل نسخه رنگی', cat: 'وینیل', retail: 3500000, ws: 2900000, cost: 2050000, stock: 2, min: 3, active: true },
+  { id: 'p3', name: 'کاست نسخه محدود', cat: 'کاست', retail: 620000, ws: 480000, cost: 290000, stock: 3, min: 5, active: true },
+  { id: 'p10', name: 'کاست آلبوم اول', cat: 'کاست', retail: 450000, ws: 350000, cost: 190000, stock: 0, min: 5, active: true },
+  { id: 'p4', name: 'سی‌دی آلبوم اول', cat: 'آلبوم', retail: 480000, ws: 380000, cost: 210000, stock: 22, min: 5, active: true },
+  { id: 'p5', name: 'پوستر تور ۱۴۰۴', cat: 'پوستر', retail: 290000, ws: 210000, cost: 95000, stock: 42, min: 10, active: true },
+  { id: 'p6', name: 'تی‌شرت لوگو مشکی (L)', cat: 'تی‌شرت', retail: 890000, ws: 690000, cost: 410000, stock: 7, min: 5, active: true },
+  { id: 'p7', name: 'تی‌شرت تور سفید (M)', cat: 'تی‌شرت', retail: 950000, ws: 740000, cost: null, stock: 12, min: 5, active: true },
+  { id: 'p8', name: 'استیکر پک', cat: 'استیکر', retail: 150000, ws: 110000, cost: 38000, stock: 120, min: 30, active: true },
+  { id: 'p9', name: 'آینه لوگو گرد', cat: 'آینه', retail: 1250000, ws: 980000, cost: 560000, stock: 4, min: 5, active: true },
+  { id: 'p11', name: 'پوستر تور ۱۴۰۳', cat: 'پوستر', retail: 250000, ws: 180000, cost: 90000, stock: 6, min: 0, active: false }
+];
+var MATERIALS = [
+  { id: 'm1', name: 'صفحه خام وینیل ۱۲ اینچ', type: 'goods', unit: 'عدد', stock: 38, cost: 620000, min: 20, use: 'تولید' },
+  { id: 'm2', name: 'کاور چاپی وینیل', type: 'goods', unit: 'عدد', stock: 45, cost: 180000, min: 20, use: 'تولید' },
+  { id: 'm3', name: 'نوار کاست خام', type: 'goods', unit: 'عدد', stock: 12, cost: 95000, min: 20, use: 'تولید' },
+  { id: 'm4', name: 'قاب و جلد کاست', type: 'goods', unit: 'عدد', stock: 60, cost: 45000, min: 20, use: 'تولید' },
+  { id: 'm5', name: 'تی‌شرت خام مشکی L', type: 'goods', unit: 'عدد', stock: 6, cost: 260000, min: 10, use: 'تولید' },
+  { id: 'm6', name: 'چاپ سیلک تی‌شرت', type: 'service', unit: 'عدد', stock: null, cost: 120000, min: null, use: 'تولید' },
+  { id: 'm7', name: 'مسترینگ و کات لاکر', type: 'service', unit: 'نوبت', stock: null, cost: 12000000, min: null, use: 'تولید' },
+  { id: 'm8', name: 'طراحی جلد', type: 'service', unit: 'نوبت', stock: null, cost: 4000000, min: null, use: 'تولید' },
+  { id: 'm9', name: 'کارتن جعبه استاندارد', type: 'goods', unit: 'عدد', stock: 64, cost: 60000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm10', name: 'جعبه وینیل', type: 'goods', unit: 'عدد', stock: 8, cost: 95000, min: 20, use: 'بسته‌بندی' },
+  { id: 'm11', name: 'پاکت حباب‌دار کوچک', type: 'goods', unit: 'عدد', stock: 15, cost: 24000, min: 40, use: 'بسته‌بندی' },
+  { id: 'm12', name: 'نوار چسب لوگودار', type: 'goods', unit: 'رول', stock: 2, cost: 150000, min: 5, use: 'بسته‌بندی' },
+  { id: 'm13', name: 'کاغذ پرکننده', type: 'goods', unit: 'کیلوگرم', stock: 1.5, cost: 90000, min: 3, use: 'بسته‌بندی' },
+  { id: 'm14', name: 'برچسب آدرس', type: 'goods', unit: 'عدد', stock: 400, cost: 2000, min: 100, use: 'بسته‌بندی' },
+  { id: 'm15', name: 'محافظ گوشه', type: 'goods', unit: 'عدد', stock: 90, cost: 10000, min: 30, use: 'بسته‌بندی' },
+  { id: 'm16', name: 'کاغذ کرافت', type: 'goods', unit: 'متر', stock: 42.5, cost: 12000, min: 10, use: 'بسته‌بندی' }
+];
+function stockCls(stock, min) { return stock === 0 ? 'stock out' : (min && stock <= min ? 'stock low' : 'stock'); }
+
+var KITDEF = [
+  { id: 'k1', name: 'جعبه استاندارد', items: [['m9', 1], ['m12', 0.1], ['m13', 0.2], ['m14', 1]], chs: ['web', 'insta', 'wholesale'], use: '۷۲ سفارش در شهریور' },
+  { id: 'k2', name: 'جعبه وینیل', items: [['m10', 1], ['m12', 0.1], ['m13', 0.2], ['m14', 1], ['m15', 1]], chs: [], use: '۶ سفارش در شهریور (انتخاب دستی)' },
+  { id: 'k3', name: 'پاکت کوچک', items: [['m11', 1], ['m14', 1], ['m12', 0.06]], chs: [], use: '۳ سفارش در شهریور (انتخاب دستی)' },
+  { id: 'k0', name: 'بدون بسته‌بندی', items: [], chs: ['inperson', 'other'], use: 'فروش حضوری' }
+];
+function mat(id) { return MATERIALS.filter(function (m) { return m.id === id; })[0]; }
+function kitInfo(k) {
+  var cost = 0, avail = Infinity, limit = null;
+  var rows = k.items.map(function (it) {
+    var m = mat(it[0]), c = it[1] * m.cost; cost += c;
+    var n = Math.floor(m.stock / it[1] + 1e-9); if (n < avail) { avail = n; limit = m; }
+    return { name: m.name, qtyT: faQ(it[1]), unit: m.unit, unitCostT: fa(m.cost), costT: fa(c), stockT: faQ(m.stock) + ' ' + m.unit };
+  });
+  return { cost: cost, rows: rows, avail: avail, limit: limit };
+}
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { kit: p.kit || 'k1' }; }
+  renderVals() {
+    var self = this;
+    var kits = KITDEF.map(function (k) {
+      var inf = kitInfo(k), on = k.id === self.state.kit, na = !k.items.length;
+      return {
+        name: k.name, costT: na ? '۰ تومان' : fa(inf.cost) + ' تومان', meta: na ? 'بدون مواد' : fa(k.items.length) + ' ماده · ' + k.use,
+        chs: k.chs.map(function (c) { return { name: CH[c].name, cls: 'ch ' + CH[c].cls }; }), noDef: k.chs.length ? '' : 'پیش‌فرض هیچ کانالی نیست',
+        availT: na ? 'نامحدود' : (inf.avail < 10 ? 'فقط ' + fa(inf.avail) + ' کیت با موجودی فعلی' : fa(inf.avail) + ' کیت قابل آماده‌سازی'),
+        availCls: na ? 'stock' : (inf.avail < 10 ? 'stock low' : 'stock'),
+        bc: on ? 'var(--red)' : 'var(--border)', sh: on ? '0 0 0 1px var(--red)' : 'var(--shadow)',
+        pick: function () { self.setState({ kit: k.id }); }
+      };
+    });
+    var k = KITDEF.filter(function (x) { return x.id === self.state.kit; })[0], inf = kitInfo(k), na = !k.items.length;
+    return Object.assign(stateVals(this.props, 900), {
+      kits: kits,
+      sel: {
+        name: k.name, use: 'استفاده: ' + k.use, rows: inf.rows, isEmpty: na, costT: fa(inf.cost),
+        chs: k.chs.map(function (c) { return { name: CH[c].name, cls: 'ch ' + CH[c].cls }; }), noDef: k.chs.length ? '' : 'هیچ کانالی',
+        availN: na ? '∞' : fa(inf.avail), availBg: !na && inf.avail < 10 ? 'var(--warn-soft)' : 'var(--surface-2)',
+        limitT: na ? 'بدون محدودیت' : 'محدودکننده: «' + inf.limit.name + '» (' + faQ(inf.limit.stock) + ' ' + inf.limit.unit + ')', limitCls: !na && inf.avail < 10 ? 'b' : 'muted'
+      }
+    });
+  }
+}
+</script>
+</body>
+</html>
