@@ -100,3 +100,23 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 export function getCatalog(): Promise<Catalog> {
   return apiFetch<Catalog>("/catalog")
 }
+
+export type OrderCreate = Schemas["OrderCreate"]
+export type OrderDetail = Schemas["OrderDetailOut"]
+export type Recipe = Schemas["RecipeOut"]
+
+export function createOrder(body: OrderCreate): Promise<OrderDetail> {
+  return apiFetch<OrderDetail>("/orders", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export function getRecipe(productId: number): Promise<Recipe> {
+  return apiFetch<Recipe>(`/products/${productId}/recipe`)
+}
+
+/** Direct link to the invoice PDF; the backend sends it as an attachment. */
+export function invoicePdfUrl(orderId: number): string {
+  return `${API_URL}/orders/${orderId}/invoice.pdf`
+}

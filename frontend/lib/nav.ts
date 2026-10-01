@@ -21,7 +21,7 @@ export type NavItem = { href: string; title: string; icon: LucideIcon }
 /** Single source for the sidebar, the top-bar title and the page stubs. */
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", title: "داشبورد", icon: LayoutDashboard },
-  { href: "/sales/new", title: "فروش جدید", icon: ShoppingCart },
+  { href: "/sales/new", title: "ثبت فروش", icon: ShoppingCart },
   { href: "/orders", title: "سفارش‌ها", icon: ReceiptText },
   { href: "/products", title: "محصولات و مواد اولیه", icon: Package },
   { href: "/production", title: "تولید", icon: Factory },

@@ -41,6 +41,30 @@
   --color-card: var(--card);
   --color-brand-red: var(--brand-red);
   --color-navy: var(--navy);
+  /* Design-handoff tokens (design/tokens.css): semantic, surfaces, channels. */
+  --color-heading: var(--heading);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border-strong: var(--border-strong);
+  --color-red-soft: var(--red-soft);
+  --color-red-hover: var(--red-hover);
+  --color-navy-soft: var(--navy-soft);
+  --color-profit: var(--profit);
+  --color-profit-soft: var(--profit-soft);
+  --color-loss: var(--loss);
+  --color-loss-soft: var(--loss-soft);
+  --color-loss-border: var(--loss-border);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-ch-web: var(--ch-web);
+  --color-ch-insta: var(--ch-insta);
+  --color-ch-wholesale: var(--ch-wholesale);
+  --color-ch-inperson: var(--ch-inperson);
+  --color-ch-other: var(--ch-other);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -87,6 +111,29 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.4 0.04 257);
   --sidebar-ring: #F03045;
+  --heading: #26364C;
+  --text-2: #454C59;
+  --text-3: #5D6471;
+  --surface-2: #F2F2EE;
+  --surface-3: #E7E7E1;
+  --border-strong: #C6C6BE;
+  --red-soft: #FDECEE;
+  --red-hover: #B3182D;
+  --navy-soft: #ECEFF5;
+  --profit: #137A38;
+  --profit-soft: #E5F4EA;
+  --loss: #B42318;
+  --loss-soft: #FDECEA;
+  --loss-border: #F1B5AE;
+  --warn: #955104;
+  --warn-soft: #FDF1DC;
+  --info: #1E4FC0;
+  --info-soft: #E8F0FE;
+  --ch-web: #0E7470;
+  --ch-insta: #B8266A;
+  --ch-wholesale: #33496A;
+  --ch-inperson: #8F520C;
+  --ch-other: #5D6471;
 }
 
 .dark {
@@ -121,6 +168,29 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #F03045;
+  --heading: #DCE2F0;
+  --text-2: #B4BACA;
+  --text-3: #959DB0;
+  --surface-2: #1C2232;
+  --surface-3: #272E41;
+  --border-strong: #3B445E;
+  --red-soft: #3B1A22;
+  --red-hover: #F25C6E;
+  --navy-soft: #1F2740;
+  --profit: #4CC476;
+  --profit-soft: #12301E;
+  --loss: #F4776C;
+  --loss-soft: #3A1C1A;
+  --loss-border: #6B2C27;
+  --warn: #EBA94D;
+  --warn-soft: #372811;
+  --info: #86A9F8;
+  --info-soft: #172549;
+  --ch-web: #4FC2BB;
+  --ch-insta: #EE7FB2;
+  --ch-wholesale: #A9B8D6;
+  --ch-inperson: #E0A55B;
+  --ch-other: #959DB0;
 }
 
 @layer base {

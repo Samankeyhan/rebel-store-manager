@@ -53,3 +53,36 @@ export function formatNumber(n: number): string {
 export function formatMoney(n: number): string {
   return `${formatNumber(toInteger(n, "formatMoney"))} تومان`
 }
+
+/** U+066B ARABIC DECIMAL SEPARATOR */
+const DECIMAL_SEPARATOR = "٫"
+
+/**
+ * A quantity that may be fractional (materials): 1.5 → "۱٫۵", 0.06 → "۰٫۰۶",
+ * 14 → "۱۴". Up to three decimals; trailing zeros dropped. Not for money.
+ */
+export function formatQuantity(n: number): string {
+  if (!Number.isFinite(n)) {
+    console.warn(`formatQuantity: expected a finite number, got ${n}; showing 0`)
+    return "۰"
+  }
+  const thousandths = Math.round(Math.abs(n) * 1000)
+  const intPart = Math.floor(thousandths / 1000)
+  const frac = String(thousandths % 1000).padStart(3, "0").replace(/0+$/, "")
+  const sign = n < 0 && thousandths > 0 ? MINUS : ""
+  return (
+    sign +
+    formatNumber(intPart) +
+    (frac ? DECIMAL_SEPARATOR + toPersianDigits(frac) : "")
+  )
+}
+
+/**
+ * Parses a whole number typed in any digits (Persian, Arabic-Indic, Latin),
+ * ignoring separators and anything else that isn't a digit. Empty → 0.
+ * For integer-only fields: money and product quantities.
+ */
+export function parseInteger(value: string): number {
+  const digits = toLatinDigits(value).replace(/[^0-9]/g, "")
+  return digits === "" ? 0 : Number.parseInt(digits, 10)
+}
