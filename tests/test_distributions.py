@@ -15,11 +15,12 @@ from db.partners import add_partner, deactivate_partner, update_partner_percenta
 from db.products import add_product
 from db.purchases import record_product_purchase
 from db.reports import get_profit_and_loss
+from tests.helpers import cat
 
 
 @pytest.fixture
 def distribution_setup(test_db):
-    product_id = add_product(test_db, "Dist Vinyl", "VINYL", 3000, 2000)
+    product_id = add_product(test_db, "Dist Vinyl", cat(test_db, "VINYL"), 3000, 2000)
     test_db.execute(
         "UPDATE products SET current_stock = 100, unit_cost = 500 WHERE id = ?",
         (product_id,),
@@ -318,7 +319,7 @@ def test_deactivated_partner_excluded_from_later_distribution(
 
 @pytest.fixture
 def simple_distribution_setup(test_db):
-    vinyl_id = add_product(test_db, "Vinyl", "VINYL", 3_000_000, 2_500_000)
+    vinyl_id = add_product(test_db, "Vinyl", cat(test_db, "VINYL"), 3_000_000, 2_500_000)
     record_product_purchase(test_db, vinyl_id, quantity_bought=10, total_paid=12_000_000)
 
     ali_id = add_partner(test_db, "Ali", 60.0)

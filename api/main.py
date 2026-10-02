@@ -8,6 +8,7 @@ from api.deps import get_db
 from api.routers import (
     adjustments,
     catalog,
+    categories,
     distributions,
     expenses,
     materials,
@@ -105,3 +106,4 @@ app.include_router(distributions.router)
 app.include_router(settings.router)
 app.include_router(reports.router)
 app.include_router(catalog.router)
+app.include_router(categories.router)

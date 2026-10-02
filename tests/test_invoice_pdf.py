@@ -8,6 +8,7 @@ from PIL import Image
 
 from db.orders import get_order, record_order
 from db.products import add_product
+from tests.helpers import cat
 from pdf import invoice as invoice_module
 from pdf.invoice import generate_invoice_pdf
 
@@ -18,7 +19,7 @@ def _write_test_png(path: Path, width: int = 20, height: int = 10) -> None:
 
 @pytest.fixture
 def invoice_order_setup(test_db, tmp_path):
-    product_id = add_product(test_db, "Test Vinyl", "VINYL", 3000, 2000)
+    product_id = add_product(test_db, "Test Vinyl", cat(test_db, "VINYL"), 3000, 2000)
     test_db.execute(
         "UPDATE products SET current_stock = 10, unit_cost = 500 WHERE id = ?",
         (product_id,),

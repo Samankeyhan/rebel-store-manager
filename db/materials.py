@@ -1,9 +1,22 @@
 import sqlite3
 
+from db.categories import validate_assignable
 from db.connection import transaction
-from db.errors import ValidationError
+from db.errors import NotFoundError, ValidationError
 
 VALID_TYPES = ("STOCK", "SERVICE")
+
+# A material's category is optional (materials had none before migration 005);
+# when set, its name and its parent's name come along.
+_SELECT = """
+    SELECT materials.*,
+           c.name AS category_name,
+           c.parent_id AS parent_category_id,
+           pc.name AS parent_category_name
+    FROM materials
+    LEFT JOIN categories c ON c.id = materials.category_id
+    LEFT JOIN categories pc ON pc.id = c.parent_id
+"""
 
 
 def _validate_type(material_type: str) -> None:
@@ -26,9 +39,12 @@ def add_material(
     unit_cost: int,
     unit: str = "piece",
     initial_stock: float | None = None,
+    category_id: int | None = None,
 ) -> int:
     _validate_type(type)
     _validate_unit_cost(unit_cost)
+    if category_id is not None:
+        validate_assignable(conn, category_id, "MATERIAL")
 
     if type == "SERVICE":
         if initial_stock is not None:
@@ -42,10 +58,10 @@ def add_material(
     with transaction(conn):
         cursor = conn.execute(
             """
-            INSERT INTO materials (name, type, unit, current_stock, unit_cost)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO materials (name, type, unit, current_stock, unit_cost, category_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (name, type, unit, current_stock, unit_cost),
+            (name, type, unit, current_stock, unit_cost, category_id),
         )
     return cursor.lastrowid
 
@@ -55,17 +71,15 @@ def list_materials(
 ) -> list[dict]:
     if active_only:
         rows = conn.execute(
-            "SELECT * FROM materials WHERE is_active = 1 ORDER BY name"
+            f"{_SELECT} WHERE materials.is_active = 1 ORDER BY materials.name"
         ).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM materials ORDER BY name").fetchall()
+        rows = conn.execute(f"{_SELECT} ORDER BY materials.name").fetchall()
     return [dict(row) for row in rows]
 
 
 def get_material(conn: sqlite3.Connection, material_id: int) -> dict | None:
-    row = conn.execute(
-        "SELECT * FROM materials WHERE id = ?", (material_id,)
-    ).fetchone()
+    row = conn.execute(f"{_SELECT} WHERE materials.id = ?", (material_id,)).fetchone()
     return dict(row) if row is not None else None
 
 
@@ -73,12 +87,12 @@ def get_low_stock_materials(
     conn: sqlite3.Connection, threshold: float
 ) -> list[dict]:
     rows = conn.execute(
-        """
-        SELECT * FROM materials
-        WHERE type = 'STOCK'
-          AND is_active = 1
-          AND current_stock <= ?
-        ORDER BY name
+        f"""
+        {_SELECT}
+        WHERE materials.type = 'STOCK'
+          AND materials.is_active = 1
+          AND materials.current_stock <= ?
+        ORDER BY materials.name
         """,
         (threshold,),
     ).fetchall()
@@ -93,3 +107,15 @@ def deactivate_material(conn: sqlite3.Connection, material_id: int) -> None:
 def reactivate_material(conn: sqlite3.Connection, material_id: int) -> None:
     with transaction(conn):
         conn.execute("UPDATE materials SET is_active = 1 WHERE id = ?", (material_id,))
+
+
+def set_material_category(
+    conn: sqlite3.Connection, material_id: int, category_id: int
+) -> None:
+    if get_material(conn, material_id) is None:
+        raise NotFoundError(f"Material with id {material_id} does not exist")
+    validate_assignable(conn, category_id, "MATERIAL")
+    with transaction(conn):
+        conn.execute(
+            "UPDATE materials SET category_id = ? WHERE id = ?", (category_id, material_id)
+        )

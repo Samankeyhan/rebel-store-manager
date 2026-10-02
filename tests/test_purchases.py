@@ -14,6 +14,7 @@ from db.purchases import (
     record_product_purchase,
 )
 from db.suppliers import add_supplier
+from tests.helpers import cat
 
 
 @pytest.fixture
@@ -22,7 +23,7 @@ def purchase_setup(test_db):
         test_db, "Purchase Stock Material", "STOCK", 100, initial_stock=10
     )
     service_id = add_material(test_db, "Purchase Service", "SERVICE", 50)
-    product_id = add_product(test_db, "Resale Vinyl", "VINYL", 3000, 2000)
+    product_id = add_product(test_db, "Resale Vinyl", cat(test_db, "VINYL"), 3000, 2000)
     test_db.execute(
         "UPDATE products SET current_stock = 5, unit_cost = 400 WHERE id = ?",
         (product_id,),

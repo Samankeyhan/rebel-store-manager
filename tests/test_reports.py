@@ -19,12 +19,13 @@ from db.reports import (
 )
 from db.returns import process_return
 from db.settings import update_channel_settings
+from tests.helpers import cat
 
 
 @pytest.fixture
 def report_setup(test_db):
-    product_a_id = add_product(test_db, "Report Vinyl", "VINYL", 3000, 2000)
-    product_b_id = add_product(test_db, "Report Cassette", "CASSETTE", 1500, 1000)
+    product_a_id = add_product(test_db, "Report Vinyl", cat(test_db, "VINYL"), 3000, 2000)
+    product_b_id = add_product(test_db, "Report Cassette", cat(test_db, "CASSETTE"), 1500, 1000)
     test_db.execute(
         "UPDATE products SET current_stock = 100, unit_cost = 500 WHERE id = ?",
         (product_a_id,),
@@ -35,12 +36,12 @@ def report_setup(test_db):
     )
     test_db.commit()
 
-    low_stock_id = add_product(test_db, "Low Stock Item", "OTHER", 500, 400)
+    low_stock_id = add_product(test_db, "Low Stock Item", cat(test_db, "OTHER"), 500, 400)
     test_db.execute(
         "UPDATE products SET current_stock = 2, unit_cost = 100 WHERE id = ?",
         (low_stock_id,),
     )
-    inactive_id = add_product(test_db, "Inactive Low", "OTHER", 500, 400)
+    inactive_id = add_product(test_db, "Inactive Low", cat(test_db, "OTHER"), 500, 400)
     test_db.execute(
         "UPDATE products SET current_stock = 1, unit_cost = 100 WHERE id = ?",
         (inactive_id,),
@@ -389,7 +390,7 @@ def test_get_shipping_summary_shipped_order_count(test_db):
     # orders are revenue-eligible, so order_count counts both, but only the
     # WEBSITE order actually shipped, so shipped_order_count is 1 and every
     # avg_* figure is based on that, not on order_count.
-    product_id = add_product(test_db, "Shipping Test Item", "OTHER", 1000, 800)
+    product_id = add_product(test_db, "Shipping Test Item", cat(test_db, "OTHER"), 1000, 800)
     test_db.execute(
         "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
         (product_id,),
@@ -422,7 +423,7 @@ def test_get_shipping_summary_shipped_order_count(test_db):
 
 
 def test_get_shipping_by_channel(test_db):
-    product_id = add_product(test_db, "Shipping Test Item", "OTHER", 1000, 800)
+    product_id = add_product(test_db, "Shipping Test Item", cat(test_db, "OTHER"), 1000, 800)
     test_db.execute(
         "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
         (product_id,),
@@ -478,7 +479,7 @@ def test_get_shipping_by_channel(test_db):
 
 @pytest.fixture
 def full_scenario_setup(test_db):
-    vinyl_id = add_product(test_db, "Vinyl", "VINYL", 3_000_000, 2_500_000)
+    vinyl_id = add_product(test_db, "Vinyl", cat(test_db, "VINYL"), 3_000_000, 2_500_000)
     record_product_purchase(test_db, vinyl_id, quantity_bought=10, total_paid=12_000_000)
 
     box_id = add_material(test_db, "Box", "STOCK", unit_cost=0)

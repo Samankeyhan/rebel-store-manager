@@ -9,6 +9,7 @@ from db.errors import InsufficientStockError
 from db.materials import add_material, deactivate_material, get_material
 from db.products import add_product, deactivate_product, get_product
 from db.purchases import record_material_purchase, record_product_purchase
+from tests.helpers import cat
 
 
 @pytest.fixture
@@ -17,7 +18,7 @@ def adjustment_setup(test_db):
         test_db, "Adjust Stock Material", "STOCK", 100, initial_stock=50
     )
     service_id = add_material(test_db, "Adjust Service", "SERVICE", 50)
-    product_id = add_product(test_db, "Adjust Product", "VINYL", 3000, 2000)
+    product_id = add_product(test_db, "Adjust Product", cat(test_db, "VINYL"), 3000, 2000)
     test_db.execute(
         "UPDATE products SET current_stock = 20 WHERE id = ?",
         (product_id,),
@@ -27,7 +28,7 @@ def adjustment_setup(test_db):
     )
     deactivate_material(test_db, inactive_material_id)
     inactive_product_id = add_product(
-        test_db, "Inactive Product", "OTHER", 1000, 800
+        test_db, "Inactive Product", cat(test_db, "OTHER"), 1000, 800
     )
     deactivate_product(test_db, inactive_product_id)
     test_db.commit()
@@ -222,7 +223,7 @@ def test_get_stock_movement_returns_none_for_missing(adjustment_setup, test_db):
 
 
 def test_waste_freezes_cost(test_db):
-    product_id = add_product(test_db, "Waste Cost Product", "OTHER", 1000, 800)
+    product_id = add_product(test_db, "Waste Cost Product", cat(test_db, "OTHER"), 1000, 800)
     test_db.execute(
         "UPDATE products SET current_stock = 5, unit_cost = 1200000 WHERE id = ?",
         (product_id,),
@@ -241,7 +242,7 @@ def test_waste_freezes_cost(test_db):
 
 
 def test_positive_adjustment_with_unit_cost_blends_null_cost(test_db):
-    product_id = add_product(test_db, "Null Cost Product", "OTHER", 1000, 800)
+    product_id = add_product(test_db, "Null Cost Product", cat(test_db, "OTHER"), 1000, 800)
     assert get_product(test_db, product_id)["unit_cost"] is None
 
     record_stock_adjustment(
@@ -251,7 +252,7 @@ def test_positive_adjustment_with_unit_cost_blends_null_cost(test_db):
 
 
 def test_positive_adjustment_without_unit_cost_leaves_cost_null(test_db):
-    product_id = add_product(test_db, "Null Cost Product 2", "OTHER", 1000, 800)
+    product_id = add_product(test_db, "Null Cost Product 2", cat(test_db, "OTHER"), 1000, 800)
     record_stock_adjustment(test_db, "PRODUCT", product_id, 5, "ADJUSTMENT")
     assert get_product(test_db, product_id)["unit_cost"] is None
 

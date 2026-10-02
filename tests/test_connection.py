@@ -14,6 +14,7 @@ from db.partners import add_partner, list_partners
 from db.production import list_production_batches, run_production_batch
 from db.products import add_product, get_product
 from db.recipes import add_recipe_item
+from tests.helpers import cat
 
 
 def test_init_db_raises_on_modified_migration_hash():
@@ -63,7 +64,7 @@ def test_transaction_outer_failure_rolls_back_nested_work(test_db):
 
 
 def test_transaction_standalone_failure_leaves_db_unchanged(test_db):
-    product_id = add_product(test_db, "Widget", "OTHER", 1000, 800)
+    product_id = add_product(test_db, "Widget", cat(test_db, "OTHER"), 1000, 800)
     material_id = add_material(test_db, "Wire", "STOCK", 100, initial_stock=1)
     add_recipe_item(test_db, product_id, material_id, quantity_needed=5)
 
