@@ -320,3 +320,49 @@ def test_invalid_production_date_writes_nothing(test_db, production_setup):
 
     assert _count_rows(test_db, "production_batches") == 0
     assert _count_rows(test_db, "stock_movements") == 0
+
+
+# ---------------------------------------------------------- created_at / total_cost
+
+
+def test_new_batch_stores_true_total_cost_and_created_at(test_db):
+    from db.timeutil import now_utc
+
+    product_id = add_product(test_db, "Mixed Recipe", cat(test_db, "OTHER"), 100_000, 80_000)
+    disc_id = add_material(test_db, "Disc", "STOCK", 333, initial_stock=100)
+    filler_id = add_material(test_db, "Filler", "STOCK", 90_000, unit="kg", initial_stock=5)
+    setup_id = add_material(test_db, "Setup Fee", "SERVICE", 25_000)
+    add_recipe_item(test_db, product_id, disc_id, 1)
+    add_recipe_item(test_db, product_id, filler_id, 0.037)
+    add_recipe_item(test_db, product_id, setup_id, 1, cost_basis="PER_BATCH")
+
+    before = now_utc()
+    batch_id = run_production_batch(test_db, product_id, 7)
+    after = now_utc()
+
+    batch = get_production_batch(test_db, batch_id)["batch"]
+    # 7 x 333 + 7 x 0.037 x 90,000 + 25,000 = 50,641 (rounded once, as stored).
+    assert batch["total_cost"] == 50_641
+    assert batch["unit_cost"] == round(50_641 / 7) == 7_234
+    # The stored total is the real one: unit_cost x quantity would lose 3.
+    assert batch["unit_cost"] * 7 != batch["total_cost"]
+    assert before <= batch["created_at"] <= after
+
+    listed = next(b for b in list_production_batches(test_db) if b["id"] == batch_id)
+    assert listed["total_cost"] == 50_641
+    assert listed["created_at"] == batch["created_at"]
+
+
+def test_backdated_batch_still_gets_real_created_at(test_db, production_setup):
+    from db.timeutil import now_utc
+
+    before = now_utc()
+    batch_id = run_production_batch(
+        test_db, production_setup["product_id"], 2, production_date="2025-01-10"
+    )
+    batch = get_production_batch(test_db, batch_id)["batch"]
+
+    assert batch["production_date"].startswith("2025-01-")
+    # created_at is when it was recorded, not the backdated production day.
+    assert batch["created_at"] >= before
+    assert batch["created_at"] > batch["production_date"]

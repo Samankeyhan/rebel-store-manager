@@ -10,7 +10,12 @@ class ProductionBatchListOut(BaseModel):
     product_id: int
     quantity_produced: int
     unit_cost: int
+    # Batch total cost at run time; None for batches recorded before migration 006.
+    total_cost: int | None
     production_date: str
+    # When the batch was recorded (production_date may be backdated);
+    # None for batches recorded before migration 006.
+    created_at: str | None
     notes: str | None
     product_name: str
 
@@ -22,7 +27,12 @@ class ProductionBatchOut(BaseModel):
     product_id: int
     quantity_produced: int
     unit_cost: int
+    # Batch total cost at run time; None for batches recorded before migration 006.
+    total_cost: int | None
     production_date: str
+    # When the batch was recorded (production_date may be backdated);
+    # None for batches recorded before migration 006.
+    created_at: str | None
     notes: str | None
 
 

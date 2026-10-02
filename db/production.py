@@ -4,7 +4,7 @@ from db.connection import transaction
 from db.costing import blend_unit_cost
 from db.errors import InsufficientStockError, NotFoundError, ValidationError
 from db.products import get_product
-from db.timeutil import normalize_record_date
+from db.timeutil import normalize_record_date, now_utc
 
 
 def _fetch_recipe_for_production(
@@ -98,10 +98,22 @@ def run_production_batch(
         cursor = conn.execute(
             """
             INSERT INTO production_batches
-                (product_id, quantity_produced, unit_cost, notes, production_date)
-            VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))
+                (product_id, quantity_produced, unit_cost, total_cost, notes,
+                 production_date, created_at)
+            VALUES (?, ?, ?, ?, ?, COALESCE(?, datetime('now')), ?)
             """,
-            (product_id, quantity_produced, unit_cost, notes, production_date),
+            # total_cost is the batch total unit_cost was divided from;
+            # created_at is when the batch was recorded, even if
+            # production_date is backdated.
+            (
+                product_id,
+                quantity_produced,
+                unit_cost,
+                batch_total_cost,
+                notes,
+                production_date,
+                now_utc(),
+            ),
         )
         batch_id = cursor.lastrowid
 

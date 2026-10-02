@@ -2032,8 +2032,12 @@ export interface components {
             quantity_produced: number;
             /** Unit Cost */
             unit_cost: number;
+            /** Total Cost */
+            total_cost: number | null;
             /** Production Date */
             production_date: string;
+            /** Created At */
+            created_at: string | null;
             /** Notes */
             notes: string | null;
             /** Product Name */
@@ -2066,8 +2070,12 @@ export interface components {
             quantity_produced: number;
             /** Unit Cost */
             unit_cost: number;
+            /** Total Cost */
+            total_cost: number | null;
             /** Production Date */
             production_date: string;
+            /** Created At */
+            created_at: string | null;
             /** Notes */
             notes: string | null;
         };

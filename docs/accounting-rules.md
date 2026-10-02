@@ -28,6 +28,7 @@ Rounding: Python round(), applied once at the end of a calculation — never per
 - PER_UNIT: needed = quantity_needed × batch_qty. PER_BATCH: needed = quantity_needed (once per batch, whatever the batch size).
 - batch_total_cost = round(sum(needed × material.unit_cost)) over all lines.
 - batch unit cost = round(batch_total_cost / batch_qty); stored on the batch.
+- batch_total_cost is stored on the batch too (production_batches.total_cost); NULL for batches recorded before it was stored.
 - The product's unit_cost is updated by weighted average (section 2) with value_in = batch_total_cost.
 - STOCK materials are deducted by `needed`. SERVICE materials cost money but have no stock.
 - If any STOCK material is short: InsufficientStockError, nothing written.

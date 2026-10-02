@@ -11,7 +11,11 @@ LATEST = ALL_MIGRATIONS[-1]
 
 
 def _db_missing_latest_migration(tmp_path):
-    """A DB at every migration but the newest, holding one product."""
+    """A DB at every migration but the newest, holding one product and one batch.
+
+    Seeded with whatever columns that schema has, so the test keeps working as
+    new migrations ship.
+    """
     older = tmp_path / "older_migrations"
     older.mkdir()
     for name in ALL_MIGRATIONS[:-1]:
@@ -20,9 +24,24 @@ def _db_missing_latest_migration(tmp_path):
     init_db(str(db_path), migrations_dir=str(older))
     conn = get_connection(str(db_path))
     try:
+        columns = {r["name"] for r in conn.execute("PRAGMA table_info(products)")}
+        if "category_id" in columns:
+            category_id = conn.execute(
+                "SELECT id FROM categories WHERE kind = 'PRODUCT' AND name = 'وینیل'"
+            ).fetchone()[0]
+            product_id = conn.execute(
+                "INSERT INTO products (name, category, category_id, retail_price, wholesale_price) "
+                "VALUES ('Startup Vinyl', 'VINYL', ?, 3000, 2000)",
+                (category_id,),
+            ).lastrowid
+        else:
+            product_id = conn.execute(
+                "INSERT INTO products (name, category, retail_price, wholesale_price) "
+                "VALUES ('Startup Vinyl', 'VINYL', 3000, 2000)"
+            ).lastrowid
         conn.execute(
-            "INSERT INTO products (name, category, retail_price, wholesale_price) "
-            "VALUES ('Startup Vinyl', 'VINYL', 3000, 2000)"
+            "INSERT INTO production_batches (product_id, quantity_produced, unit_cost) VALUES (?, 4, 500)",
+            (product_id,),
         )
     finally:
         conn.close()
@@ -52,8 +71,9 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
 
     # Without the startup event (no `with`), the stale schema breaks reads:
     # this is the outage the startup migration prevents.
+    # /products needs 005's columns, /production needs 006's.
     stale = TestClient(app, raise_server_exceptions=False)
-    assert stale.get("/products").status_code == 500
+    assert 500 in {stale.get("/products").status_code, stale.get("/production").status_code}
 
     with TestClient(app) as client:
         response = client.get("/products")
@@ -63,6 +83,11 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
         categories = client.get("/categories", params={"kind": "PRODUCT"})
         assert categories.status_code == 200, categories.text
         assert len(categories.json()) == 9
+        batches = client.get("/production")
+        assert batches.status_code == 200, batches.text
+        # The pre-existing batch gets no invented creation time or total.
+        assert batches.json()[0]["created_at"] is None
+        assert batches.json()[0]["total_cost"] is None
 
     assert _applied(db_path) == ALL_MIGRATIONS
 

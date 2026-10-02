@@ -529,6 +529,21 @@ def test_put_setting_updates_value(api):
 # ------------------------------------------------------------------ misc writes
 
 
+def test_production_endpoints_return_created_at_and_total_cost(api, cd_album):
+    client, _ = api
+    created = _post(client, "/production", {"product_id": cd_album["product_id"], "quantity_produced": 3})
+    batch = created["batch"]
+    assert batch["created_at"] is not None
+    assert batch["total_cost"] is not None
+    assert batch["unit_cost"] == round(batch["total_cost"] / 3)
+
+    detail = client.get(f"/production/{batch['id']}").json()["batch"]
+    listed = next(b for b in client.get("/production").json() if b["id"] == batch["id"])
+    for row in (detail, listed):
+        assert row["created_at"] == batch["created_at"]
+        assert row["total_cost"] == batch["total_cost"]
+
+
 def test_production_date_is_stored(api, cd_album):
     client, _ = api
     batch = _post(
