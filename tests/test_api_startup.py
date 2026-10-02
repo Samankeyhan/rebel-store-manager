@@ -59,6 +59,10 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
         response = client.get("/products")
         assert response.status_code == 200, response.text
         assert [p["name"] for p in response.json()] == ["Startup Vinyl"]
+        assert response.json()[0]["category_name"] == "وینیل"
+        categories = client.get("/categories", params={"kind": "PRODUCT"})
+        assert categories.status_code == 200, categories.text
+        assert len(categories.json()) == 9
 
     assert _applied(db_path) == ALL_MIGRATIONS
 
