@@ -85,6 +85,34 @@ export const R = {
   saveFailed: "ثبت نشد", // NEW
   errorCode: "کد خطا:", // NEW
 
+  // multi-line run
+  linesTitle: "تولیدهای این نوبت", // NEW
+  linesCaption: "هر ردیف یک تولید جداگانه است و جدا ثبت می‌شود.", // NEW
+  addProductLine: "افزودن محصول", // NEW
+  removeLine: "حذف ردیف", // NEW
+  lineLabel: (i: number) => `ردیف ${formatNumber(i)}`, // NEW
+  noteShort: "یادداشت این ردیف (اختیاری)", // NEW
+  shortByEarlier: "با احتساب مصرف ردیف‌های بالاتر", // NEW
+  collapsedSummary: (total: number, unit: number) =>
+    `هزینه کل ${formatNumber(total)} · بهای هر عدد ${formatNumber(unit)}`, // NEW
+  collapsedAvg: (from: string, to: number) => `میانگین ${from} ← ${formatNumber(to)}`, // NEW
+  showDetails: "نمایش جزئیات", // NEW
+  hideDetails: "بستن جزئیات", // NEW
+  runsTotal: "جمع هزینه این اجراها", // NEW
+  runsTotalCaption: "جمع چند تولید جداگانه؛ یک تولید واحد نیست.", // NEW
+  submitMany: (n: number) => `ثبت ${formatNumber(n)} تولید`, // NEW
+  submitManyNote: "متریال‌های کالایی هر ردیف از موجودی کم و تعداد آن به موجودی همان محصول اضافه می‌شود.", // NEW
+  statusQueued: "در صف", // NEW
+  statusSubmitting: "در حال ثبت", // NEW
+  statusSuccess: (unitCost: number) => `ثبت شد · بهای هر عدد ${formatNumber(unitCost)}`, // NEW
+  statusFailed: "ناموفق", // NEW
+  progress: (done: number, total: number) => `در حال ثبت ${formatNumber(done)} از ${formatNumber(total)}…`, // NEW
+  summaryTitle: (ok: number, total: number) => `${formatNumber(ok)} از ${formatNumber(total)} تولید با موفقیت ثبت شد`,
+  summaryBody: "ردیف‌های ناموفق در فهرست مانده‌اند و برای آن‌ها چیزی ثبت نشده؛ خطای هر کدام زیر همان ردیف آمده است.", // NEW
+  retryFailed: "تلاش دوباره برای موارد ناموفق",
+  toastRuns: (n: number) => `${formatNumber(n)} تولید ثبت شد`, // NEW
+  duplicateHint: "محصولاتی که در ردیف دیگری هستند در این فهرست نیستند؛ تعداد همان ردیف را بیشتر کنید.", // NEW
+
   // mobile run
   mobileSection: "مصرف مواد",
   mobileLineNeed: (basis: string, need: string, stock: string | null) =>

@@ -8,7 +8,7 @@ import { ErrorBlock, LoadingBlock, StateShell } from "@/components/common/screen
 import { Segment } from "@/components/common/segment"
 import { Toast } from "@/components/common/toast"
 import { Btn } from "@/components/record-sale/primitives"
-import { dateToISO, presetRange, type IsoRange } from "@/lib/jalali"
+import { presetRange, type IsoRange } from "@/lib/jalali"
 import { toPersianDigits } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
@@ -50,9 +50,8 @@ export function ProductionPage() {
     [router, pathname]
   )
 
-  // Read on the client (static export): today, and the history's default range.
+  // Read on the client (static export): the history's default range.
   const [now] = React.useState(() => new Date())
-  const today = dateToISO(now)
   const defaultRange = React.useMemo(() => presetRange("thisYear", now), [now])
   const [range, setRange] = React.useState<IsoRange>(defaultRange)
 
@@ -96,16 +95,13 @@ export function ProductionPage() {
           materials={base.materials}
           recipes={recipes}
           productId={productId}
-          onProductChange={pickProduct}
-          today={today}
           mobile={mobile}
           onGoRecipe={goRecipe}
-          onRan={async (id, message) => {
-            await data.refreshAfterRun(id).catch(() => data.reload())
-            setToast(message)
+          onRunsDone={async (succeeded) => {
+            await data.refreshAfterRuns().catch(() => data.reload())
+            if (succeeded > 0) setToast(R.toastRuns(succeeded))
           }}
           markMissing={data.markMissing}
-          refreshMaterials={data.refreshMaterials}
         />
       )
     } else if (tab === "recipe") {

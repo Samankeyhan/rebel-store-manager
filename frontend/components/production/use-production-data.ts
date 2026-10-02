@@ -3,7 +3,6 @@
 import * as React from "react"
 import {
   ApiError,
-  getProduct,
   getRecipe,
   getSettings,
   listMaterials,
@@ -97,20 +96,11 @@ export function useProductionData() {
     setRecipes((r) => ({ ...r, [productId]: { status: "missing" } }))
   }, [])
 
-  /** After a run: the product's new stock and average, fresh material stock, the new batch. */
-  const refreshAfterRun = React.useCallback(async (productId: number) => {
-    const [product, materials, batches] = await Promise.all([getProduct(productId), listMaterials(), listProduction()])
-    setBase((b) =>
-      b.status !== "ready"
-        ? b
-        : { ...b, products: b.products.map((p) => (p.id === product.id ? product : p)), materials, batches }
-    )
+  /** After a multi-line run: every product (any may have changed), materials, batches. */
+  const refreshAfterRuns = React.useCallback(async () => {
+    const [products, materials, batches] = await Promise.all([listProducts(), listMaterials(), listProduction()])
+    setBase((b) => (b.status !== "ready" ? b : { ...b, products: products.sort(byName), materials, batches }))
   }, [])
 
-  const refreshMaterials = React.useCallback(async () => {
-    const materials = await listMaterials()
-    setBase((b) => (b.status !== "ready" ? b : { ...b, materials }))
-  }, [])
-
-  return { base, recipes, timeZone, reload, setRecipe, markMissing, refreshAfterRun, refreshMaterials }
+  return { base, recipes, timeZone, reload, setRecipe, markMissing, refreshAfterRuns }
 }

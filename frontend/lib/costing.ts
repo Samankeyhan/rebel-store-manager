@@ -126,3 +126,38 @@ export function recipeSums(items: RecipeLine[]): { perUnit: number; perBatch: nu
   }
   return { perUnit: roundHalfEven(perUnit), perBatch: roundHalfEven(perBatch) }
 }
+
+export type ChainLine = { key: string; items: RecipeLine[] | null; qty: number }
+export type ChainedPreview = BatchPreview & {
+  /** Short only because lines above it use the same materials first. */
+  shortByEarlier: boolean
+}
+
+/**
+ * Previews for several separate runs submitted one after another (top to
+ * bottom). They share material stock: each line sees what is left after the
+ * lines above it. A line predicted to fail (short) consumes nothing — the
+ * server refuses it whole — so it never takes stock from the lines after it.
+ */
+export function chainedPreviews(
+  lines: ChainLine[],
+  stockOf: (materialId: number) => number | null
+): Map<string, ChainedPreview> {
+  const used = new Map<number, number>()
+  const remaining = (id: number) => {
+    const s = stockOf(id)
+    return s == null ? null : s - (used.get(id) ?? 0)
+  }
+  const out = new Map<string, ChainedPreview>()
+  for (const line of lines) {
+    if (!line.items || line.qty < 1) continue
+    const preview = batchPreview(line.items, line.qty, remaining)
+    const short = preview.short.length > 0
+    const shortByEarlier = short && batchPreview(line.items, line.qty, stockOf).short.length === 0
+    if (!short) {
+      for (const l of preview.lines) if (l.stock != null) used.set(l.material_id, (used.get(l.material_id) ?? 0) + l.need)
+    }
+    out.set(line.key, { ...preview, shortByEarlier })
+  }
+  return out
+}
