@@ -249,3 +249,115 @@ export function setMaterialCategory(materialId: number, categoryId: number): Pro
     body: JSON.stringify({ category_id: categoryId }),
   })
 }
+
+export function getProduct(productId: number): Promise<Product> {
+  return apiFetch<Product>(`/products/${productId}`)
+}
+
+export function getMaterial(materialId: number): Promise<Material> {
+  return apiFetch<Material>(`/materials/${materialId}`)
+}
+
+// ------------------------------------------------------------ production
+
+export type ProductionBatchListItem = Schemas["ProductionBatchListOut"]
+export type ProductionBatchDetail = Schemas["ProductionBatchDetailOut"]
+export type ProductionCreate = Schemas["ProductionCreate"]
+
+/** Newest first. */
+export function listProduction(productId?: number): Promise<ProductionBatchListItem[]> {
+  return apiFetch<ProductionBatchListItem[]>(
+    productId == null ? "/production" : `/production?product_id=${productId}`
+  )
+}
+
+export function getProductionBatch(batchId: number): Promise<ProductionBatchDetail> {
+  return apiFetch<ProductionBatchDetail>(`/production/${batchId}`)
+}
+
+/**
+ * Runs a batch. 422 when the product has no recipe; 409
+ * (InsufficientStockError: details.item_name / needed / available) when a
+ * STOCK material is short.
+ */
+export function runProduction(body: ProductionCreate): Promise<ProductionBatchDetail> {
+  return apiFetch<ProductionBatchDetail>("/production", { method: "POST", body: JSON.stringify(body) })
+}
+
+// ------------------------------------------------------------ recipes
+
+export type RecipeItemCreate = Schemas["RecipeItemCreate"]
+
+/** Each recipe write returns the whole updated recipe. 409 if the material is already on it. */
+export function addRecipeItem(productId: number, body: RecipeItemCreate): Promise<Recipe> {
+  return apiFetch<Recipe>(`/products/${productId}/recipe/items`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export function updateRecipeItem(
+  productId: number,
+  materialId: number,
+  body: { quantity_needed: number; cost_basis?: string }
+): Promise<Recipe> {
+  return apiFetch<Recipe>(`/products/${productId}/recipe/items/${materialId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+}
+
+export function removeRecipeItem(productId: number, materialId: number): Promise<Recipe> {
+  return apiFetch<Recipe>(`/products/${productId}/recipe/items/${materialId}`, { method: "DELETE" })
+}
+
+// ------------------------------------------------------------ purchases
+
+export type MaterialPurchase = Schemas["MaterialPurchaseOut"]
+export type ProductPurchase = Schemas["ProductPurchaseOut"]
+export type MaterialPurchaseCreate = Schemas["MaterialPurchaseCreate"]
+export type ProductPurchaseCreate = Schemas["ProductPurchaseCreate"]
+export type Supplier = Schemas["SupplierOut"]
+
+export type PurchaseFilters = { supplierId?: number | null; from?: string | null; to?: string | null }
+
+function purchaseQuery(f: PurchaseFilters): string {
+  const qs = new URLSearchParams()
+  if (f.supplierId != null) qs.set("supplier_id", String(f.supplierId))
+  if (f.from) qs.set("start_date", f.from)
+  if (f.to) qs.set("end_date", f.to)
+  const s = qs.toString()
+  return s ? `?${s}` : ""
+}
+
+export function listMaterialPurchases(f: PurchaseFilters = {}): Promise<MaterialPurchase[]> {
+  return apiFetch<MaterialPurchase[]>(`/purchases/materials${purchaseQuery(f)}`)
+}
+
+export function listProductPurchases(f: PurchaseFilters = {}): Promise<ProductPurchase[]> {
+  return apiFetch<ProductPurchase[]>(`/purchases/products${purchaseQuery(f)}`)
+}
+
+export function getMaterialPurchase(id: number): Promise<MaterialPurchase> {
+  return apiFetch<MaterialPurchase>(`/purchases/materials/${id}`)
+}
+
+export function getProductPurchase(id: number): Promise<ProductPurchase> {
+  return apiFetch<ProductPurchase>(`/purchases/products/${id}`)
+}
+
+/**
+ * The response is the purchase row only (its own unit_cost), not the item's
+ * new weighted average — re-fetch the item for that. A deleted supplier is a 404.
+ */
+export function createMaterialPurchase(body: MaterialPurchaseCreate): Promise<MaterialPurchase> {
+  return apiFetch<MaterialPurchase>("/purchases/materials", { method: "POST", body: JSON.stringify(body) })
+}
+
+export function createProductPurchase(body: ProductPurchaseCreate): Promise<ProductPurchase> {
+  return apiFetch<ProductPurchase>("/purchases/products", { method: "POST", body: JSON.stringify(body) })
+}
+
+export function listSuppliers(): Promise<Supplier[]> {
+  return apiFetch<Supplier[]>("/suppliers")
+}

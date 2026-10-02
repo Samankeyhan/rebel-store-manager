@@ -1,5 +1,10 @@
-import { PageStub } from "@/components/page-stub"
+import { Suspense } from "react"
+import { ProductionPage } from "@/components/production/production-page"
 
-export default function ProductionPage() {
-  return <PageStub href="/production" />
+export default function Page() {
+  return (
+    <Suspense>
+      <ProductionPage />
+    </Suspense>
+  )
 }
