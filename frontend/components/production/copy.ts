@@ -172,6 +172,15 @@ export const R = {
   historyFootnote: "هزینه کل هر تولید در جزئیات آن آمده است.", // NEW
   qtyUnits: (n: number) => `${formatNumber(n)} عدد`,
 
+  // history sittings
+  sittingCount: (n: number) => `${formatNumber(n)} تولید در این نوبت`, // NEW
+  sittingPartial: (shown: number, size: number) => `${formatNumber(shown)} از ${formatNumber(size)} تولید این نوبت`, // NEW
+  sittingRecorded: (time: string) => `ثبت‌شده ساعت ${time}`, // NEW
+  sittingTotal: "جمع هزینه این اجراها", // NEW
+  sittingTotalCaption: "جمع تولیدهای جداگانه، نه هزینه یک تولید", // NEW
+  sittingExpand: "نمایش تولیدهای این نوبت", // NEW
+  sittingCollapse: "بستن تولیدهای این نوبت", // NEW
+
   // batch detail
   batchTitle: "جزئیات تولید", // NEW
   batchFacts: (n: number) => `${formatNumber(n)} عدد`,
