@@ -1,5 +1,11 @@
-import { PageStub } from "@/components/page-stub"
+import { Suspense } from "react"
+import { PackagingPage } from "@/components/packaging/packaging-page"
 
-export default function PackagingPage() {
-  return <PageStub href="/packaging" />
+export default function Page() {
+  // useSearchParams needs a Suspense boundary in a static export.
+  return (
+    <Suspense>
+      <PackagingPage />
+    </Suspense>
+  )
 }

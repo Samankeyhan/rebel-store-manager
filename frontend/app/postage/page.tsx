@@ -1,5 +1,5 @@
-import { PageStub } from "@/components/page-stub"
+import { PostagePage } from "@/components/postage/postage-page"
 
-export default function PostagePage() {
-  return <PageStub href="/postage" />
+export default function Page() {
+  return <PostagePage />
 }

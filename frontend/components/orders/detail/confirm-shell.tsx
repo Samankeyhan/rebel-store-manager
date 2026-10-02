@@ -68,6 +68,7 @@ export function ConfirmShell({
   subtitle,
   confirmLabel,
   confirmIcon: ConfirmIcon,
+  confirmDisabled = false,
   onConfirm,
   width = 560,
   children,
@@ -82,6 +83,8 @@ export function ConfirmShell({
   subtitle?: string
   confirmLabel: string
   confirmIcon?: React.ComponentType<{ className?: string }>
+  /** Keeps the confirm button disabled (e.g. until a required choice is made). */
+  confirmDisabled?: boolean
   onConfirm: () => void
   width?: number
   children: React.ReactNode
@@ -115,7 +118,7 @@ export function ConfirmShell({
         danger && "bg-loss hover:bg-loss/90",
         mobile && "h-12 w-full"
       )}
-      disabled={busy}
+      disabled={busy || confirmDisabled}
       aria-busy={busy || undefined}
       onClick={onConfirm}
     >

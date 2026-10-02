@@ -361,3 +361,76 @@ export function createProductPurchase(body: ProductPurchaseCreate): Promise<Prod
 export function listSuppliers(): Promise<Supplier[]> {
   return apiFetch<Supplier[]>("/suppliers")
 }
+
+// ------------------------------------------------------------ settings (channels)
+
+export type ChannelSettings = Schemas["ChannelSettingsOut"]
+
+/** Only the fields sent change; default_packaging_kit_id: null clears the default kit. */
+export function updateChannelSettings(
+  channel: string,
+  patch: { default_packaging_kit_id?: number | null; applies_shipping_charge?: number; applies_postage?: number }
+): Promise<ChannelSettings> {
+  return apiFetch<ChannelSettings>(`/settings/channels/${channel}`, { method: "PATCH", body: JSON.stringify(patch) })
+}
+
+// ------------------------------------------------------------ packaging
+
+export type Kit = Schemas["KitOut"]
+export type KitDetail = Schemas["KitDetailOut"]
+
+/** Name and status only — cost and items come from getKit. */
+export function listKits(activeOnly = false): Promise<Kit[]> {
+  return apiFetch<Kit[]>(`/packaging/kits?active_only=${activeOnly}`)
+}
+
+export function getKit(kitId: number): Promise<KitDetail> {
+  return apiFetch<KitDetail>(`/packaging/kits/${kitId}`)
+}
+
+export function createKit(name: string): Promise<KitDetail> {
+  return apiFetch<KitDetail>("/packaging/kits", { method: "POST", body: JSON.stringify({ name }) })
+}
+
+/** STOCK materials only; 409 if the material is already in the kit. Returns the whole kit. */
+export function addKitItem(kitId: number, materialId: number, quantity: number): Promise<KitDetail> {
+  return apiFetch<KitDetail>(`/packaging/kits/${kitId}/items`, {
+    method: "POST",
+    body: JSON.stringify({ material_id: materialId, quantity }),
+  })
+}
+
+export function updateKitItem(kitId: number, materialId: number, quantity: number): Promise<KitDetail> {
+  return apiFetch<KitDetail>(`/packaging/kits/${kitId}/items/${materialId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ quantity }),
+  })
+}
+
+export function removeKitItem(kitId: number, materialId: number): Promise<KitDetail> {
+  return apiFetch<KitDetail>(`/packaging/kits/${kitId}/items/${materialId}`, { method: "DELETE" })
+}
+
+/** One-way: the API has no reactivate endpoint. */
+export function deactivateKit(kitId: number): Promise<KitDetail> {
+  return apiFetch<KitDetail>(`/packaging/kits/${kitId}/deactivate`, { method: "POST" })
+}
+
+// ------------------------------------------------------------ postage
+
+export type PostageBatch = Schemas["PostageBatchOut"]
+export type PostageEstimate = Schemas["PostageEstimateOut"]
+export type PostageBatchCreate = Schemas["PostageBatchCreate"]
+
+/** Newest first: paid_date DESC, id DESC — the same order the estimate uses. */
+export function listPostageBatches(): Promise<PostageBatch[]> {
+  return apiFetch<PostageBatch[]>("/postage/batches")
+}
+
+export function getPostageEstimate(): Promise<PostageEstimate> {
+  return apiFetch<PostageEstimate>("/postage/estimate")
+}
+
+export function createPostageBatch(body: PostageBatchCreate): Promise<PostageBatch> {
+  return apiFetch<PostageBatch>("/postage/batches", { method: "POST", body: JSON.stringify(body) })
+}
