@@ -217,3 +217,11 @@ export function createMaterial(body: MaterialCreate): Promise<Material> {
 export function deactivateMaterial(materialId: number): Promise<Material> {
   return apiFetch<Material>(`/materials/${materialId}/deactivate`, { method: "POST" })
 }
+
+export function reactivateProduct(productId: number): Promise<Product> {
+  return apiFetch<Product>(`/products/${productId}/reactivate`, { method: "POST" })
+}
+
+export function reactivateMaterial(materialId: number): Promise<Material> {
+  return apiFetch<Material>(`/materials/${materialId}/reactivate`, { method: "POST" })
+}

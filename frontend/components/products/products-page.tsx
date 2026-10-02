@@ -12,7 +12,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Alert, Btn } from "@/components/record-sale/primitives"
-import { ApiError, deactivateMaterial, deactivateProduct, type Material, type Product } from "@/lib/api"
+import { useRecipes } from "@/components/record-sale/use-recipes"
+import {
+  ApiError,
+  deactivateMaterial,
+  deactivateProduct,
+  reactivateMaterial,
+  reactivateProduct,
+  type Material,
+  type Product,
+} from "@/lib/api"
 import { categoryLabel } from "@/lib/categories"
 import { toPersianDigits } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
@@ -108,6 +117,35 @@ export function ProductsPage() {
 
   const editing = panel.kind === "editProduct" ? products.find((p) => p.id === panel.id) ?? null : null
 
+  // Made-to-order products with no stock: estimate their cost from the recipe
+  // (record-sale's lazy, cached fetch). No recipe or a failed call → no
+  // estimate, and the plain «هنگام فروش از دستور تولید» note stays.
+  const recipeIds = [...visibleProducts, ...(editing ? [editing] : [])]
+    .filter((p) => costState(p).kind === "fromRecipe")
+    .map((p) => p.id)
+  const recipes = useRecipes(recipeIds)
+  const estimates: Record<number, number> = {}
+  for (const [id, r] of Object.entries(recipes)) {
+    if (r.status === "ok") estimates[Number(id)] = r.unitCost
+  }
+
+  /** Not destructive, so no confirmation: flips is_active back to 1. */
+  const reactivate = async (target: DeactivateTarget) => {
+    try {
+      if (target.kind === "product") {
+        const p = await reactivateProduct(target.item.id)
+        upsertProduct(p)
+        setToast(P.toastReactivated(p.name))
+      } else {
+        const m = await reactivateMaterial(target.item.id)
+        upsertMaterial(m)
+        setToast(P.toastReactivated(m.name))
+      }
+    } catch (e) {
+      setPageError(e instanceof ApiError ? e.message : String(e))
+    }
+  }
+
   const clearFilters = () => {
     setSearch("")
     setParams({ q: null, category: null })
@@ -179,6 +217,8 @@ export function ProductsPage() {
           mobile={mobile}
           onEdit={(p) => setPanel({ kind: "editProduct", id: p.id })}
           onDeactivate={(p) => setDeactivating({ kind: "product", item: p })}
+          onReactivate={(p) => reactivate({ kind: "product", item: p })}
+          estimates={estimates}
         />
       )
   } else {
@@ -191,6 +231,7 @@ export function ProductsPage() {
           rows={visibleMaterials}
           mobile={mobile}
           onDeactivate={(m) => setDeactivating({ kind: "material", item: m })}
+          onReactivate={(m) => reactivate({ kind: "material", item: m })}
         />
       )
   }
@@ -279,6 +320,8 @@ export function ProductsPage() {
           if (close) setPanel({ kind: "none" })
         }}
         onDeactivate={(p) => setDeactivating({ kind: "product", item: p })}
+        onReactivate={(p) => reactivate({ kind: "product", item: p })}
+        estimate={editing ? estimates[editing.id] : undefined}
       />
       <MaterialDrawer
         open={panel.kind === "addMaterial"}

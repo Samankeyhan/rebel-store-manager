@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Ban, MoreHorizontal } from "lucide-react"
+import { Ban, MoreHorizontal, RotateCcw } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,10 +35,12 @@ export function MaterialsTab({
   rows,
   mobile,
   onDeactivate,
+  onReactivate,
 }: {
   rows: Material[]
   mobile: boolean
   onDeactivate: (m: Material) => void
+  onReactivate: (m: Material) => void
 }) {
   if (mobile) {
     return (
@@ -51,21 +53,26 @@ export function MaterialsTab({
                 <span className="font-bold">{m.name}</span>
                 <span className="flex items-center gap-1">
                   <StockCell m={m} />
-                  {active && (
-                    <DropdownMenu dir="rtl">
+                  <DropdownMenu dir="rtl">
                       <DropdownMenuTrigger asChild>
                         <Btn variant="ghost" className="size-11 px-0" aria-label={P.rowActions}>
                           <MoreHorizontal className="size-4" />
                         </Btn>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => onDeactivate(m)} className="text-loss">
-                          <Ban />
-                          {P.deactivate}
-                        </DropdownMenuItem>
+                        {active ? (
+                          <DropdownMenuItem onSelect={() => onDeactivate(m)} className="text-loss">
+                            <Ban />
+                            {P.deactivate}
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onSelect={() => onReactivate(m)}>
+                            <RotateCcw />
+                            {P.reactivate}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  )}
                 </span>
               </span>
               <span className="flex items-center justify-between gap-2 text-xs">
@@ -134,7 +141,7 @@ export function MaterialsTab({
                       <ActiveBadge active={active} />
                     </td>
                     <td>
-                      {active && (
+                      {active ? (
                         <Btn
                           variant="ghost"
                           size="sm"
@@ -143,6 +150,16 @@ export function MaterialsTab({
                           onClick={() => onDeactivate(m)}
                         >
                           <Ban className="size-4" />
+                        </Btn>
+                      ) : (
+                        <Btn
+                          variant="ghost"
+                          size="sm"
+                          className="size-8 px-0"
+                          aria-label={P.reactivate}
+                          onClick={() => onReactivate(m)}
+                        >
+                          <RotateCcw className="size-4" />
                         </Btn>
                       )}
                     </td>

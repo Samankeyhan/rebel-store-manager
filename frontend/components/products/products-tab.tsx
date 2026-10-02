@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Ban, Lock, Pencil } from "lucide-react"
+import { Ban, Lock, Pencil, RotateCcw } from "lucide-react"
 import { Btn, StockPill, btnClass, cardClass } from "@/components/record-sale/primitives"
 import type { Product } from "@/lib/api"
 import { categoryLabel } from "@/lib/categories"
@@ -48,10 +48,16 @@ function MissingCostBanner({ missing }: { missing: Product[] }) {
   )
 }
 
-function CostCell({ p }: { p: Product }) {
+/** Made-to-order cost text: the recipe estimate when known, else the plain note. */
+export function fromRecipeText(p: Product, estimates: Record<number, number>): string {
+  const estimate = estimates[p.id]
+  return estimate == null ? P.fromRecipe : P.recipeEstimate(estimate)
+}
+
+function CostCell({ p, estimates }: { p: Product; estimates: Record<number, number> }) {
   const c = costState(p)
   if (c.kind === "known") return <span className="tabular-nums">{formatNumber(c.cost)}</span>
-  if (c.kind === "fromRecipe") return <span className="text-xs text-text-3">{P.fromRecipe}</span>
+  if (c.kind === "fromRecipe") return <span className="text-xs text-text-3 tabular-nums">{fromRecipeText(p, estimates)}</span>
   return <NoCostBadge />
 }
 
@@ -61,6 +67,8 @@ export function ProductsTab({
   mobile,
   onEdit,
   onDeactivate,
+  onReactivate,
+  estimates,
 }: {
   rows: Product[]
   /** Visible active products that can't be sold for lack of a cost. */
@@ -68,6 +76,9 @@ export function ProductsTab({
   mobile: boolean
   onEdit: (p: Product) => void
   onDeactivate: (p: Product) => void
+  onReactivate: (p: Product) => void
+  /** Recipe cost per unit for made-to-order products with no stock (an estimate). */
+  estimates: Record<number, number>
 }) {
   if (mobile) {
     return (
@@ -105,7 +116,7 @@ export function ProductsTab({
                     c.kind === "missing" ? "font-bold text-loss" : "text-text-3"
                   )}
                 >
-                  {c.kind === "known" ? P.costLine(c.cost) : c.kind === "fromRecipe" ? P.fromRecipe : P.costLineMissing}
+                  {c.kind === "known" ? P.costLine(c.cost) : c.kind === "fromRecipe" ? fromRecipeText(p, estimates) : P.costLineMissing}
                 </span>
                 <ActiveBadge active={p.is_active === 1} />
               </span>
@@ -164,7 +175,7 @@ export function ProductsTab({
                       <StockPill {...stockPill(p)} />
                     </td>
                     <td>
-                      <CostCell p={p} />
+                      <CostCell p={p} estimates={estimates} />
                     </td>
                     <td className="font-bold tabular-nums">{formatNumber(p.retail_price)}</td>
                     <td className="tabular-nums">{formatNumber(p.wholesale_price)}</td>
@@ -176,7 +187,7 @@ export function ProductsTab({
                         <Btn variant="ghost" size="sm" className="size-8 px-0" aria-label={P.edit} onClick={() => onEdit(p)}>
                           <Pencil className="size-4" />
                         </Btn>
-                        {active && (
+                        {active ? (
                           <Btn
                             variant="ghost"
                             size="sm"
@@ -185,6 +196,16 @@ export function ProductsTab({
                             onClick={() => onDeactivate(p)}
                           >
                             <Ban className="size-4" />
+                          </Btn>
+                        ) : (
+                          <Btn
+                            variant="ghost"
+                            size="sm"
+                            className="size-8 px-0"
+                            aria-label={P.reactivate}
+                            onClick={() => onReactivate(p)}
+                          >
+                            <RotateCcw className="size-4" />
                           </Btn>
                         )}
                       </span>

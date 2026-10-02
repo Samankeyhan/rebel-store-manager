@@ -15,9 +15,9 @@ export const P = {
   categoryLabel: "دسته:",
   categoryAll: "همه",
   showInactive: "نمایش غیرفعال‌ها",
-  addMaterial: "افزودن ماده",
+  addMaterial: "اضافه کردن متریال",
   addProduct: "افزودن محصول",
-  addMaterialMobile: "ماده",
+  addMaterialMobile: "متریال",
   addProductMobile: "محصول",
 
   // tabs
@@ -46,11 +46,14 @@ export const P = {
   stockUnits: (n: number) => `${formatNumber(n)} عدد`,
   noCost: "بدون بهای تمام‌شده",
   fromRecipe: "هنگام فروش از دستور تولید", // NEW
+  // NEW: an estimate only — the real cost is frozen again at the moment of sale.
+  recipeEstimate: (n: number) => `برآورد: ${formatNumber(n)} تومان (بر اساس بهای مواد فعلی)`,
   madeToOrder: "ساخت هنگام فروش", // NEW
   active: "فعال",
   inactive: "غیرفعال",
   edit: "ویرایش",
   deactivate: "غیرفعال کردن",
+  reactivate: "فعال کردن دوباره", // NEW
   productsFootnote:
     "بهای تمام‌شده میانگین موزون است و از «تولید» و «خرید» به‌روز می‌شود. محصولات حذف نمی‌شوند؛ غیرفعال‌سازی سوابق فروش را حفظ می‌کند.",
 
@@ -109,7 +112,7 @@ export const P = {
   errorCode: "کد خطا:",
 
   // material drawer
-  addMaterialTitle: "افزودن ماده", // NEW
+  addMaterialTitle: "اضافه کردن متریال", // NEW
   fieldMatName: "نام",
   fieldType: "نوع",
   typeStockSeg: "کالایی — موجودی دارد",
@@ -128,8 +131,7 @@ export const P = {
   effHidden: "از فهرست انتخاب محصول در «ثبت فروش» و «تولید» پنهان می‌شود.",
   effHistory: "سفارش‌ها، گزارش‌ها و تاریخچه موجودی آن دست‌نخورده می‌مانند.",
   effStock: (stock: number) => `موجودی فعلی (${formatNumber(stock)} عدد) باقی می‌ماند و در ارزش انبار حساب می‌شود.`,
-  // NEW: replaces «هر زمان … دوباره فعالش کنید» — there is no reactivate endpoint.
-  deactivateFinal: "فعال کردن دوباره فعلاً در برنامه ممکن نیست؛ با «نمایش غیرفعال‌ها» همچنان دیده می‌شود.",
+  deactivateFinal: "هر زمان با روشن کردن «نمایش غیرفعال‌ها» می‌توانید دوباره فعالش کنید.",
   matDeactivateSubtitle: "مواد حذف نمی‌شوند تا سوابق حفظ شود.", // NEW
   matEffHidden: "از فهرست انتخاب مواد در «خرید»، دستور تولید و کیت‌های بسته‌بندی پنهان می‌شود.", // NEW
   matEffStock: (stock: string) => `موجودی فعلی (${stock}) باقی می‌ماند.`, // NEW
@@ -139,6 +141,7 @@ export const P = {
   toastMaterialAdded: (name: string) => `«${name}» اضافه شد`,
   toastSaved: "تغییرات ذخیره شد",
   toastDeactivated: (name: string) => `«${name}» غیرفعال شد`,
+  toastReactivated: (name: string) => `«${name}» دوباره فعال شد`,
 
   // states
   emptyTitle: "هنوز محصولی تعریف نشده",
@@ -148,7 +151,7 @@ export const P = {
   emptyCtaMobile: "افزودن محصول",
   emptyMatTitle: "هنوز ماده‌ای تعریف نشده", // NEW
   emptyMatBody: "مواد اولیه، بسته‌بندی و خدمات تولید را این‌جا تعریف کنید.", // NEW
-  emptyMatCta: "افزودن اولین ماده", // NEW
+  emptyMatCta: "اضافه کردن اولین متریال", // NEW
   noProductMatch: (q: string) => `محصولی با «${q}» پیدا نشد.`,
   noMaterialMatch: (q: string) => `ماده‌ای با «${q}» پیدا نشد.`, // NEW
   noMatchFiltered: "با این فیلترها چیزی پیدا نشد.", // NEW

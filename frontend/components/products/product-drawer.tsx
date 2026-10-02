@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Ban, ChevronDown, CircleAlert, Info, Lock } from "lucide-react"
+import { Ban, ChevronDown, CircleAlert, Info, Lock, RotateCcw } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,6 +94,8 @@ export function ProductDrawer({
   onClose,
   onSaved,
   onDeactivate,
+  onReactivate,
+  estimate,
 }: {
   open: boolean
   /** null = add mode. */
@@ -103,6 +105,9 @@ export function ProductDrawer({
   /** `close` is false for the made-to-order switch, which saves on its own. */
   onSaved: (p: Product, toast: string, close?: boolean) => void
   onDeactivate: (p: Product) => void
+  onReactivate: (p: Product) => void
+  /** Recipe cost per unit for a made-to-order product with no stock, if known. */
+  estimate?: number
 }) {
   const editing = product != null
   const [name, setName] = React.useState("")
@@ -225,6 +230,12 @@ export function ProductDrawer({
               {P.deactivate}
             </Btn>
           )}
+          {editing && product.is_active !== 1 && (
+            <Btn size="sm" disabled={anyBusy} onClick={() => onReactivate(product)}>
+              <RotateCcw className="size-3.5" />
+              {P.reactivate}
+            </Btn>
+          )}
         </>
       }
     >
@@ -293,7 +304,11 @@ export function ProductDrawer({
             {P.fieldCost}
           </span>
           <span className={cn("font-bold tabular-nums", cost.kind === "missing" && "text-loss")}>
-            {cost.kind === "known" ? formatMoney(cost.cost) : cost.kind === "fromRecipe" ? P.fromRecipe : P.noCost}
+            {cost.kind === "known" ? formatMoney(cost.cost) : cost.kind === "fromRecipe"
+                ? estimate == null
+                  ? P.fromRecipe
+                  : P.recipeEstimate(estimate)
+                : P.noCost}
           </span>
           {cost.kind === "missing" && (
             <span className="flex items-start gap-1.5 text-xs font-medium text-loss">
