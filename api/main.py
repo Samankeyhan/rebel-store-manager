@@ -1,10 +1,11 @@
 import sqlite3
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api.deps import get_db
+from api.deps import db_path, get_db
 from api.routers import (
     adjustments,
     catalog,
@@ -23,9 +24,30 @@ from api.routers import (
     settings,
     suppliers,
 )
+from db.connection import init_db
 from db.errors import AppError, ConflictError, InsufficientStockError, NotFoundError, ValidationError
 
-app = FastAPI(title="Rebel Store Manager API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Bring the database up to date before serving any request.
+
+    Pending migrations are applied (init_db backs the file up first). If that
+    fails — a broken migration, or an applied file whose content changed — the
+    server refuses to start rather than run against a half-migrated schema
+    and 500 on every request.
+    """
+    path = db_path()
+    try:
+        init_db(path)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not apply database migrations to {path}; refusing to start: {exc}"
+        ) from exc
+    yield
+
+
+app = FastAPI(title="Rebel Store Manager API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -28,8 +28,8 @@ All money is stored as **INTEGER** in the smallest currency unit (Toman). See Ar
 - `pdf/invoice.py` — renders a Persian RTL A4 invoice PDF for a completed order (customer-facing; see rules below).
 - `config/store_info.py` — store display constants (name, address, phone, logo/footer paths) used on invoices.
 - `scripts/partner_walkthrough.py` — manual/dev walkthrough exercising the partners + distributions flow end-to-end against a throwaway temp-file DB; not part of the app, not tested by pytest, useful as living documentation of the intended flow.
-- `api/main.py` — the FastAPI app: CORS, centralized `db/errors.py` → HTTP status exception handlers, `/health`, and router registration.
-- `api/deps.py` — `get_db()`, a FastAPI dependency that opens one `db.connection.get_connection` connection per request (path from the `REBEL_DB` env var, default `data/shop.db`) and closes it after.
+- `api/main.py` — the FastAPI app: a startup lifespan that runs `init_db` on the served database (applying pending migrations, or refusing to start if they can't be applied), CORS, centralized `db/errors.py` → HTTP status exception handlers, `/health`, and router registration.
+- `api/deps.py` — `db_path()` (the `REBEL_DB` env var, default `data/shop.db`) and `get_db()`, a FastAPI dependency that opens one `db.connection.get_connection` connection per request on that path and closes it after.
 - `api/schemas/` — Pydantic response/request models, one module per domain, field names matching the `db/` dict keys exactly. Request models are named `<Thing>Create` / `<Thing>Update`, use `extra="forbid"`, and type every money field as `Money` (`api/schemas/common.py`, a strict `int`), so a float, a numeric string or a bool is a 422 instead of being coerced.
 - `api/routers/` — one module per domain, both read (GET) and write endpoints; each endpoint calls a `db/` function and shapes the result into a schema — see the no-business-logic rule below. Writes return the resource re-fetched through the same getter the GET endpoint uses: creates are 201, updates/actions (including deactivate) are 200, and DELETE of a recipe or kit item deliberately returns 200 with the updated recipe/kit so the UI can redraw without a second request. `GET /orders/{id}/invoice.pdf` renders into a temp directory and streams the bytes back.
 
@@ -59,7 +59,7 @@ All money is stored as **INTEGER** in the smallest currency unit (Toman). See Ar
 
 - Every change to `db/` or `pdf/` must include or update tests in `tests/`.
 - Run the full suite with `python -m pytest -v` inside `.venv` before finishing any task.
-- **Never run `init_db` or any write against `data/shop.db`.** Tests use temporary databases only — see `tests/conftest.py`'s `test_db` fixture, which creates a fresh temp-file DB via `init_db(temp_path)` per test and deletes it afterward. Follow that pattern for any new test; don't point a test or script at the real `data/shop.db` path.
+- **Never run `init_db` or any write against `data/shop.db`.** Tests use temporary databases only — see `tests/conftest.py`'s `test_db` fixture, which creates a fresh temp-file DB via `init_db(temp_path)` per test and deletes it afterward. Follow that pattern for any new test; don't point a test or script at the real `data/shop.db` path. Starting the API (a `with TestClient(app)` block) runs `init_db` on `$REBEL_DB`; an autouse fixture in `tests/conftest.py` points that at a temp file for every test, so keep it.
 
 ## Do not touch `cli/main.py` casually
 
