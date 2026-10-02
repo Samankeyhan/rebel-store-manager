@@ -1,5 +1,11 @@
-import { PageStub } from "@/components/page-stub"
+import { Suspense } from "react"
+import { OrdersList } from "@/components/orders/list/orders-list"
 
+// useSearchParams needs a Suspense boundary in a static export.
 export default function OrdersPage() {
-  return <PageStub href="/orders" />
+  return (
+    <Suspense>
+      <OrdersList />
+    </Suspense>
+  )
 }

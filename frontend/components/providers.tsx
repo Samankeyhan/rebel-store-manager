@@ -4,6 +4,7 @@ import * as React from "react"
 import { ThemeProvider } from "next-themes"
 import { Direction } from "radix-ui"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { TopBarCrumbProvider } from "@/components/top-bar-crumb"
 
 /**
  * App-wide client providers. DirectionProvider tells Radix primitives the
@@ -19,7 +20,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
     >
       <Direction.DirectionProvider dir="rtl">
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          <TopBarCrumbProvider>{children}</TopBarCrumbProvider>
+        </TooltipProvider>
       </Direction.DirectionProvider>
     </ThemeProvider>
   )

@@ -120,3 +120,51 @@ export function getRecipe(productId: number): Promise<Recipe> {
 export function invoicePdfUrl(orderId: number): string {
   return `${API_URL}/orders/${orderId}/invoice.pdf`
 }
+
+export type OrderListItem = Schemas["OrderListItemOut"]
+
+export type OrderListParams = {
+  channel?: string | null
+  status?: string | null
+  start_date?: string | null
+  end_date?: string | null
+}
+
+export function listOrders(params: OrderListParams = {}): Promise<OrderListItem[]> {
+  const qs = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value) qs.set(key, value)
+  }
+  const query = qs.toString()
+  return apiFetch<OrderListItem[]>(`/orders${query ? `?${query}` : ""}`)
+}
+
+export function getOrder(orderId: number): Promise<OrderDetail> {
+  return apiFetch<OrderDetail>(`/orders/${orderId}`)
+}
+
+/** Forward move only: DRAFT → PENDING/PAID/COMPLETED, PENDING → PAID/COMPLETED, PAID → COMPLETED. */
+export function changeOrderStatus(orderId: number, status: string): Promise<OrderDetail> {
+  return apiFetch<OrderDetail>(`/orders/${orderId}/status`, {
+    method: "POST",
+    body: JSON.stringify({ status }),
+  })
+}
+
+/** Cancel (from DRAFT/PENDING/PAID) or refund (from PAID/COMPLETED). */
+export function returnOrder(
+  orderId: number,
+  status: "CANCELLED" | "REFUNDED",
+  reason: string | null
+): Promise<OrderDetail> {
+  return apiFetch<OrderDetail>(`/orders/${orderId}/return`, {
+    method: "POST",
+    body: JSON.stringify({ status, reason }),
+  })
+}
+
+export type Settings = Schemas["SettingsOut"]
+
+export function getSettings(): Promise<Settings> {
+  return apiFetch<Settings>("/settings")
+}

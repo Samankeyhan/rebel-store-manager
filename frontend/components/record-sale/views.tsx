@@ -164,7 +164,7 @@ export function SuccessView({
     </a>
   )
   const view = (cls: string) => (
-    <Link href={`/orders/${order.id}`} className={cls}>
+    <Link href={`/orders/view/?id=${order.id}`} className={cls}>
       <ExternalLink className="size-4" />
       {T.viewOrder}
     </Link>

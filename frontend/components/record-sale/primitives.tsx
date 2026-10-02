@@ -11,7 +11,7 @@ import * as React from "react"
 import { CircleAlert, Info, Lock, Minus, Plus, TriangleAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatNumber, parseInteger } from "@/lib/persian-numbers"
-import { CHANNELS, STATUSES, T, type Channel, type SaleStatus } from "./copy"
+import { T } from "./copy"
 
 const focusRing = "outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
 
@@ -335,21 +335,6 @@ export function OptionTile({
   )
 }
 
-export function StatusBadge({ status }: { status: SaleStatus | string }) {
-  const meta = STATUSES[status as SaleStatus]
-  if (!meta) return null
-  return (
-    <span
-      className={cn(
-        "inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold whitespace-nowrap before:size-1.5 before:rounded-full before:bg-current",
-        meta.badge
-      )}
-    >
-      {meta.name}
-    </span>
-  )
-}
-
 export function PostageBadge({ on }: { on: boolean }) {
   return (
     <span
@@ -363,16 +348,7 @@ export function PostageBadge({ on }: { on: boolean }) {
   )
 }
 
-export function ChannelBadge({ channel }: { channel: Channel | string }) {
-  const meta = CHANNELS[channel as Channel]
-  if (!meta) return null
-  return (
-    <span className="inline-flex h-6 items-center gap-1.5 rounded-md border border-border bg-card px-2 text-xs font-medium whitespace-nowrap text-text-2">
-      <span className={cn("size-2 shrink-0 rounded-[2px]", meta.square)} aria-hidden />
-      {meta.name}
-    </span>
-  )
-}
+export { ChannelBadge, StatusBadge } from "@/components/common/status"
 
 export function StockPill({ text, tone }: { text: string; tone: "neutral" | "out" }) {
   return (

@@ -11,12 +11,19 @@
  */
 
 import {
+  differenceInCalendarDays,
+  endOfMonth,
+  endOfYear,
   format,
   getDate,
   getMonth,
   getYear,
   isValid,
   newDate,
+  startOfMonth,
+  startOfYear,
+  subDays,
+  subMonths,
 } from "date-fns-jalali"
 
 import { toLatinDigits, toPersianDigits } from "@/lib/persian-numbers"
@@ -72,4 +79,106 @@ export function toGregorianISO(jalali: string): string {
     throw new Error(`Invalid Jalali date: ${jalali}`)
   }
   return dateToISO(d)
+}
+
+const UTC_STAMP_RE = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/
+
+/**
+ * A stored UTC moment ("YYYY-MM-DD HH:MM:SS", as the API returns order_date)
+ * → its local calendar day and wall-clock time in `timeZone` (the store's
+ * settings.timezone). Display only: the browser's Intl does the zone
+ * conversion; nothing here does offset arithmetic. Returns null on a
+ * malformed value.
+ */
+export function utcToLocal(
+  utc: string,
+  timeZone: string
+): { iso: string; time: string } | null {
+  const m = UTC_STAMP_RE.exec(utc)
+  if (!m) return null
+  const instant = new Date(
+    Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0))
+  )
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(instant)
+  } catch {
+    return null
+  }
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ""
+  return {
+    iso: `${get("year")}-${get("month")}-${get("day")}`,
+    time: `${get("hour")}:${get("minute")}`,
+  }
+}
+
+/** UTC moment → "۱۴۰۵/۰۶/۳۰ · ۱۶:۲۴" in the store's time zone. */
+export function formatJalaliDateTime(utc: string, timeZone: string): string {
+  const local = utcToLocal(utc, timeZone)
+  if (!local) return toPersianDigits(utc)
+  return `${formatJalali(local.iso, "yyyy/MM/dd")} · ${toPersianDigits(local.time)}`
+}
+
+export type IsoRange = { from: string; to: string }
+
+/** The Jalali month containing `date`, as Gregorian ISO days. */
+export function jalaliMonthRange(date: Date): IsoRange {
+  return { from: dateToISO(startOfMonth(date)), to: dateToISO(endOfMonth(date)) }
+}
+
+export type RangePreset =
+  | "today"
+  | "yesterday"
+  | "last7"
+  | "last30"
+  | "thisMonth"
+  | "lastMonth"
+  | "thisYear"
+
+/** Preset ranges relative to `today` (the browser's local day). */
+export function presetRange(preset: RangePreset, today: Date): IsoRange {
+  const iso = (d: Date) => dateToISO(d)
+  switch (preset) {
+    case "today":
+      return { from: iso(today), to: iso(today) }
+    case "yesterday": {
+      const y = subDays(today, 1)
+      return { from: iso(y), to: iso(y) }
+    }
+    case "last7":
+      return { from: iso(subDays(today, 6)), to: iso(today) }
+    case "last30":
+      return { from: iso(subDays(today, 29)), to: iso(today) }
+    case "thisMonth":
+      return jalaliMonthRange(today)
+    case "lastMonth":
+      return jalaliMonthRange(subMonths(today, 1))
+    case "thisYear":
+      return { from: iso(startOfYear(today)), to: iso(endOfYear(today)) }
+  }
+}
+
+/** Inclusive length of a range in days: ۱ → ۳۱ شهریور = 31. */
+export function rangeDays(range: IsoRange): number {
+  return differenceInCalendarDays(isoToDate(range.to), isoToDate(range.from)) + 1
+}
+
+/** Jalali year of a date, e.g. 1405 (for the «سال ۱۴۰۵» preset label). */
+export function jalaliYear(date: Date): number {
+  return getYear(date)
+}
+
+/** "شهریور ۱۴۰۵" when the range is exactly one whole Jalali month, else null. */
+export function wholeMonthLabel(range: IsoRange): string | null {
+  const month = jalaliMonthRange(isoToDate(range.from))
+  if (month.from !== range.from || month.to !== range.to) return null
+  return formatJalali(range.from, "MMMM yyyy")
 }
