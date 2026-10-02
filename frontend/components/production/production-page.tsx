@@ -9,7 +9,6 @@ import { Segment } from "@/components/common/segment"
 import { Toast } from "@/components/common/toast"
 import { Btn } from "@/components/record-sale/primitives"
 import { presetRange, type IsoRange } from "@/lib/jalali"
-import { toPersianDigits } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
 import { HistoryTab } from "./history-tab"
@@ -131,7 +130,6 @@ export function ProductionPage() {
     }
   }
 
-  const count = base.status === "ready" ? base.batches.length : null
   const tabs = mobile ? (
     <Segment<Tab>
       value={tab}
@@ -169,16 +167,6 @@ export function ProductionPage() {
           >
             <Icon className="size-4" aria-hidden />
             {label}
-            {id === "history" && count != null && (
-              <span
-                className={cn(
-                  "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums",
-                  on ? "bg-red-soft text-primary" : "bg-surface-2 text-text-3"
-                )}
-              >
-                {toPersianDigits(count)}
-              </span>
-            )}
           </button>
         )
       })}
