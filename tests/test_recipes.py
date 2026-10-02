@@ -9,11 +9,12 @@ from db.recipes import (
     remove_recipe_item,
     update_recipe_item,
 )
+from tests.helpers import cat
 
 
 @pytest.fixture
 def sample_product_and_materials(test_db):
-    product_id = add_product(test_db, "Test Vinyl", "VINYL", 3000, 2000)
+    product_id = add_product(test_db, "Test Vinyl", cat(test_db, "VINYL"), 3000, 2000)
     sleeves_id = add_material(
         test_db, "Vinyl Sleeves", "STOCK", 25, initial_stock=100
     )
@@ -86,7 +87,7 @@ def test_calculate_recipe_cost(test_db, sample_product_and_materials):
 
 
 def test_calculate_recipe_cost_empty_recipe(test_db):
-    product_id = add_product(test_db, "Empty Product", "OTHER", 100, 80)
+    product_id = add_product(test_db, "Empty Product", cat(test_db, "OTHER"), 100, 80)
     assert calculate_recipe_cost(test_db, product_id) == 0
 
 

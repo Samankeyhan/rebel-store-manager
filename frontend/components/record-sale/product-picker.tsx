@@ -3,7 +3,7 @@
 import * as React from "react"
 import { ChevronDown, Search } from "lucide-react"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
-import { categoryLabel } from "@/lib/categories"
+import { categoryPath } from "@/lib/category-path"
 import { cn } from "@/lib/utils"
 import { formatNumber } from "@/lib/persian-numbers"
 import { T, type Channel } from "./copy"
@@ -19,7 +19,7 @@ function norm(s: string): string {
 function rowSub(p: Product): { text: string; className: string } {
   if (p.made_to_order) return { text: T.madeToOrder, className: "text-text-3" }
   if (p.unit_cost == null) return { text: T.pickerNoCost, className: "font-bold text-loss" }
-  return { text: categoryLabel(p.category), className: "text-text-3" }
+  return { text: categoryPath(p), className: "text-text-3" }
 }
 
 function rowStock(p: Product): { text: string; tone: "neutral" | "out" } {
@@ -59,7 +59,7 @@ export function ProductPicker({
 
   const q = norm(query)
   const items = q
-    ? products.filter((p) => norm(p.name).includes(q) || norm(categoryLabel(p.category)).includes(q))
+    ? products.filter((p) => norm(p.name).includes(q) || norm(categoryPath(p)).includes(q))
     : products
 
   const setOpen = (next: boolean) => {

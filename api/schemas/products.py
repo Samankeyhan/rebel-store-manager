@@ -8,7 +8,13 @@ class ProductOut(BaseModel):
 
     id: int
     name: str
-    category: str
+    # Legacy code column from before migration 005 (NULL for newer products).
+    # Read category_name instead; this field goes away with that column.
+    category: str | None
+    category_id: int
+    category_name: str
+    parent_category_id: int | None
+    parent_category_name: str | None
     retail_price: int
     wholesale_price: int
     current_stock: int
@@ -23,7 +29,7 @@ class ProductCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    category: str
+    category_id: int
     retail_price: Money
     wholesale_price: Money
     made_to_order: bool = False

@@ -3,6 +3,7 @@ import os
 import tempfile
 from pathlib import Path
 
+from db.categories import list_categories
 from db.connection import get_connection, init_db
 from db.distributions import (
     get_partner_payout_history,
@@ -39,7 +40,10 @@ print(f"Active percentage total: {get_active_percentage_total(conn):.2f}%")
 print("\n" + "=" * 60)
 print("STEP 2: Set up order/expense test data and record distribution")
 print("=" * 60)
-product_id = add_product(conn, "Walkthrough Vinyl", "VINYL", 3000, 2000)
+vinyl_category_id = next(
+    c["id"] for c in list_categories(conn, "PRODUCT") if c["name"] == "وینیل"
+)
+product_id = add_product(conn, "Walkthrough Vinyl", vinyl_category_id, 3000, 2000)
 conn.execute(
     "UPDATE products SET current_stock = 100, unit_cost = 500 WHERE id = ?",
     (product_id,),

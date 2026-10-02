@@ -18,6 +18,7 @@ from db.purchases import record_material_purchase, record_product_purchase
 from db.recipes import add_recipe_item
 from db.reports import get_profit_and_loss
 from db.suppliers import add_supplier
+from tests.helpers import cat
 
 
 @pytest.fixture
@@ -54,7 +55,7 @@ def seeded(api):
 
     supplier_id = add_supplier(conn, "Acme Supplies", phone="0912-000-0000")
 
-    product_id = add_product(conn, "Widget", "OTHER", 1000, 800)
+    product_id = add_product(conn, "Widget", cat(conn, "OTHER"), 1000, 800)
     record_product_purchase(conn, product_id, quantity_bought=20, total_paid=16_000,
                              supplier_id=supplier_id)
 
@@ -361,7 +362,7 @@ def test_made_to_order_recipe_cost(api):
         conn, "Shrink Nylon", "STOCK", 1_200_000, unit="kg", initial_stock=1
     )
 
-    product_id = add_product(conn, "CD Album", "ALBUM", 570_000, 285_000, made_to_order=True)
+    product_id = add_product(conn, "CD Album", cat(conn, "ALBUM"), 570_000, 285_000, made_to_order=True)
     add_recipe_item(conn, product_id, blank_cd_id, 1)
     add_recipe_item(conn, product_id, cd_case_id, 1)
     add_recipe_item(conn, product_id, a3_print_id, 0.3333)

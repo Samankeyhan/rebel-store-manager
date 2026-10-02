@@ -8,11 +8,12 @@ from db.production import (
     list_production_batches,
     run_production_batch,
 )
+from tests.helpers import cat
 
 
 @pytest.fixture
 def production_setup(test_db):
-    product_id = add_product(test_db, "Test Vinyl", "VINYL", 3000, 2000)
+    product_id = add_product(test_db, "Test Vinyl", cat(test_db, "VINYL"), 3000, 2000)
     sleeves_id = add_material(
         test_db, "Vinyl Sleeves", "STOCK", 25, initial_stock=100
     )
@@ -121,7 +122,7 @@ def test_insufficient_stock_rolls_back_entire_batch(test_db, production_setup):
 
 
 def test_no_recipe_raises_value_error(test_db):
-    product_id = add_product(test_db, "No Recipe Product", "OTHER", 100, 80)
+    product_id = add_product(test_db, "No Recipe Product", cat(test_db, "OTHER"), 100, 80)
 
     with pytest.raises(ValueError, match="has no recipe defined"):
         run_production_batch(test_db, product_id, 1)
@@ -213,7 +214,7 @@ def test_list_production_batches(test_db, production_setup):
 
 @pytest.fixture
 def per_batch_production_setup(test_db):
-    product_id = add_product(test_db, "Batch Vinyl", "VINYL", 3000, 2000)
+    product_id = add_product(test_db, "Batch Vinyl", cat(test_db, "VINYL"), 3000, 2000)
     sleeves_id = add_material(
         test_db, "Batch Sleeves", "STOCK", 25, initial_stock=100
     )
@@ -265,7 +266,7 @@ def test_per_batch_toggle_to_per_unit(test_db, per_batch_production_setup):
 
 
 def test_production_blends_product_unit_cost(test_db):
-    product_id = add_product(test_db, "Blend Vinyl", "VINYL", 3000, 2000)
+    product_id = add_product(test_db, "Blend Vinyl", cat(test_db, "VINYL"), 3000, 2000)
     test_db.execute(
         "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
         (product_id,),

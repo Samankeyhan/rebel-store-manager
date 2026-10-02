@@ -16,12 +16,13 @@ from db.orders import (
 from db.products import add_product, get_product
 from db.purchases import record_material_purchase, record_product_purchase
 from db.settings import get_setting, set_setting, update_channel_settings
+from tests.helpers import cat
 
 
 @pytest.fixture
 def order_setup(test_db):
-    product_a_id = add_product(test_db, "Product A", "VINYL", 3000, 2000)
-    product_b_id = add_product(test_db, "Product B", "CASSETTE", 1500, 1000)
+    product_a_id = add_product(test_db, "Product A", cat(test_db, "VINYL"), 3000, 2000)
+    product_b_id = add_product(test_db, "Product B", cat(test_db, "CASSETTE"), 1500, 1000)
     test_db.execute(
         "UPDATE products SET current_stock = 10, unit_cost = 500 WHERE id = ?",
         (product_a_id,),
@@ -40,7 +41,7 @@ def canonical_setup(test_db):
     materials, a packaging kit set as WEBSITE's default, and a postage batch —
     all built through the real db/ functions, never raw SQL.
     """
-    vinyl_id = add_product(test_db, "Vinyl", "VINYL", 3_000_000, 2_500_000)
+    vinyl_id = add_product(test_db, "Vinyl", cat(test_db, "VINYL"), 3_000_000, 2_500_000)
     record_product_purchase(test_db, vinyl_id, quantity_bought=10, total_paid=12_000_000)
 
     box_id = add_material(test_db, "Box", "STOCK", unit_cost=0)
@@ -286,7 +287,7 @@ def test_cost_snapshot_frozen_after_product_cost_change(test_db, order_setup):
 
 
 def test_selling_product_with_null_cost_raises_validation_error(test_db):
-    product_id = add_product(test_db, "No Cost Product", "POSTER", 1000, 500)
+    product_id = add_product(test_db, "No Cost Product", cat(test_db, "POSTER"), 1000, 500)
     test_db.execute(
         "UPDATE products SET current_stock = 5 WHERE id = ?", (product_id,)
     )

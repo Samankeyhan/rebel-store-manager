@@ -93,6 +93,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/products/{product_id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivate */
+        post: operations["reactivate_products__product_id__reactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products/{product_id}/made-to-order": {
         parameters: {
             query?: never;
@@ -108,6 +125,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/products/{product_id}/category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Category */
+        patch: operations["update_category_products__product_id__category_patch"];
         trace?: never;
     };
     "/products/{product_id}/recipe": {
@@ -240,6 +274,40 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/materials/{material_id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivate */
+        post: operations["reactivate_materials__material_id__reactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/materials/{material_id}/category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Category */
+        patch: operations["update_category_materials__material_id__category_patch"];
         trace?: never;
     };
     "/production": {
@@ -1051,6 +1119,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Categories
+         * @description Top-level categories of *kind*, or parent_id's subcategories when given.
+         */
+        get: operations["read_categories_categories_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Category Tree */
+        get: operations["read_category_tree_categories_tree_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Category */
+        get: operations["read_category_categories__category_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update
+         * @description Only fields present in the body change.
+         */
+        patch: operations["update_categories__category_id__patch"];
+        trace?: never;
+    };
+    "/categories/{category_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate */
+        post: operations["deactivate_categories__category_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories/{category_id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivate */
+        post: operations["reactivate_categories__category_id__reactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1108,6 +1269,73 @@ export interface components {
             settings: components["schemas"]["SettingsOut"];
             /** Postage Estimate */
             postage_estimate: number;
+        };
+        /**
+         * CategoryAssign
+         * @description Body of PATCH /products/{id}/category and /materials/{id}/category.
+         */
+        CategoryAssign: {
+            /** Category Id */
+            category_id: number;
+        };
+        /** CategoryCreate */
+        CategoryCreate: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "PRODUCT" | "MATERIAL";
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: number | null;
+        };
+        /** CategoryOut */
+        CategoryOut: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id: number | null;
+            /** Parent Name */
+            parent_name: string | null;
+            /** Is Active */
+            is_active: number;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /** CategoryTreeOut */
+        CategoryTreeOut: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id: number | null;
+            /** Parent Name */
+            parent_name: string | null;
+            /** Is Active */
+            is_active: number;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string | null;
+            /** Children */
+            children: components["schemas"]["CategoryOut"][];
+        };
+        /** CategoryUpdate */
+        CategoryUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /** ChannelBreakdownOut */
         ChannelBreakdownOut: {
@@ -1353,6 +1581,8 @@ export interface components {
             unit?: string;
             /** Initial Stock */
             initial_stock?: number | null;
+            /** Category Id */
+            category_id?: number | null;
         };
         /** MaterialOut */
         MaterialOut: {
@@ -1370,6 +1600,14 @@ export interface components {
             unit_cost: number;
             /** Is Active */
             is_active: number;
+            /** Category Id */
+            category_id: number | null;
+            /** Category Name */
+            category_name: string | null;
+            /** Parent Category Id */
+            parent_category_id: number | null;
+            /** Parent Category Name */
+            parent_category_name: string | null;
             /** Created At */
             created_at: string;
             /** Updated At */
@@ -1671,8 +1909,8 @@ export interface components {
         ProductCreate: {
             /** Name */
             name: string;
-            /** Category */
-            category: string;
+            /** Category Id */
+            category_id: number;
             /** Retail Price */
             retail_price: number;
             /** Wholesale Price */
@@ -1690,7 +1928,15 @@ export interface components {
             /** Name */
             name: string;
             /** Category */
-            category: string;
+            category: string | null;
+            /** Category Id */
+            category_id: number;
+            /** Category Name */
+            category_name: string;
+            /** Parent Category Id */
+            parent_category_id: number | null;
+            /** Parent Category Name */
+            parent_category_name: string | null;
             /** Retail Price */
             retail_price: number;
             /** Wholesale Price */
@@ -2264,6 +2510,37 @@ export interface operations {
             };
         };
     };
+    reactivate_products__product_id__reactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_made_to_order_products__product_id__made_to_order_post: {
         parameters: {
             query?: never;
@@ -2276,6 +2553,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["MadeToOrderUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_category_products__product_id__category_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryAssign"];
             };
         };
         responses: {
@@ -2571,6 +2883,72 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reactivate_materials__material_id__reactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_category_materials__material_id__category_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryAssign"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -4370,6 +4748,232 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CatalogOut"];
+                };
+            };
+        };
+    };
+    read_categories_categories_get: {
+        parameters: {
+            query: {
+                kind: "PRODUCT" | "MATERIAL";
+                parent_id?: number | null;
+                active_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_categories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_category_tree_categories_tree_get: {
+        parameters: {
+            query: {
+                kind: "PRODUCT" | "MATERIAL";
+                active_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryTreeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_category_categories__category_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_categories__category_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_categories__category_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reactivate_categories__category_id__reactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

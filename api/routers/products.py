@@ -3,6 +3,7 @@ import sqlite3
 from fastapi import APIRouter, Depends
 
 from api.deps import get_db
+from api.schemas.categories import CategoryAssign
 from api.schemas.products import (
     MadeToOrderUpdate,
     ProductCreate,
@@ -15,7 +16,9 @@ from db.products import (
     deactivate_product,
     get_product,
     list_products,
+    reactivate_product,
     set_made_to_order,
+    set_product_category,
     update_product_prices,
 )
 
@@ -50,7 +53,7 @@ def create_product(
     product_id = add_product(
         conn,
         name=body.name,
-        category=body.category,
+        category_id=body.category_id,
         retail_price=body.retail_price,
         wholesale_price=body.wholesale_price,
         made_to_order=body.made_to_order,
@@ -81,6 +84,13 @@ def deactivate(product_id: int, conn: sqlite3.Connection = Depends(get_db)) -> P
     return build_product(conn, product_id)
 
 
+@router.post("/products/{product_id}/reactivate", response_model=ProductOut)
+def reactivate(product_id: int, conn: sqlite3.Connection = Depends(get_db)) -> ProductOut:
+    # reactivate_product doesn't check existence; build_product 404s instead.
+    reactivate_product(conn, product_id)
+    return build_product(conn, product_id)
+
+
 @router.post("/products/{product_id}/made-to-order", response_model=ProductOut)
 def update_made_to_order(
     product_id: int,
@@ -88,4 +98,14 @@ def update_made_to_order(
     conn: sqlite3.Connection = Depends(get_db),
 ) -> ProductOut:
     set_made_to_order(conn, product_id, body.made_to_order)
+    return build_product(conn, product_id)
+
+
+@router.patch("/products/{product_id}/category", response_model=ProductOut)
+def update_category(
+    product_id: int,
+    body: CategoryAssign,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> ProductOut:
+    set_product_category(conn, product_id, body.category_id)
     return build_product(conn, product_id)

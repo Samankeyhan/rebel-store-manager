@@ -86,3 +86,18 @@ export function parseInteger(value: string): number {
   const digits = toLatinDigits(value).replace(/[^0-9]/g, "")
   return digits === "" ? 0 : Number.parseInt(digits, 10)
 }
+
+/**
+ * Parses a possibly fractional quantity typed in any digits. `٫` (U+066B),
+ * `/` and `.` all mean the decimal point (design-system §5); everything else
+ * that isn't a digit is ignored. Returns null for an empty or invalid value.
+ * For material quantities only — never money.
+ */
+export function parseDecimal(value: string): number | null {
+  const s = toLatinDigits(value)
+    .replace(/[٫/]/g, ".")
+    .replace(/[^0-9.]/g, "")
+  if (s === "" || s === ".") return null
+  const n = Number(s)
+  return Number.isFinite(n) ? n : null
+}

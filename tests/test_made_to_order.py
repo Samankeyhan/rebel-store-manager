@@ -7,6 +7,7 @@ from db.orders import record_order
 from db.products import add_product, get_product
 from db.recipes import add_recipe_item, calculate_recipe_cost
 from db.returns import process_return
+from tests.helpers import cat
 
 # NOTE: the task's hand-calculated fixture claims calculate_recipe_cost(batch_qty=1)
 # == 202,033, listing addends 77,333 + 53,393 + 26,664 + 20,000 + 10,000 + 9,600 +
@@ -32,7 +33,7 @@ def cd_album_setup(test_db):
     )
 
     product_id = add_product(
-        test_db, "CD Album", "ALBUM", 570_000, 285_000, made_to_order=True
+        test_db, "CD Album", cat(test_db, "ALBUM"), 570_000, 285_000, made_to_order=True
     )
     add_recipe_item(test_db, product_id, blank_cd_id, 1)
     add_recipe_item(test_db, product_id, cd_case_id, 1)
@@ -222,7 +223,7 @@ def test_short_material_raises_and_writes_nothing(test_db, cd_album_setup):
 
 def test_made_to_order_with_no_recipe_raises_on_sale(test_db):
     product_id = add_product(
-        test_db, "No Recipe Product", "ALBUM", 1000, 800, made_to_order=True
+        test_db, "No Recipe Product", cat(test_db, "ALBUM"), 1000, 800, made_to_order=True
     )
 
     with pytest.raises(ValidationError) as exc_info:
@@ -278,7 +279,7 @@ def test_refunded_adds_manufactured_units_to_stock_blended_by_weighted_average(
 
 
 def test_normal_product_insufficient_stock_untouched_by_made_to_order_logic(test_db):
-    product_id = add_product(test_db, "Plain Poster", "POSTER", 1000, 800)
+    product_id = add_product(test_db, "Plain Poster", cat(test_db, "POSTER"), 1000, 800)
     test_db.execute(
         "UPDATE products SET current_stock = 0, unit_cost = 100 WHERE id = ?",
         (product_id,),

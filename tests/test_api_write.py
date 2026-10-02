@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from api.deps import get_db
 from api.main import app
 from db.connection import get_connection, init_db
+from db.constants import LEGACY_PRODUCT_CATEGORIES
 
 CD_ALBUM_UNIT_COST = 202_030
 
@@ -47,10 +48,16 @@ def _create_material(client, name, type_, unit_cost, **extra):
     return _post(client, "/materials", body)["id"]
 
 
+def _category_id(client, code="OTHER"):
+    """Id of the seeded top-level PRODUCT category for a legacy code, via the API."""
+    rows = client.get("/categories", params={"kind": "PRODUCT"}).json()
+    return next(c["id"] for c in rows if c["name"] == LEGACY_PRODUCT_CATEGORIES[code])
+
+
 def _create_product(client, name, category="OTHER", retail=1000, wholesale=800, **extra):
     body = {
         "name": name,
-        "category": category,
+        "category_id": _category_id(client, category),
         "retail_price": retail,
         "wholesale_price": wholesale,
         **extra,
@@ -177,8 +184,16 @@ def test_create_product_returns_201_matching_get(api):
     created = _post(
         client,
         "/products",
-        {"name": "Poster", "category": "POSTER", "retail_price": 1000, "wholesale_price": 700},
+        {
+            "name": "Poster",
+            "category_id": _category_id(client, "POSTER"),
+            "retail_price": 1000,
+            "wholesale_price": 700,
+        },
     )
+    assert created["category_name"] == "پوستر"
+    assert created["category"] is None
+    assert created["parent_category_name"] is None
     assert created["made_to_order"] == 0
     assert created["is_active"] == 1
     assert created == client.get(f"/products/{created['id']}").json()
@@ -472,7 +487,12 @@ def test_non_int_money_is_422(api, bad_value):
     client, _ = api
     response = client.post(
         "/products",
-        json={"name": "X", "category": "OTHER", "retail_price": bad_value, "wholesale_price": 1},
+        json={
+            "name": "X",
+            "category_id": _category_id(client),
+            "retail_price": bad_value,
+            "wholesale_price": 1,
+        },
     )
     assert response.status_code == 422
     assert client.get("/products").json() == []
@@ -544,6 +564,36 @@ def test_deactivate_unknown_product_is_404(api):
     assert client.post("/products/999/deactivate").status_code == 404
 
 
+def test_product_deactivate_then_reactivate(api):
+    client, _ = api
+    product_id = _create_product(client, "Poster")
+    assert client.post(f"/products/{product_id}/deactivate").json()["is_active"] == 0
+
+    response = client.post(f"/products/{product_id}/reactivate")
+    assert response.status_code == 200
+    assert response.json() == client.get(f"/products/{product_id}").json()
+    assert response.json()["is_active"] == 1
+    assert any(p["id"] == product_id for p in client.get("/products").json())
+
+
+def test_material_deactivate_then_reactivate(api):
+    client, _ = api
+    material_id = _create_material(client, "Box", "STOCK", 1000, initial_stock=3)
+    assert client.post(f"/materials/{material_id}/deactivate").json()["is_active"] == 0
+
+    response = client.post(f"/materials/{material_id}/reactivate")
+    assert response.status_code == 200
+    assert response.json() == client.get(f"/materials/{material_id}").json()
+    assert response.json()["is_active"] == 1
+    assert response.json()["current_stock"] == 3
+
+
+def test_reactivate_unknown_is_404(api):
+    client, _ = api
+    assert client.post("/products/999/reactivate").status_code == 404
+    assert client.post("/materials/999/reactivate").status_code == 404
+
+
 def test_channel_settings_patch_only_changes_sent_fields(api, shop):
     client, _ = api
     response = client.patch("/settings/channels/WEBSITE", json={"applies_postage": 0})
@@ -589,3 +639,153 @@ def test_invoice_pdf(api, shop):
 def test_invoice_pdf_unknown_order_is_404(api):
     client, _ = api
     assert client.get("/orders/999/invoice.pdf").status_code == 404
+
+
+# ------------------------------------------------------------------ categories
+
+
+def test_list_categories_requires_valid_kind(api):
+    client, _ = api
+    assert client.get("/categories").status_code == 422
+    assert client.get("/categories", params={"kind": "SUPPLIER"}).status_code == 422
+    rows = client.get("/categories", params={"kind": "PRODUCT"}).json()
+    assert len(rows) == 9
+    assert all(r["parent_id"] is None and r["parent_name"] is None for r in rows)
+    assert client.get("/categories", params={"kind": "MATERIAL"}).json() == []
+
+
+def test_category_create_subcategory_and_tree(api):
+    client, _ = api
+    lighters = _category_id(client, "فندک")
+    big = _post(client, "/categories", {"kind": "PRODUCT", "name": "فندک بزرگ", "parent_id": lighters})
+    assert big["parent_id"] == lighters
+    assert big["parent_name"] == "فندک"
+    assert big["is_active"] == 1
+    assert big == client.get(f"/categories/{big['id']}").json()
+
+    children = client.get("/categories", params={"kind": "PRODUCT", "parent_id": lighters}).json()
+    assert [c["id"] for c in children] == [big["id"]]
+
+    tree = client.get("/categories/tree", params={"kind": "PRODUCT"}).json()
+    node = next(t for t in tree if t["id"] == lighters)
+    assert [c["id"] for c in node["children"]] == [big["id"]]
+
+
+def test_category_create_errors(api):
+    client, _ = api
+    lighters = _category_id(client, "فندک")
+    big = _post(client, "/categories", {"kind": "PRODUCT", "name": "فندک بزرگ", "parent_id": lighters})
+
+    dup = client.post("/categories", json={"kind": "PRODUCT", "name": "وینیل"})
+    assert dup.status_code == 409
+
+    kind_mismatch = client.post(
+        "/categories", json={"kind": "MATERIAL", "name": "X", "parent_id": lighters}
+    )
+    assert kind_mismatch.status_code == 422
+    assert _error(kind_mismatch)["field"] == "parent_id"
+
+    nested = client.post(
+        "/categories", json={"kind": "PRODUCT", "name": "X", "parent_id": big["id"]}
+    )
+    assert nested.status_code == 422
+    assert _error(nested)["field"] == "parent_id"
+
+    assert client.post("/categories", json={"kind": "PRODUCT", "name": " "}).status_code == 422
+    assert client.post("/categories", json={"kind": "OTHER", "name": "X"}).status_code == 422
+    assert client.get("/categories/999").status_code == 404
+
+
+def test_category_patch_deactivate_reactivate(api):
+    client, _ = api
+    hats = _post(client, "/categories", {"kind": "PRODUCT", "name": "کلاه"})
+
+    renamed = client.patch(f"/categories/{hats['id']}", json={"name": "کلاه‌ها"})
+    assert renamed.status_code == 200
+    assert renamed.json()["name"] == "کلاه‌ها"
+
+    off = client.post(f"/categories/{hats['id']}/deactivate")
+    assert off.status_code == 200
+    assert off.json()["is_active"] == 0
+    on = client.patch(f"/categories/{hats['id']}", json={"is_active": True})
+    assert on.json()["is_active"] == 1
+    assert client.post(f"/categories/{hats['id']}/reactivate").json()["is_active"] == 1
+
+    assert client.patch(f"/categories/{hats['id']}", json={"kind": "MATERIAL"}).status_code == 422
+    assert client.post("/categories/999/deactivate").status_code == 404
+
+
+def test_category_deactivate_refused_when_used_or_has_children(api):
+    client, _ = api
+    _create_product(client, "Vinyl", "VINYL")
+    used = client.post(f"/categories/{_category_id(client, 'VINYL')}/deactivate")
+    assert used.status_code == 409
+
+    lighters = _category_id(client, "فندک")
+    _post(client, "/categories", {"kind": "PRODUCT", "name": "فندک بزرگ", "parent_id": lighters})
+    assert client.post(f"/categories/{lighters}/deactivate").status_code == 409
+
+
+def test_create_product_category_validation(api):
+    client, _ = api
+    legacy = client.post(
+        "/products",
+        json={"name": "X", "category": "VINYL", "retail_price": 1, "wholesale_price": 1},
+    )
+    assert legacy.status_code == 422  # the old code field is gone
+
+    material_cat = _post(client, "/categories", {"kind": "MATERIAL", "name": "چاپ"})
+    wrong_kind = client.post(
+        "/products",
+        json={"name": "X", "category_id": material_cat["id"], "retail_price": 1, "wholesale_price": 1},
+    )
+    assert wrong_kind.status_code == 422
+    assert _error(wrong_kind)["field"] == "category_id"
+    assert client.get("/products").json() == []
+
+
+def test_product_category_move_returns_updated_row(api):
+    client, _ = api
+    lighters = _category_id(client, "فندک")
+    product_id = _create_product(client, "Zippo", "فندک")
+    big = _post(client, "/categories", {"kind": "PRODUCT", "name": "فندک بزرگ", "parent_id": lighters})
+
+    response = client.patch(f"/products/{product_id}/category", json={"category_id": big["id"]})
+    assert response.status_code == 200
+    moved = response.json()
+    assert moved["category_id"] == big["id"]
+    assert moved["category_name"] == "فندک بزرگ"
+    assert moved["parent_category_id"] == lighters
+    assert moved["parent_category_name"] == "فندک"
+
+    back = client.patch(f"/products/{product_id}/category", json={"category_id": lighters})
+    assert back.status_code == 422  # parent has an active subcategory
+    assert client.patch("/products/999/category", json={"category_id": big["id"]}).status_code == 404
+
+
+def test_material_category_on_create_and_move(api):
+    client, _ = api
+    printing = _post(client, "/categories", {"kind": "MATERIAL", "name": "چاپ"})
+    created = _post(
+        client,
+        "/materials",
+        {"name": "A3", "type": "SERVICE", "unit_cost": 100, "category_id": printing["id"]},
+    )
+    assert created["category_name"] == "چاپ"
+    assert created["parent_category_name"] is None
+
+    plain = _post(client, "/materials", {"name": "Ink", "type": "STOCK", "unit_cost": 10})
+    assert plain["category_id"] is None and plain["category_name"] is None
+
+    moved = client.patch(f"/materials/{plain['id']}/category", json={"category_id": printing["id"]})
+    assert moved.status_code == 200
+    assert moved.json()["category_name"] == "چاپ"
+
+    wrong = client.patch(
+        f"/materials/{plain['id']}/category", json={"category_id": _category_id(client, "VINYL")}
+    )
+    assert wrong.status_code == 422
+    assert _error(wrong)["field"] == "category_id"
+
+    catalog = client.get("/catalog").json()
+    assert {m["category_name"] for m in catalog["materials"]} == {"چاپ"}

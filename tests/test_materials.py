@@ -1,12 +1,16 @@
 import pytest
 
+from db.categories import create_category, deactivate_category
 from db.materials import (
     add_material,
     deactivate_material,
     get_low_stock_materials,
     get_material,
     list_materials,
+    reactivate_material,
+    set_material_category,
 )
+from tests.helpers import cat
 
 
 def test_add_and_get_stock_material(test_db):
@@ -99,3 +103,67 @@ def test_get_low_stock_excludes_inactive(test_db):
 
     low_stock = get_low_stock_materials(test_db, threshold=10)
     assert all(m["id"] != material_id for m in low_stock)
+
+
+def test_reactivate_material(test_db):
+    material_id = add_material(test_db, "Old Stock", "STOCK", 100, initial_stock=5)
+    deactivate_material(test_db, material_id)
+    reactivate_material(test_db, material_id)
+
+    material = get_material(test_db, material_id)
+    assert material["is_active"] == 1
+    assert material["current_stock"] == 5
+    assert any(m["id"] == material_id for m in list_materials(test_db, active_only=True))
+
+
+def test_material_category_defaults_to_none(test_db):
+    material = get_material(test_db, add_material(test_db, "Ink", "STOCK", 10))
+    assert material["category_id"] is None
+    assert material["category_name"] is None
+    assert material["parent_category_id"] is None
+    assert material["parent_category_name"] is None
+
+
+def test_add_material_with_subcategory(test_db):
+    printing = create_category(test_db, "MATERIAL", "چاپ")
+    a3 = create_category(test_db, "MATERIAL", "A3", parent_id=printing)
+    material_id = add_material(test_db, "A3 Print", "SERVICE", 2000, category_id=a3)
+
+    material = get_material(test_db, material_id)
+    assert material["category_id"] == a3
+    assert material["category_name"] == "A3"
+    assert material["parent_category_id"] == printing
+    assert material["parent_category_name"] == "چاپ"
+    assert list_materials(test_db)[0]["category_name"] == "A3"
+
+
+def test_add_material_rejects_product_category(test_db):
+    with pytest.raises(ValueError, match="PRODUCT category") as exc_info:
+        add_material(test_db, "Ink", "STOCK", 10, category_id=cat(test_db, "VINYL"))
+    assert exc_info.value.field == "category_id"
+
+
+def test_add_material_rejects_unknown_inactive_or_parent_category(test_db):
+    printing = create_category(test_db, "MATERIAL", "چاپ")
+    create_category(test_db, "MATERIAL", "A3", parent_id=printing)
+    old = create_category(test_db, "MATERIAL", "قدیمی")
+    deactivate_category(test_db, old)
+
+    for category_id, message in ((9999, "does not exist"), (old, "inactive"), (printing, "has subcategories")):
+        with pytest.raises(ValueError, match=message) as exc_info:
+            add_material(test_db, "Ink", "STOCK", 10, category_id=category_id)
+        assert exc_info.value.field == "category_id"
+    assert list_materials(test_db, active_only=False) == []
+
+
+def test_set_material_category(test_db):
+    packaging = create_category(test_db, "MATERIAL", "بسته‌بندی")
+    material_id = add_material(test_db, "Box", "STOCK", 10)
+
+    set_material_category(test_db, material_id, packaging)
+    assert get_material(test_db, material_id)["category_name"] == "بسته‌بندی"
+
+    with pytest.raises(ValueError, match="PRODUCT category"):
+        set_material_category(test_db, material_id, cat(test_db, "OTHER"))
+    with pytest.raises(ValueError, match="does not exist"):
+        set_material_category(test_db, 9999, packaging)

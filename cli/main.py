@@ -23,8 +23,8 @@ from db.orders import (
     record_order,
     update_order_status,
 )
+from db.categories import list_category_tree
 from db.products import (
-    VALID_CATEGORIES,
     add_product,
     deactivate_product,
     get_product,
@@ -119,13 +119,15 @@ def _prompt_float(prompt: str, min_value: float = 0) -> float:
             print("Please enter a valid number.")
 
 
-def _prompt_category() -> str:
-    print(f"Valid categories: {', '.join(VALID_CATEGORIES)}")
-    while True:
-        category = input("Category: ").strip().upper()
-        if category in VALID_CATEGORIES:
-            return category
-        print(f"Invalid category. Choose one of: {', '.join(VALID_CATEGORIES)}")
+def _prompt_category(conn) -> int | None:
+    # Only assignable categories: subcategories, and top-levels without any.
+    leaves = []
+    for top in list_category_tree(conn, "PRODUCT"):
+        if top["children"]:
+            leaves += [{"id": c["id"], "name": f"{top['name']} > {c['name']}"} for c in top["children"]]
+        else:
+            leaves.append({"id": top["id"], "name": top["name"]})
+    return _prompt_choice_from_list(leaves, "category")
 
 
 def _prompt_material_type() -> str:
@@ -140,14 +142,16 @@ def _prompt_material_type() -> str:
 def _handle_add_product(conn) -> None:
     while True:
         name = _prompt_non_empty("Product name: ")
-        category = _prompt_category()
+        category_id = _prompt_category(conn)
+        if category_id is None:
+            return
         retail_price = _prompt_int("Retail price (in smallest currency unit): ")
         wholesale_price = _prompt_int("Wholesale price (in smallest currency unit): ")
         made_to_order = input("Made to order? (y/n, default n): ").strip().lower() == "y"
 
         try:
             product_id = add_product(
-                conn, name, category, retail_price, wholesale_price, made_to_order
+                conn, name, category_id, retail_price, wholesale_price, made_to_order
             )
             print(f"Product added with id {product_id}.")
             return
@@ -169,7 +173,7 @@ def _handle_list_products(conn) -> None:
     print("-" * 80)
     for product in products:
         print(
-            f"{product['id']:<5} {product['name']:<30} {product['category']:<10} "
+            f"{product['id']:<5} {product['name']:<30} {product['category_name']:<10} "
             f"{product['retail_price']:<8} {product['wholesale_price']:<10} "
             f"{product['current_stock']:<6} {'yes' if product['made_to_order'] else 'no':<4}"
         )

@@ -168,3 +168,84 @@ export type Settings = Schemas["SettingsOut"]
 export function getSettings(): Promise<Settings> {
   return apiFetch<Settings>("/settings")
 }
+
+export type Product = Schemas["ProductOut"]
+export type Material = Schemas["MaterialOut"]
+export type ProductCreate = Schemas["ProductCreate"]
+export type MaterialCreate = Schemas["MaterialCreate"]
+
+/** All products, including inactive ones (/catalog only has active). */
+export function listProducts(activeOnly = false): Promise<Product[]> {
+  return apiFetch<Product[]>(`/products?active_only=${activeOnly}`)
+}
+
+export function listMaterials(activeOnly = false): Promise<Material[]> {
+  return apiFetch<Material[]>(`/materials?active_only=${activeOnly}`)
+}
+
+export function createProduct(body: ProductCreate): Promise<Product> {
+  return apiFetch<Product>("/products", { method: "POST", body: JSON.stringify(body) })
+}
+
+/** Omitted prices are left unchanged. */
+export function updateProductPrices(
+  productId: number,
+  prices: { retail_price?: number; wholesale_price?: number }
+): Promise<Product> {
+  return apiFetch<Product>(`/products/${productId}/prices`, {
+    method: "PATCH",
+    body: JSON.stringify(prices),
+  })
+}
+
+/** Turning made-to-order on needs a recipe: 422 with field "made_to_order" otherwise. */
+export function setMadeToOrder(productId: number, madeToOrder: boolean): Promise<Product> {
+  return apiFetch<Product>(`/products/${productId}/made-to-order`, {
+    method: "POST",
+    body: JSON.stringify({ made_to_order: madeToOrder }),
+  })
+}
+
+export function deactivateProduct(productId: number): Promise<Product> {
+  return apiFetch<Product>(`/products/${productId}/deactivate`, { method: "POST" })
+}
+
+export function createMaterial(body: MaterialCreate): Promise<Material> {
+  return apiFetch<Material>("/materials", { method: "POST", body: JSON.stringify(body) })
+}
+
+export function deactivateMaterial(materialId: number): Promise<Material> {
+  return apiFetch<Material>(`/materials/${materialId}/deactivate`, { method: "POST" })
+}
+
+export function reactivateProduct(productId: number): Promise<Product> {
+  return apiFetch<Product>(`/products/${productId}/reactivate`, { method: "POST" })
+}
+
+export function reactivateMaterial(materialId: number): Promise<Material> {
+  return apiFetch<Material>(`/materials/${materialId}/reactivate`, { method: "POST" })
+}
+
+export type Category = Schemas["CategoryOut"]
+export type CategoryTree = Schemas["CategoryTreeOut"]
+export type CategoryKind = "PRODUCT" | "MATERIAL"
+
+/** Top-level categories of one kind, each with its subcategories. */
+export function listCategoryTree(kind: CategoryKind, activeOnly = false): Promise<CategoryTree[]> {
+  return apiFetch<CategoryTree[]>(`/categories/tree?kind=${kind}&active_only=${activeOnly}`)
+}
+
+/** 422 with field "category_id" if the category isn't assignable (wrong kind, inactive, has subcategories). */
+export function setProductCategory(productId: number, categoryId: number): Promise<Product> {
+  return apiFetch<Product>(`/products/${productId}/category`, {
+    method: "PATCH",
+    body: JSON.stringify({ category_id: categoryId }),
+  })
+}
+
+export function setMaterialCategory(materialId: number, categoryId: number): Promise<Material> {
+  return apiFetch<Material>(`/materials/${materialId}/category`, {
+    method: "PATCH",
+    body: JSON.stringify({ category_id: categoryId }),
+  })
+}

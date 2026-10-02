@@ -1,17 +1,21 @@
 import sqlite3
 
+from db.categories import validate_assignable
 from db.connection import transaction
-from db.constants import VALID_CATEGORIES  # re-exported for existing importers
 from db.errors import NotFoundError, ValidationError
 
-
-def _validate_category(category: str) -> None:
-    if category not in VALID_CATEGORIES:
-        valid = ", ".join(VALID_CATEGORIES)
-        raise ValidationError(
-            f"Invalid category '{category}'. Must be one of: {valid}",
-            field="category",
-        )
+# Products carry their category's name (and its parent's, for a subcategory)
+# so callers never need a second lookup. products.category is the legacy code
+# column from before migration 005; new products store NULL there.
+_SELECT = """
+    SELECT products.*,
+           c.name AS category_name,
+           c.parent_id AS parent_category_id,
+           pc.name AS parent_category_name
+    FROM products
+    JOIN categories c ON c.id = products.category_id
+    LEFT JOIN categories pc ON pc.id = c.parent_id
+"""
 
 
 def _validate_price(price: int, field_name: str) -> None:
@@ -22,12 +26,12 @@ def _validate_price(price: int, field_name: str) -> None:
 def add_product(
     conn: sqlite3.Connection,
     name: str,
-    category: str,
+    category_id: int,
     retail_price: int,
     wholesale_price: int,
     made_to_order: bool = False,
 ) -> int:
-    _validate_category(category)
+    validate_assignable(conn, category_id, "PRODUCT")
     _validate_price(retail_price, "retail_price")
     _validate_price(wholesale_price, "wholesale_price")
 
@@ -35,10 +39,10 @@ def add_product(
         cursor = conn.execute(
             """
             INSERT INTO products
-                (name, category, retail_price, wholesale_price, made_to_order)
+                (name, category_id, retail_price, wholesale_price, made_to_order)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (name, category, retail_price, wholesale_price, int(made_to_order)),
+            (name, category_id, retail_price, wholesale_price, int(made_to_order)),
         )
     return cursor.lastrowid
 
@@ -48,17 +52,15 @@ def list_products(
 ) -> list[dict]:
     if active_only:
         rows = conn.execute(
-            "SELECT * FROM products WHERE is_active = 1 ORDER BY name"
+            f"{_SELECT} WHERE products.is_active = 1 ORDER BY products.name"
         ).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM products ORDER BY name").fetchall()
+        rows = conn.execute(f"{_SELECT} ORDER BY products.name").fetchall()
     return [dict(row) for row in rows]
 
 
 def get_product(conn: sqlite3.Connection, product_id: int) -> dict | None:
-    row = conn.execute(
-        "SELECT * FROM products WHERE id = ?", (product_id,)
-    ).fetchone()
+    row = conn.execute(f"{_SELECT} WHERE products.id = ?", (product_id,)).fetchone()
     return dict(row) if row is not None else None
 
 
@@ -100,6 +102,11 @@ def deactivate_product(conn: sqlite3.Connection, product_id: int) -> None:
         conn.execute("UPDATE products SET is_active = 0 WHERE id = ?", (product_id,))
 
 
+def reactivate_product(conn: sqlite3.Connection, product_id: int) -> None:
+    with transaction(conn):
+        conn.execute("UPDATE products SET is_active = 1 WHERE id = ?", (product_id,))
+
+
 def set_made_to_order(
     conn: sqlite3.Connection, product_id: int, made_to_order: bool
 ) -> None:
@@ -123,4 +130,16 @@ def set_made_to_order(
         conn.execute(
             "UPDATE products SET made_to_order = ? WHERE id = ?",
             (int(made_to_order), product_id),
+        )
+
+
+def set_product_category(
+    conn: sqlite3.Connection, product_id: int, category_id: int
+) -> None:
+    if get_product(conn, product_id) is None:
+        raise NotFoundError(f"Product with id {product_id} does not exist")
+    validate_assignable(conn, category_id, "PRODUCT")
+    with transaction(conn):
+        conn.execute(
+            "UPDATE products SET category_id = ? WHERE id = ?", (category_id, product_id)
         )
