@@ -472,3 +472,49 @@ export function getPostageEstimate(): Promise<PostageEstimate> {
 export function createPostageBatch(body: PostageBatchCreate): Promise<PostageBatch> {
   return apiFetch<PostageBatch>("/postage/batches", { method: "POST", body: JSON.stringify(body) })
 }
+
+// ------------------------------------------------------------ expenses
+
+export type Expense = Schemas["ExpenseOut"]
+export type ExpenseCreate = Schemas["ExpenseCreate"]
+export type ExpenseCategory = Schemas["ExpenseCategoryOut"]
+export type ExpenseBreakdown = Schemas["ExpenseBreakdownOut"]
+
+export type ExpenseFilters = { categoryId?: number | null; from?: string | null; to?: string | null }
+
+/** Newest first: expense_date DESC, id DESC. No text search server-side. */
+export function listExpenses(f: ExpenseFilters = {}): Promise<Expense[]> {
+  const qs = new URLSearchParams()
+  if (f.categoryId != null) qs.set("category_id", String(f.categoryId))
+  if (f.from) qs.set("start_date", f.from)
+  if (f.to) qs.set("end_date", f.to)
+  const s = qs.toString()
+  return apiFetch<Expense[]>(`/expenses${s ? `?${s}` : ""}`)
+}
+
+/**
+ * 404 for an unknown category (an inactive one is accepted); 422 with field
+ * amount for a negative amount. A zero amount and a future date are accepted.
+ */
+export function createExpense(body: ExpenseCreate): Promise<Expense> {
+  return apiFetch<Expense>("/expenses", { method: "POST", body: JSON.stringify(body) })
+}
+
+/** Ordered by name. There is no rename / deactivate / reactivate endpoint. */
+export function listExpenseCategories(activeOnly = true): Promise<ExpenseCategory[]> {
+  return apiFetch<ExpenseCategory[]>(`/expense-categories?active_only=${activeOnly}`)
+}
+
+/** 409 ConflictError when the name exists (active or not); 422 field name when blank. */
+export function createExpenseCategory(name: string): Promise<ExpenseCategory> {
+  return apiFetch<ExpenseCategory>("/expense-categories", { method: "POST", body: JSON.stringify({ name }) })
+}
+
+/** Per-category totals for a range, largest first. No category filter. */
+export function getExpenseBreakdown(f: { from?: string | null; to?: string | null } = {}): Promise<ExpenseBreakdown[]> {
+  const qs = new URLSearchParams()
+  if (f.from) qs.set("start_date", f.from)
+  if (f.to) qs.set("end_date", f.to)
+  const s = qs.toString()
+  return apiFetch<ExpenseBreakdown[]>(`/reports/expenses${s ? `?${s}` : ""}`)
+}

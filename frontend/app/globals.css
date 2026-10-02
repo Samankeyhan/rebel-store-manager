@@ -64,6 +64,9 @@
   --color-violet-soft: var(--violet-soft);
   --color-cancel-bg: var(--cancel-bg);
   --color-cancel-fg: var(--cancel-fg);
+  --color-bar-a: var(--bar-a);
+  --color-bar-b: var(--bar-b);
+  --color-bar-c: var(--bar-c);
   --color-ch-web: var(--ch-web);
   --color-ch-insta: var(--ch-insta);
   --color-ch-wholesale: var(--ch-wholesale);
@@ -124,6 +127,9 @@
   --red-soft: #FDECEE;
   --red-hover: #B3182D;
   --navy-soft: #ECEFF5;
+  --bar-a: #33496A;
+  --bar-b: #A7AFBF;
+  --bar-c: #6B7384;
   --profit: #137A38;
   --profit-soft: #E5F4EA;
   --loss: #B42318;
@@ -185,6 +191,9 @@
   --red-soft: #3B1A22;
   --red-hover: #F25C6E;
   --navy-soft: #1F2740;
+  --bar-a: #8FA3CC;
+  --bar-b: #4A536B;
+  --bar-c: #6F7892;
   --profit: #4CC476;
   --profit-soft: #12301E;
   --loss: #F4776C;
