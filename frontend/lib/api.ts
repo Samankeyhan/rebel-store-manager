@@ -358,6 +358,41 @@ export function createProductPurchase(body: ProductPurchaseCreate): Promise<Prod
   return apiFetch<ProductPurchase>("/purchases/products", { method: "POST", body: JSON.stringify(body) })
 }
 
+export type Adjustment = Schemas["AdjustmentOut"]
+export type AdjustmentCreate = Schemas["AdjustmentCreate"]
+export type AdjustmentReason = "WASTE" | "ADJUSTMENT"
+export type AdjustmentItemType = "PRODUCT" | "MATERIAL"
+
+export type AdjustmentFilters = {
+  itemType?: AdjustmentItemType | null
+  reason?: AdjustmentReason | null
+  from?: string | null
+  to?: string | null
+}
+
+/** WASTE and ADJUSTMENT movements only, newest first. No item filter server-side. */
+export function listAdjustments(f: AdjustmentFilters = {}): Promise<Adjustment[]> {
+  const qs = new URLSearchParams()
+  if (f.itemType) qs.set("item_type", f.itemType)
+  if (f.reason) qs.set("reason", f.reason)
+  if (f.from) qs.set("start_date", f.from)
+  if (f.to) qs.set("end_date", f.to)
+  const s = qs.toString()
+  return apiFetch<Adjustment[]>(`/adjustments${s ? `?${s}` : ""}`)
+}
+
+/**
+ * Returns the movement only — re-fetch the item for its new stock/cost.
+ * 409 InsufficientStockError (details.item_name / needed / available) when a
+ * decrease would take stock below zero; 422 with field quantity_change
+ * (zero, fractional product, non-negative WASTE) or unit_cost (only on a
+ * positive ADJUSTMENT); 422 without a field for an inactive item or a
+ * SERVICE material; 404 for an unknown item.
+ */
+export function createAdjustment(body: AdjustmentCreate): Promise<Adjustment> {
+  return apiFetch<Adjustment>("/adjustments", { method: "POST", body: JSON.stringify(body) })
+}
+
 export function listSuppliers(): Promise<Supplier[]> {
   return apiFetch<Supplier[]>("/suppliers")
 }

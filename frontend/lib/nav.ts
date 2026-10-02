@@ -28,7 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/purchases", title: "خریدها", icon: Truck },
   { href: "/packaging", title: "بسته‌بندی", icon: Box },
   { href: "/postage", title: "ارسال پستی", icon: Mail },
-  { href: "/adjustments", title: "اصلاح موجودی", icon: SlidersHorizontal },
+  { href: "/adjustments", title: "تعدیل موجودی", icon: SlidersHorizontal },
   { href: "/expenses", title: "هزینه‌ها", icon: Wallet },
   { href: "/reports", title: "گزارش‌ها", icon: ChartColumn },
   { href: "/partners", title: "شرکا", icon: Users },
