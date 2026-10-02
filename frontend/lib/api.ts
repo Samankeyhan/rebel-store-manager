@@ -169,6 +169,18 @@ export function getSettings(): Promise<Settings> {
   return apiFetch<Settings>("/settings")
 }
 
+/**
+ * The global settings the UI edits. `timezone` is a valid backend key too but
+ * deliberately left out: changing it re-buckets every stored date (see
+ * components/settings/general-card.tsx).
+ */
+export type GlobalSettingKey = "default_shipping_charge" | "postage_estimate_window" | "default_postage_estimate"
+
+/** PUT /settings/{key}: 422 (field "value") for a negative amount or a window < 1. Returns all settings. */
+export function updateSetting(key: GlobalSettingKey, value: number): Promise<Settings> {
+  return apiFetch<Settings>(`/settings/${key}`, { method: "PUT", body: JSON.stringify({ value }) })
+}
+
 export type Product = Schemas["ProductOut"]
 export type Material = Schemas["MaterialOut"]
 export type ProductCreate = Schemas["ProductCreate"]

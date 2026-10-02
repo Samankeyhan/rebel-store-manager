@@ -1,0 +1,235 @@
+"use client"
+
+import * as React from "react"
+import { Info, Loader2 } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { ErrorBlock, LoadingBlock } from "@/components/common/screen-states"
+import { Toast } from "@/components/common/toast"
+import { Alert, Btn, cardClass } from "@/components/record-sale/primitives"
+import type { Channel } from "@/components/record-sale/copy"
+import { ApiError, type GlobalSettingKey } from "@/lib/api"
+import { cn } from "@/lib/utils"
+import { ChannelsCard } from "./channels-card"
+import { S, joinList } from "./copy"
+import { changes, fromSettings, saveDraft, validate, type ChannelDraft, type Draft } from "./draft"
+import { GeneralCard } from "./general-card"
+import { PostageCard, heroFigure } from "./postage-card"
+import { useSettingsData } from "./use-settings-data"
+
+const SECTIONS = [
+  { hash: "#ship", label: S.navShip },
+  { hash: "#post", label: S.navPost },
+  { hash: "#general", label: S.navGeneral },
+] as const
+
+function subscribeHash(onChange: () => void) {
+  window.addEventListener("hashchange", onChange)
+  return () => window.removeEventListener("hashchange", onChange)
+}
+const useHash = () => React.useSyncExternalStore(subscribeHash, () => window.location.hash, () => "")
+
+/**
+ * تنظیمات (design 15): the one place channel configuration and the global
+ * settings are edited (Packaging and Postage show them read-only and link
+ * here). Edits go into a draft; «ذخیره تغییرات» saves every change in turn
+ * (see draft.ts). Store/invoice fields and «کاربران» aren't built: the
+ * backend has no settings for them.
+ */
+export function SettingsPage() {
+  const mobile = useIsMobile()
+  const hash = useHash()
+  const { state, reload, setSettings, refreshKits, refreshEstimate } = useSettingsData()
+  const [draft, setDraft] = React.useState<Draft | null>(null)
+  const [busy, setBusy] = React.useState(false)
+  const [saveError, setSaveError] = React.useState<string | null>(null)
+  /** A global setting the server refused, until it's edited again. */
+  const [serverError, setServerError] = React.useState<{ key: GlobalSettingKey; message: string } | null>(null)
+  const [toast, setToast] = React.useState<string | null>(null)
+  const closeToast = React.useCallback(() => setToast(null), [])
+
+  // Seed the draft from the first load (and again after a reload).
+  if (state.status === "ready" && draft === null) setDraft(fromSettings(state.settings))
+  if (state.status !== "ready" && draft !== null) setDraft(null)
+
+  const ready = state.status === "ready" && draft !== null
+  const dirty = ready ? changes(state.settings, draft) : []
+
+  React.useEffect(() => {
+    if (dirty.length === 0) return
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener("beforeunload", warn)
+    return () => window.removeEventListener("beforeunload", warn)
+  }, [dirty.length])
+
+  // Arriving with #post (Postage's link) or #ship (Packaging's): scroll once the cards exist.
+  React.useEffect(() => {
+    if (ready && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" })
+    // Only on first render of the loaded screen, not on every hash click (the anchor already scrolls).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
+
+  if (state.status === "loading" || (state.status === "ready" && !draft))
+    return <LoadingBlock mobile={mobile} label={S.loadingAria} />
+  if (state.status === "error" || !draft)
+    return <ErrorBlock title={S.errorTitle} body={S.errorBody} retry={S.retry} onRetry={reload} mobile={mobile} />
+
+  const { settings, kits, batches, estimate } = state
+  const clientErrors = validate(draft)
+  const errorFor = (key: GlobalSettingKey) => clientErrors[key] ?? (serverError?.key === key ? serverError.message : null)
+  const invalid = Object.keys(clientErrors).length > 0
+  const hero = heroFigure(batches, estimate, settings, draft)
+
+  const setGlobal = (key: GlobalSettingKey) => (value: number) => {
+    setDraft((d) => d && { ...d, [key]: value })
+    if (serverError?.key === key) setServerError(null)
+  }
+  const setChannel = (channel: Channel, patch: Partial<ChannelDraft>) =>
+    setDraft((d) => d && { ...d, channels: { ...d.channels, [channel]: { ...d.channels[channel], ...patch } } })
+
+  const revert = () => {
+    setDraft(fromSettings(settings))
+    setSaveError(null)
+    setServerError(null)
+  }
+
+  const save = async () => {
+    if (busy || invalid || dirty.length === 0) return
+    setBusy(true)
+    setSaveError(null)
+    setServerError(null)
+    const result = await saveDraft(settings, draft)
+    setSettings(result.settings)
+    if (result.savedGlobal) await refreshEstimate().catch(() => {})
+    const f = result.failure
+    if (f) {
+      const parts = [S.saveStep(f.label, f.error.message), result.saved.length ? S.savePartial(joinList(result.saved, 99)) : ""]
+      if (f.kitChanged && f.error instanceof ApiError && f.error.type === "NotFoundError") {
+        // The chosen kit was deactivated meanwhile: show the picker's real options.
+        await refreshKits().catch(() => {})
+        parts.push(S.kitsReloaded)
+      }
+      setSaveError(parts.filter(Boolean).join(" "))
+      if (f.key && f.error instanceof ApiError && f.error.field === "value") setServerError({ key: f.key, message: f.error.message })
+    } else {
+      setToast(S.toastSaved)
+    }
+    setBusy(false)
+  }
+
+  const saveButton = (size: "sm" | "lg", className?: string) => (
+    <Btn
+      variant="primary"
+      size={size}
+      className={className}
+      disabled={busy || invalid || dirty.length === 0}
+      aria-busy={busy || undefined}
+      onClick={save}
+    >
+      {busy && <Loader2 className="size-4 animate-spin" />}
+      {S.save}
+    </Btn>
+  )
+
+  const errorAlert = saveError && (
+    <Alert tone="err" title={S.saveFailed}>
+      {saveError}
+    </Alert>
+  )
+  const invalidNote = invalid && dirty.length > 0 && <span className="text-xs text-warn">{S.invalid}</span>
+
+  const cards = (
+    <>
+      <ChannelsCard
+        draft={draft}
+        kits={kits}
+        estimate={hero.estimate}
+        shippingError={errorFor("default_shipping_charge")}
+        onShipping={setGlobal("default_shipping_charge")}
+        onChannel={setChannel}
+        mobile={mobile}
+      />
+      <PostageCard
+        draft={draft}
+        hero={hero}
+        windowError={errorFor("postage_estimate_window")}
+        defaultError={errorFor("default_postage_estimate")}
+        onWindow={setGlobal("postage_estimate_window")}
+        onDefault={setGlobal("default_postage_estimate")}
+        mobile={mobile}
+      />
+      <GeneralCard timezone={settings.timezone} mobile={mobile} />
+    </>
+  )
+
+  const toastNode = toast && <Toast title={toast} onClose={closeToast} closeLabel={S.close} />
+
+  if (mobile) {
+    return (
+      <div className="flex flex-col gap-3 pb-32">
+        {errorAlert}
+        {cards}
+        <div className="fixed inset-x-0 bottom-0 z-30 flex flex-col gap-2 border-t border-border bg-card px-4 pt-3 pb-5">
+          {dirty.length > 0 && (
+            <div className="flex items-center justify-between gap-3 text-[13px]" role="status">
+              <span className="font-semibold">{S.unsavedMobile(dirty.length)}</span>
+              <Btn variant="ghost" size="sm" disabled={busy} onClick={revert}>
+                {S.revert}
+              </Btn>
+            </div>
+          )}
+          {invalidNote}
+          {saveButton("lg", "w-full")}
+        </div>
+        {toastNode}
+      </div>
+    )
+  }
+
+  const active = SECTIONS.some((s) => s.hash === hash) ? hash : "#ship"
+
+  return (
+    <div className="flex items-start gap-6">
+      <nav aria-label={S.navAria} className={cn(cardClass, "sticky top-6 flex w-[220px] shrink-0 flex-col gap-0.5 p-2")}>
+        {SECTIONS.map((s) => (
+          <a
+            key={s.hash}
+            href={s.hash}
+            aria-current={s.hash === active ? "true" : undefined}
+            className={cn(
+              "flex h-10 items-center rounded-lg px-3 text-sm outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-ring/30",
+              s.hash === active && "bg-red-soft font-bold hover:bg-red-soft"
+            )}
+          >
+            {s.label}
+          </a>
+        ))}
+      </nav>
+      <div className="flex min-w-0 grow flex-col gap-5">
+        {errorAlert}
+        {cards}
+        {dirty.length > 0 && (
+          <div
+            role="status"
+            className="sticky bottom-5 z-20 flex items-center gap-3 rounded-xl bg-foreground px-4 py-3 text-background shadow-[0_18px_44px_rgba(18,22,38,.18),0_2px_6px_rgba(18,22,38,.08)]"
+          >
+            <Info className="size-[18px] shrink-0" aria-hidden />
+            <span className="min-w-0 grow text-[13px]">
+              {S.unsaved(dirty.length, joinList(dirty))}
+              {invalid && <span className="ms-2 font-bold">{S.invalid}</span>}
+            </span>
+            <Btn
+              size="sm"
+              className="border-white/30 bg-transparent text-background hover:bg-white/10"
+              disabled={busy}
+              onClick={revert}
+            >
+              {S.revert}
+            </Btn>
+            {saveButton("sm")}
+          </div>
+        )}
+      </div>
+      {toastNode}
+    </div>
+  )
+}

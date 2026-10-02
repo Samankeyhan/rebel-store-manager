@@ -136,11 +136,13 @@ export function Stepper({
   onValue,
   tone,
   size = "md",
+  inputLabel = T.colQty,
 }: {
   value: number
   onValue: (n: number) => void
   tone?: "error" | "warn" | null
   size?: "md" | "mobile"
+  inputLabel?: string
 }) {
   const btn = cn(
     "flex h-full cursor-pointer items-center justify-center bg-surface-2 text-text-2 hover:text-foreground",
@@ -161,7 +163,7 @@ export function Stepper({
       </button>
       <input
         inputMode="numeric"
-        aria-label={T.colQty}
+        aria-label={inputLabel}
         value={formatNumber(value)}
         // Typing clamps at 0 (V6 then flags it); the − button clamps at 1.
         onChange={(e) => onValue(Math.max(0, parseInteger(e.target.value)))}

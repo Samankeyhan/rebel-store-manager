@@ -301,7 +301,7 @@ export function KitEditor({
                 <span className="text-xs text-text-3">{K.noDefaultTile}</span>
               )}
             </span>
-            <Link href="/settings" className="mt-auto text-xs font-bold text-heading hover:text-primary">
+            <Link href="/settings#ship" className="mt-auto text-xs font-bold text-heading hover:text-primary">
               {K.tileChannelsLink}
             </Link>
           </div>

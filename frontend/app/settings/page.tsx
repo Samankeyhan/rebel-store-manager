@@ -1,5 +1,5 @@
-import { PageStub } from "@/components/page-stub"
+import { SettingsPage } from "@/components/settings/settings-page"
 
-export default function SettingsPage() {
-  return <PageStub href="/settings" />
+export default function Page() {
+  return <SettingsPage />
 }

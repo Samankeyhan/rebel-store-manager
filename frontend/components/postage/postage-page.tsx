@@ -112,7 +112,7 @@ export function PostagePage() {
         </div>
       )}
       {!mobile && (
-        <Link href="/settings" className="text-xs font-bold whitespace-nowrap text-heading hover:text-primary">
+        <Link href="/settings#post" className="text-xs font-bold whitespace-nowrap text-heading hover:text-primary">
           {T.windowLink(estimate.window)}
         </Link>
       )}
