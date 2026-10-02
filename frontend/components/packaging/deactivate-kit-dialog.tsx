@@ -152,7 +152,6 @@ export function DeactivateKitDialog({
             {missing.length > 0 && <p className="text-xs text-text-3">{K.replacementRequired}</p>}
           </>
         )}
-        <p className="text-xs font-bold text-loss">{K.deactIrreversible}</p>
       </div>
     </ConfirmShell>
   )

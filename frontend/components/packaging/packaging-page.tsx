@@ -160,6 +160,7 @@ export function PackagingPage() {
             defaultChannels={channelsWithDefault(state.settings, selected.id)}
             mobile={false}
             onSaved={upsertKit}
+            onReactivated={(kit) => setToast(K.toastReactivated(kit.name))}
             onDeactivate={() => setDeactivating(selected)}
           />
         ) : (
@@ -216,6 +217,7 @@ export function PackagingPage() {
             defaultChannels={channelsWithDefault(state.settings, selected.id)}
             mobile
             onSaved={upsertKit}
+            onReactivated={(kit) => setToast(K.toastReactivated(kit.name))}
             onDeactivate={() => {
               setEditOpen(false)
               setDeactivating(selected)

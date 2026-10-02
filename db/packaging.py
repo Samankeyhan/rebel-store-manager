@@ -150,3 +150,10 @@ def deactivate_kit(conn: sqlite3.Connection, kit_id: int) -> None:
         conn.execute(
             "UPDATE packaging_kits SET is_active = 0 WHERE id = ?", (kit_id,)
         )
+
+
+def reactivate_kit(conn: sqlite3.Connection, kit_id: int) -> None:
+    with transaction(conn):
+        conn.execute(
+            "UPDATE packaging_kits SET is_active = 1 WHERE id = ?", (kit_id,)
+        )

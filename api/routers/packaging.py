@@ -16,6 +16,7 @@ from db.packaging import (
     deactivate_kit,
     get_kit,
     list_kits,
+    reactivate_kit,
     remove_kit_item,
     update_kit_item,
 )
@@ -82,4 +83,13 @@ def deactivate_packaging_kit(
 ) -> KitDetailOut:
     # deactivate_kit doesn't check existence; get_kit raises NotFoundError.
     deactivate_kit(conn, kit_id)
+    return KitDetailOut.model_validate(get_kit(conn, kit_id))
+
+
+@router.post("/packaging/kits/{kit_id}/reactivate", response_model=KitDetailOut)
+def reactivate_packaging_kit(
+    kit_id: int, conn: sqlite3.Connection = Depends(get_db)
+) -> KitDetailOut:
+    # reactivate_kit doesn't check existence; get_kit raises NotFoundError.
+    reactivate_kit(conn, kit_id)
     return KitDetailOut.model_validate(get_kit(conn, kit_id))

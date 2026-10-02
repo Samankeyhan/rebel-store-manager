@@ -609,6 +609,27 @@ def test_reactivate_unknown_is_404(api):
     assert client.post("/materials/999/reactivate").status_code == 404
 
 
+def test_kit_deactivate_then_reactivate(api, shop):
+    client, _ = api
+    kit_id = shop["standard_id"]
+    before = client.get(f"/packaging/kits/{kit_id}").json()
+    assert client.post(f"/packaging/kits/{kit_id}/deactivate").json()["is_active"] == 0
+
+    response = client.post(f"/packaging/kits/{kit_id}/reactivate")
+    assert response.status_code == 200
+    kit = response.json()
+    assert kit == client.get(f"/packaging/kits/{kit_id}").json()
+    assert kit["is_active"] == 1
+    assert kit["items"] == before["items"]
+    assert kit["kit_cost"] == before["kit_cost"]
+    assert any(k["id"] == kit_id for k in client.get("/packaging/kits").json())
+
+
+def test_reactivate_unknown_kit_is_404(api):
+    client, _ = api
+    assert client.post("/packaging/kits/999/reactivate").status_code == 404
+
+
 def test_channel_settings_patch_only_changes_sent_fields(api, shop):
     client, _ = api
     response = client.patch("/settings/channels/WEBSITE", json={"applies_postage": 0})

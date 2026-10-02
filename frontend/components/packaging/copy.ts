@@ -25,7 +25,9 @@ export const K = {
 
   // editor
   deactivate: "غیرفعال کردن",
-  inactiveNote: "این کیت غیرفعال است و در ثبت فروش انتخاب نمی‌شود. (فعال‌سازی دوباره هنوز ممکن نیست.)", // NEW
+  inactiveNote: "این کیت غیرفعال است و در ثبت فروش انتخاب نمی‌شود.", // NEW
+  reactivate: "فعال کردن دوباره",
+  toastReactivated: (name: string) => `کیت «${name}» دوباره فعال شد`, // NEW
   nameReadOnly: "نام کیت پس از ساخت قابل تغییر نیست.", // NEW
   colMaterial: "متریال",
   colQty: "مقدار در هر کیت",
@@ -71,7 +73,6 @@ export const K = {
     "با کیت غیرفعال، ثبت فروش این کانال‌ها با کیت پیش‌فرض رد می‌شود. پیش‌فرض جدید هر کانال را انتخاب کنید:", // NEW
   pickReplacement: "انتخاب پیش‌فرض جدید", // NEW
   replacementRequired: "برای همه کانال‌ها پیش‌فرض جدید را انتخاب کنید.", // NEW
-  deactIrreversible: "فعال‌سازی دوباره کیت فعلاً در برنامه ممکن نیست.", // NEW
   deactConfirm: "غیرفعال کن", // NEW
   deactChannelFailed: (channel: string, msg: string) => `پیش‌فرض «${channel}» ذخیره نشد: ${msg}`, // NEW
   deactPartial: (channels: string) => `پیش‌فرض این کانال‌ها تغییر کرد: ${channels}. کیت غیرفعال نشد.`, // NEW

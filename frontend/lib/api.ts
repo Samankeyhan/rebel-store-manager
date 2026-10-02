@@ -411,9 +411,12 @@ export function removeKitItem(kitId: number, materialId: number): Promise<KitDet
   return apiFetch<KitDetail>(`/packaging/kits/${kitId}/items/${materialId}`, { method: "DELETE" })
 }
 
-/** One-way: the API has no reactivate endpoint. */
 export function deactivateKit(kitId: number): Promise<KitDetail> {
   return apiFetch<KitDetail>(`/packaging/kits/${kitId}/deactivate`, { method: "POST" })
+}
+
+export function reactivateKit(kitId: number): Promise<KitDetail> {
+  return apiFetch<KitDetail>(`/packaging/kits/${kitId}/reactivate`, { method: "POST" })
 }
 
 // ------------------------------------------------------------ postage

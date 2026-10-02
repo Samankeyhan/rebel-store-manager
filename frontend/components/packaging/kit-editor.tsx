@@ -2,12 +2,20 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Ban, Loader2, Plus, Trash2 } from "lucide-react"
+import { Ban, Loader2, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { ItemPicker, type PickerItem } from "@/components/common/item-picker"
 import { ChannelBadge } from "@/components/common/status"
 import { unitLabel } from "@/components/products/figures"
 import { Btn, InlineMessage, cardClass } from "@/components/record-sale/primitives"
-import { ApiError, addKitItem, removeKitItem, updateKitItem, type KitDetail, type Material } from "@/lib/api"
+import {
+  ApiError,
+  addKitItem,
+  reactivateKit,
+  removeKitItem,
+  updateKitItem,
+  type KitDetail,
+  type Material,
+} from "@/lib/api"
 import { formatNumber, formatQuantity, parseDecimal } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { K } from "./copy"
@@ -42,6 +50,7 @@ export function KitEditor({
   mobile,
   onSaved,
   onDeactivate,
+  onReactivated,
 }: {
   kit: KitDetail
   materials: Material[]
@@ -49,11 +58,15 @@ export function KitEditor({
   mobile: boolean
   onSaved: (kit: KitDetail) => void
   onDeactivate: () => void
+  /** After «فعال کردن دوباره» succeeded (the kit is already saved via onSaved). */
+  onReactivated: (kit: KitDetail) => void
 }) {
   const [drafts, setDrafts] = React.useState<Record<number, string>>({})
   const [busy, setBusy] = React.useState<Set<number | "add">>(new Set())
   const [rowErrors, setRowErrors] = React.useState<Record<number, string>>({})
   const [addError, setAddError] = React.useState<string | null>(null)
+  const [reactivating, setReactivating] = React.useState(false)
+  const [reactivateError, setReactivateError] = React.useState<string | null>(null)
 
   const [shownFor, setShownFor] = React.useState(kit.id)
   if (kit.id !== shownFor) {
@@ -61,6 +74,22 @@ export function KitEditor({
     setDrafts({})
     setRowErrors({})
     setAddError(null)
+    setReactivateError(null)
+  }
+
+  /** Not destructive, so no confirmation: flips is_active back to 1. */
+  const reactivate = async () => {
+    setReactivating(true)
+    setReactivateError(null)
+    try {
+      const updated = await reactivateKit(kit.id)
+      onSaved(updated)
+      onReactivated(updated)
+    } catch (e) {
+      setReactivateError(e instanceof ApiError ? e.message : String(e))
+    } finally {
+      setReactivating(false)
+    }
   }
 
   const active = kit.is_active === 1
@@ -205,11 +234,21 @@ export function KitEditor({
           </h2>
           <span className="text-xs text-text-3">{active ? `${K.savesNote} ${K.nameReadOnly}` : K.inactiveNote}</span>
         </div>
-        {active && (
+        {active ? (
           <Btn size="sm" className="border-loss-border text-loss hover:bg-loss-soft" onClick={onDeactivate}>
             <Ban className="size-3.5" />
             {K.deactivate}
           </Btn>
+        ) : (
+          <Btn size="sm" disabled={reactivating} aria-busy={reactivating || undefined} onClick={reactivate}>
+            {reactivating ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+            {K.reactivate}
+          </Btn>
+        )}
+        {reactivateError && (
+          <div className="w-full">
+            <InlineMessage severity="error">{reactivateError}</InlineMessage>
+          </div>
         )}
       </div>
       <div className={cn("flex flex-col", mobile ? "gap-3 p-3.5" : "gap-3.5 p-5")}>

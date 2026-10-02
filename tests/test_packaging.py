@@ -104,3 +104,19 @@ def test_deactivate_kit(test_db):
     assert packaging.list_kits(test_db) == []
     all_kits = packaging.list_kits(test_db, active_only=False)
     assert all_kits[0]["is_active"] == 0
+
+
+def test_reactivate_kit(test_db):
+    kit_id = packaging.create_kit(test_db, "Kit")
+    packaging.deactivate_kit(test_db, kit_id)
+
+    packaging.reactivate_kit(test_db, kit_id)
+
+    assert [k["id"] for k in packaging.list_kits(test_db)] == [kit_id]
+    assert packaging.get_kit(test_db, kit_id)["is_active"] == 1
+
+
+def test_reactivate_active_kit_is_a_no_op(test_db):
+    kit_id = packaging.create_kit(test_db, "Kit")
+    packaging.reactivate_kit(test_db, kit_id)
+    assert packaging.get_kit(test_db, kit_id)["is_active"] == 1

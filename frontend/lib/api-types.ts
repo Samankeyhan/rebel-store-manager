@@ -726,6 +726,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/packaging/kits/{kit_id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivate Packaging Kit */
+        post: operations["reactivate_packaging_kit_packaging_kits__kit_id__reactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/postage/batches": {
         parameters: {
             query?: never;
@@ -3983,6 +4000,37 @@ export interface operations {
         };
     };
     deactivate_packaging_kit_packaging_kits__kit_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kit_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reactivate_packaging_kit_packaging_kits__kit_id__reactivate_post: {
         parameters: {
             query?: never;
             header?: never;
