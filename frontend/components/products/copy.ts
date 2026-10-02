@@ -16,9 +16,7 @@ export const P = {
   categoryAll: "همه",
   showInactive: "نمایش غیرفعال‌ها",
   addMaterial: "اضافه کردن متریال",
-  addProduct: "افزودن محصول",
-  addMaterialMobile: "متریال",
-  addProductMobile: "محصول",
+  addProduct: "اضافه کردن محصول",
 
   // tabs
   tabProducts: "محصولات",
@@ -78,7 +76,7 @@ export const P = {
   rowActions: "عملیات", // NEW
 
   // product drawer
-  addProductTitle: "افزودن محصول", // NEW (design only drew the edit drawer)
+  addProductTitle: "اضافه کردن محصول", // NEW (design only drew the edit drawer)
   editProductTitle: "ویرایش محصول",
   close: "بستن",
   fieldName: "نام محصول",

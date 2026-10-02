@@ -176,6 +176,9 @@ export function ProductsPage() {
 
   const addProduct = () => setPanel({ kind: "addProduct" })
   const addMaterial = () => setPanel({ kind: "addMaterial" })
+  // One add action, scoped to the visible tab.
+  const onAdd = tab === "products" ? addProduct : addMaterial
+  const addLabel = tab === "products" ? P.addProduct : P.addMaterial
 
   const toolbar = mobile ? (
     <SearchBox value={search} onChange={setSearch} mobile />
@@ -189,16 +192,10 @@ export function ProductsPage() {
           <span id="show-inactive">{P.showInactive}</span>
         </label>
       </div>
-      <div className="flex gap-2">
-        <Btn onClick={addMaterial}>
-          <Plus className="size-4" />
-          {P.addMaterial}
-        </Btn>
-        <Btn variant="primary" onClick={addProduct}>
-          <Plus className="size-4" />
-          {P.addProduct}
-        </Btn>
-      </div>
+      <Btn variant="primary" onClick={onAdd}>
+        <Plus className="size-4" />
+        {addLabel}
+      </Btn>
     </div>
   )
 
@@ -297,14 +294,10 @@ export function ProductsPage() {
       {body}
 
       {mobile && (
-        <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 gap-2 border-t border-border bg-card px-4 pt-3 pb-5">
-          <Btn size="lg" onClick={addMaterial}>
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card px-4 pt-3 pb-5">
+          <Btn variant="primary" size="lg" className="w-full" onClick={onAdd}>
             <Plus className="size-4" />
-            {P.addMaterialMobile}
-          </Btn>
-          <Btn variant="primary" size="lg" onClick={addProduct}>
-            <Plus className="size-4" />
-            {P.addProductMobile}
+            {addLabel}
           </Btn>
         </div>
       )}
