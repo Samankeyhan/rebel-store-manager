@@ -151,11 +151,11 @@ export const P = {
   emptyBodyMobile: "اولین محصول را تعریف کنید.",
   emptyCta: "اضافه کردن اولین محصول",
   emptyCtaMobile: "اضافه کردن محصول",
-  emptyMatTitle: "هنوز ماده‌ای تعریف نشده", // NEW
+  emptyMatTitle: "هنوز متریالی تعریف نشده", // NEW
   emptyMatBody: "مواد اولیه، بسته‌بندی و خدمات تولید را این‌جا تعریف کنید.", // NEW
   emptyMatCta: "اضافه کردن اولین متریال", // NEW
   noProductMatch: (q: string) => `محصولی با «${q}» پیدا نشد.`,
-  noMaterialMatch: (q: string) => `ماده‌ای با «${q}» پیدا نشد.`, // NEW
+  noMaterialMatch: (q: string) => `متریالی با «${q}» پیدا نشد.`, // NEW
   noMatchFiltered: "با این فیلترها چیزی پیدا نشد.", // NEW
   clearFilters: "پاک کردن فیلترها",
   errorTitle: "فهرست محصولات و مواد بارگذاری نشد",

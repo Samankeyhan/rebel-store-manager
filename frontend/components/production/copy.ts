@@ -38,7 +38,7 @@ export const R = {
   previewTitle: "پیش‌نمایش مصرف مواد",
   previewCaption: (n: number, name: string) => `${formatNumber(n)} عدد «${name}»`,
   editRecipe: "ویرایش دستور",
-  colMaterial: "ماده",
+  colMaterial: "متریال",
   colBasis: "نحوه محاسبه",
   colNeed: "مقدار لازم",
   colStock: "موجودی",
@@ -95,11 +95,11 @@ export const R = {
 
   // recipe tab
   listLabel: "محصولات",
-  itemCount: (n: number) => `${formatNumber(n)} ماده`,
+  itemCount: (n: number) => `${formatNumber(n)} متریال`,
   noRecipeBadge: "بدون دستور",
   editorTitle: (name: string) => `دستور تولید: ${name}`,
   editorCaption: "هر تغییر همان لحظه ذخیره می‌شود.", // NEW (the API saves line by line; no «ذخیره دستور»)
-  colLineMaterial: "ماده یا خدمت",
+  colLineMaterial: "متریال یا خدمت",
   colLineQty: "مقدار",
   colLineBasis: "نحوه محاسبه",
   colLineCost: "هزینه",
@@ -108,10 +108,10 @@ export const R = {
   lineCostPerUnit: (cost: number) => `${formatNumber(cost)} × تعداد`,
   lineCostOnce: (cost: number) => `${formatNumber(cost)} یک‌بار`,
   deleteLine: "حذف",
-  addLine: "افزودن ماده یا خدمت",
-  searchMaterial: "جستجوی ماده یا خدمت", // NEW
+  addLine: "افزودن متریال یا خدمت",
+  searchMaterial: "جستجوی متریال یا خدمت", // NEW
   noMaterialsLeft: "همه مواد فعال در این دستور هستند.", // NEW
-  noMaterialMatch: (q: string) => `ماده‌ای با «${q}» پیدا نشد.`, // NEW
+  noMaterialMatch: (q: string) => `متریالی با «${q}» پیدا نشد.`, // NEW
   explainTitle: "«به ازای هر عدد» یا «یک‌بار برای کل تولید»؟",
   explainPerUnit: "به ازای هر عدد",
   explainPerUnitBody: ": مقدار در تعداد تولید ضرب می‌شود — هر وینیل یک «صفحه خام» لازم دارد. ",
@@ -121,9 +121,9 @@ export const R = {
   tilePerUnit: "هزینه به ازای هر عدد",
   tilePerBatch: "هزینه یک‌بار برای هر تولید",
   tileAt: "بهای هر عدد در تولید ۳۰ / ۱۰۰ عددی",
-  emptyRecipe: "این محصول هنوز دستور تولید ندارد. اولین ماده یا خدمت را اضافه کنید.", // NEW
+  emptyRecipe: "این محصول هنوز دستور تولید ندارد. اولین متریال یا خدمت را اضافه کنید.", // NEW
   qtyInvalid: "مقدار باید بیشتر از صفر باشد.", // NEW
-  duplicateLine: "این ماده در دستور هست.", // NEW
+  duplicateLine: "این متریال در دستور هست.", // NEW
   lastLineWarnTitle: "حذف آخرین ردیف دستور", // NEW
   lastLineWarn: "این محصول «ساخت هنگام فروش» است؛ بدون دستور تولید، فروش آن ثبت نمی‌شود.", // NEW
   lastLineConfirm: "حذف کن", // NEW
@@ -158,7 +158,7 @@ export const R = {
   // states
   emptyTitle: "هنوز تولیدی ثبت نشده",
   emptyBody:
-    "ابتدا برای یک محصول «دستور تولید» بسازید: مواد، مقدار و این‌که هر ماده به ازای هر عدد مصرف می‌شود یا یک‌بار برای کل تولید.",
+    "ابتدا برای یک محصول «دستور تولید» بسازید: مواد، مقدار و این‌که هر متریال به ازای هر عدد مصرف می‌شود یا یک‌بار برای کل تولید.",
   emptyBodyMobile: "ابتدا دستور تولید یک محصول را بسازید.",
   errorTitle: "اطلاعات تولید بارگذاری نشد",
   errorBody: "اتصال به سرور برقرار نشد. داده‌های شما سالم است؛ دوباره تلاش کنید.",

@@ -25,7 +25,7 @@ export const U = {
   colQty: "مقدار",
   colTotal: "مبلغ پرداختی (تومان)",
   colUnit: "بهای واحد (تومان)",
-  badgeMaterial: "ماده",
+  badgeMaterial: "متریال",
   badgeProduct: "محصول",
   footerMonth: (month: string, n: number) => `جمع خریدهای ${month} (${formatNumber(n)} مورد)`,
   footerRange: (n: number) => `جمع خریدهای این بازه (${formatNumber(n)} مورد)`, // NEW (range not a whole month)
@@ -38,7 +38,7 @@ export const U = {
   formTitle: "ثبت خرید",
   close: "بستن",
   fieldType: "نوع کالا",
-  segMaterial: "ماده یا بسته‌بندی",
+  segMaterial: "متریال یا بسته‌بندی",
   segProduct: "محصول آماده",
   fieldItem: "کالا",
   pickItem: "انتخاب کالا", // NEW

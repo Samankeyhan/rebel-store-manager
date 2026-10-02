@@ -426,7 +426,7 @@ function Tile({ caption, value }: { caption: string; value: string }) {
   )
 }
 
-/** «افزودن ماده یا خدمت»: a picker styled as a dashed add button; picking adds the line (qty 1, per unit). */
+/** «افزودن متریال یا خدمت»: a picker styled as a dashed add button; picking adds the line (qty 1, per unit). */
 function AddLine({
   items,
   busy,
