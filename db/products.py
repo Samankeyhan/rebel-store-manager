@@ -100,6 +100,11 @@ def deactivate_product(conn: sqlite3.Connection, product_id: int) -> None:
         conn.execute("UPDATE products SET is_active = 0 WHERE id = ?", (product_id,))
 
 
+def reactivate_product(conn: sqlite3.Connection, product_id: int) -> None:
+    with transaction(conn):
+        conn.execute("UPDATE products SET is_active = 1 WHERE id = ?", (product_id,))
+
+
 def set_made_to_order(
     conn: sqlite3.Connection, product_id: int, made_to_order: bool
 ) -> None:

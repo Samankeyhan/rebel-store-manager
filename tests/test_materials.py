@@ -6,6 +6,7 @@ from db.materials import (
     get_low_stock_materials,
     get_material,
     list_materials,
+    reactivate_material,
 )
 
 
@@ -99,3 +100,14 @@ def test_get_low_stock_excludes_inactive(test_db):
 
     low_stock = get_low_stock_materials(test_db, threshold=10)
     assert all(m["id"] != material_id for m in low_stock)
+
+
+def test_reactivate_material(test_db):
+    material_id = add_material(test_db, "Old Stock", "STOCK", 100, initial_stock=5)
+    deactivate_material(test_db, material_id)
+    reactivate_material(test_db, material_id)
+
+    material = get_material(test_db, material_id)
+    assert material["is_active"] == 1
+    assert material["current_stock"] == 5
+    assert any(m["id"] == material_id for m in list_materials(test_db, active_only=True))

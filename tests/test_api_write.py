@@ -544,6 +544,36 @@ def test_deactivate_unknown_product_is_404(api):
     assert client.post("/products/999/deactivate").status_code == 404
 
 
+def test_product_deactivate_then_reactivate(api):
+    client, _ = api
+    product_id = _create_product(client, "Poster")
+    assert client.post(f"/products/{product_id}/deactivate").json()["is_active"] == 0
+
+    response = client.post(f"/products/{product_id}/reactivate")
+    assert response.status_code == 200
+    assert response.json() == client.get(f"/products/{product_id}").json()
+    assert response.json()["is_active"] == 1
+    assert any(p["id"] == product_id for p in client.get("/products").json())
+
+
+def test_material_deactivate_then_reactivate(api):
+    client, _ = api
+    material_id = _create_material(client, "Box", "STOCK", 1000, initial_stock=3)
+    assert client.post(f"/materials/{material_id}/deactivate").json()["is_active"] == 0
+
+    response = client.post(f"/materials/{material_id}/reactivate")
+    assert response.status_code == 200
+    assert response.json() == client.get(f"/materials/{material_id}").json()
+    assert response.json()["is_active"] == 1
+    assert response.json()["current_stock"] == 3
+
+
+def test_reactivate_unknown_is_404(api):
+    client, _ = api
+    assert client.post("/products/999/reactivate").status_code == 404
+    assert client.post("/materials/999/reactivate").status_code == 404
+
+
 def test_channel_settings_patch_only_changes_sent_fields(api, shop):
     client, _ = api
     response = client.patch("/settings/channels/WEBSITE", json={"applies_postage": 0})

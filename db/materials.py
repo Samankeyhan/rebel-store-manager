@@ -88,3 +88,8 @@ def get_low_stock_materials(
 def deactivate_material(conn: sqlite3.Connection, material_id: int) -> None:
     with transaction(conn):
         conn.execute("UPDATE materials SET is_active = 0 WHERE id = ?", (material_id,))
+
+
+def reactivate_material(conn: sqlite3.Connection, material_id: int) -> None:
+    with transaction(conn):
+        conn.execute("UPDATE materials SET is_active = 1 WHERE id = ?", (material_id,))

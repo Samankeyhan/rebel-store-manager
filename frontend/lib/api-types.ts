@@ -93,6 +93,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/products/{product_id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivate */
+        post: operations["reactivate_products__product_id__reactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products/{product_id}/made-to-order": {
         parameters: {
             query?: never;
@@ -236,6 +253,23 @@ export interface paths {
         put?: never;
         /** Deactivate */
         post: operations["deactivate_materials__material_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/materials/{material_id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivate */
+        post: operations["reactivate_materials__material_id__reactivate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2264,6 +2298,37 @@ export interface operations {
             };
         };
     };
+    reactivate_products__product_id__reactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_made_to_order_products__product_id__made_to_order_post: {
         parameters: {
             query?: never;
@@ -2562,6 +2627,37 @@ export interface operations {
         };
     };
     deactivate_materials__material_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reactivate_materials__material_id__reactivate_post: {
         parameters: {
             query?: never;
             header?: never;

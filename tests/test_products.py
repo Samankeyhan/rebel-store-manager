@@ -6,6 +6,7 @@ from db.products import (
     deactivate_product,
     get_product,
     list_products,
+    reactivate_product,
     set_made_to_order,
     update_product_prices,
 )
@@ -88,6 +89,22 @@ def test_deactivate_product(test_db):
 
     active = list_products(test_db, active_only=True)
     assert all(p["id"] != product_id for p in active)
+
+
+def test_reactivate_product(test_db):
+    product_id = add_product(test_db, "Old T-Shirt", "TSHIRT", 2000, 1500)
+    deactivate_product(test_db, product_id)
+    reactivate_product(test_db, product_id)
+
+    assert get_product(test_db, product_id)["is_active"] == 1
+    active = list_products(test_db, active_only=True)
+    assert any(p["id"] == product_id for p in active)
+
+
+def test_reactivate_active_product_is_a_no_op(test_db):
+    product_id = add_product(test_db, "T-Shirt", "TSHIRT", 2000, 1500)
+    reactivate_product(test_db, product_id)
+    assert get_product(test_db, product_id)["is_active"] == 1
 
     all_products = list_products(test_db, active_only=False)
     assert any(p["id"] == product_id for p in all_products)

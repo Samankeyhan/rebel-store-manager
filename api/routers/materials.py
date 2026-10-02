@@ -11,6 +11,7 @@ from db.materials import (
     get_low_stock_materials,
     get_material,
     list_materials,
+    reactivate_material,
 )
 
 router = APIRouter(tags=["materials"])
@@ -69,4 +70,13 @@ def deactivate(
 ) -> MaterialOut:
     # deactivate_material doesn't check existence; build_material 404s instead.
     deactivate_material(conn, material_id)
+    return build_material(conn, material_id)
+
+
+@router.post("/materials/{material_id}/reactivate", response_model=MaterialOut)
+def reactivate(
+    material_id: int, conn: sqlite3.Connection = Depends(get_db)
+) -> MaterialOut:
+    # reactivate_material doesn't check existence; build_material 404s instead.
+    reactivate_material(conn, material_id)
     return build_material(conn, material_id)

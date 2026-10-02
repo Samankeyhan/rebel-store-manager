@@ -15,6 +15,7 @@ from db.products import (
     deactivate_product,
     get_product,
     list_products,
+    reactivate_product,
     set_made_to_order,
     update_product_prices,
 )
@@ -78,6 +79,13 @@ def update_prices(
 def deactivate(product_id: int, conn: sqlite3.Connection = Depends(get_db)) -> ProductOut:
     # deactivate_product doesn't check existence; build_product 404s instead.
     deactivate_product(conn, product_id)
+    return build_product(conn, product_id)
+
+
+@router.post("/products/{product_id}/reactivate", response_model=ProductOut)
+def reactivate(product_id: int, conn: sqlite3.Connection = Depends(get_db)) -> ProductOut:
+    # reactivate_product doesn't check existence; build_product 404s instead.
+    reactivate_product(conn, product_id)
     return build_product(conn, product_id)
 
 

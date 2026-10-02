@@ -12,8 +12,8 @@ All money is stored as **INTEGER** in the smallest currency unit (Toman). See Ar
 
 - `db/connection.py` — opens the SQLite connection and runs migrations (`init_db`); tracks applied migrations in `schema_migrations` with a content hash, refuses to run if an applied migration file was edited.
 - `db/errors.py` — exception hierarchy for db/: `AppError` (base, subclasses `ValueError`), `NotFoundError`, `ValidationError` (optional `field`), `InsufficientStockError` (`item_name`/`needed`/`available`), `ConflictError`.
-- `db/products.py` — finished-goods CRUD: add/list/get product, update prices, deactivate.
-- `db/materials.py` — raw material CRUD (STOCK or SERVICE type), low-stock query, deactivate.
+- `db/products.py` — finished-goods CRUD: add/list/get product, update prices, deactivate/reactivate.
+- `db/materials.py` — raw material CRUD (STOCK or SERVICE type), low-stock query, deactivate/reactivate.
 - `db/recipes.py` — product → material BOM (bill of materials): add/update/remove recipe items, compute recipe cost.
 - `db/production.py` — runs a production batch: consumes recipe materials (STOCK only), increases product stock, freezes a per-batch unit cost.
 - `db/orders.py` — records sales orders and line items, decrements product stock, computes order total/profit, revenue summary; defines valid channels/statuses.
@@ -31,7 +31,7 @@ All money is stored as **INTEGER** in the smallest currency unit (Toman). See Ar
 - `api/main.py` — the FastAPI app: CORS, centralized `db/errors.py` → HTTP status exception handlers, `/health`, and router registration.
 - `api/deps.py` — `get_db()`, a FastAPI dependency that opens one `db.connection.get_connection` connection per request (path from the `REBEL_DB` env var, default `data/shop.db`) and closes it after.
 - `api/schemas/` — Pydantic response/request models, one module per domain, field names matching the `db/` dict keys exactly. Request models are named `<Thing>Create` / `<Thing>Update`, use `extra="forbid"`, and type every money field as `Money` (`api/schemas/common.py`, a strict `int`), so a float, a numeric string or a bool is a 422 instead of being coerced.
-- `api/routers/` — one module per domain, both read (GET) and write endpoints; each endpoint calls a `db/` function and shapes the result into a schema — see the no-business-logic rule below. Writes return the resource re-fetched through the same getter the GET endpoint uses: creates are 201, updates/actions (including deactivate) are 200, and DELETE of a recipe or kit item deliberately returns 200 with the updated recipe/kit so the UI can redraw without a second request. `GET /orders/{id}/invoice.pdf` renders into a temp directory and streams the bytes back.
+- `api/routers/` — one module per domain, both read (GET) and write endpoints; each endpoint calls a `db/` function and shapes the result into a schema — see the no-business-logic rule below. Writes return the resource re-fetched through the same getter the GET endpoint uses: creates are 201, updates/actions (including deactivate/reactivate) are 200, and DELETE of a recipe or kit item deliberately returns 200 with the updated recipe/kit so the UI can redraw without a second request. `GET /orders/{id}/invoice.pdf` renders into a temp directory and streams the bytes back.
 
 ### API write conventions (don't reinvent these)
 
