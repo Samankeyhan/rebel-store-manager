@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Ban, Lock, Pencil, RotateCcw } from "lucide-react"
 import { Btn, StockPill, btnClass, cardClass } from "@/components/record-sale/primitives"
 import type { Product } from "@/lib/api"
-import { categoryLabel } from "@/lib/categories"
+import { categoryPath } from "@/lib/category-path"
 import { formatNumber } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { ActiveBadge, Chip, NoCostBadge } from "./badges"
@@ -104,7 +104,7 @@ export function ProductsTab({
               </span>
               <span className="flex items-center justify-between gap-2 text-xs">
                 <span className="flex gap-1.5">
-                  <Chip>{categoryLabel(p.category)}</Chip>
+                  <Chip>{categoryPath(p)}</Chip>
                   {p.made_to_order === 1 && <Chip>{P.madeToOrder}</Chip>}
                 </span>
                 <span className="text-text-2 tabular-nums">{P.priceLine(p.retail_price, p.wholesale_price)}</span>
@@ -169,7 +169,7 @@ export function ProductsTab({
                       </div>
                     </td>
                     <td>
-                      <Chip>{categoryLabel(p.category)}</Chip>
+                      <Chip>{categoryPath(p)}</Chip>
                     </td>
                     <td>
                       <StockPill {...stockPill(p)} />

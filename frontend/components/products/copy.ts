@@ -82,6 +82,10 @@ export const P = {
   fieldName: "نام محصول",
   fieldCategory: "دسته",
   pickCategory: "انتخاب دسته", // NEW
+  noCategory: "بدون دسته", // NEW
+  categoryHasChildren: "این دسته زیردسته دارد؛ یکی از زیردسته‌ها را انتخاب کنید.", // NEW
+  categoryUnavailable: "این دسته دیگر قابل انتخاب نیست؛ صفحه را دوباره بارگذاری کنید.", // NEW
+  colMatCategory: "دسته", // NEW
   fieldRetail: "قیمت خرده",
   fieldWholesale: "قیمت عمده",
   toman: "تومان",
@@ -94,7 +98,7 @@ export const P = {
     "این محصول هنگام فروش از دستور تولید ساخته می‌شود؛ بهای هر فروش همان لحظه از دستور تولید حساب می‌شود.", // NEW
   fieldStock: "موجودی فعلی",
   stockHelp: "فقط از تولید، خرید، فروش و تعدیل تغییر می‌کند.",
-  readOnlyNote: "نام و دسته پس از ثبت قابل تغییر نیستند.", // NEW (no endpoint edits them)
+  readOnlyNote: "نام پس از ثبت قابل تغییر نیست.", // NEW (no endpoint edits it)
   fieldMadeToOrder: "ساخت هنگام فروش", // NEW
   madeToOrderHelp: "موجودی آماده نگه داشته نمی‌شود؛ هر فروش از دستور تولید ساخته می‌شود.", // NEW
   madeToOrderCreateHelp:

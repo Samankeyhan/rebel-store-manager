@@ -2,15 +2,8 @@
 
 import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { ChevronDown, CircleCheck, Plus, Search, X } from "lucide-react"
+import { CircleCheck, Plus, Search, X } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Alert, Btn } from "@/components/record-sale/primitives"
 import { useRecipes } from "@/components/record-sale/use-recipes"
 import {
@@ -19,16 +12,18 @@ import {
   deactivateProduct,
   reactivateMaterial,
   reactivateProduct,
+  type CategoryTree,
   type Material,
   type Product,
 } from "@/lib/api"
-import { categoryLabel } from "@/lib/categories"
+import { categoryPath, descendantIds, treeHas } from "@/lib/category-path"
 import { toPersianDigits } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { P } from "./copy"
 import { DeactivateDialog, type DeactivateTarget } from "./deactivate-dialog"
 import { Switch } from "./drawer-shell"
-import { CATEGORY_CODES, costState, norm } from "./figures"
+import { CategoryFilter } from "./category-picker"
+import { costState, norm } from "./figures"
 import { MaterialDrawer } from "./material-drawer"
 import { MaterialsTab } from "./materials-tab"
 import { ProductDrawer } from "./product-drawer"
@@ -38,6 +33,11 @@ import { useCatalogData } from "./use-catalog-data"
 
 const TABS = ["products", "materials"] as const
 type Tab = (typeof TABS)[number]
+
+/** A ?category= value naming a node of this tree. */
+function isCategoryParam(value: string, tree: CategoryTree[]): boolean {
+  return /^\d+$/.test(value) && treeHas(tree, Number(value))
+}
 
 function isTab(value: string | null): value is Tab {
   return TABS.includes(value as Tab)
@@ -62,9 +62,11 @@ export function ProductsPage() {
   const tabParam = params.get("tab")
   const tab: Tab = isTab(tabParam) ? tabParam : "products"
   const showInactive = params.get("inactive") === "1"
-  const category = (CATEGORY_CODES as readonly string[]).includes(params.get("category") ?? "")
-    ? (params.get("category") as string)
-    : ""
+  // Category filters: a category id per tab (?category= products,
+  // ?matCategory= materials), or "none" for uncategorised materials.
+  // Anything unrecognised — e.g. an old ?category=VINYL link — means «همه».
+  const categoryParam = params.get("category") ?? ""
+  const matCategoryParam = params.get("matCategory") ?? ""
   const q = params.get("q") ?? ""
 
   const setParams = React.useCallback(
@@ -100,15 +102,35 @@ export function ProductsPage() {
   const products = React.useMemo(() => (state.status === "ready" ? state.products : []), [state])
   const materials = React.useMemo(() => (state.status === "ready" ? state.materials : []), [state])
 
+  const productTree = React.useMemo(() => (state.status === "ready" ? state.productTree : []), [state])
+  const materialTree = React.useMemo(() => (state.status === "ready" ? state.materialTree : []), [state])
+  const { category, matCategory, productCategoryIds, materialCategoryIds } = React.useMemo(() => {
+    const category = isCategoryParam(categoryParam, productTree) ? categoryParam : ""
+    const matCategory =
+      matCategoryParam === "none" || isCategoryParam(matCategoryParam, materialTree) ? matCategoryParam : ""
+    return {
+      category,
+      matCategory,
+      // Picking a parent also matches its subcategories (and items still on it).
+      productCategoryIds: category ? descendantIds(productTree, Number(category)) : null,
+      materialCategoryIds:
+        matCategory && matCategory !== "none" ? descendantIds(materialTree, Number(matCategory)) : null,
+    }
+  }, [categoryParam, matCategoryParam, productTree, materialTree])
+
   const query = norm(q)
   const visibleProducts = products.filter(
     (p) =>
       (showInactive || p.is_active === 1) &&
-      (!category || p.category === category) &&
-      (!query || norm(p.name).includes(query) || norm(categoryLabel(p.category)).includes(query))
+      (!productCategoryIds || productCategoryIds.has(p.category_id)) &&
+      (!query || norm(p.name).includes(query) || norm(categoryPath(p)).includes(query))
   )
   const visibleMaterials = materials.filter(
-    (m) => (showInactive || m.is_active === 1) && (!query || norm(m.name).includes(query))
+    (m) =>
+      (showInactive || m.is_active === 1) &&
+      (matCategory !== "none" || m.category_id == null) &&
+      (!materialCategoryIds || (m.category_id != null && materialCategoryIds.has(m.category_id))) &&
+      (!query || norm(m.name).includes(query) || norm(categoryPath(m)).includes(query))
   )
   // Count pills follow the inactive switch, not the search.
   const productCount = products.filter((p) => showInactive || p.is_active === 1).length
@@ -148,7 +170,7 @@ export function ProductsPage() {
 
   const clearFilters = () => {
     setSearch("")
-    setParams({ q: null, category: null })
+    setParams({ q: null, category: null, matCategory: null })
   }
 
   const confirmDeactivate = async () => {
@@ -186,7 +208,16 @@ export function ProductsPage() {
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2.5">
         <SearchBox value={search} onChange={setSearch} />
-        {tab === "products" && <CategoryFilter value={category} onChange={(c) => setParams({ category: c || null })} />}
+        {tab === "products" ? (
+          <CategoryFilter tree={productTree} value={category} onChange={(c) => setParams({ category: c || null })} />
+        ) : (
+          <CategoryFilter
+            tree={materialTree}
+            value={matCategory}
+            onChange={(c) => setParams({ matCategory: c || null })}
+            withNone
+          />
+        )}
         <label className="flex cursor-pointer items-center gap-2 text-[13px]">
           <Switch checked={showInactive} onChange={(v) => setParams({ inactive: v ? "1" : null })} labelledBy="show-inactive" />
           <span id="show-inactive">{P.showInactive}</span>
@@ -315,9 +346,11 @@ export function ProductsPage() {
         onDeactivate={(p) => setDeactivating({ kind: "product", item: p })}
         onReactivate={(p) => reactivate({ kind: "product", item: p })}
         estimate={editing ? estimates[editing.id] : undefined}
+        tree={productTree}
       />
       <MaterialDrawer
         open={panel.kind === "addMaterial"}
+        tree={materialTree}
         mobile={mobile}
         onClose={() => setPanel({ kind: "none" })}
         onSaved={(m: Material, message: string) => {
@@ -354,33 +387,6 @@ function SearchBox({ value, onChange, mobile }: { value: string; onChange: (v: s
         )}
       />
     </div>
-  )
-}
-
-function CategoryFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <DropdownMenu dir="rtl">
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex h-10 cursor-pointer items-center gap-2.5 rounded-lg border border-border-strong bg-card px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
-        >
-          <span className="text-text-3">{P.categoryLabel}</span>
-          <span className="font-bold">{value ? categoryLabel(value) : P.categoryAll}</span>
-          <ChevronDown className="size-3.5 text-text-3" aria-hidden />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-44">
-        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-          <DropdownMenuRadioItem value="">{P.categoryAll}</DropdownMenuRadioItem>
-          {CATEGORY_CODES.map((c) => (
-            <DropdownMenuRadioItem key={c} value={c}>
-              {categoryLabel(c)}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
   )
 }
 

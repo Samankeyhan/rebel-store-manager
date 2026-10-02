@@ -1,17 +1,32 @@
 "use client"
 
 import * as React from "react"
-import { listMaterials, listProducts, type Material, type Product } from "@/lib/api"
+import {
+  listCategoryTree,
+  listMaterials,
+  listProducts,
+  type CategoryTree,
+  type Material,
+  type Product,
+} from "@/lib/api"
+import { sortTree } from "@/lib/category-path"
 
 type State =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; products: Product[]; materials: Material[] }
+  | {
+      status: "ready"
+      products: Product[]
+      materials: Material[]
+      /** Both category trees, inactive nodes included (filters still need them). */
+      productTree: CategoryTree[]
+      materialTree: CategoryTree[]
+    }
 
 const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name, "fa")
 
 /**
- * Products and materials for both tabs, loaded once (including inactive
+ * Products, materials and both category trees, loaded once (including inactive
  * rows — /catalog only returns active ones). Every write endpoint returns the
  * updated row, which replaces or inserts it here, so no full refetch.
  */
@@ -21,9 +36,16 @@ export function useCatalogData() {
 
   React.useEffect(() => {
     let cancelled = false
-    Promise.all([listProducts(), listMaterials()]).then(
-      ([products, materials]) =>
-        !cancelled && setState({ status: "ready", products, materials }),
+    Promise.all([listProducts(), listMaterials(), listCategoryTree("PRODUCT"), listCategoryTree("MATERIAL")]).then(
+      ([products, materials, productTree, materialTree]) =>
+        !cancelled &&
+        setState({
+          status: "ready",
+          products,
+          materials,
+          productTree: sortTree(productTree),
+          materialTree: sortTree(materialTree),
+        }),
       () => !cancelled && setState({ status: "error" })
     )
     return () => {

@@ -2,28 +2,23 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Ban, ChevronDown, CircleAlert, Info, Lock, RotateCcw } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Ban, CircleAlert, Info, Lock, RotateCcw } from "lucide-react"
 import { Btn, IntInput } from "@/components/record-sale/primitives"
 import {
   ApiError,
   createProduct,
   setMadeToOrder,
+  setProductCategory,
   updateProductPrices,
+  type CategoryTree,
   type Product,
 } from "@/lib/api"
-import { categoryLabel } from "@/lib/categories"
 import { formatMoney } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { P } from "./copy"
 import { DrawerShell, FieldError, SaveError, Switch, textInputClass } from "./drawer-shell"
-import { CATEGORY_CODES, costState } from "./figures"
+import { CategoryPicker } from "./category-picker"
+import { costState } from "./figures"
 
 function errorOf(error: unknown): { message: string; code: string } {
   if (error instanceof ApiError) {
@@ -50,42 +45,6 @@ function Field({ label, htmlFor, children }: { label: React.ReactNode; htmlFor?:
   )
 }
 
-function CategorySelect({
-  value,
-  onChange,
-  mobile,
-  error,
-}: {
-  value: string
-  onChange: (v: string) => void
-  mobile: boolean
-  error?: boolean
-}) {
-  return (
-    <DropdownMenu dir="rtl">
-      <DropdownMenuTrigger asChild>
-        <button
-          id="pf-category"
-          type="button"
-          className={cn(textInputClass(mobile, error), "flex cursor-pointer items-center justify-between")}
-        >
-          <span className={value ? "" : "text-text-3"}>{value ? categoryLabel(value) : P.pickCategory}</span>
-          <ChevronDown className="size-3.5 text-text-3" aria-hidden />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-(--radix-dropdown-menu-trigger-width)">
-        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-          {CATEGORY_CODES.map((c) => (
-            <DropdownMenuRadioItem key={c} value={c}>
-              {categoryLabel(c)}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 /** Add product (empty form) and edit product (prices + made-to-order) in one drawer. */
 export function ProductDrawer({
   open,
@@ -96,6 +55,7 @@ export function ProductDrawer({
   onDeactivate,
   onReactivate,
   estimate,
+  tree,
 }: {
   open: boolean
   /** null = add mode. */
@@ -108,10 +68,13 @@ export function ProductDrawer({
   onReactivate: (p: Product) => void
   /** Recipe cost per unit for a made-to-order product with no stock, if known. */
   estimate?: number
+  /** The PRODUCT category tree (inactive nodes included; the picker hides them). */
+  tree: CategoryTree[]
 }) {
   const editing = product != null
   const [name, setName] = React.useState("")
-  const [category, setCategory] = React.useState("")
+  const [category, setCategory] = React.useState<number | null>(null)
+  const [categoryError, setCategoryError] = React.useState<string | null>(null)
   const [retail, setRetail] = React.useState(0)
   const [wholesale, setWholesale] = React.useState(0)
   const [madeToOrder, setMto] = React.useState(false)
@@ -127,7 +90,8 @@ export function ProductDrawer({
   if (seedKey && seeded !== seedKey) {
     setSeeded(seedKey)
     setName(product?.name ?? "")
-    setCategory(product?.category ?? "")
+    setCategory(product?.category_id ?? null)
+    setCategoryError(null)
     setRetail(product?.retail_price ?? 0)
     setWholesale(product?.wholesale_price ?? 0)
     setMto(!!product?.made_to_order)
@@ -139,18 +103,20 @@ export function ProductDrawer({
   }
 
   const nameError = touched && !editing && !name.trim()
-  const categoryError = touched && !editing && !category
+  const categoryMissing = touched && category == null
+  const categoryMessage = categoryMissing ? P.categoryRequired : categoryError
 
   const save = async () => {
     setTouched(true)
     setError(null)
-    if (!editing && (!name.trim() || !category)) return
+    setCategoryError(null)
+    if (category == null || (!editing && !name.trim())) return
     setBusy(true)
     try {
       if (!editing) {
         const created = await createProduct({
           name: name.trim(),
-          category,
+          category_id: category,
           retail_price: retail,
           wholesale_price: wholesale,
           made_to_order: madeToOrder,
@@ -158,18 +124,32 @@ export function ProductDrawer({
         onSaved(created, P.toastProductAdded(created.name))
         return
       }
-      // Send only what changed; the API leaves omitted prices untouched.
+      // Send only what changed: the category move and the prices are
+      // separate endpoints, and the API leaves omitted prices untouched.
       const changes: { retail_price?: number; wholesale_price?: number } = {}
       if (retail !== product.retail_price) changes.retail_price = retail
       if (wholesale !== product.wholesale_price) changes.wholesale_price = wholesale
-      if (Object.keys(changes).length === 0) {
+      const moved = category !== product.category_id
+      if (!moved && Object.keys(changes).length === 0) {
         onClose()
         return
       }
-      const updated = await updateProductPrices(product.id, changes)
+      let updated = product
+      if (moved) {
+        updated = await setProductCategory(product.id, category)
+        // Keep the move even if the price save below fails.
+        onSaved(updated, P.toastSaved, false)
+      }
+      if (Object.keys(changes).length > 0) updated = await updateProductPrices(product.id, changes)
       onSaved(updated, P.toastSaved)
     } catch (e) {
-      setError(errorOf(e))
+      if (e instanceof ApiError && e.status === 422 && e.field === "category_id") {
+        // The tree changed since this page loaded (e.g. a subcategory was
+        // added, or the category was deactivated, in another tab).
+        setCategoryError(e.message.includes("subcategories") ? P.categoryHasChildren : P.categoryUnavailable)
+      } else {
+        setError(errorOf(e))
+      }
     } finally {
       setBusy(false)
     }
@@ -244,9 +224,6 @@ export function ProductDrawer({
       {editing ? (
         <div className="flex flex-col gap-1 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[13px]">
           <span className="font-bold">{product.name}</span>
-          <span className="text-text-3">
-            {P.fieldCategory}: {categoryLabel(product.category)}
-          </span>
           <span className="flex items-center gap-1 text-xs text-text-3">
             <Info className="size-3" aria-hidden />
             {P.readOnlyNote}
@@ -264,12 +241,23 @@ export function ProductDrawer({
             />
             {nameError && <FieldError>{P.nameRequired}</FieldError>}
           </Field>
-          <Field label={P.fieldCategory}>
-            <CategorySelect value={category} onChange={setCategory} mobile={mobile} error={categoryError} />
-            {categoryError && <FieldError>{P.categoryRequired}</FieldError>}
-          </Field>
         </>
       )}
+
+      <Field label={P.fieldCategory} htmlFor="pf-category">
+        <CategoryPicker
+          id="pf-category"
+          tree={tree}
+          value={category}
+          onChange={(v) => {
+            setCategory(v)
+            setCategoryError(null)
+          }}
+          mobile={mobile}
+          error={!!categoryMessage}
+        />
+        {categoryMessage && <FieldError>{categoryMessage}</FieldError>}
+      </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={P.fieldRetail} htmlFor="pf-retail">

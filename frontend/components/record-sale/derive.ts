@@ -9,7 +9,7 @@
  */
 
 import type { Catalog } from "@/lib/api"
-import { categoryLabel } from "@/lib/categories"
+import { categoryPath } from "@/lib/category-path"
 import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
 import { CHANNELS, T } from "./copy"
 import { channelPrice, type FormState, type Kit, type Line, type Product } from "./state"
@@ -154,7 +154,7 @@ export function derive(
       if (madeToOrder) {
         // §13: made-to-order is manufactured at sale — never blocked for
         // stock, and not for a missing cost, unless it has no recipe at all.
-        meta = `${categoryLabel(product.category)} · ${T.madeToOrder}`
+        meta = `${categoryPath(product)} · ${T.madeToOrder}`
         if (recipe?.status === "loading") {
           pending = true
           meta += ` · ${T.recipeChecking}`
@@ -192,7 +192,7 @@ export function derive(
           else costKnown = false
         }
       } else {
-        meta = categoryLabel(product.category)
+        meta = categoryPath(product)
         stockPill = stock === 0 ? { text: T.outOfStock, tone: "out" } : { text: T.stockPill(stock), tone: "neutral" }
 
         // V2

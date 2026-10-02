@@ -5,19 +5,6 @@
 
 import type { Material, Product } from "@/lib/api"
 
-/** db/constants.py VALID_CATEGORIES, in the backend's order. */
-export const CATEGORY_CODES = [
-  "ALBUM",
-  "CASSETTE",
-  "VINYL",
-  "MIRROR",
-  "POSTER",
-  "STICKER",
-  "TSHIRT",
-  "OTHER",
-  "فندک",
-] as const
-
 /** The design's unit list (05 §2), stored as Persian text. */
 export const UNITS = ["عدد", "متر", "کیلوگرم", "رول", "لیتر", "نوبت"] as const
 

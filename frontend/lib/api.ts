@@ -225,3 +225,27 @@ export function reactivateProduct(productId: number): Promise<Product> {
 export function reactivateMaterial(materialId: number): Promise<Material> {
   return apiFetch<Material>(`/materials/${materialId}/reactivate`, { method: "POST" })
 }
+
+export type Category = Schemas["CategoryOut"]
+export type CategoryTree = Schemas["CategoryTreeOut"]
+export type CategoryKind = "PRODUCT" | "MATERIAL"
+
+/** Top-level categories of one kind, each with its subcategories. */
+export function listCategoryTree(kind: CategoryKind, activeOnly = false): Promise<CategoryTree[]> {
+  return apiFetch<CategoryTree[]>(`/categories/tree?kind=${kind}&active_only=${activeOnly}`)
+}
+
+/** 422 with field "category_id" if the category isn't assignable (wrong kind, inactive, has subcategories). */
+export function setProductCategory(productId: number, categoryId: number): Promise<Product> {
+  return apiFetch<Product>(`/products/${productId}/category`, {
+    method: "PATCH",
+    body: JSON.stringify({ category_id: categoryId }),
+  })
+}
+
+export function setMaterialCategory(materialId: number, categoryId: number): Promise<Material> {
+  return apiFetch<Material>(`/materials/${materialId}/category`, {
+    method: "PATCH",
+    body: JSON.stringify({ category_id: categoryId }),
+  })
+}

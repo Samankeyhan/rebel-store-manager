@@ -10,21 +10,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Btn, IntInput } from "@/components/record-sale/primitives"
-import { ApiError, createMaterial, type Material } from "@/lib/api"
+import { ApiError, createMaterial, type CategoryTree, type Material } from "@/lib/api"
 import { formatQuantity, parseDecimal } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { P } from "./copy"
+import { CategoryPicker } from "./category-picker"
 import { DrawerShell, FieldError, SaveError, textInputClass } from "./drawer-shell"
 import { UNITS } from "./figures"
 
 /** Add material (create only: the API has no material edit endpoint). */
 export function MaterialDrawer({
   open,
+  tree,
   mobile,
   onClose,
   onSaved,
 }: {
   open: boolean
+  /** The MATERIAL category tree; a material's category is optional. */
+  tree: CategoryTree[]
   mobile: boolean
   onClose: () => void
   onSaved: (m: Material, toast: string) => void
@@ -34,6 +38,8 @@ export function MaterialDrawer({
   const [unit, setUnit] = React.useState<string>(UNITS[0])
   const [unitCost, setUnitCost] = React.useState(0)
   const [stockText, setStockText] = React.useState("")
+  const [category, setCategory] = React.useState<number | null>(null)
+  const [categoryError, setCategoryError] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<{ message: string; code: string } | null>(null)
   const [touched, setTouched] = React.useState(false)
@@ -46,6 +52,8 @@ export function MaterialDrawer({
     setUnit(UNITS[0])
     setUnitCost(0)
     setStockText("")
+    setCategory(null)
+    setCategoryError(false)
     setError(null)
     setTouched(false)
   } else if (!open && wasOpen) {
@@ -69,9 +77,14 @@ export function MaterialDrawer({
         unit_cost: unitCost,
         // SERVICE materials hold no stock; the API rejects any initial_stock.
         initial_stock: type === "SERVICE" ? null : stock,
+        category_id: category,
       })
       onSaved(created, P.toastMaterialAdded(created.name))
     } catch (e) {
+      if (e instanceof ApiError && e.status === 422 && e.field === "category_id") {
+        setCategoryError(true)
+        return
+      }
       setError(
         e instanceof ApiError
           ? { message: e.message, code: e.status === 0 ? "NET_TIMEOUT" : `MATERIALS_${e.status}` }
@@ -115,6 +128,25 @@ export function MaterialDrawer({
           aria-invalid={nameError || undefined}
         />
         {nameError && <FieldError>{P.nameRequired}</FieldError>}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="mf-category" className="text-[13px] font-semibold">
+          {P.fieldCategory}
+        </label>
+        <CategoryPicker
+          id="mf-category"
+          tree={tree}
+          value={category}
+          onChange={(v) => {
+            setCategory(v)
+            setCategoryError(false)
+          }}
+          mobile={mobile}
+          error={categoryError}
+          allowNone
+        />
+        {categoryError && <FieldError>{P.categoryUnavailable}</FieldError>}
       </div>
 
       <div className="flex flex-col gap-1.5">

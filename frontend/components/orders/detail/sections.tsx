@@ -4,7 +4,7 @@ import * as React from "react"
 import { Ban, CircleUserRound, Info, Lock, Printer, Undo2 } from "lucide-react"
 import { ChannelBadge, StatusBadge, statusName } from "@/components/common/status"
 import { Btn, btnClass, cardClass } from "@/components/record-sale/primitives"
-import { categoryLabel } from "@/lib/categories"
+import { categoryPath } from "@/lib/category-path"
 import { invoicePdfUrl, type Catalog, type OrderDetail } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
 import { formatNumber } from "@/lib/persian-numbers"
@@ -266,7 +266,7 @@ export function ItemsCard({
   catalog: Catalog | null
   mobile: boolean
 }) {
-  const categories = new Map((catalog?.products ?? []).map((p) => [p.id, categoryLabel(p.category)]))
+  const categories = new Map((catalog?.products ?? []).map((p) => [p.id, categoryPath(p)]))
   const caption = D.itemsCaption(detail.items.length, unitCount(detail))
 
   if (mobile) {

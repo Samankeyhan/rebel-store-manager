@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { Material } from "@/lib/api"
+import { categoryPath } from "@/lib/category-path"
 import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { ActiveBadge, Chip, TypeBadge } from "./badges"
@@ -78,6 +79,7 @@ export function MaterialsTab({
               <span className="flex items-center justify-between gap-2 text-xs">
                 <span className="flex items-center gap-1.5">
                   <TypeBadge type={m.type} />
+                  {m.category_id != null && <Chip>{categoryPath(m)}</Chip>}
                   <span className="text-text-3">{unitLabel(m.unit)}</span>
                 </span>
                 <span className="text-text-2 tabular-nums">
@@ -104,6 +106,7 @@ export function MaterialsTab({
                 <th scope="col" className="w-full">
                   {P.colMatName}
                 </th>
+                <th scope="col">{P.colMatCategory}</th>
                 <th scope="col">{P.colType}</th>
                 <th scope="col">{P.colUnit}</th>
                 <th scope="col">{P.colStock}</th>
@@ -128,6 +131,7 @@ export function MaterialsTab({
                     )}
                   >
                     <td className="font-bold">{m.name}</td>
+                    <td>{m.category_id != null ? <Chip>{categoryPath(m)}</Chip> : <span className="text-text-3">—</span>}</td>
                     <td>
                       <TypeBadge type={m.type} />
                     </td>
