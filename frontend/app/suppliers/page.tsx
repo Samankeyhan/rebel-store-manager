@@ -1,5 +1,5 @@
-import { PageStub } from "@/components/page-stub"
+import { SuppliersPage } from "@/components/suppliers/suppliers-page"
 
-export default function SuppliersPage() {
-  return <PageStub href="/suppliers" />
+export default function Page() {
+  return <SuppliersPage />
 }

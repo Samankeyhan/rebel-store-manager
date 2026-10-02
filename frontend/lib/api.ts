@@ -397,6 +397,19 @@ export function listSuppliers(): Promise<Supplier[]> {
   return apiFetch<Supplier[]>("/suppliers")
 }
 
+export type SupplierCreate = Schemas["SupplierCreate"]
+export type SupplierUpdate = Schemas["SupplierUpdate"]
+
+/** 422 (field "name") for an empty name. */
+export function createSupplier(body: SupplierCreate): Promise<Supplier> {
+  return apiFetch<Supplier>("/suppliers", { method: "POST", body: JSON.stringify(body) })
+}
+
+/** Only the fields present change; null clears an optional field (name can't be null). */
+export function updateSupplier(supplierId: number, body: SupplierUpdate): Promise<Supplier> {
+  return apiFetch<Supplier>(`/suppliers/${supplierId}`, { method: "PATCH", body: JSON.stringify(body) })
+}
+
 // ------------------------------------------------------------ settings (channels)
 
 export type ChannelSettings = Schemas["ChannelSettingsOut"]
