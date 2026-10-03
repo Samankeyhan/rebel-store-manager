@@ -12,8 +12,9 @@ import { unitLabel } from "@/components/products/figures"
 import { CHANNEL_IDS } from "@/components/record-sale/copy"
 import { Btn, StockPill, cardClass } from "@/components/record-sale/primitives"
 import type { KitDetail, Material, Settings } from "@/lib/api"
-import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatQuantity } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { K } from "./copy"
 import { DeactivateKitDialog } from "./deactivate-kit-dialog"
@@ -21,6 +22,7 @@ import { LOW_KITS, kitAvailability, type Availability } from "./figures"
 import { KitEditor } from "./kit-editor"
 import { NewKitDialog } from "./new-kit-dialog"
 import { usePackagingData } from "./use-packaging-data"
+import { useCurrency } from "@/lib/use-currency"
 
 /** Channels whose default kit is `kitId` (null = no kit), in the app's channel order. */
 function channelsWithDefault(settings: Settings, kitId: number | null): string[] {
@@ -38,6 +40,8 @@ function availPill(a: Availability) {
  * except that deactivating a default kit asks for the channels' replacements.
  */
 export function PackagingPage() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -313,7 +317,7 @@ function KitCard({
                 {item.material_name} × {formatQuantity(item.quantity)}
                 {unit !== "عدد" ? ` ${unit}` : ""}
               </span>
-              <span className="tabular-nums">{formatNumber(Math.round(item.quantity * item.material_unit_cost))}</span>
+              <Money value={Math.round(item.quantity * item.material_unit_cost)} />
             </span>
           )
         })}

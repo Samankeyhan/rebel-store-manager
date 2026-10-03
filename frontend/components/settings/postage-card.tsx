@@ -1,10 +1,10 @@
 "use client"
 
-import { Help, InlineMessage, IntInput, Label, Stepper, cardClass } from "@/components/record-sale/primitives"
+import { Help, InlineMessage, Label, MoneyInput, Stepper, cardClass } from "@/components/record-sale/primitives"
 import { sums, windowOf } from "@/components/postage/figures"
 import type { PostageBatch, PostageEstimate, Settings } from "@/lib/api"
 import { roundHalfEven } from "@/lib/costing"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { S } from "./copy"
 import { WINDOW_MAX, type Draft } from "./draft"
@@ -34,7 +34,8 @@ export function heroFigure(batches: PostageBatch[], api: PostageEstimate, saved:
     draft.postage_estimate_window === saved.postage_estimate_window &&
     draft.default_postage_estimate === saved.default_postage_estimate &&
     api.window === saved.postage_estimate_window
-  const local = window.length === 0 ? draft.default_postage_estimate : roundHalfEven(s.total / s.orders)
+  // A not-yet-exact default (null) previews as the saved one.
+  const local = window.length === 0 ? (draft.default_postage_estimate ?? saved.default_postage_estimate) : roundHalfEven(s.total / s.orders)
   return {
     estimate: unchanged ? api.estimate : local,
     preview: !unchanged,
@@ -50,7 +51,7 @@ type Props = {
   windowError: string | null
   defaultError: string | null
   onWindow: (n: number) => void
-  onDefault: (n: number) => void
+  onDefault: (n: number | null) => void
   mobile: boolean
 }
 
@@ -75,7 +76,7 @@ export function PostageCard({ draft, hero, windowError, defaultError, onWindow, 
       <span className={cn("text-[13px]", hero.preview ? "font-bold text-warn" : "text-text-2")}>{caption}</span>
       <span className="flex items-baseline gap-1.5">
         <b className={cn("leading-tight font-bold text-heading tabular-nums", mobile ? "text-[22px]" : "text-[26px]")}>
-          {formatNumber(hero.estimate)}
+          <Money value={hero.estimate} unit={false} />
         </b>
         <span className="text-[13px] font-medium">{S.perOrder}</span>
       </span>
@@ -86,16 +87,19 @@ export function PostageCard({ draft, hero, windowError, defaultError, onWindow, 
   const defaultField = (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor="st-default-post">{S.defaultPostLabel}</Label>
-      <IntInput
+      <MoneyInput
         id="st-default-post"
         value={draft.default_postage_estimate}
-        onValue={onDefault}
-        suffix={S.toman}
+        onValue={(v) => onDefault(v ?? null)}
         tone={defaultError ? "error" : null}
         className={mobile ? "h-12 text-base" : undefined}
         aria-invalid={defaultError ? true : undefined}
       />
-      {defaultError ? <InlineMessage severity="error">{defaultError}</InlineMessage> : <Help>{S.defaultPostHelp}</Help>}
+      {draft.default_postage_estimate === null ? null : defaultError ? (
+        <InlineMessage severity="error">{defaultError}</InlineMessage>
+      ) : (
+        <Help>{S.defaultPostHelp}</Help>
+      )}
     </div>
   )
 

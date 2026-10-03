@@ -12,7 +12,7 @@ import type { Catalog } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
 import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
 import { CHANNELS, T } from "./copy"
-import { channelPrice, type FormState, type Kit, type Line, type Product } from "./state"
+import { channelPrice, moneyBlocked, type FormState, type Kit, type Line, type Product } from "./state"
 
 export type RecipeState =
   | { status: "loading" }
@@ -288,6 +288,8 @@ export function derive(
 
   // V5
   if (state.lines.length === 0) errors.push(T.v5)
+  // A typed amount that isn't exact Toman (MoneyInput shows why on the field).
+  if (moneyBlocked(state)) errors.push(T.vMoney)
 
   const ch = catalog.settings.channels[state.channel]
   const shippingDefault = defaultShipping(state, catalog)

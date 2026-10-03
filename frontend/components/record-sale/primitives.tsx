@@ -10,9 +10,9 @@
 import * as React from "react"
 import { CircleAlert, Info, Lock, Minus, Plus, TriangleAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { formatNumber, parseInteger, toLatinDigits } from "@/lib/persian-numbers"
+import { formatNumber, parseInteger } from "@/lib/persian-numbers"
 import { M } from "@/components/common/copy"
-import { currencyLabel, formatMoney, fromDisplayAmount, toDisplayAmount, type Currency } from "@/lib/money"
+import { currencyLabel, parseMoneyInput, toDisplayAmount, type Currency } from "@/lib/money"
 import { useCurrency } from "@/lib/use-currency"
 import { T } from "./copy"
 
@@ -118,7 +118,7 @@ export function IntInput({
     <input
       inputMode="numeric"
       autoComplete="off"
-      value={formatNumber(value)}
+      value={formatNumber(value)} // qty: IntInput is for quantities and counts
       onChange={(e) => onValue(parseInteger(e.target.value))}
       onFocus={(e) => e.currentTarget.select()}
       className={inputClass(tone, cn("tabular-nums", suffix && "pe-14", className))}
@@ -132,12 +132,6 @@ export function IntInput({
       <span className="pointer-events-none absolute end-3 text-xs text-text-3">{suffix}</span>
     </div>
   )
-}
-
-/** A typed amount (Latin digits) in `currency` → Toman, null when not exact, undefined when empty. */
-function readMoney(digits: string, currency: Currency, allowEmpty: boolean): number | null | undefined {
-  if (digits === "") return allowEmpty ? undefined : 0
-  return fromDisplayAmount(parseInteger(digits), currency)
 }
 
 const moneyDigits = (v: number | null | undefined, currency: Currency) =>
@@ -158,6 +152,7 @@ export function MoneyInput({
   tone,
   className,
   wrapperClassName,
+  "aria-invalid": ariaInvalid,
   ...props
 }: Omit<React.ComponentProps<"input">, "value" | "onChange"> & {
   value: number | null | undefined
@@ -185,15 +180,15 @@ export function MoneyInput({
           autoComplete="off"
           value={shown}
           onChange={(e) => {
-            const digits = toLatinDigits(e.target.value).replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "")
-            const next = readMoney(digits, currency, allowEmpty)
+            const { digits, toman: next } = parseMoneyInput(e.target.value, currency, allowEmpty)
             setSync({ value: next, currency, digits })
             onValue(next)
           }}
           onFocus={(e) => e.currentTarget.select()}
-          aria-invalid={invalid || props["aria-invalid"] || undefined}
           className={inputClass(invalid ? "error" : tone, cn("pe-14 tabular-nums", className))}
           {...props}
+          // After the spread: a caller's own aria-invalid can't hide an inexact amount.
+          aria-invalid={invalid || ariaInvalid || undefined}
         />
         <span className="pointer-events-none absolute end-3 text-xs text-text-3">{currencyLabel(currency)}</span>
       </div>
@@ -235,7 +230,7 @@ export function Stepper({
       <input
         inputMode="numeric"
         aria-label={inputLabel}
-        value={formatNumber(value)}
+        value={formatNumber(value)} // qty: stepper count
         // Typing clamps at 0 (V6 then flags it); the − button clamps at 1.
         onChange={(e) => onValue(Math.max(0, parseInteger(e.target.value)))}
         onFocus={(e) => e.currentTarget.select()}
@@ -447,7 +442,3 @@ export function Kbd({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** Signed amount for the internal summary, with its unit: «−۱۹۹٬۲۷۳ تومان», or «۰ تومان». */
-export function negAmount(n: number): string {
-  return formatMoney(n ? -n : 0)
-}

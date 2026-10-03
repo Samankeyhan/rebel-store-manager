@@ -14,10 +14,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { DrawerShell, SaveError, textInputClass } from "@/components/products/drawer-shell"
-import { Btn, Help, InlineMessage, IntInput, Label } from "@/components/record-sale/primitives"
+import { Btn, Help, InlineMessage, Label, MoneyInput } from "@/components/record-sale/primitives"
 import { ApiError, createExpense, type Expense, type ExpenseCategory } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { E } from "./copy"
+import { expenseSubmittable } from "./guard"
 import { NewCategoryDialog } from "./new-category-dialog"
 
 /**
@@ -51,7 +52,8 @@ export function ExpenseDialog({
   const [date, setDate] = React.useState(today)
   const [categoryId, setCategoryId] = React.useState<number | null>(null)
   const [description, setDescription] = React.useState("")
-  const [amount, setAmount] = React.useState(0)
+  /** Integer Toman; null while the typed amount isn't exact (MoneyInput). */
+  const [amount, setAmount] = React.useState<number | null>(0)
   const [touched, setTouched] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<{ message: string; code: string } | null>(null)
@@ -74,7 +76,8 @@ export function ExpenseDialog({
 
   const category = categories.find((c) => c.id === categoryId) ?? null
   const categoryError = fieldErrors.expense_category_id || (touched && category == null ? E.categoryRequired : null)
-  const amountError = fieldErrors.amount || (touched && amount <= 0 ? E.amountRequired : null)
+  // null: MoneyInput shows its own message under the field.
+  const amountError = fieldErrors.amount || (touched && amount !== null && amount <= 0 ? E.amountRequired : null)
 
   const close = () => {
     if (!busy) onClose()
@@ -84,8 +87,7 @@ export function ExpenseDialog({
     setTouched(true)
     setError(null)
     setFieldErrors({})
-    // The API accepts a zero amount; a zero expense means nothing, so the screen doesn't.
-    if (category == null || amount <= 0 || busy) return
+    if (!expenseSubmittable({ categoryId: category?.id ?? null, amount, busy }) || category == null || amount === null) return
     setBusy(true)
     try {
       const saved = await createExpense({
@@ -188,19 +190,18 @@ export function ExpenseDialog({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="ef-amount">{E.fieldAmount}</Label>
-        <IntInput
+        <MoneyInput
           id="ef-amount"
           value={amount}
           onValue={(n) => {
-            setAmount(n)
+            setAmount(n ?? null)
             setFieldErrors((f) => ({ ...f, amount: "" }))
           }}
-          suffix={E.toman}
           tone={amountError ? "error" : null}
           aria-invalid={!!amountError || undefined}
           className={mobile ? "h-12" : undefined}
         />
-        {amountError ? <InlineMessage severity="error">{amountError}</InlineMessage> : <Help>{E.amountHelp}</Help>}
+        {amount === null ? null : amountError ? <InlineMessage severity="error">{amountError}</InlineMessage> : <Help>{E.amountHelp}</Help>}
       </div>
     </div>
   )

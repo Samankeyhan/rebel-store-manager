@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
+import { formatMoney } from "@/lib/money"
 import { D, L } from "./copy"
 import type { ProfitView } from "./order-figures"
 
@@ -29,7 +30,7 @@ export function ProfitFigure({
     return (
       <span className={cn("font-bold whitespace-nowrap tabular-nums", profitTone(view.profit), className)}>
         {prefix}
-        {formatNumber(view.profit)}
+        <Money value={view.profit} unitClassName="text-current" />
       </span>
     )
   }
@@ -38,10 +39,10 @@ export function ProfitFigure({
       <span className="font-bold whitespace-nowrap text-loss tabular-nums">
         {/* A refund's figure is a loss, not a profit: label it as such. */}
         {prefix ? `${D.refundLoss} ` : ""}
-        {formatNumber(-view.loss)}
+        <Money value={-view.loss} unitClassName="text-current" />
       </span>
       <span className="text-[11px] font-normal whitespace-nowrap text-text-3 tabular-nums">
-        {L.refundOriginal(formatNumber(view.original))}
+        {L.refundOriginal(formatMoney(view.original))}
       </span>
     </span>
   )

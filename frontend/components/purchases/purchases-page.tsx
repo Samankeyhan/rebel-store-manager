@@ -20,13 +20,15 @@ import { norm, unitLabel } from "@/components/products/figures"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { Material, Product } from "@/lib/api"
 import { dateToISO, formatJalali, jalaliMonthRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
-import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatQuantity } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { U } from "./copy"
 import { PurchaseForm, type PurchaseFormHandle } from "./purchase-form"
 import { PurchaseSheet } from "./purchase-sheet"
 import { TypeTag } from "./type-tag"
 import { usePurchasesData, type PurchaseKind, type PurchaseRow, type TypeFilter } from "./use-purchases-data"
+import { useCurrency } from "@/lib/use-currency"
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 const TYPES = ["all", "material", "product"] as const
@@ -37,6 +39,8 @@ const TYPES = ["all", "material", "product"] as const
  * Filters live in the URL (?type=, ?supplier=, ?from=&to=, ?q=).
  */
 export function PurchasesPage() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -165,7 +169,7 @@ export function PurchasesPage() {
                       )}
                     </span>
                   </span>
-                  <span className="shrink-0 font-bold tabular-nums">{formatNumber(r.totalPaid)}</span>
+                  <Money value={r.totalPaid} className="shrink-0 font-bold" />
                 </button>
               ))}
             </>
@@ -346,15 +350,21 @@ export function PurchasesPage() {
                   <td className="text-end tabular-nums">
                     {formatQuantity(r.quantity)} {unitOf(r)}
                   </td>
-                  <td className="text-end font-bold tabular-nums">{formatNumber(r.totalPaid)}</td>
-                  <td className="text-end tabular-nums">{formatNumber(r.unitCost)}</td>
+                  <td className="text-end font-bold">
+                    <Money value={r.totalPaid} />
+                  </td>
+                  <td className="text-end">
+                    <Money value={r.unitCost} />
+                  </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-bold [&>td]:h-[52px] [&>td]:bg-surface-2 [&>td]:px-4">
                 <td colSpan={5}>{month ? U.footerMonth(month, rows.length) : U.footerRange(rows.length)}</td>
-                <td className="text-end tabular-nums">{formatNumber(total)}</td>
+                <td className="text-end">
+                  <Money value={total} />
+                </td>
                 <td />
               </tr>
             </tfoot>

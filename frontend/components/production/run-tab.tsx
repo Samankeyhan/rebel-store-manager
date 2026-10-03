@@ -13,8 +13,9 @@ import { unitLabel } from "@/components/products/figures"
 import { ApiError, runProduction, type Material, type Product } from "@/lib/api"
 import { blendUnitCost, chainedPreviews, type BatchPreview, type ChainedPreview } from "@/lib/costing"
 import { dateToISO } from "@/lib/jalali"
-import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatQuantity } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
 import type { RecipeEntry } from "./use-production-data"
@@ -596,7 +597,7 @@ function LineBlock({
           <p className="px-1 pb-1 text-[13px] tabular-nums">
             {R.collapsedSummary(preview.batchTotal, preview.unitCost)}
             {" · "}
-            {R.collapsedAvg(avg.old == null ? R.avgNoCost : formatNumber(avg.old), avg.after)}
+            {R.collapsedAvg(avg.old == null ? R.avgNoCost : formatMoney(avg.old), avg.after)}
           </p>
           <div className="-mx-4 overflow-hidden border-t border-border">
             {mobile ? (
@@ -658,7 +659,7 @@ function DeltaBadge({ delta }: { delta: number }) {
   return (
     <span className={cn(badgeBase, "tabular-nums", delta < 0 ? "bg-profit-soft text-profit" : "bg-warn-soft text-warn")}>
       {delta >= 0 ? "+" : ""}
-      {formatNumber(delta)}
+      {formatMoney(delta)}
     </span>
   )
 }
@@ -712,7 +713,9 @@ function DesktopPreview({ preview, product, qty }: { preview: BatchPreview; prod
                   <td className={cn("text-end tabular-nums", isShort && "font-bold text-loss")}>
                     {l.stock == null ? "—" : isShort ? R.shortCell(l.shortBy!) : formatQuantity(l.after!)}
                   </td>
-                  <td className="text-end font-bold tabular-nums">{formatNumber(Math.round(l.cost))}</td>
+                  <td className="text-end font-bold">
+                    <Money value={Math.round(l.cost)} />
+                  </td>
                 </tr>
               )
             })}
@@ -720,7 +723,9 @@ function DesktopPreview({ preview, product, qty }: { preview: BatchPreview; prod
           <tfoot>
             <tr className="font-bold [&>td]:h-11 [&>td]:bg-surface-2 [&>td]:px-4">
               <td colSpan={5}>{R.totalLabel}</td>
-              <td className="text-end tabular-nums">{formatNumber(preview.batchTotal)}</td>
+              <td className="text-end">
+                <Money value={preview.batchTotal} />
+              </td>
             </tr>
           </tfoot>
         </table>
@@ -734,10 +739,10 @@ function DesktopPreview({ preview, product, qty }: { preview: BatchPreview; prod
         <div className="col-span-2 flex flex-col gap-1 rounded-[10px] bg-surface-2 p-3">
           <span className="text-xs text-text-3">{R.avgTile(product.name)}</span>
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-lg text-text-2 tabular-nums">{avg.old == null ? R.avgNoCost : formatNumber(avg.old)}</span>
+            <span className="text-lg text-text-2 tabular-nums">{avg.old == null ? R.avgNoCost : formatMoney(avg.old)}</span>
             {/* Old → new in reading order: in RTL the chevron points left. */}
             <ChevronLeft className="size-[18px] text-text-3" aria-hidden />
-            <span className="text-[22px] font-bold tabular-nums">{formatNumber(avg.after)}</span>
+            <Money value={avg.after} className="text-[22px] font-bold" />
             {avg.delta != null && <DeltaBadge delta={avg.delta} />}
           </span>
           <span className="text-xs text-text-3 tabular-nums">{avg.derivation}</span>
@@ -780,8 +785,8 @@ function MobilePreview({ preview, product, qty }: { preview: BatchPreview; produ
             {isShort ? (
               <span className="shrink-0 text-xs font-bold text-loss">{R.shortCell(l.shortBy!)}</span>
             ) : (
-              <span className="shrink-0 text-sm tabular-nums">
-                {formatNumber(Math.round(l.cost))}
+              <span className="shrink-0 text-sm">
+                <Money value={Math.round(l.cost)} />
                 <span className="sr-only"> {unit}</span>
               </span>
             )}
@@ -791,16 +796,20 @@ function MobilePreview({ preview, product, qty }: { preview: BatchPreview; produ
       <div className="flex flex-col gap-1 border-t border-border px-3.5 py-3 text-[13px]">
         <span className="flex justify-between">
           <span className="text-text-2">{R.mobileTotal}</span>
-          <b className="tabular-nums">{formatNumber(preview.batchTotal)}</b>
+          <b>
+            <Money value={preview.batchTotal} />
+          </b>
         </span>
         <span className="flex justify-between">
           <span className="text-text-2">{R.mobileUnit}</span>
-          <b className="tabular-nums">{formatNumber(preview.unitCost)}</b>
+          <b>
+            <Money value={preview.unitCost} />
+          </b>
         </span>
         <span className="flex justify-between">
           <span className="text-text-2">{R.mobileAvg}</span>
           <b className="tabular-nums">
-            {avg.old == null ? R.avgNoCost : formatNumber(avg.old)} ← {formatNumber(avg.after)}
+            {avg.old == null ? R.avgNoCost : formatMoney(avg.old)} ← {formatMoney(avg.after)}
           </b>
         </span>
         <span className="pt-1 text-xs text-text-3">{R.previewNote}</span>

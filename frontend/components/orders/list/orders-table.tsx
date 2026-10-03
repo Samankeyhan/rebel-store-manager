@@ -14,7 +14,8 @@ import { ChannelBadge, ORDER_STATUS_IDS, StatusBadge, statusName } from "@/compo
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import { invoicePdfUrl, type OrderListItem } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
-import { formatNumber, toPersianDigits } from "@/lib/persian-numbers"
+import { toPersianDigits } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { L } from "../copy"
 import { REVENUE_ELIGIBLE, profitView } from "../order-figures"
@@ -118,14 +119,14 @@ export function OrdersTable({
           </span>
           <span>
             {L.salesTotal}{" "}
-            <b className="tabular-nums">
-              {formatNumber(totals.sales)} {L.toman}
+            <b>
+              <Money value={totals.sales} unitClassName="text-current" />
             </b>
           </span>
           <span>
             {L.profitTotal}{" "}
-            <b className={cn("tabular-nums", profitTone(totals.profit))}>
-              {formatNumber(totals.profit)} {L.toman}
+            <b className={profitTone(totals.profit)}>
+              <Money value={totals.profit} unitClassName="text-current" />
             </b>
           </span>
         </div>
@@ -175,7 +176,9 @@ export function OrdersTable({
                   <td>
                     <StatusBadge status={o.status} />
                   </td>
-                  <td className="font-bold tabular-nums">{formatNumber(o.customer_total)}</td>
+                  <td className="font-bold">
+                    <Money value={o.customer_total} />
+                  </td>
                   <td>
                     <ProfitFigure view={profitView(o.status, o.profit, o)} />
                   </td>

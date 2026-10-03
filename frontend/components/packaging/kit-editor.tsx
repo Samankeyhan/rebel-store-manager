@@ -17,6 +17,8 @@ import {
   type Material,
 } from "@/lib/api"
 import { formatNumber, formatQuantity, parseDecimal } from "@/lib/persian-numbers"
+import { formatMoneyNumber } from "@/lib/money"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { K } from "./copy"
 import { LOW_KITS, kitAvailability } from "./figures"
@@ -180,7 +182,7 @@ export function KitEditor({
     )
     const unitCost = <span className="text-[13px] text-text-3 tabular-nums">{K.unitCost(item.material_unit_cost, unit)}</span>
     // This line's share only; kit_cost (rounded once over all lines) comes from the API.
-    const lineCost = <span className="font-bold tabular-nums">{formatNumber(Math.round(item.quantity * item.material_unit_cost))}</span>
+    const lineCost = <Money value={Math.round(item.quantity * item.material_unit_cost)} className="font-bold" />
     const del = active && (
       <Btn
         variant="ghost"
@@ -288,7 +290,7 @@ export function KitEditor({
           <div className="flex flex-col gap-1 rounded-[10px] bg-surface-2 p-3">
             <span className="text-xs font-bold text-text-3">{K.tileCost}</span>
             <span className="tabular-nums">
-              <b className="text-[22px]">{formatNumber(kit.kit_cost)}</b> <span className="text-xs">{K.toman}</span>
+              <b className="text-[22px]">{formatMoneyNumber(kit.kit_cost)}</b> <span className="text-xs">{K.toman}</span>
             </span>
             <span className="text-xs text-text-3">{K.tileCostNote}</span>
           </div>

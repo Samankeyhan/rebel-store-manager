@@ -16,6 +16,7 @@ import {
   type Settings,
 } from "@/lib/api"
 import { CHANNEL_IDS, CHANNELS, type Channel } from "@/components/record-sale/copy"
+import { M } from "@/components/common/copy"
 import { S } from "./copy"
 
 /** The kit picker's value for "no packaging" (same sentinel as Packaging's deactivate dialog). */
@@ -28,7 +29,13 @@ export const WINDOW_MAX = 12
 
 export type ChannelDraft = { applies_shipping_charge: number; applies_postage: number; kit: string }
 
-export type Draft = Record<GlobalSettingKey, number> & { channels: Record<Channel, ChannelDraft> }
+/** The money keys are integer Toman, or null while MoneyInput holds an amount that isn't exact (blocks save). */
+export type Draft = {
+  default_shipping_charge: number | null
+  postage_estimate_window: number
+  default_postage_estimate: number | null
+  channels: Record<Channel, ChannelDraft>
+}
 
 const GLOBAL_KEYS: GlobalSettingKey[] = ["default_shipping_charge", "postage_estimate_window", "default_postage_estimate"]
 
@@ -89,7 +96,9 @@ export function changes(baseline: Settings, draft: Draft): string[] {
 export function validate(draft: Draft): Partial<Record<GlobalSettingKey, string>> {
   const errors: Partial<Record<GlobalSettingKey, string>> = {}
   for (const key of ["default_shipping_charge", "default_postage_estimate"] as const) {
-    if (!Number.isSafeInteger(draft[key]) || draft[key] < 0) errors[key] = S.amountError
+    const v = draft[key]
+    if (v === null) errors[key] = M.notMultipleOf10
+    else if (!Number.isSafeInteger(v) || v < 0) errors[key] = S.amountError
   }
   const n = draft.postage_estimate_window
   if (!Number.isInteger(n) || n < 1) errors.postage_estimate_window = S.windowError
@@ -123,9 +132,12 @@ export async function saveDraft(baseline: Settings, draft: Draft): Promise<SaveR
   const asError = (e: unknown) => (e instanceof Error ? e : new Error(String(e)))
 
   for (const key of GLOBAL_KEYS) {
-    if (draft[key] === current[key]) continue
+    const value = draft[key]
+    if (value === current[key]) continue
+    // validate() refuses a null amount, so save() never gets here with one.
+    if (value === null) return fail({ label: GLOBAL_LABELS[key], error: new Error(M.notMultipleOf10), key, kitChanged: false })
     try {
-      current = await updateSetting(key, draft[key])
+      current = await updateSetting(key, value)
       saved.push(GLOBAL_LABELS[key])
       savedGlobal = true
     } catch (e) {

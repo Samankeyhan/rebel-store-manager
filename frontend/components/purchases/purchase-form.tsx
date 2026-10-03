@@ -6,7 +6,7 @@ import { ItemPicker, type PickerItem } from "@/components/common/item-picker"
 import { Segment } from "@/components/common/segment"
 import { SaveError } from "@/components/products/drawer-shell"
 import { unitLabel } from "@/components/products/figures"
-import { Help, InlineMessage, IntInput, Label } from "@/components/record-sale/primitives"
+import { Help, InlineMessage, IntInput, Label, MoneyInput } from "@/components/record-sale/primitives"
 import {
   ApiError,
   createMaterialPurchase,
@@ -52,7 +52,8 @@ export const PurchaseForm = React.forwardRef<
   const [supplierId, setSupplierId] = React.useState(NO_SUPPLIER)
   const [qtyText, setQtyText] = React.useState("")
   const [productQty, setProductQty] = React.useState(0)
-  const [total, setTotal] = React.useState(0)
+  /** Integer Toman; null while MoneyInput holds an amount that isn't exact — blocks submit. */
+  const [total, setTotal] = React.useState<number | null>(0)
   const [date, setDate] = React.useState(today)
   const [note, setNote] = React.useState("")
   const [touched, setTouched] = React.useState(false)
@@ -105,7 +106,7 @@ export const PurchaseForm = React.forwardRef<
     setTouched(true)
     setError(null)
     setFieldErrors({})
-    if (itemId == null || qty == null || qty <= 0 || busy) return
+    if (itemId == null || qty == null || qty <= 0 || total === null || busy) return
     setBusy(true)
     onBusyChange(true)
     const common = {
@@ -200,11 +201,10 @@ export const PurchaseForm = React.forwardRef<
   const totalField = (
     <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor="pf-total">{U.fieldTotal}</Label>
-      <IntInput
+      <MoneyInput
         id="pf-total"
         value={total}
-        onValue={setTotal}
-        suffix={U.toman}
+        onValue={(v) => setTotal(v ?? null)}
         tone={fieldErrors.total_paid ? "error" : touched && total === 0 ? "warn" : null}
         className={mobile ? "h-12" : undefined}
       />
@@ -299,7 +299,7 @@ export const PurchaseForm = React.forwardRef<
           {dateField}
         </>
       )}
-      <PurchasePreview item={previewItem} qty={qty} total={total} mobile={mobile} />
+      <PurchasePreview item={previewItem} qty={total === null ? null : qty} total={total ?? 0} mobile={mobile} />
       {!mobile && (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="pf-note" optional>

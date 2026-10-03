@@ -15,6 +15,7 @@ import { HistoryTab } from "./history-tab"
 import { RecipeTab } from "./recipe-tab"
 import { RunTab } from "./run-tab"
 import { useProductionData } from "./use-production-data"
+import { useCurrency } from "@/lib/use-currency"
 
 const TABS = ["run", "recipe", "history"] as const
 type Tab = (typeof TABS)[number]
@@ -26,6 +27,8 @@ const isTab = (v: string | null): v is Tab => TABS.includes(v as Tab)
  * and recipe tabs so «ویرایش دستور» / «ساخت دستور تولید» land on the same product.
  */
 export function ProductionPage() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()

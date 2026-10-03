@@ -10,8 +10,9 @@ import { Alert, Btn } from "@/components/record-sale/primitives"
 import { getProductionBatch, type Material, type ProductionBatchDetail, type ProductionBatchListItem } from "@/lib/api"
 import { roundHalfEven } from "@/lib/costing"
 import { formatJalaliDateTime } from "@/lib/jalali"
-import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatQuantity } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
+import { Money } from "@/components/common/money"
 import { R } from "./copy"
 
 type Load = { status: "loading" } | { status: "error" } | { status: "ready"; detail: ProductionBatchDetail }
@@ -102,10 +103,10 @@ function BatchMaterials({ detail, unitOf }: { detail: ProductionBatchDetail; uni
             </span>
             <span className="text-xs text-text-3 tabular-nums">
               {R.colUsed}: {formatQuantity(m.quantity_used)} {unitOf(m.material_id)} · {R.colUnitCostAt}:{" "}
-              {formatNumber(m.unit_cost_at_time)}
+              {formatMoney(m.unit_cost_at_time)}
             </span>
           </span>
-          <span className="shrink-0 font-bold tabular-nums">{formatNumber(Math.round(m.quantity_used * m.unit_cost_at_time))}</span>
+          <Money value={Math.round(m.quantity_used * m.unit_cost_at_time)} className="shrink-0 font-bold" />
         </div>
       ))}
       <div className="flex items-center justify-between py-3 text-[13.5px] font-bold">

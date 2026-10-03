@@ -9,17 +9,20 @@ import { cn } from "@/lib/utils"
  * one line. `value` is integer Toman (straight from the API). The number is
  * bidi-isolated so a minus (LRM + U+2212) stays on the digits' left whatever
  * text surrounds it. The unit is small and muted by default (dense tables);
- * pass `unitClassName` to change that, or `unit={false}` only where the unit
- * already sits right next to it in the same line.
+ * `plainUnit` makes it inherit the text's own size/weight/colour; pass
+ * `unitClassName` to adjust it, or `unit={false}` only where the unit already
+ * sits right next to the figure.
  */
 export function Money({
   value,
   unit = true,
   className,
   unitClassName,
+  plainUnit = false,
 }: {
   value: number
   unit?: boolean
+  plainUnit?: boolean
   className?: string
   unitClassName?: string
 }) {
@@ -32,7 +35,7 @@ export function Money({
       {unit && (
         <>
           {" "}
-          <span className={cn("text-[0.8em] font-medium text-text-3", unitClassName)}>{currencyLabel(currency)}</span>
+          <span className={cn(!plainUnit && "text-[0.8em] font-medium text-text-3", unitClassName)}>{currencyLabel(currency)}</span>
         </>
       )}
     </span>

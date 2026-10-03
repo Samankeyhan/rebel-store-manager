@@ -26,6 +26,7 @@ import { MobileFilterSheet, MobileFilterChips } from "./mobile-filters"
 import { OrderCards } from "./order-cards"
 import { OrdersTable, PAGE_SIZE } from "./orders-table"
 import { EmptyState, ErrorState, LoadingState } from "./states"
+import { useCurrency } from "@/lib/use-currency"
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/
 /** Store time zone (accounting-rules header) until /settings answers. */
@@ -65,6 +66,8 @@ function errorCode(error: unknown): string {
 }
 
 export function OrdersList() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()

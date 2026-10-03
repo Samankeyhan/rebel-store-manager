@@ -20,7 +20,8 @@ import { norm } from "@/components/products/figures"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { Expense, ExpenseCategory } from "@/lib/api"
 import { dateToISO, formatJalali, jalaliMonthRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
+import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { BreakdownCard, MobileSummary } from "./category-breakdown"
 import { CategoryCard } from "./category-card"
@@ -28,6 +29,7 @@ import { E } from "./copy"
 import { ExpenseDialog } from "./expense-dialog"
 import { NewCategoryDialog } from "./new-category-dialog"
 import { useExpensesData } from "./use-expenses-data"
+import { useCurrency } from "@/lib/use-currency"
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 const MOBILE_MONTHS = 12
@@ -50,6 +52,8 @@ const filterBtn =
  * a bottom «ثبت هزینه». Filters live in the URL (?category=, ?from=&to=, ?q=).
  */
 export function ExpensesPage() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -102,7 +106,7 @@ export function ExpensesPage() {
 
   const onSaved = (e: Expense) => {
     setFormOpen(false)
-    setToast(E.toastSaved(formatNumber(e.amount), e.category_name))
+    setToast(E.toastSaved(formatMoney(e.amount), e.category_name))
     data.refreshList()
   }
   const onCategoryCreated = (c: ExpenseCategory) => {
@@ -260,7 +264,7 @@ export function ExpensesPage() {
                       {shortDate(r.expense_date, data.timeZone)} · {r.category_name}
                     </span>
                   </span>
-                  <span className="shrink-0 text-sm font-bold tabular-nums">{formatNumber(r.amount)}</span>
+                  <Money value={r.amount} className="shrink-0 text-sm font-bold" />
                 </li>
               ))}
             </ul>
@@ -370,14 +374,18 @@ export function ExpensesPage() {
                       <span className={chipClass}>{r.category_name}</span>
                     </td>
                     <td className={cn(!r.description && "text-text-3")}>{r.description || E.noDescription}</td>
-                    <td className="text-end font-bold whitespace-nowrap tabular-nums">{formatNumber(r.amount)}</td>
+                    <td className="text-end font-bold">
+                      <Money value={r.amount} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="font-bold [&>td]:h-[52px] [&>td]:bg-surface-2 [&>td]:px-4">
                   <td colSpan={3}>{month ? E.footerMonth(month, rows.length) : E.footerRange(rows.length)}</td>
-                  <td className="text-end whitespace-nowrap tabular-nums">{formatNumber(total)}</td>
+                  <td className="text-end">
+                    <Money value={total} />
+                  </td>
                 </tr>
               </tfoot>
             </table>

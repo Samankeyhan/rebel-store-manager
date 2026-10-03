@@ -6,6 +6,7 @@
  */
 
 import { Boxes, Camera, Ellipsis, Globe, Store, type LucideIcon } from "lucide-react"
+import { currencyLabel, formatMoney } from "@/lib/money"
 import { formatNumber, toPersianDigits } from "@/lib/persian-numbers"
 
 export const CHANNEL_IDS = [
@@ -108,7 +109,7 @@ export const T = {
   channelLabel: "کانال فروش",
   channelHelp:
     "تغییر کانال، هزینه ارسال و بسته‌بندی را به پیش‌فرض همان کانال برمی‌گرداند و هزینه پست را روشن یا خاموش می‌کند و قیمت‌ها را خرده یا عمده می‌کند؛ قیمت‌هایی که دستی ویرایش کرده‌اید دست نمی‌خورند.",
-  tileShip: (amount: number) => `ارسال ${formatNumber(amount)}`,
+  tileShip: (amount: number) => `ارسال ${formatMoney(amount)}`,
   tilePostOn: "با هزینه پست",
   tilePostOff: "بدون پست",
   customerLabel: "نام مشتری",
@@ -121,7 +122,9 @@ export const T = {
   rowCount: (n: number) => `${fa(n)} ردیف`,
   colProduct: "محصول",
   colQty: "تعداد",
-  colUnitPrice: "قیمت واحد (تومان)",
+  get colUnitPrice() {
+    return `قیمت واحد (${currencyLabel()})`
+  },
   colRowTotal: "جمع ردیف",
   pickProduct: "انتخاب محصول…",
   pickProductHelp: "جستجو با نام یا دسته",
@@ -129,7 +132,7 @@ export const T = {
   stockPill: (n: number) => `موجودی ${formatNumber(n)}`,
   priceRetail: "قیمت خرده",
   priceWholesale: "قیمت عمده",
-  priceManual: (def: number) => `دستی · پیش‌فرض ${formatNumber(def)}`,
+  priceManual: (def: number) => `دستی · پیش‌فرض ${formatMoney(def)}`,
   addDiscount: "افزودن تخفیف",
   discountAmount: "مبلغ تخفیف",
   discountReason: "دلیل تخفیف",
@@ -139,7 +142,9 @@ export const T = {
   addProductMobile: "افزودن محصول",
   itemsNetFooter: "جمع اقلام پس از تخفیف:",
   rowTotalMobile: "جمع:",
-  toman: "تومان",
+  get toman() {
+    return currencyLabel()
+  },
   increase: "افزایش",
   decrease: "کاهش",
   removeRow: "حذف ردیف",
@@ -148,7 +153,7 @@ export const T = {
   // made-to-order (agreed additions)
   madeToOrder: "ساخت هنگام فروش",
   recipeChecking: "در حال بررسی دستور تولید…",
-  estimatedCost: (n: number) => `بهای تخمینی ${formatNumber(n)}`,
+  estimatedCost: (n: number) => `بهای تخمینی ${formatMoney(n)}`,
 
   // picker
   pickerSearchPlaceholder: "جستجوی نام یا دسته…",
@@ -166,12 +171,12 @@ export const T = {
   shippingLabelMobile: "هزینه ارسال دریافتی",
   shippingDefaultHelp: (channelName: string) => `پیش‌فرض ${channelName}؛ قابل ویرایش است.`,
   shippingOverride: (channelName: string, def: number) =>
-    `مقدار دستی — پیش‌فرض «${channelName}» ${formatNumber(def)} تومان است.`,
-  shippingOverrideMobile: (def: number) => `مقدار دستی — پیش‌فرض ${formatNumber(def)} تومان ·`,
+    `مقدار دستی — پیش‌فرض «${channelName}» ${formatMoney(def)} است.`,
+  shippingOverrideMobile: (def: number) => `مقدار دستی — پیش‌فرض ${formatMoney(def)} ·`,
   restore: "بازگردانی",
   kitLabel: "کیت بسته‌بندی",
   internalChip: "هزینه داخلی",
-  kitCost: (n: number) => (n ? `${formatNumber(n)} تومان` : "بدون هزینه"),
+  kitCost: (n: number) => (n ? formatMoney(n) : "بدون هزینه"),
   noKit: "بدون بسته‌بندی",
   noKitDesc: "تحویل دستی",
   defaultTag: "پیش‌فرض",
@@ -180,7 +185,9 @@ export const T = {
   // internal costs
   internalCard: "هزینه‌های داخلی",
   internalCardCaption: "به مشتری نمایش داده نمی‌شود",
-  internalMobileNote: "مبالغ به تومان · به مشتری نمایش داده نمی‌شود.",
+  get internalMobileNote() {
+    return `مبالغ به ${currencyLabel()} · به مشتری نمایش داده نمی‌شود.`
+  },
   postageLabel: "هزینه پست (تخمینی)",
   postageLabelMobile: "پست (تخمینی)",
   postageOn: "روشن برای این کانال",
@@ -262,9 +269,10 @@ export const T = {
   noRecipeDraft: (name: string) =>
     `پیش‌نویس ذخیره می‌شود، ولی «${name}» دستور تولید ندارد؛ پیش از تغییر وضعیت آن را تعریف کنید.`,
   v4: (discount: number, gross: number) =>
-    `تخفیف (${formatNumber(discount)} تومان) از جمع این ردیف (${formatNumber(gross)} تومان) بیشتر است. حداکثر تخفیف ${formatNumber(gross)} تومان است.`,
+    `تخفیف (${formatMoney(discount)}) از جمع این ردیف (${formatMoney(gross)}) بیشتر است. حداکثر تخفیف ${formatMoney(gross)} است.`,
   v4Summary: (name: string) => `تخفیف «${name}» از جمع ردیف بیشتر است.`,
   v5: "حداقل یک قلم به سفارش اضافه کنید.",
+  vMoney: "مبلغی که وارد شده دقیق نیست؛ آن را اصلاح کنید.", // NEW (MoneyInput null: Rial amount not a multiple of 10)
   v6: "تعداد باید حداقل ۱ باشد.",
   saveFailedTitle: "ثبت سفارش انجام نشد",
   errorCode: "کد خطا:",

@@ -3,7 +3,7 @@
 import { ChevronLeft } from "lucide-react"
 import { badgeBase } from "@/components/common/status"
 import { blendUnitCost, purchaseUnitCost } from "@/lib/costing"
-import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatQuantity } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { U } from "./copy"
@@ -52,14 +52,14 @@ export function PurchasePreview({
           <p className="text-xs text-text-3">{U.pickToPreview}</p>
         ) : (
           <>
-            <Line label={U.unitThis} value={unit == null ? "—" : formatNumber(unit)} />
+            <Line label={U.unitThis} value={unit == null ? "—" : formatMoney(unit)} />
             <Line
               label={U.avgNowMobile(`${q(item.stock)} ${item.unit}`)}
-              value={item.cost == null ? U.noCost : formatNumber(item.cost)}
+              value={item.cost == null ? U.noCost : formatMoney(item.cost)}
             />
             <Line
               label={U.avgAfterMobile(afterStock == null ? "—" : `${q(afterStock)} ${item.unit}`)}
-              value={after == null ? "—" : formatNumber(after)}
+              value={after == null ? "—" : formatMoney(after)}
               total
             />
             {derivation && <span className="text-xs text-text-3 tabular-nums">{derivation}</span>}
@@ -80,14 +80,14 @@ export function PurchasePreview({
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[10px] border border-border bg-card px-3 py-2.5">
             <div className="flex flex-col">
               <span className="text-xs text-text-3">{U.avgNow}</span>
-              <span className="text-[17px] tabular-nums">{item.cost == null ? U.noCost : formatNumber(item.cost)}</span>
+              <span className="text-[17px] tabular-nums">{item.cost == null ? U.noCost : formatMoney(item.cost)}</span>
               <span className="text-xs text-text-3 tabular-nums">{U.inStock(q(item.stock), item.unit)}</span>
             </div>
             {/* current → after in reading order: in RTL the chevron points left. */}
             <ChevronLeft className="size-5 text-text-3" aria-hidden />
             <div className="flex flex-col">
               <span className="text-xs text-text-3">{U.avgAfter}</span>
-              <span className="text-[19px] font-bold tabular-nums">{after == null ? "—" : formatNumber(after)}</span>
+              <span className="text-[19px] font-bold tabular-nums">{after == null ? "—" : formatMoney(after)}</span>
               <span className="text-xs text-text-3 tabular-nums">
                 {afterStock == null ? "—" : U.inStock(q(afterStock), item.unit)}
               </span>
@@ -105,7 +105,7 @@ export function PurchasePreview({
                   )}
                 >
                   {delta > 0 ? "+" : ""}
-                  {formatNumber(delta)}
+                  {formatMoney(delta)}
                 </span>
               )}
             </span>

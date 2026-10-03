@@ -1,5 +1,5 @@
 import { formatQuantity } from "@/lib/persian-numbers"
-import { formatMoney } from "@/lib/money"
+import { currencyLabel, formatMoney, formatMoneyNumber } from "@/lib/money"
 
 /** Screen 10 copy (design/screens/10-stock-adjustments.md §2). `// NEW` = not in the design. */
 export const A = {
@@ -43,7 +43,11 @@ export const A = {
       ? "خالی بماند = بهای واحد ثبت‌نشده می‌ماند. اگر وارد شود، بهای واحد این کالا می‌شود." // NEW
       : `خالی بماند = بهای فعلی (${formatMoney(cost)}). اگر وارد شود، میانگین موزون به‌روز می‌شود.`,
   costZero: "صفر یعنی این موجودی رایگان به دست آمده و میانگین بهای واحد را پایین می‌آورد.", // NEW
-  toman: "تومان",
+  get toman() {
+    return currencyLabel()
+  },
+  /** A signed value: «+۱۲٬۰۰۰ تومان». The signed number is LTR-isolated so «+»/«−» stay on its left; the unit follows in the RTL text. */
+  signedValue: (toman: number) => `⁦${toman > 0 ? "+" : ""}${formatMoneyNumber(toman)}⁩ ${currencyLabel()}`, // NEW
   fieldDate: "تاریخ تعدیل", // NEW
   today: "امروز",
   fieldReason: "دلیل",
@@ -96,7 +100,9 @@ export const A = {
   colItem: "کالا",
   colKind: "نوع",
   colQty: "مقدار",
-  colValue: "ارزش (تومان)",
+  get colValue() {
+    return `ارزش (${currencyLabel()})`
+  },
   colPnl: "اثر در سود و زیان",
   colReason: "دلیل",
   pnlWaste: "ردیف ضایعات",

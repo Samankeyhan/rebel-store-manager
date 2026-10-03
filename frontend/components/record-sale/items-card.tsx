@@ -3,18 +3,21 @@
 import * as React from "react"
 import { Plus, Tag, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { T, type Channel } from "./copy"
 import type { LineView } from "./derive"
-import { Btn, Help, IntInput, InlineMessage, SectionCard, Stepper, cardClass } from "./primitives"
+import { moneyProps } from "./money-field"
+import { Btn, Help, InlineMessage, MoneyInput, SectionCard, Stepper, cardClass } from "./primitives"
 import { ProductPicker } from "./product-picker"
-import type { Action, Product } from "./state"
+import { discountField, priceField, type Action, type MoneyField, type Product } from "./state"
 
 type ItemsProps = {
   lines: LineView[]
   products: Product[]
   channel: Channel
   itemsNet: number
+  /** Money fields whose typed amount isn't exact (see state.ts MoneyField). */
+  invalidMoney: MoneyField[]
   dispatch: React.Dispatch<Action>
   onAddLine: () => void
   openPicker: number | null
@@ -54,10 +57,12 @@ function LineMessages({ view, dispatch }: { view: LineView; dispatch: React.Disp
 
 function DiscountFields({
   view,
+  invalid,
   dispatch,
   mobile,
 }: {
   view: LineView
+  invalid: { invalidMoney: MoneyField[] }
   dispatch: React.Dispatch<Action>
   mobile: boolean
 }) {
@@ -68,12 +73,10 @@ function DiscountFields({
       <label htmlFor={`disc-${key}`} className="text-xs font-semibold">
         {T.discountAmount}
       </label>
-      <IntInput
+      <MoneyInput
         id={`disc-${key}`}
-        value={line.discount}
-        onValue={(n) => dispatch({ type: "line", key, patch: { discount: n } })}
+        {...moneyProps(invalid, dispatch, discountField(key), line.discount, (n) => dispatch({ type: "line", key, patch: { discount: n } }))}
         tone={view.discountError ? "error" : null}
-        suffix={T.toman}
         className={mobile ? "h-11" : "h-9"}
       />
     </div>
@@ -162,20 +165,15 @@ function DesktopLine({ view, props }: { view: LineView; props: ItemsProps }) {
           tone={view.qtyTone}
         />
         <div className="flex flex-col gap-1">
-          <IntInput
+          <MoneyInput
             aria-label={T.unitPriceAria}
-            value={line.unitPrice}
-            onValue={(n) => dispatch({ type: "price", key, value: n })}
+            {...moneyProps(props, dispatch, priceField(key), line.unitPrice, (n) => dispatch({ type: "price", key, value: n }))}
           />
           <Help className="text-[11.5px]">{priceNote}</Help>
         </div>
         <div className="flex flex-col items-start pt-2 leading-[1.3]">
-          <span className="font-bold whitespace-nowrap tabular-nums">{formatNumber(view.net)}</span>
-          {view.net !== view.gross && (
-            <span className="text-xs whitespace-nowrap text-text-3 tabular-nums line-through">
-              {formatNumber(view.gross)}
-            </span>
-          )}
+          <Money value={view.net} className="font-bold" />
+          {view.net !== view.gross && <Money value={view.gross} className="text-xs text-text-3 line-through" />}
         </div>
         <Btn
           variant="ghost"
@@ -188,7 +186,7 @@ function DesktopLine({ view, props }: { view: LineView; props: ItemsProps }) {
       </div>
       <LineMessages view={view} dispatch={dispatch} />
       {line.discountOpen ? (
-        <DiscountFields view={view} dispatch={dispatch} mobile={false} />
+        <DiscountFields view={view} invalid={props} dispatch={dispatch} mobile={false} />
       ) : (
         <AddDiscountButton onClick={() => dispatch({ type: "line", key, patch: { discountOpen: true } })} />
       )}
@@ -204,9 +202,11 @@ function MobileLine({ view, props }: { view: LineView; props: ItemsProps }) {
     <span className="text-[13px]">
       {T.rowTotalMobile}{" "}
       {view.net !== view.gross && (
-        <span className="text-xs text-text-3 tabular-nums line-through">{formatNumber(view.gross)}</span>
+        <Money value={view.gross} className="text-xs text-text-3 line-through" />
       )}{" "}
-      <b className="tabular-nums">{formatNumber(view.net)}</b>
+      <b>
+        <Money value={view.net} />
+      </b>
     </span>
   )
   return (
@@ -239,16 +239,14 @@ function MobileLine({ view, props }: { view: LineView; props: ItemsProps }) {
           onValue={(n) => dispatch({ type: "line", key, patch: { qty: n } })}
           tone={view.qtyTone}
         />
-        <IntInput
+        <MoneyInput
           aria-label={T.unitPriceAria}
-          value={line.unitPrice}
-          onValue={(n) => dispatch({ type: "price", key, value: n })}
-          suffix={T.toman}
+          {...moneyProps(props, dispatch, priceField(key), line.unitPrice, (n) => dispatch({ type: "price", key, value: n }))}
           className="h-11"
         />
       </div>
       <LineMessages view={view} dispatch={dispatch} />
-      {line.discountOpen && <DiscountFields view={view} dispatch={dispatch} mobile />}
+      {line.discountOpen && <DiscountFields view={view} invalid={props} dispatch={dispatch} mobile />}
       <div className="flex items-center justify-between">
         {line.discountOpen ? (
           <Btn variant="ghost" size="sm" onClick={() => clearDiscount(dispatch, key)}>
@@ -305,8 +303,8 @@ export function ItemsCard(props: ItemsProps) {
         </Btn>
         <span className="text-[13px] text-text-3">
           {T.itemsNetFooter}{" "}
-          <b className="text-foreground tabular-nums">
-            {formatNumber(props.itemsNet)} {T.toman}
+          <b className="text-foreground">
+            <Money value={props.itemsNet} />
           </b>
         </span>
       </div>

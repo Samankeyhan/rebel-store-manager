@@ -4,11 +4,12 @@ import * as React from "react"
 import { Info, Lock, PencilLine } from "lucide-react"
 import type { Catalog } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { formatMoney } from "@/lib/money"
 import { CHANNEL_IDS, CHANNELS, STATUS_IDS, STATUSES, T, type Channel, type SaleStatus } from "./copy"
 import { channelSummaryLine, resolveKit, type Summary } from "./derive"
-import { Help, IntInput, Label, OptionTile, PostageBadge, SectionCard, cardClass } from "./primitives"
+import { moneyProps } from "./money-field"
+import { Help, Label, MoneyInput, OptionTile, PostageBadge, SectionCard, cardClass } from "./primitives"
 import type { Action, FormState, KitChoice } from "./state"
 
 type CardProps = {
@@ -144,12 +145,10 @@ export function ShippingCard({ state, catalog, dispatch, summary, mobile }: Card
   const shipping = (
     <div className={cn("flex flex-col gap-1.5", !mobile && "max-w-[320px]")}>
       <Label htmlFor="sale-ship">{mobile ? T.shippingLabelMobile : T.shippingLabel}</Label>
-      <IntInput
+      <MoneyInput
         id="sale-ship"
-        value={summary.shipping}
-        onValue={(n) => dispatch({ type: "shipping", value: n })}
+        {...moneyProps(state, dispatch, "shipping", summary.shipping, (n) => dispatch({ type: "shipping", value: n }))}
         tone={over ? "warn" : null}
-        suffix={T.toman}
         className={mobile ? "h-11" : undefined}
       />
       {over ? (
@@ -239,7 +238,9 @@ export function InternalCostsCard({ state, catalog, dispatch, summary, mobile }:
           <div className="flex min-w-0 flex-col gap-1.5">
             <span className="text-xs font-semibold">{T.postageLabelMobile}</span>
             <div className="flex h-11 items-center rounded-lg border border-dashed border-border-strong bg-card px-3">
-              <b className={cn("tabular-nums", !summary.postageOn && "text-text-3")}>{formatNumber(summary.postage)}</b>
+              <b className={cn(!summary.postageOn && "text-text-3")}>
+                <Money value={summary.postage} />
+              </b>
             </div>
             <span className="text-[11px] leading-[17px] text-text-3">
               {summary.postageOn ? T.postageHint(window) : T.postageHelpOff(CHANNELS[state.channel].name)}
@@ -249,7 +250,11 @@ export function InternalCostsCard({ state, catalog, dispatch, summary, mobile }:
             <label htmlFor="sale-fee" className="text-xs font-semibold">
               {T.feeLabel}
             </label>
-            <IntInput id="sale-fee" value={state.fee} onValue={(n) => dispatch({ type: "fee", value: n })} className="h-11" />
+            <MoneyInput
+              id="sale-fee"
+              {...moneyProps(state, dispatch, "fee", state.fee, (n) => dispatch({ type: "fee", value: n }))}
+              className="h-11"
+            />
           </div>
         </div>
         <Help>{T.internalMobileNote}</Help>
@@ -276,7 +281,7 @@ export function InternalCostsCard({ state, catalog, dispatch, summary, mobile }:
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="sale-fee">{T.feeLabel}</Label>
-        <IntInput id="sale-fee" value={state.fee} onValue={(n) => dispatch({ type: "fee", value: n })} suffix={T.toman} />
+        <MoneyInput id="sale-fee" {...moneyProps(state, dispatch, "fee", state.fee, (n) => dispatch({ type: "fee", value: n }))} />
         <Help>{T.feeHelp}</Help>
       </div>
     </SectionCard>

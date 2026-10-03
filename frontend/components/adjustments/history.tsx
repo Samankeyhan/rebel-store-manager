@@ -17,7 +17,7 @@ import { DateRangePopover } from "@/components/orders/list/date-range-popover"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { Adjustment } from "@/lib/api"
 import { formatJalali, formatJalaliDateTime, utcToLocal, type IsoRange } from "@/lib/jalali"
-import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatQuantity } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { A } from "./copy"
 import { rowKind, rowValue } from "./figures"
@@ -219,7 +219,7 @@ export function HistoryCard({
                       {signed(r.quantity_change, unitOf(r))}
                     </td>
                     <td className={cn("text-end tabular-nums", value != null && value < 0 && "text-loss")}>
-                      {value == null ? "—" : `\u2066${value > 0 ? "+" : ""}${formatNumber(value)}\u2069`}
+                      {value == null ? "—" : A.signedValue(value)}
                     </td>
                     <td>
                       {k === "waste" ? (
@@ -278,7 +278,7 @@ export function RecentList({
               {r.notes && <span className="truncate text-xs text-text-3">{r.notes}</span>}
             </span>
             <span className={cn("shrink-0 font-bold tabular-nums", value != null && value < 0 && "text-loss")}>
-              {value == null ? "—" : `\u2066${value > 0 ? "+" : ""}${formatNumber(value)}\u2069`}
+              {value == null ? "—" : A.signedValue(value)}
             </span>
           </div>
         )

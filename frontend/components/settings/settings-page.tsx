@@ -7,7 +7,9 @@ import { ErrorBlock, LoadingBlock } from "@/components/common/screen-states"
 import { Toast } from "@/components/common/toast"
 import { Alert, Btn, cardClass } from "@/components/record-sale/primitives"
 import type { Channel } from "@/components/record-sale/copy"
-import { ApiError, type GlobalSettingKey } from "@/lib/api"
+import { ApiError, updateDisplayCurrency, type GlobalSettingKey } from "@/lib/api"
+import { currencyLabel, getCurrency, setCurrency, type Currency } from "@/lib/money"
+import { useCurrency } from "@/lib/use-currency"
 import { cn } from "@/lib/utils"
 import { ChannelsCard } from "./channels-card"
 import { S, joinList } from "./copy"
@@ -46,6 +48,9 @@ export function SettingsPage() {
   const [serverError, setServerError] = React.useState<{ key: GlobalSettingKey; message: string } | null>(null)
   const [toast, setToast] = React.useState<string | null>(null)
   const closeToast = React.useCallback(() => setToast(null), [])
+  const currency = useCurrency()
+  const [currencyBusy, setCurrencyBusy] = React.useState(false)
+  const [currencyError, setCurrencyError] = React.useState<string | null>(null)
 
   // Seed the draft from the first load (and again after a reload).
   if (state.status === "ready" && draft === null) setDraft(fromSettings(state.settings))
@@ -79,12 +84,35 @@ export function SettingsPage() {
   const invalid = Object.keys(clientErrors).length > 0
   const hero = heroFigure(batches, estimate, settings, draft)
 
-  const setGlobal = (key: GlobalSettingKey) => (value: number) => {
+  const setGlobal = (key: GlobalSettingKey) => (value: number | null) => {
     setDraft((d) => d && { ...d, [key]: value })
     if (serverError?.key === key) setServerError(null)
   }
   const setChannel = (channel: Channel, patch: Partial<ChannelDraft>) =>
     setDraft((d) => d && { ...d, channels: { ...d.channels, [channel]: { ...d.channels[channel], ...patch } } })
+
+  /**
+   * «واحد پول» saves on its own, immediately — it isn't part of the draft:
+   * it changes no data, only how every amount (draft amounts included, which
+   * are kept in Toman) is shown. Optimistic; reverted if the PUT fails.
+   */
+  const changeCurrency = async (next: Currency) => {
+    if (currencyBusy || next === currency) return
+    const previous = getCurrency()
+    setCurrencyBusy(true)
+    setCurrencyError(null)
+    setCurrency(next)
+    try {
+      const saved = await updateDisplayCurrency(next)
+      setCurrency(saved.display_currency)
+      setSettings({ ...settings, display_currency: saved.display_currency })
+      setToast(S.currencySaved(currencyLabel(saved.display_currency)))
+    } catch (e) {
+      setCurrency(previous)
+      setCurrencyError(S.currencyFailed(e instanceof Error ? e.message : String(e)))
+    }
+    setCurrencyBusy(false)
+  }
 
   const revert = () => {
     setDraft(fromSettings(settings))
@@ -157,7 +185,14 @@ export function SettingsPage() {
         onDefault={setGlobal("default_postage_estimate")}
         mobile={mobile}
       />
-      <GeneralCard timezone={settings.timezone} mobile={mobile} />
+      <GeneralCard
+        timezone={settings.timezone}
+        currency={currency}
+        onCurrency={changeCurrency}
+        currencyBusy={currencyBusy}
+        currencyError={currencyError}
+        mobile={mobile}
+      />
     </>
   )
 

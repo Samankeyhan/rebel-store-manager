@@ -5,7 +5,7 @@ import { ChevronDown, Search } from "lucide-react"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { categoryPath } from "@/lib/category-path"
 import { cn } from "@/lib/utils"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { T, type Channel } from "./copy"
 import type { LineView } from "./derive"
 import { StockPill } from "./primitives"
@@ -177,9 +177,7 @@ export function ProductPicker({
                   <span className="truncate font-bold">{p.name}</span>
                   <span className={cn("text-xs", sub.className)}>{sub.text}</span>
                 </span>
-                <span className="text-[13px] whitespace-nowrap tabular-nums">
-                  {formatNumber(channelPrice(p, channel))}
-                </span>
+                <Money value={channelPrice(p, channel)} className="text-[13px]" />
                 <span>
                   <StockPill {...rowStock(p)} />
                 </span>

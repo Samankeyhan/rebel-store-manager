@@ -6,7 +6,7 @@ import { Check, CircleCheck, CloudOff, ExternalLink, PackagePlus, Plus, Printer,
 import { Skeleton } from "@/components/ui/skeleton"
 import { invoicePdfUrl, type Catalog, type OrderDetail } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatQuantity } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
 import { T } from "./copy"
 import type { Banner } from "./derive"
@@ -146,7 +146,7 @@ export function SuccessView({
   // A draft's profit isn't real yet (no costs frozen): «—», as in the design.
   const profit = draft ? null : result.profit
   const profitCls = profit == null ? "text-text-3" : profit < 0 ? "text-loss" : "text-profit"
-  const profitText = profit == null ? "—" : formatNumber(profit)
+  const profitText = profit == null ? "—" : formatMoney(profit)
 
   const disc = (
     <div className="flex size-16 items-center justify-center rounded-full bg-profit-soft text-profit">
@@ -220,7 +220,7 @@ export function SuccessView({
         <div className="my-2 grid w-full grid-cols-3 gap-2.5">
           <div className="rounded-[10px] bg-surface-2 p-2.5">
             <div className="text-xs text-text-3">{T.tileTotal}</div>
-            <div className="font-bold tabular-nums">{formatNumber(result.customer_total)}</div>
+            <div className="font-bold tabular-nums">{formatMoney(result.customer_total)}</div>
           </div>
           <div className="rounded-[10px] bg-surface-2 p-2.5">
             <div className="text-xs text-text-3">{T.tileProfit}</div>

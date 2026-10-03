@@ -4,7 +4,7 @@ import * as React from "react"
 import { CloudOff, RotateCw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { D } from "./copy"
 
@@ -125,18 +125,7 @@ export function CardEmpty({
   )
 }
 
-/**
- * An amount followed by «تومان», kept on one line. The number is
- * bidi-isolated so its minus (formatNumber's LRM + U+2212) always stays on
- * the digits' left, whatever text surrounds it.
- */
+/** An amount with its display-currency unit, kept on one line (the shared <Money>, unit in the text colour as the design draws it). */
 export function Amount({ n, unit = true, className }: { n: number; unit?: boolean; className?: string }) {
-  return (
-    <span className={cn("whitespace-nowrap", className)}>
-      <span dir="ltr" className="tabular-nums">
-        {formatNumber(n)}
-      </span>
-      {unit && ` ${D.toman}`}
-    </span>
-  )
+  return <Money value={n} unit={unit} className={className} plainUnit />
 }

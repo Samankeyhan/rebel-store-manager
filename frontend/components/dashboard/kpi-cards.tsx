@@ -11,7 +11,7 @@ import { marginPct } from "@/components/orders/order-figures"
 import type { ChannelBreakdown, ProfitAndLoss, PurchasesSummary } from "@/lib/api"
 import type { IsoRange } from "@/lib/jalali"
 import { formatNumber } from "@/lib/persian-numbers"
-import { formatMoney } from "@/lib/money"
+import { formatMoney, formatMoneyNumber } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { D } from "./copy"
 import { sk } from "./parts"
@@ -24,6 +24,7 @@ function Kpi({
   label,
   icon: Icon,
   value,
+  money = false,
   unit,
   tone = "plain",
   caption,
@@ -35,6 +36,8 @@ function Kpi({
   label: string
   icon: React.ComponentType<{ className?: string }>
   value: number | null
+  /** The value is integer Toman: shown in the display currency. */
+  money?: boolean
   unit: string
   tone?: Tone
   caption: React.ReactNode
@@ -84,7 +87,7 @@ function Kpi({
                 value === 0 && "text-text-3"
               )}
             >
-              {value == null ? D.nil : formatNumber(value)}
+              {value == null ? D.nil : money ? formatMoneyNumber(value) : formatNumber(value)} {/* qty: the non-money branch is the order count */}
             </span>
             <span className="text-[13px] font-medium text-text-3">{unit}</span>
           </span>
@@ -150,13 +153,14 @@ export function KpiCards({
         label={D.kpiRevenue(periodWord)}
         icon={Wallet}
         value={p ? p.total_revenue : null}
+        money
         unit={mobile ? "" : D.toman}
         caption={
           !p || empty
             ? D.nil
             : mobile
               ? D.toman
-              : D.revenueCaption(formatNumber(p.items_revenue), formatNumber(p.shipping_revenue))
+              : D.revenueCaption(formatMoney(p.items_revenue), formatMoney(p.shipping_revenue))
         }
         load={pnl}
         mobile={mobile}
@@ -165,6 +169,7 @@ export function KpiCards({
         label={D.kpiNet(periodWord)}
         icon={ChartNoAxesColumn}
         value={p ? p.net_profit : null}
+        money
         unit={mobile ? "" : D.toman}
         tone={netTone}
         caption={margin == null ? D.nil : D.margin(`${formatNumber(margin)}٪`)}

@@ -102,9 +102,9 @@ export const C = {
     "دسته‌ی مقصد دیگر قابل انتخاب نیست (غیرفعال شده یا زیردسته‌ی فعال دارد)؛ فهرست به‌روز شد، مقصد را دوباره انتخاب کنید.",
   destinationHelp: "فقط دسته‌هایی که زیردسته‌ی فعال ندارند قابل انتخاب‌اند.",
   selectAll: "انتخاب همه",
-  selectedOf: (n: number, total: number) => `${fa(n)} از ${fa(total)} انتخاب شده`,
+  selectedOf: (n: number, total: number) => `${fa(n)} از ${fa(total)} انتخاب شده`, // qty: item counts
   moveN: (n: number, kind: CategoryKind) => `انتقال ${fa(n)} ${itemNoun(kind)}`,
-  progress: (done: number, total: number) => `در حال انتقال… ${fa(done)} از ${fa(total)}`,
+  progress: (done: number, total: number) => `در حال انتقال… ${fa(done)} از ${fa(total)}`, // qty: item counts
   summary: (ok: number, failed: number) => `${fa(ok)} منتقل شد، ${fa(failed)} ناموفق.`,
   retryFailed: "تلاش دوباره برای ناموفق‌ها",
   stQueued: "در صف",

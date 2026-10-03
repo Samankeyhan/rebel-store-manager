@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { KitDetail } from "@/lib/api"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { S } from "./copy"
 import { NONE } from "./draft"
@@ -59,7 +59,7 @@ export function KitPicker({
         >
           <span className="truncate">{name}</span>
           <span className="flex shrink-0 items-center gap-2">
-            <span className="text-text-3 tabular-nums">{formatNumber(kit?.kit_cost ?? 0)}</span>
+            <Money value={kit?.kit_cost ?? 0} className="text-text-3" />
             <ChevronDown className="size-3.5 text-text-3" aria-hidden />
           </span>
         </button>
@@ -70,14 +70,14 @@ export function KitPicker({
             <DropdownMenuRadioItem key={k.id} value={String(k.id)}>
               <span className="flex grow items-center justify-between gap-3">
                 {k.name}
-                <span className="text-text-3 tabular-nums">{formatNumber(k.kit_cost)}</span>
+                <Money value={k.kit_cost} className="text-text-3" />
               </span>
             </DropdownMenuRadioItem>
           ))}
           <DropdownMenuRadioItem value={NONE}>
             <span className="flex grow items-center justify-between gap-3">
               {S.noPackaging}
-              <span className="text-text-3 tabular-nums">{formatNumber(0)}</span>
+              <Money value={0} className="text-text-3" />
             </span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

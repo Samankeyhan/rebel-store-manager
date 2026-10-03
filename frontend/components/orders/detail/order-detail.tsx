@@ -25,6 +25,7 @@ import { D, L } from "../copy"
 import { LIST_QUERY_KEY } from "../order-figures"
 import { CancelDialog, CommitConfirm, RefundDialog } from "./dialogs"
 import { HeaderCard, InternalCard, ItemsCard, SensitiveActions, type Actions } from "./sections"
+import { useCurrency } from "@/lib/use-currency"
 
 const DEFAULT_TZ = "Asia/Tehran"
 
@@ -47,6 +48,8 @@ function listHref(): string {
 }
 
 export function OrderDetail() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const params = useSearchParams()
   const raw = params.get("id") ?? ""
   const id = /^\d+$/.test(raw) ? Number(raw) : null

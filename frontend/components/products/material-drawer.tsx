@@ -9,7 +9,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Btn, IntInput } from "@/components/record-sale/primitives"
+import { Btn, MoneyInput } from "@/components/record-sale/primitives"
 import { ApiError, createMaterial, type CategoryTree, type Material } from "@/lib/api"
 import { formatQuantity, parseDecimal } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
@@ -36,7 +36,8 @@ export function MaterialDrawer({
   const [name, setName] = React.useState("")
   const [type, setType] = React.useState<"STOCK" | "SERVICE">("STOCK")
   const [unit, setUnit] = React.useState<string>(UNITS[0])
-  const [unitCost, setUnitCost] = React.useState(0)
+  /** Integer Toman; null while MoneyInput holds an amount that isn't exact — blocks save. */
+  const [unitCost, setUnitCost] = React.useState<number | null>(0)
   const [stockText, setStockText] = React.useState("")
   const [category, setCategory] = React.useState<number | null>(null)
   const [categoryError, setCategoryError] = React.useState(false)
@@ -67,7 +68,7 @@ export function MaterialDrawer({
   const save = async () => {
     setTouched(true)
     setError(null)
-    if (!name.trim() || (type === "STOCK" && (stock == null || stock < 0))) return
+    if (!name.trim() || (type === "STOCK" && (stock == null || stock < 0)) || unitCost === null) return
     setBusy(true)
     try {
       const created = await createMaterial({
@@ -208,8 +209,8 @@ export function MaterialDrawer({
           <label htmlFor="mf-cost" className="text-[13px] font-semibold">
             {P.fieldUnitCost}
           </label>
-          <IntInput id="mf-cost" value={unitCost} onValue={setUnitCost} suffix={P.toman} className={mobile ? "h-11" : undefined} />
-          <span className="text-xs text-text-3">{P.unitCostHelp}</span>
+          <MoneyInput id="mf-cost" value={unitCost} onValue={(v) => setUnitCost(v ?? null)} className={mobile ? "h-11" : undefined} />
+          {unitCost !== null && <span className="text-xs text-text-3">{P.unitCostHelp}</span>}
         </div>
       </div>
 

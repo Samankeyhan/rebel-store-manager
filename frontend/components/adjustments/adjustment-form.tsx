@@ -6,7 +6,7 @@ import { DateField } from "@/components/common/date-field"
 import { ItemPicker, type PickerItem } from "@/components/common/item-picker"
 import { Segment } from "@/components/common/segment"
 import { SaveError } from "@/components/products/drawer-shell"
-import { Btn, cardClass, Help, InlineMessage, Label, OptionTile, inputClass } from "@/components/record-sale/primitives"
+import { Btn, cardClass, Help, InlineMessage, Label, MoneyInput, OptionTile, inputClass } from "@/components/record-sale/primitives"
 import {
   ApiError,
   createAdjustment,
@@ -16,7 +16,7 @@ import {
   type Product,
 } from "@/lib/api"
 import { dateToISO } from "@/lib/jalali"
-import { formatNumber, formatQuantity, parseDecimal, toLatinDigits } from "@/lib/persian-numbers"
+import { formatQuantity, parseDecimal } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { A } from "./copy"
@@ -69,7 +69,8 @@ export const AdjustmentForm = React.forwardRef<
   const [itemKind, setItemKind] = React.useState<ItemKind>("product")
   const [itemId, setItemId] = React.useState<number | null>(null)
   const [qtyText, setQtyText] = React.useState("")
-  const [costText, setCostText] = React.useState("")
+  /** Integer Toman; undefined = left empty (keep the current cost); null = typed but not exact (Rial, not a multiple of 10) — blocks submit. */
+  const [costInput, setCostInput] = React.useState<number | null | undefined>(undefined)
   const [note, setNote] = React.useState("")
   // null = today, resolved at submission (a session can cross midnight).
   const [pickedDate, setPickedDate] = React.useState<string | null>(null)
@@ -94,8 +95,8 @@ export const AdjustmentForm = React.forwardRef<
   const sign = signOf(kind, dir)
   const showCost = kind === "correction" && dir === "plus"
   const qty = parseDecimal(qtyText)
-  const costDigits = toLatinDigits(costText).replace(/[^0-9]/g, "")
-  const unitCost = showCost && costDigits !== "" ? Number.parseInt(costDigits, 10) : null
+  const unitCost = showCost && typeof costInput === "number" ? costInput : null
+  const costInexact = showCost && costInput === null
 
   const clientError = item ? validate(item, qty, sign) : null
   const showQtyError = touched || qtyText.trim() !== ""
@@ -125,7 +126,7 @@ export const AdjustmentForm = React.forwardRef<
   const submit = async () => {
     setTouched(true)
     setError(null)
-    if (item == null || clientError != null || busy) return
+    if (item == null || clientError != null || costInexact || busy) return
     setFieldErrors({})
     setBusy(true)
     onBusyChange(true)
@@ -149,7 +150,7 @@ export const AdjustmentForm = React.forwardRef<
       }
       onSaved(item.kind, fresh, A.toastSaved(item.name))
       setQtyText("")
-      setCostText("")
+      setCostInput(undefined)
       setNote("")
       setTouched(false)
     } catch (e) {
@@ -353,23 +354,20 @@ export const AdjustmentForm = React.forwardRef<
       <Label htmlFor="adj-cost" optional>
         {A.fieldCost}
       </Label>
-      <div className={cn("relative flex items-center", !mobile && "max-w-[220px]")}>
-        <input
-          id="adj-cost"
-          inputMode="numeric"
-          autoComplete="off"
-          value={costText === "" ? "" : formatNumber(Number.parseInt(costDigits || "0", 10))}
-          onChange={(e) => {
-            const d = toLatinDigits(e.target.value).replace(/[^0-9]/g, "")
-            setCostText(d)
-            if (fieldErrors.cost) setFieldErrors((f) => ({ ...f, cost: undefined }))
-          }}
-          aria-invalid={!!fieldErrors.cost || undefined}
-          className={inputClass(fieldErrors.cost ? "error" : null, cn("pe-14 tabular-nums", ctlH))}
-        />
-        <span className="pointer-events-none absolute end-3 text-xs text-text-3">{A.toman}</span>
-      </div>
-      {fieldErrors.cost ? (
+      <MoneyInput
+        id="adj-cost"
+        allowEmpty
+        value={costInput}
+        onValue={(v) => {
+          setCostInput(v)
+          if (fieldErrors.cost) setFieldErrors((f) => ({ ...f, cost: undefined }))
+        }}
+        aria-invalid={!!fieldErrors.cost || undefined}
+        tone={fieldErrors.cost ? "error" : null}
+        className={ctlH}
+        wrapperClassName={cn(!mobile && "max-w-[220px]")}
+      />
+      {costInexact ? null : fieldErrors.cost ? (
         <InlineMessage severity="error">{fieldErrors.cost}</InlineMessage>
       ) : unitCost === 0 ? (
         <InlineMessage severity="warn">{A.costZero}</InlineMessage>
@@ -413,7 +411,7 @@ export const AdjustmentForm = React.forwardRef<
   const afterText = !item ? "—" : preview ? formatQuantity(preview.after) : "—"
   const valueLabel = kind === "waste" ? A.valueWaste : dir === "plus" ? A.valuePlus : A.valueMinus
   const valueText =
-    preview && preview.value != null ? `\u2066${preview.value > 0 ? "+" : ""}${formatNumber(preview.value)}\u2069 ${A.toman}` : "—"
+    preview && preview.value != null ? A.signedValue(preview.value) : "—"
 
   const beforeAfter = (
     <div

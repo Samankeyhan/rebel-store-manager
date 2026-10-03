@@ -4,7 +4,7 @@
  */
 
 import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
-import { formatMoney } from "@/lib/money"
+import { currencyLabel, formatMoney, formatMoneyNumber } from "@/lib/money"
 
 export const R = {
   // tabs
@@ -45,7 +45,9 @@ export const R = {
   colNeed: "مقدار لازم",
   colStock: "موجودی",
   colAfter: "پس از تولید",
-  colCost: "هزینه (تومان)",
+  get colCost() {
+    return `هزینه (${currencyLabel()})`
+  },
   perUnit: "به ازای هر عدد",
   perBatch: "یک‌بار برای کل تولید",
   service: "خدماتی",
@@ -55,7 +57,7 @@ export const R = {
   unitTileDerivation: (n: number) => `هزینه کل ÷ ${formatNumber(n)}`,
   avgTile: (name: string) => `میانگین بهای تمام‌شده «${name}»`,
   avgFormula: (stock: number, cost: number, total: number, after: number) =>
-    `(${formatNumber(stock)} عدد × ${formatNumber(cost)} + ${formatNumber(total)}) ÷ ${formatNumber(after)} عدد`,
+    `(${formatNumber(stock)} عدد × ${formatMoneyNumber(cost)} + ${formatMoneyNumber(total)}) ÷ ${formatNumber(after)} عدد`,
   avgNoCost: "بهای ثبت‌شده ندارد", // NEW
   avgFirstCost: "اولین بها؛ میانگین = بهای هر عدد این تولید", // NEW
   avgNoStock: "موجودی فعلی صفر است؛ میانگین = بهای هر عدد این تولید", // NEW
@@ -96,8 +98,9 @@ export const R = {
   noteShort: "یادداشت این ردیف (اختیاری)", // NEW
   shortByEarlier: "با احتساب مصرف ردیف‌های بالاتر", // NEW
   collapsedSummary: (total: number, unit: number) =>
-    `هزینه کل ${formatNumber(total)} · بهای هر عدد ${formatNumber(unit)}`, // NEW
-  collapsedAvg: (from: string, to: number) => `میانگین ${from} ← ${formatNumber(to)}`, // NEW
+    `هزینه کل ${formatMoney(total)} · بهای هر عدد ${formatMoney(unit)}`, // NEW
+  /** `from` is a formatMoney string (or «بهای ثبت‌شده ندارد»). */
+  collapsedAvg: (from: string, to: number) => `میانگین ${from} ← ${formatMoney(to)}`, // NEW
   runsTotal: "جمع هزینه این اجراها", // NEW
   runsTotalCaption: "جمع چند تولید جداگانه؛ یک تولید واحد نیست.", // NEW
   submitMany: (n: number) => `ثبت ${formatNumber(n)} تولید`, // NEW
@@ -107,10 +110,10 @@ export const R = {
   statusSuccessPlain: "ثبت شد", // NEW
   materialStock: (qty: string, unit: string) => `موجودی ${qty} ${unit}`, // NEW (add-material picker sub-line)
   costDetails: "جزئیات و بها", // NEW (collapsible label)
-  successUnitCost: (unitCost: number) => `بهای هر عدد: ${formatNumber(unitCost)} تومان`, // NEW
+  successUnitCost: (unitCost: number) => `بهای هر عدد: ${formatMoney(unitCost)}`, // NEW
   statusFailed: "ناموفق", // NEW
-  progress: (done: number, total: number) => `در حال ثبت ${formatNumber(done)} از ${formatNumber(total)}…`, // NEW
-  summaryTitle: (ok: number, total: number) => `${formatNumber(ok)} از ${formatNumber(total)} تولید با موفقیت ثبت شد`,
+  progress: (done: number, total: number) => `در حال ثبت ${formatNumber(done)} از ${formatNumber(total)}…`, // NEW // qty: run counts
+  summaryTitle: (ok: number, total: number) => `${formatNumber(ok)} از ${formatNumber(total)} تولید با موفقیت ثبت شد`, // qty: run counts
   summaryBody: "ردیف‌های ناموفق در فهرست مانده‌اند و برای آن‌ها چیزی ثبت نشده؛ خطای هر کدام زیر همان ردیف آمده است.", // NEW
   retryFailed: "تلاش دوباره برای موارد ناموفق",
   toastRuns: (n: number) => `${formatNumber(n)} تولید ثبت شد`, // NEW
@@ -135,9 +138,9 @@ export const R = {
   colLineBasis: "نحوه محاسبه",
   colLineCost: "هزینه",
   lineSub: (service: boolean, cost: number, unit: string) =>
-    `${service ? "خدماتی" : "کالایی"} · ${formatNumber(cost)} تومان / ${unit}`,
-  lineCostPerUnit: (cost: number) => `${formatNumber(cost)} × تعداد`,
-  lineCostOnce: (cost: number) => `${formatNumber(cost)} یک‌بار`,
+    `${service ? "خدماتی" : "کالایی"} · ${formatMoney(cost)} / ${unit}`,
+  lineCostPerUnit: (cost: number) => `${formatMoney(cost)} × تعداد`,
+  lineCostOnce: (cost: number) => `${formatMoney(cost)} یک‌بار`,
   deleteLine: "حذف",
   addLine: "افزودن متریال یا خدمت",
   searchMaterial: "جستجوی متریال یا خدمت", // NEW
@@ -168,7 +171,9 @@ export const R = {
   colDate: "تاریخ",
   colProduct: "محصول",
   colQty: "تعداد",
-  colUnitCost: "بهای هر عدد (تومان)",
+  get colUnitCost() {
+    return `بهای هر عدد (${currencyLabel()})`
+  },
   colNote: "یادداشت",
   historyNoMatch: "تولیدی با این فیلترها پیدا نشد.", // NEW
   clearFilters: "پاک کردن فیلترها", // NEW

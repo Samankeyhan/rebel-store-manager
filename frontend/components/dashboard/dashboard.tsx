@@ -17,6 +17,7 @@ import { RecentOrders } from "./recent-orders"
 import { ShippingCard } from "./shipping-card"
 import { StockCard } from "./stock-card"
 import { useDashboardData, useStoreTimeZone } from "./use-dashboard-data"
+import { useCurrency } from "@/lib/use-currency"
 
 const short = (iso: string) => formatJalali(iso, "yyyy/MM/dd")
 
@@ -32,6 +33,8 @@ function rangeText(range: IsoRange): string {
  * on its own. The period lives in the URL (?from=&to=; none = this month).
  */
 export function Dashboard() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()

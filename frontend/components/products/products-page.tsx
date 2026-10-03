@@ -45,6 +45,7 @@ import { ProductDrawer } from "./product-drawer"
 import { ProductsTab } from "./products-tab"
 import { EmptyState, ErrorState, LoadingState, NoMatch } from "./states"
 import { useCatalogData } from "./use-catalog-data"
+import { useCurrency } from "@/lib/use-currency"
 
 const TABS = ["products", "materials", "categories"] as const
 type Tab = (typeof TABS)[number]
@@ -74,6 +75,8 @@ type ServerBlock = { items: number | null | undefined; children: boolean }
  * or a link (e.g. straight to ?tab=materials) restores them.
  */
 export function ProductsPage() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()

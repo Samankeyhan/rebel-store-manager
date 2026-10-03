@@ -1,8 +1,8 @@
 // `npm run check:money` — fails if a screen bypasses lib/money.ts:
 //  1. a hard-coded «تومان» or «ریال» (only lib/money.ts may spell the units;
 //     «ریال» is matched only when not part of «متریال»),
-//  2. formatNumber(...) on what looks like money (use formatMoney / <Money>;
-//     a true quantity that trips the name heuristic gets a `// qty` comment),
+//  2. formatNumber(...) (or its `fa` alias in copy files) on what looks like money (use formatMoney / <Money>;
+//     a true quantity that trips the name heuristic gets a `// qty` (or `{/* qty */}`) comment),
 //  3. a money field still built on IntInput (suffix={X.toman}; use MoneyInput).
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { join, relative } from "node:path"
@@ -13,7 +13,7 @@ const DIRS = ["app", "components"]
 const UNIT = /تومان|(?<!ت)ریال/
 const MONEY_WORDS =
   /\b\w*(price|cost|total|amount|fee|paid|profit|revenue|charge|estimate|net|gross|discount|loss|delta|value|rate|avg|sum|kit_cost|shipping|postage|packaging)\w*\b/i
-const FORMAT_NUMBER = /formatNumber\(([^()]*(?:\([^()]*\))?[^()]*)\)/g
+const FORMAT_NUMBER = /(?:formatNumber|\bfa)\(([^()]*(?:\([^()]*\))?[^()]*)\)/g
 const INT_MONEY = /suffix=\{\s*\w+\.toman\s*\}/
 
 function* files(dir) {
@@ -35,7 +35,7 @@ for (const d of DIRS) {
         const code = line.replace(/^\s*(\/\/|\*|\/\*).*$/, "") // skip comment lines
         if (UNIT.test(code)) problems.push(`${at}  hard-coded unit: ${line.trim()}`)
         if (INT_MONEY.test(code)) problems.push(`${at}  money IntInput (use MoneyInput): ${line.trim()}`)
-        if (/\/\/\s*qty\b/.test(line)) return
+        if (/(\/\/|\/\*)\s*qty\b/.test(line)) return
         for (const m of code.matchAll(FORMAT_NUMBER)) {
           if (MONEY_WORDS.test(m[1])) problems.push(`${at}  formatNumber on money? ${m[0]}`)
         }

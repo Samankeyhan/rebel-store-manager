@@ -4,6 +4,7 @@
  * live backend can and can't do (see the report).
  */
 
+import { currencyLabel, formatMoney } from "@/lib/money"
 import { formatNumber, toPersianDigits } from "@/lib/persian-numbers"
 
 const fa = toPersianDigits
@@ -35,9 +36,15 @@ export const P = {
   colName: "نام محصول",
   colCategory: "دسته",
   colStock: "موجودی",
-  colCost: "بهای تمام‌شده (تومان)",
-  colRetail: "قیمت خرده (تومان)",
-  colWholesale: "قیمت عمده (تومان)",
+  get colCost() {
+    return `بهای تمام‌شده (${currencyLabel()})`
+  },
+  get colRetail() {
+    return `قیمت خرده (${currencyLabel()})`
+  },
+  get colWholesale() {
+    return `قیمت عمده (${currencyLabel()})`
+  },
   colStatus: "وضعیت",
   colActions: "عملیات",
   outOfStock: "ناموجود",
@@ -45,7 +52,7 @@ export const P = {
   noCost: "بدون بهای تمام‌شده",
   fromRecipe: "هنگام فروش از دستور تولید", // NEW
   // NEW: an estimate only — the real cost is frozen again at the moment of sale.
-  recipeEstimate: (n: number) => `برآورد: ${formatNumber(n)} تومان (بر اساس بهای فعلی متریال)`,
+  recipeEstimate: (n: number) => `برآورد: ${formatMoney(n)} (بر اساس بهای فعلی متریال)`,
   madeToOrder: "ساخت هنگام فروش", // NEW
   active: "فعال",
   inactive: "غیرفعال",
@@ -59,8 +66,12 @@ export const P = {
   colMatName: "نام",
   colType: "نوع",
   colUnit: "واحد",
-  colUnitCost: "بهای واحد (تومان)",
-  colValue: "ارزش موجودی (تومان)",
+  get colUnitCost() {
+    return `بهای واحد (${currencyLabel()})`
+  },
+  get colValue() {
+    return `ارزش موجودی (${currencyLabel()})`
+  },
   typeStock: "کالایی",
   typeService: "خدماتی",
   noStock: "بدون موجودی",
@@ -70,8 +81,8 @@ export const P = {
   // mobile cards
   stockPillMobile: (n: number) => `موجودی ${formatNumber(n)}`,
   priceLine: (retail: number, wholesale: number) =>
-    `خرده ${formatNumber(retail)} · عمده ${formatNumber(wholesale)}`,
-  costLine: (cost: number) => `بهای تمام‌شده ${formatNumber(cost)} تومان`,
+    `خرده ${formatMoney(retail)} · عمده ${formatMoney(wholesale)}`,
+  costLine: (cost: number) => `بهای تمام‌شده ${formatMoney(cost)}`,
   costLineMissing: "بدون بهای تمام‌شده — قابل فروش نیست",
   rowActions: "عملیات", // NEW
 
@@ -88,7 +99,9 @@ export const P = {
   colMatCategory: "دسته", // NEW
   fieldRetail: "قیمت خرده",
   fieldWholesale: "قیمت عمده",
-  toman: "تومان",
+  get toman() {
+    return currencyLabel()
+  },
   fieldCost: "بهای تمام‌شده",
   costMissingErr: "این محصول بهای تمام‌شده ندارد و تا ثبت آن قابل فروش نیست.",
   // NEW: replaces the design's editable «بهای تمام‌شده اولیه» — no endpoint sets it.

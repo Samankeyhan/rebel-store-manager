@@ -5,6 +5,7 @@
  * didn't draw, or replace design copy that would be untrue (see the report).
  */
 
+import { currencyLabel, formatMoney, formatMoneyNumber } from "@/lib/money"
 import { formatNumber, toPersianDigits } from "@/lib/persian-numbers"
 
 const fa = toPersianDigits
@@ -51,7 +52,9 @@ export const L = {
   pageCountStatus: (n: number, status: string) => `${fa(n)} سفارش «${status}» در این صفحه`,
   salesTotal: "جمع فروش:",
   profitTotal: "جمع سود:",
-  toman: "تومان",
+  get toman() {
+    return currencyLabel()
+  },
 
   // ── list: table ──
   colInvoice: "شماره فاکتور",
@@ -59,8 +62,12 @@ export const L = {
   colChannel: "کانال",
   colCustomer: "مشتری",
   colStatus: "وضعیت",
-  colTotal: "مبلغ کل (تومان)",
-  colProfit: "سود (تومان)",
+  get colTotal() {
+    return `مبلغ کل (${currencyLabel()})`
+  },
+  get colProfit() {
+    return `سود (${currencyLabel()})`
+  },
   colActions: "عملیات",
   rowActions: "عملیات سفارش",
   viewOrder: "مشاهده سفارش",
@@ -69,7 +76,7 @@ export const L = {
 
   // ── list: pagination ──
   pageRange: (from: number, to: number, total: number) =>
-    `نمایش ${fa(from)} تا ${fa(to)} از ${fa(total)}`,
+    `نمایش ${fa(from)} تا ${fa(to)} از ${fa(total)}`, // qty: row counts
   prevPage: "صفحه قبل",
   nextPage: "صفحه بعد",
 
@@ -136,11 +143,13 @@ export const D = {
   colQty: "تعداد",
   colUnitPrice: "قیمت واحد",
   colDiscount: "تخفیف",
-  colLineTotal: "جمع (تومان)",
+  get colLineTotal() {
+    return `جمع (${currencyLabel()})`
+  },
   discountReason: (reason: string) => `تخفیف: ${reason}`,
-  mobileQty: (qty: number, price: number) => `${formatNumber(qty)} × ${formatNumber(price)}`,
+  mobileQty: (qty: number, price: number) => `${formatNumber(qty)} × ${formatMoney(price)}`,
   mobileDiscount: (amount: number, reason: string | null) =>
-    `تخفیف ${formatNumber(-amount)}${reason ? ` (${reason})` : ""}`,
+    `تخفیف ${formatMoney(-amount)}${reason ? ` (${reason})` : ""}`,
 
   // ── detail: customer block ──
   customerBlock: "پرداختی مشتری (روی فاکتور)",
@@ -173,7 +182,7 @@ export const D = {
   refundOriginalNote: "سود ثبت‌شده هنگام فروش؛ بدون تغییر.",
   refundLoss: "زیان مرجوعی",
   refundLossBreakdown: (pack: number, post: number, fee: number) =>
-    `بسته‌بندی ${formatNumber(pack)} + پست ${formatNumber(post)} + کارمزد ${formatNumber(fee)}`,
+    `بسته‌بندی ${formatMoneyNumber(pack)} + پست ${formatMoneyNumber(post)} + کارمزد ${formatMoneyNumber(fee)} ${currencyLabel()}`,
 
   // ── detail: actions feedback (NEW) ──
   toastStatus: (status: string) => `وضعیت سفارش به «${status}» تغییر کرد`,
@@ -222,7 +231,7 @@ export const D = {
   effOnlyProductsLead: "فقط کالا به موجودی برمی‌گردد:",
   effLossLead: "این مبالغ زیان این سفارش می‌شوند:",
   effLossBody: (pack: number, post: number, fee: number, total: number) =>
-    `بسته‌بندی ${formatNumber(pack)} + پست ${formatNumber(post)} + کارمزد تراکنش ${formatNumber(fee)} = ${formatNumber(total)} تومان.`,
+    `بسته‌بندی ${formatMoneyNumber(pack)} + پست ${formatMoneyNumber(post)} + کارمزد تراکنش ${formatMoneyNumber(fee)} = ${formatMoney(total)}.`,
   effBoxNotReturned: "جعبه مصرف‌شده به موجودی برنمی‌گردد.",
   effRefundMoneyLead: "بازپرداخت پول به مشتری بیرون از برنامه انجام می‌شود.",
   effRefundMoneyBody: "این‌جا مبلغی ثبت نمی‌شود؛ فقط وضعیت سفارش و دلیل آن ذخیره می‌شود.",

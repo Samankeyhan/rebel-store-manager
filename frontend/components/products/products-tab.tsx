@@ -6,7 +6,7 @@ import { Ban, Lock, Pencil, RotateCcw } from "lucide-react"
 import { Btn, StockPill, btnClass, cardClass } from "@/components/record-sale/primitives"
 import type { Product } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { ActiveBadge, Chip, NoCostBadge } from "./badges"
 import { P } from "./copy"
@@ -56,7 +56,7 @@ export function fromRecipeText(p: Product, estimates: Record<number, number>): s
 
 function CostCell({ p, estimates }: { p: Product; estimates: Record<number, number> }) {
   const c = costState(p)
-  if (c.kind === "known") return <span className="tabular-nums">{formatNumber(c.cost)}</span>
+  if (c.kind === "known") return <Money value={c.cost} />
   if (c.kind === "fromRecipe") return <span className="text-xs text-text-3 tabular-nums">{fromRecipeText(p, estimates)}</span>
   return <NoCostBadge />
 }
@@ -177,8 +177,12 @@ export function ProductsTab({
                     <td>
                       <CostCell p={p} estimates={estimates} />
                     </td>
-                    <td className="font-bold tabular-nums">{formatNumber(p.retail_price)}</td>
-                    <td className="tabular-nums">{formatNumber(p.wholesale_price)}</td>
+                    <td className="font-bold">
+                      <Money value={p.retail_price} />
+                    </td>
+                    <td>
+                      <Money value={p.wholesale_price} />
+                    </td>
                     <td>
                       <ActiveBadge active={active} />
                     </td>

@@ -40,6 +40,16 @@ export type ServerIssue =
   | { kind: "noRecipe"; productId: number; name: string }
   | { kind: "generic"; message: string; code: string }
 
+/**
+ * A money field whose typed amount isn't exact Toman (MoneyInput reported
+ * null: in Rial, not a multiple of 10). Its last exact value stays in the
+ * form; the field id is listed here, and while any is, nothing is submitted.
+ */
+export type MoneyField = `price:${number}` | `discount:${number}` | "shipping" | "fee"
+
+export const priceField = (key: number): MoneyField => `price:${key}`
+export const discountField = (key: number): MoneyField => `discount:${key}`
+
 export type FormState = {
   channel: Channel
   customerName: string
@@ -48,6 +58,7 @@ export type FormState = {
   shipping: number | null
   kit: KitChoice
   fee: number
+  invalidMoney: MoneyField[]
   status: SaleStatus
   saving: boolean
   serverIssue: ServerIssue | null
@@ -75,6 +86,7 @@ export function initialState(firstLineKey: number): FormState {
     shipping: null,
     kit: { kind: "default" },
     fee: 0,
+    invalidMoney: [],
     status: "COMPLETED",
     saving: false,
     serverIssue: null,
@@ -100,6 +112,7 @@ export type Action =
   | { type: "shipping"; value: number | null }
   | { type: "kit"; choice: KitChoice }
   | { type: "fee"; value: number }
+  | { type: "moneyInvalid"; field: MoneyField; invalid: boolean }
   | { type: "status"; status: SaleStatus }
   | { type: "submitStart" }
   | { type: "submitError"; issue: ServerIssue }
@@ -111,6 +124,16 @@ function edit(state: FormState, patch: Partial<FormState>): FormState {
   return { ...state, ...patch, serverIssue: null }
 }
 
+function withoutFields(invalid: MoneyField[], drop: (f: MoneyField) => boolean): MoneyField[] {
+  const kept = invalid.filter((f) => !drop(f))
+  return kept.length === invalid.length ? invalid : kept
+}
+
+/** True while a money field holds an amount that isn't exact Toman: the order can't be submitted. */
+export function moneyBlocked(state: FormState): boolean {
+  return state.invalidMoney.length > 0
+}
+
 function patchLine(lines: Line[], key: number, patch: LinePatch): Line[] {
   return lines.map((l) => (l.key === key ? { ...l, ...patch } : l))
 }
@@ -120,14 +143,20 @@ export function reducer(state: FormState, action: Action): FormState {
     case "channel":
       // §5: shipping and kit fall back to the new channel's defaults, and
       // every line whose price wasn't typed by hand is re-priced.
+      const repriced = new Set<MoneyField>()
+      const lines = state.lines.map((l) => {
+        const p = l.productId == null ? undefined : action.products.get(l.productId)
+        if (!p || l.priceEdited) return l
+        repriced.add(priceField(l.key))
+        return { ...l, unitPrice: channelPrice(p, action.channel) }
+      })
       return edit(state, {
         channel: action.channel,
         shipping: null,
         kit: { kind: "default" },
-        lines: state.lines.map((l) => {
-          const p = l.productId == null ? undefined : action.products.get(l.productId)
-          return p && !l.priceEdited ? { ...l, unitPrice: channelPrice(p, action.channel) } : l
-        }),
+        lines,
+        // Shipping and re-priced lines got fresh exact values.
+        invalidMoney: withoutFields(state.invalidMoney, (f) => f === "shipping" || repriced.has(f)),
       })
     case "customer":
       return edit(state, { customerName: action.value })
@@ -138,9 +167,17 @@ export function reducer(state: FormState, action: Action): FormState {
           unitPrice: channelPrice(action.product, state.channel),
           priceEdited: false,
         }),
+        invalidMoney: withoutFields(state.invalidMoney, (f) => f === priceField(action.key)),
       })
     case "line":
-      return edit(state, { lines: patchLine(state.lines, action.key, action.patch) })
+      return edit(state, {
+        lines: patchLine(state.lines, action.key, action.patch),
+        // Closing the discount drops whatever was typed in it.
+        invalidMoney:
+          action.patch.discountOpen === false
+            ? withoutFields(state.invalidMoney, (f) => f === discountField(action.key))
+            : state.invalidMoney,
+      })
     case "price":
       return edit(state, {
         lines: patchLine(state.lines, action.key, { unitPrice: action.value, priceEdited: true }),
@@ -148,13 +185,23 @@ export function reducer(state: FormState, action: Action): FormState {
     case "addLine":
       return edit(state, { lines: [...state.lines, emptyLine(action.key)] })
     case "removeLine":
-      return edit(state, { lines: state.lines.filter((l) => l.key !== action.key) })
+      return edit(state, {
+        lines: state.lines.filter((l) => l.key !== action.key),
+        invalidMoney: withoutFields(state.invalidMoney, (f) => f === priceField(action.key) || f === discountField(action.key)),
+      })
     case "shipping":
       return edit(state, { shipping: action.value })
     case "kit":
       return edit(state, { kit: action.choice })
     case "fee":
       return edit(state, { fee: action.value })
+    case "moneyInvalid": {
+      const has = state.invalidMoney.includes(action.field)
+      if (has === action.invalid) return state
+      return edit(state, {
+        invalidMoney: action.invalid ? [...state.invalidMoney, action.field] : withoutFields(state.invalidMoney, (f) => f === action.field),
+      })
+    }
     case "status":
       return edit(state, { status: action.status })
     case "submitStart":
@@ -170,6 +217,8 @@ export function reducer(state: FormState, action: Action): FormState {
 
 /** The POST /orders body. order_date and notes are omitted (order is dated "now"). */
 export function buildOrderBody(state: FormState): OrderCreate {
+  // derive() already disables saving; this is the last line of defence.
+  if (moneyBlocked(state)) throw new Error("An amount isn't exact Toman; the order can't be submitted.")
   const customer = state.customerName.trim()
   return {
     channel: state.channel,

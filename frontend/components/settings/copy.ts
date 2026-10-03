@@ -3,6 +3,7 @@
  * Strings the design doesn't have are marked // NEW.
  */
 
+import { currencyLabel, formatMoney, formatMoneyNumber } from "@/lib/money"
 import { formatNumber } from "@/lib/persian-numbers"
 
 const fa = formatNumber
@@ -21,7 +22,9 @@ export const S = {
   shipCaption: "این مقادیر فقط پیش‌فرض فرم ثبت فروش هستند و روی سفارش‌های ثبت‌شده اثری ندارند.",
   shippingLabel: "هزینه ارسال پیش‌فرض",
   shippingHelp: "برای کانال‌هایی که «هزینه ارسال» آن‌ها روشن است؛ در هر سفارش قابل تغییر است.",
-  toman: "تومان",
+  get toman() {
+    return currencyLabel()
+  },
   colChannel: "کانال",
   colShipping: "دریافت هزینه ارسال از مشتری",
   colPostage: "هزینه پست",
@@ -31,8 +34,8 @@ export const S = {
   switchShippingAria: (channel: string) => `هزینه ارسال ${channel}`,
   switchPostageAria: (channel: string) => `هزینه پست ${channel}`,
   off: "خاموش",
-  shipOn: (amount: number) => `${fa(amount)} تومان`,
-  postOn: (estimate: number) => `تخمین ${fa(estimate)}`,
+  shipOn: (amount: number) => formatMoney(amount),
+  postOn: (estimate: number) => `تخمین ${formatMoney(estimate)}`,
   noPackaging: "بدون بسته‌بندی",
   kitAria: (channel: string) => `کیت بسته‌بندی پیش‌فرض ${channel}`, // NEW
   kitInactive: (name: string) => `${name} (غیرفعال)`, // NEW
@@ -53,16 +56,27 @@ export const S = {
   heroCaption: "تخمین با این تنظیم",
   heroCaptionMobile: "تخمین فعلی",
   heroPreview: (n: number) => `پیش‌نمایش با ${fa(n)} پرداخت — هنوز ذخیره نشده`, // NEW
-  perOrder: "تومان / سفارش",
+  get perOrder() {
+    return `${currencyLabel()} / سفارش`
+  },
   divisor: (n: number, paid: number, orders: number) =>
-    `جمع پرداختی ÷ جمع سفارش‌ها در ${fa(n)} پرداخت اخیر: ${fa(paid)} ÷ ${fa(orders)}`,
-  divisorMobile: (paid: number, orders: number) => `جمع پرداختی ÷ جمع سفارش‌ها: ${fa(paid)} ÷ ${fa(orders)}`,
+    `جمع پرداختی ÷ جمع سفارش‌ها در ${fa(n)} پرداخت اخیر: ${formatMoneyNumber(paid)} ÷ ${fa(orders)}`,
+  divisorMobile: (paid: number, orders: number) => `جمع پرداختی ÷ جمع سفارش‌ها: ${formatMoneyNumber(paid)} ÷ ${fa(orders)}`,
   fewerThanN: (count: number) => `فقط ${fa(count)} پرداخت ثبت شده؛ همه در محاسبه‌اند.`, // NEW
   noPayments: "هنوز پرداختی به پست ثبت نشده — از تخمین پیش‌فرض استفاده می‌شود.", // NEW
 
   // [3] general
   generalTitle: "عمومی", // NEW
   tzLabel: "منطقه زمانی", // NEW
+  currencyLabel: "واحد پول", // NEW
+  currencyAria: "واحد پول نمایش مبالغ", // NEW
+  currencyOptions: [
+    ["TOMAN", currencyLabel("TOMAN")],
+    ["RIAL", currencyLabel("RIAL")],
+  ] as const, // NEW
+  currencyNote: "فقط نحوه نمایش تغییر می‌کند؛ داده‌ها و گزارش‌ها تغییری نمی‌کنند.", // NEW
+  currencySaved: (label: string) => `واحد پول به ${label} تغییر کرد`, // NEW
+  currencyFailed: (msg: string) => `واحد پول ذخیره نشد: ${msg}`, // NEW
   tzHelp:
     "تاریخ‌ها با این منطقه ذخیره و گزارش شده‌اند؛ تغییر آن تاریخ همه سوابق را جابه‌جا می‌کند و از این صفحه ممکن نیست.", // NEW
 

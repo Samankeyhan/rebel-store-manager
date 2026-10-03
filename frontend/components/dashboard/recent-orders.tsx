@@ -12,7 +12,7 @@ import { ProfitFigure } from "@/components/orders/profit"
 import { orderHref } from "@/components/orders/list/orders-table"
 import type { OrderListItem } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { D } from "./copy"
 import { CardEmpty, CardError, CardLoading, DashCard } from "./parts"
 import { RECENT_ORDERS, type Loader } from "./use-dashboard-data"
@@ -97,7 +97,9 @@ export function RecentOrders({
                 <ChannelBadge channel={o.channel} />
                 <span className="truncate">{o.customer_name || "—"}</span>
               </span>
-              <b className="tabular-nums">{formatNumber(o.customer_total)}</b>
+              <b>
+                <Money value={o.customer_total} />
+              </b>
             </span>
             <span className="flex items-start justify-between gap-2 text-xs">
               <span className="text-text-3 tabular-nums">{formatJalaliDateTime(o.order_date, timeZone)}</span>
@@ -151,7 +153,9 @@ export function RecentOrders({
                 <td>
                   <StatusBadge status={o.status} />
                 </td>
-                <td className="font-bold tabular-nums">{formatNumber(o.customer_total)}</td>
+                <td className="font-bold">
+                  <Money value={o.customer_total} />
+                </td>
                 <td>
                   <ProfitFigure view={profitView(o.status, o.profit, o)} />
                 </td>

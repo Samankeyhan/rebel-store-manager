@@ -17,7 +17,7 @@
  * call. Dependency-free apart from persian-numbers, for `node --test`.
  */
 
-import { formatNumber } from "./persian-numbers.ts"
+import { formatNumber, parseInteger, toLatinDigits } from "./persian-numbers.ts"
 
 export type Currency = "TOMAN" | "RIAL"
 
@@ -104,6 +104,22 @@ export function fromDisplayAmount(n: number, c: Currency = current): number | nu
   if (c !== "RIAL") return n
   if (n % RIAL_PER_TOMAN !== 0) return null
   return n / RIAL_PER_TOMAN
+}
+
+/**
+ * What MoneyInput reports for the text in the field (any digits; separators
+ * ignored): integer Toman, null when not exact (Rial, not a multiple of 10),
+ * undefined when empty and `allowEmpty` (else empty is 0). Also returns the
+ * normalised Latin digits the field keeps showing.
+ */
+export function parseMoneyInput(
+  text: string,
+  c: Currency = current,
+  allowEmpty = false
+): { digits: string; toman: number | null | undefined } {
+  const digits = toLatinDigits(text).replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "")
+  if (digits === "") return { digits, toman: allowEmpty ? undefined : 0 }
+  return { digits, toman: fromDisplayAmount(parseInteger(digits), c) }
 }
 
 /** The converted number without its unit, for operands inside a formula whose result carries the unit. */

@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { Info, TriangleAlert, Truck } from "lucide-react"
 import { badgeBase } from "@/components/common/status"
-import { formatNumber } from "@/lib/persian-numbers"
+import { formatMoney, formatMoneyNumber } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { D } from "./copy"
 import { Amount, CardEmpty, CardError, CardLoading, DashCard } from "./parts"
@@ -126,7 +126,7 @@ export function ShippingCard({
   const bars = (
     <div
       role="img"
-      aria-label={D.barsAria(formatNumber(s.shipping_revenue), formatNumber(cost))}
+      aria-label={D.barsAria(formatMoney(s.shipping_revenue), formatMoney(cost))}
       className="flex flex-col gap-2.5"
     >
       <div className="flex items-center">
@@ -135,7 +135,7 @@ export function ShippingCard({
           <Segment
             width={pct(s.shipping_revenue, scale)}
             className="bg-bar-a text-white"
-            label={formatNumber(s.shipping_revenue)}
+            label={formatMoney(s.shipping_revenue)}
             showLabel={!mobile}
             edge={net < 0 ? "start" : "both"}
           />
@@ -144,7 +144,7 @@ export function ShippingCard({
               width={pct(-net, scale)}
               className="text-loss"
               style={hatch}
-              label={`${D.barShortfall} ${formatNumber(-net)}`}
+              label={`${D.barShortfall} ${formatMoney(-net)}`}
               showLabel={!mobile}
               edge={s.shipping_revenue > 0 ? "end" : "both"}
             />
@@ -157,14 +157,14 @@ export function ShippingCard({
           <Segment
             width={pct(s.packaging_cost, scale)}
             className="bg-bar-b text-foreground"
-            label={`${D.barPackaging} ${formatNumber(s.packaging_cost)}`}
+            label={`${D.barPackaging} ${formatMoney(s.packaging_cost)}`}
             showLabel={!mobile}
             edge={s.postage_estimated > 0 ? "start" : "both"}
           />
           <Segment
             width={pct(s.postage_estimated, scale)}
             className="bg-bar-c text-white"
-            label={`${D.barPostage} ${formatNumber(s.postage_estimated)}`}
+            label={`${D.barPostage} ${formatMoney(s.postage_estimated)}`}
             showLabel={!mobile}
             edge={s.packaging_cost > 0 ? "end" : "both"}
           />
@@ -202,7 +202,7 @@ export function ShippingCard({
     avgNet < 0 ? (
       <div className="flex items-start gap-2.5 rounded-lg bg-info-soft px-3.5 py-2.5 text-[13px] text-foreground">
         <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
-        <span className="grow">{D.breakEven(formatNumber(-avgNet))}</span>
+        <span className="grow">{D.breakEven(formatMoney(-avgNet))}</span>
         <Link href="/postage" className="shrink-0 font-semibold whitespace-nowrap text-info hover:underline">
           {D.breakEvenLink}
         </Link>
@@ -262,7 +262,7 @@ export function ShippingCard({
       <span className={cn("text-xs font-bold text-text-2", tone)}>{label}</span>
       <span className={cn("text-xl font-bold tabular-nums", tone)}>{value}</span>
       <span className={cn("text-xs text-text-3", tone)}>{qualifier}</span>
-      <span className={cn("text-xs text-text-3 tabular-nums", tone)}>{D.periodSum(formatNumber(sum))}</span>
+      <span className={cn("text-xs text-text-3 tabular-nums", tone)}>{D.periodSum(formatMoney(sum))}</span>
     </div>
   )
 
@@ -270,17 +270,18 @@ export function ShippingCard({
     <DashCard id={id} title={title} caption={caption} aside={badge} className="grow">
       <div className="flex grow flex-col gap-5 p-5">
         <div className="grid grid-cols-4 gap-3">
-          {cell(D.figCharged, formatNumber(s.avg_shipping_revenue), D.perOrder, s.shipping_revenue)}
-          {cell(D.figPackaging, formatNumber(s.avg_packaging_cost), D.perOrder, s.packaging_cost)}
+          {/* The big figure's unit is the qualifier line right under it (D.perOrder: «<unit> برای هر سفارش»). */}
+          {cell(D.figCharged, formatMoneyNumber(s.avg_shipping_revenue), D.perOrder, s.shipping_revenue)}
+          {cell(D.figPackaging, formatMoneyNumber(s.avg_packaging_cost), D.perOrder, s.packaging_cost)}
           {cell(
             D.figPostage,
-            estimate ? formatNumber(estimate.estimate) : D.nil,
+            estimate ? formatMoney(estimate.estimate) : D.nil,
             `${D.postageRateNote}: ${D.postageRateCaption}`,
             s.postage_estimated
           )}
           {cell(
             D.figResult,
-            formatNumber(avgNet),
+            formatMoneyNumber(avgNet),
             verdict === "profit" ? D.resultProfit : verdict === "loss" ? D.resultLoss : D.perOrder,
             net,
             resultTone,

@@ -15,6 +15,7 @@ import { A } from "./copy"
 import type { ItemKind } from "./figures"
 import { HistoryCard, RecentList, type ItemFilter, type KindFilter } from "./history"
 import { useAdjustmentsData } from "./use-adjustments-data"
+import { useCurrency } from "@/lib/use-currency"
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 const KINDS = ["all", "waste", "correction"] as const
@@ -27,6 +28,8 @@ const ITEM_RE = /^(type:(PRODUCT|MATERIAL)|(PRODUCT|MATERIAL):\d+)$/
  * ?from=&to=).
  */
 export function AdjustmentsPage() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()

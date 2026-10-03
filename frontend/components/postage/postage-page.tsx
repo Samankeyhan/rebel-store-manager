@@ -14,12 +14,15 @@ import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { PostageBatch, Settings } from "@/lib/api"
 import { formatJalali, presetRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
 import { formatNumber } from "@/lib/persian-numbers"
+import { formatMoneyNumber } from "@/lib/money"
+import { Money } from "@/components/common/money"
 import { readUrlRange, writeUrlRange } from "@/lib/url-range"
 import { cn } from "@/lib/utils"
 import { T } from "./copy"
 import { rateOf, sums, windowOf } from "./figures"
 import { PaymentForm, type PaymentFormHandle } from "./payment-form"
 import { usePostageData } from "./use-postage-data"
+import { useCurrency } from "@/lib/use-currency"
 
 /** «وب‌سایت، اینستاگرام و عمده‌فروشی»: the channels the estimate applies to. */
 function postageChannels(settings: Settings): string {
@@ -34,6 +37,8 @@ function postageChannels(settings: Settings): string {
  * form to record a bulk payment, and the payments ledger.
  */
 export function PostagePage() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const mobile = useIsMobile()
   const { state, reload, refresh } = usePostageData()
   const [now] = React.useState(() => new Date())
@@ -86,7 +91,7 @@ export function PostagePage() {
         </span>
         <span className="flex items-baseline gap-2">
           <b className={cn("tabular-nums", mobile ? "text-[30px] leading-[42px]" : "text-4xl leading-[48px]")}>
-            {formatNumber(estimate.estimate)}
+            <Money value={estimate.estimate} unit={false} />
           </b>
           <span className={cn("font-medium", mobile ? "text-[13px]" : "text-sm")}>{mobile ? T.toman : T.perOrder}</span>
         </span>
@@ -100,9 +105,10 @@ export function PostagePage() {
           <>
             <span className="text-[13px] text-text-3">{T.heroCaption(inWindow.length, postageChannels(settings))}</span>
             <span className="mt-1 self-start rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs tabular-nums">
-              {`(${inWindow.map((b) => formatNumber(b.total_paid)).join(" + ")}) ÷ (${inWindow
+              {/* A formula: money operands without the unit; the hero figure above carries it. */}
+              {`(${inWindow.map((b) => formatMoneyNumber(b.total_paid)).join(" + ")}) ÷ (${inWindow
                 .map((b) => formatNumber(b.order_count))
-                .join(" + ")}) = ${formatNumber(windowSums.total)} ÷ ${formatNumber(windowSums.orders)}`}
+                .join(" + ")}) = ${formatMoneyNumber(windowSums.total)} ÷ ${formatNumber(windowSums.orders) /* qty */}`}
             </span>
             <span className="text-xs text-text-3">{T.heroNotAverage}</span>
           </>
@@ -113,9 +119,11 @@ export function PostagePage() {
           {inWindow.map((b) => (
             <div key={b.id} className={cn(cardClass, "flex flex-1 flex-col px-3 py-2.5")}>
               <span className="text-xs text-text-3 tabular-nums">{day(b.paid_date)}</span>
-              <b className="tabular-nums">{formatNumber(rateOf(b.total_paid, b.order_count))}</b>
+              <b>
+                <Money value={rateOf(b.total_paid, b.order_count)} />
+              </b>
               <span className="text-xs text-text-3 tabular-nums">
-                {formatNumber(b.total_paid)} ÷ {formatNumber(b.order_count)}
+                {formatMoneyNumber(b.total_paid)} ÷ {formatNumber(b.order_count)}
               </span>
             </div>
           ))}
@@ -189,7 +197,9 @@ export function PostagePage() {
             {batches.slice(0, 5).map((b) => (
               <div key={b.id} className={cn(cardClass, "flex items-center justify-between gap-3 px-3.5 py-3")}>
                 <span className="flex flex-col">
-                  <b className="tabular-nums">{formatNumber(b.total_paid)}</b>
+                  <b>
+                    <Money value={b.total_paid} />
+                  </b>
                   <span className="text-xs text-text-3 tabular-nums">{T.recentMeta(day(b.paid_date), b.order_count)}</span>
                 </span>
                 <span className="text-sm tabular-nums">{T.recentRate(rateOf(b.total_paid, b.order_count))}</span>
@@ -250,9 +260,13 @@ export function PostagePage() {
                     className="[&>td]:h-[52px] [&>td]:border-b [&>td]:border-border [&>td]:px-4 [&>td]:whitespace-nowrap"
                   >
                     <td className={cn("tabular-nums", !current && "text-text-3")}>{day(b.paid_date)}</td>
-                    <td className="text-end font-bold tabular-nums">{formatNumber(b.total_paid)}</td>
+                    <td className="text-end font-bold">
+                      <Money value={b.total_paid} />
+                    </td>
                     <td className="text-end tabular-nums">{formatNumber(b.order_count)}</td>
-                    <td className="text-end tabular-nums">{formatNumber(rateOf(b.total_paid, b.order_count))}</td>
+                    <td className="text-end">
+                      <Money value={rateOf(b.total_paid, b.order_count)} />
+                    </td>
                     <td>
                       <span className="flex items-center gap-2">
                         {current && <span className={cn(badgeBase, "bg-info-soft text-info")}>{T.inWindow}</span>}
@@ -266,9 +280,13 @@ export function PostagePage() {
             <tfoot>
               <tr className="font-bold [&>td]:h-[52px] [&>td]:bg-surface-2 [&>td]:px-4">
                 <td>{month ? T.footerMonth(month) : T.footerRange}</td>
-                <td className="text-end tabular-nums">{formatNumber(footer.total)}</td>
-                <td className="text-end tabular-nums">{formatNumber(footer.orders)}</td>
-                <td className="text-end tabular-nums">{formatNumber(rateOf(footer.total, footer.orders))}</td>
+                <td className="text-end">
+                  <Money value={footer.total} />
+                </td>
+                <td className="text-end tabular-nums">{formatNumber(footer.orders) /* qty */}</td>
+                <td className="text-end">
+                  <Money value={rateOf(footer.total, footer.orders)} />
+                </td>
                 <td className="text-xs font-normal text-text-3">{T.footerNote}</td>
               </tr>
             </tfoot>

@@ -11,7 +11,8 @@ import {
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { Material } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
-import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatQuantity } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { ActiveBadge, Chip, TypeBadge } from "./badges"
 import { P } from "./copy"
@@ -82,9 +83,7 @@ export function MaterialsTab({
                   {m.category_id != null && <Chip>{categoryPath(m)}</Chip>}
                   <span className="text-text-3">{unitLabel(m.unit)}</span>
                 </span>
-                <span className="text-text-2 tabular-nums">
-                  {formatNumber(m.unit_cost)} {P.toman}
-                </span>
+                <Money value={m.unit_cost} className="text-text-2" />
               </span>
               <span className="flex justify-end">
                 <ActiveBadge active={active} />
@@ -139,8 +138,10 @@ export function MaterialsTab({
                     <td>
                       <StockCell m={m} />
                     </td>
-                    <td className="tabular-nums">{formatNumber(m.unit_cost)}</td>
-                    <td className="text-text-2 tabular-nums">{value == null ? "—" : formatNumber(value)}</td>
+                    <td>
+                      <Money value={m.unit_cost} />
+                    </td>
+                    <td className="text-text-2">{value == null ? "—" : <Money value={value} />}</td>
                     <td>
                       <ActiveBadge active={active} />
                     </td>

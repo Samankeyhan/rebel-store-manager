@@ -11,6 +11,7 @@ import { MobileSummarySheet, SummaryPanel } from "./summary-panel"
 import { buildOrderBody, initialState, productMap, reducer, type FormState, type ServerIssue } from "./state"
 import { useRecipes } from "./use-recipes"
 import { Banners, EmptyView, LoadErrorView, LoadingView, ServerAlert, SuccessView, Toast } from "./views"
+import { useCurrency } from "@/lib/use-currency"
 
 type Load =
   | { status: "loading" }
@@ -65,6 +66,8 @@ let lineKeySeq = 1
 const nextLineKey = () => lineKeySeq++
 
 export function RecordSale() {
+  // Re-render the whole screen when the display currency switches (lib/money.ts).
+  useCurrency()
   const [load, setLoad] = React.useState<Load>({ status: "loading" })
   const [attempt, setAttempt] = React.useState(0)
   const mobile = useIsMobile()
@@ -185,6 +188,7 @@ function SaleForm({
         products={catalog.products}
         channel={state.channel}
         itemsNet={d.summary.itemsNet}
+        invalidMoney={state.invalidMoney}
         dispatch={dispatch}
         onAddLine={addLine}
         openPicker={openPicker}

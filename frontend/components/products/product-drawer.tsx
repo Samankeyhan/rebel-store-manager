@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { Ban, CircleAlert, Info, Lock, RotateCcw } from "lucide-react"
-import { Btn, IntInput } from "@/components/record-sale/primitives"
+import { Btn, MoneyInput } from "@/components/record-sale/primitives"
 import {
   ApiError,
   createProduct,
@@ -75,8 +75,9 @@ export function ProductDrawer({
   const [name, setName] = React.useState("")
   const [category, setCategory] = React.useState<number | null>(null)
   const [categoryError, setCategoryError] = React.useState<string | null>(null)
-  const [retail, setRetail] = React.useState(0)
-  const [wholesale, setWholesale] = React.useState(0)
+  /** Integer Toman; null while MoneyInput holds an amount that isn't exact — blocks save. */
+  const [retail, setRetail] = React.useState<number | null>(0)
+  const [wholesale, setWholesale] = React.useState<number | null>(0)
   const [madeToOrder, setMto] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [mtoBusy, setMtoBusy] = React.useState(false)
@@ -102,6 +103,7 @@ export function ProductDrawer({
     setSeeded("")
   }
 
+  const wholesaleAbove = retail !== null && wholesale !== null && wholesale > retail
   const nameError = touched && !editing && !name.trim()
   const categoryMissing = touched && category == null
   const categoryMessage = categoryMissing ? P.categoryRequired : categoryError
@@ -110,7 +112,7 @@ export function ProductDrawer({
     setTouched(true)
     setError(null)
     setCategoryError(null)
-    if (category == null || (!editing && !name.trim())) return
+    if (category == null || (!editing && !name.trim()) || retail === null || wholesale === null) return
     setBusy(true)
     try {
       if (!editing) {
@@ -261,20 +263,19 @@ export function ProductDrawer({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={P.fieldRetail} htmlFor="pf-retail">
-          <IntInput id="pf-retail" value={retail} onValue={setRetail} suffix={P.toman} className={mobile ? "h-11" : undefined} />
+          <MoneyInput id="pf-retail" value={retail} onValue={(v) => setRetail(v ?? null)} className={mobile ? "h-11" : undefined} />
         </Field>
         <Field label={P.fieldWholesale} htmlFor="pf-wholesale">
-          <IntInput
+          <MoneyInput
             id="pf-wholesale"
             value={wholesale}
-            onValue={setWholesale}
-            suffix={P.toman}
-            tone={wholesale > retail ? "warn" : null}
+            onValue={(v) => setWholesale(v ?? null)}
+            tone={wholesaleAbove ? "warn" : null}
             className={mobile ? "h-11" : undefined}
           />
         </Field>
       </div>
-      {wholesale > retail && (
+      {wholesaleAbove && (
         <span role="status" className="-mt-2 text-xs text-warn">
           {P.wholesaleAboveRetail}
         </span>

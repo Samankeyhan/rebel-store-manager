@@ -7,6 +7,7 @@
  * month-over-month deltas).
  */
 
+import { currencyLabel } from "@/lib/money"
 import { toPersianDigits } from "@/lib/persian-numbers"
 
 const fa = toPersianDigits
@@ -39,7 +40,9 @@ export const D = {
   kpiRevenue: (period: string) => `درآمد ${period}`,
   kpiNet: (period: string) => `سود خالص ${period}`,
   kpiOrders: (period: string) => `سفارش‌های ${period}`,
-  toman: "تومان",
+  get toman() {
+    return currencyLabel()
+  },
   orderUnit: "سفارش",
   revenueCaption: (items: string, shipping: string) => `کالا ${items} · ارسال ${shipping}`, // NEW (replaces the delta)
   margin: (pct: string) => `حاشیه سود ${pct}`,
@@ -73,21 +76,28 @@ export const D = {
   figPackaging: "هزینه بسته‌بندی",
   figPostage: "هزینه پست (تخمینی)",
   figResult: "نتیجه هر سفارش",
-  perOrder: "تومان برای هر سفارش",
+  get perOrder() {
+    return `${currencyLabel()} برای هر سفارش`
+  },
   postageRateCaption: "جمع پرداختی ÷ جمع سفارش‌ها",
   postageRateNote: "نرخ فعلی هر مرسوله", // NEW
-  resultLoss: "تومان زیان",
-  resultProfit: "تومان سود", // NEW
+  get resultLoss() {
+    return `${currencyLabel()} زیان`
+  },
+  get resultProfit() {
+    return `${currencyLabel()} سود` // NEW
+  },
   periodSum: (v: string) => `جمع بازه: ${v}`, // NEW (design: «جمع ماه:»; the period can be any range)
   periodSumLabel: "جمع نتیجه بازه", // NEW (design: «جمع زیان ماه»)
-  barsAria: (charged: string, cost: string) => `مقایسه دریافتی ${charged} تومان با هزینه ${cost} تومان در این بازه`, // NEW wording
+  /** Both arguments are formatMoney strings (number and unit). */
+  barsAria: (charged: string, cost: string) => `مقایسه دریافتی ${charged} با هزینه ${cost} در این بازه`, // NEW wording
   barCharged: "دریافتی",
   barCost: "هزینه",
   barPackaging: "بسته‌بندی",
   barPostage: "پست",
   barShortfall: "کسری",
   breakEven: (gap: string) =>
-    `برای سربه‌سر شدن، هزینه ارسال دریافتی هر سفارش باید دست‌کم ${gap} تومان بیشتر باشد، یا هزینه بسته‌بندی و پست هر سفارش همین‌قدر کمتر شود.`, // NEW wording (no target sum)
+    `برای سربه‌سر شدن، هزینه ارسال دریافتی هر سفارش باید دست‌کم ${gap} بیشتر باشد، یا هزینه بسته‌بندی و پست هر سفارش همین‌قدر کمتر شود.`, // NEW wording (no target sum); gap is a formatMoney string
   breakEvenLink: "هزینه‌های ارسال",
   paidSoFar: "پرداخت‌شده تاکنون", // NEW
   unpaidNote: "بخشی از هزینه پست این بازه هنوز پرداخت یا ثبت نشده", // NEW

@@ -3,6 +3,7 @@
  * Strings the design doesn't have are marked // NEW.
  */
 
+import { currencyLabel } from "@/lib/money"
 import { formatNumber, toPersianDigits } from "@/lib/persian-numbers"
 
 export const E = {
@@ -20,7 +21,9 @@ export const E = {
   colDate: "تاریخ",
   colCategory: "دسته",
   colDescription: "شرح",
-  colAmount: "مبلغ (تومان)",
+  get colAmount() {
+    return `مبلغ (${currencyLabel()})`
+  },
   noDescription: "—", // NEW
   footerMonth: (month: string, n: number) => `جمع هزینه‌های ${month} (${formatNumber(n)} مورد)`,
   footerRange: (n: number) => `جمع هزینه‌های این بازه (${formatNumber(n)} مورد)`, // NEW (range not a whole month)
@@ -30,7 +33,8 @@ export const E = {
 
   // breakdown card
   breakdownTitle: "به تفکیک دسته",
-  breakdownTip: (name: string, amount: string) => `${name}: ${amount} تومان`,
+  /** `amount` is a formatMoney string. */
+  breakdownTip: (name: string, amount: string) => `${name}: ${amount}`,
   breakdownScope: "همه دسته‌های این بازه؛ فیلتر دسته و جستجو روی این کارت اعمال نمی‌شود.", // NEW
   breakdownEmpty: "در این بازه هزینه‌ای ثبت نشده.", // NEW
   breakdownScopeMobile: "سهم همه دسته‌ها در این بازه؛ فیلتر دسته روی این کارت اعمال نمی‌شود.", // NEW
@@ -62,14 +66,16 @@ export const E = {
   noCategoriesYet: "هنوز دسته‌ای نیست؛ اول یک دسته بسازید.", // NEW
   fieldDescription: "شرح",
   fieldAmount: "مبلغ",
-  toman: "تومان",
+  get toman() {
+    return currencyLabel()
+  },
   amountHelp: "در ردیف «هزینه‌های عملیاتی» سود و زیان همان ماه حساب می‌شود.",
   submit: "ثبت هزینه",
   cancel: "انصراف",
   categoryRequired: "دسته را انتخاب کنید.", // NEW
   categoryGone: "این دسته دیگر در دسترس نیست — لطفاً دوباره انتخاب کنید", // NEW
   amountRequired: "مبلغ باید بیشتر از صفر باشد.", // NEW
-  toastSaved: (amount: string, category: string) => `هزینه ${amount} تومان در «${category}» ثبت شد`, // NEW
+  toastSaved: (amount: string, category: string) => `هزینه ${amount} در «${category}» ثبت شد`, // NEW; amount is a formatMoney string
 
   // mobile
   mobileTotal: (label: string) => `جمع ${label}`,

@@ -2,7 +2,7 @@
 
 import { Switch } from "@/components/products/drawer-shell"
 import { CHANNEL_IDS, CHANNELS, type Channel } from "@/components/record-sale/copy"
-import { Alert, ChannelBadge, Help, InlineMessage, IntInput, Label, cardClass } from "@/components/record-sale/primitives"
+import { Alert, ChannelBadge, Help, InlineMessage, Label, MoneyInput, cardClass } from "@/components/record-sale/primitives"
 import type { KitDetail } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { S, joinList } from "./copy"
@@ -15,7 +15,7 @@ type Props = {
   /** The estimate the hero shows (echoed on channels whose postage is on). */
   estimate: number
   shippingError: string | null
-  onShipping: (n: number) => void
+  onShipping: (n: number | null) => void
   onChannel: (channel: Channel, patch: Partial<ChannelDraft>) => void
   mobile: boolean
 }
@@ -52,22 +52,22 @@ export function ChannelsCard({ draft, kits, estimate, shippingError, onShipping,
       {S.kitInactiveWarn(joinList(inactiveChannels.map((c) => `«${CHANNELS[c].name}»`), 5))}
     </Alert>
   )
-  const shipCaption = (on: boolean) => (on ? S.shipOn(draft.default_shipping_charge) : S.off)
+  // While the amount isn't exact (null) the caption keeps no figure rather than a stale one.
+  const shipCaption = (on: boolean) => (on ? (draft.default_shipping_charge === null ? "—" : S.shipOn(draft.default_shipping_charge)) : S.off)
   const postCaption = (on: boolean) => (on ? S.postOn(estimate) : S.off)
 
   const shippingField = (
     <div className={cn("flex flex-col gap-1.5", !mobile && "max-w-[320px]")}>
       <Label htmlFor="st-shipping">{S.shippingLabel}</Label>
-      <IntInput
+      <MoneyInput
         id="st-shipping"
         value={draft.default_shipping_charge}
-        onValue={onShipping}
-        suffix={S.toman}
+        onValue={(v) => onShipping(v ?? null)}
         tone={shippingError ? "error" : null}
         className={mobile ? "h-12 text-base" : undefined}
         aria-invalid={shippingError ? true : undefined}
       />
-      {shippingError ? (
+      {draft.default_shipping_charge === null ? null : shippingError ? (
         <InlineMessage severity="error">{shippingError}</InlineMessage>
       ) : (
         !mobile && <Help>{S.shippingHelp}</Help>

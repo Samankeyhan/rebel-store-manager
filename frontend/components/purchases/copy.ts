@@ -4,7 +4,7 @@
  */
 
 import { formatNumber, formatQuantity, toPersianDigits } from "@/lib/persian-numbers"
-import { formatMoney } from "@/lib/money"
+import { currencyLabel, formatMoney, formatMoneyNumber } from "@/lib/money"
 
 export const U = {
   // toolbar
@@ -24,8 +24,12 @@ export const U = {
   colType: "نوع",
   colSupplier: "تأمین‌کننده",
   colQty: "مقدار",
-  colTotal: "مبلغ پرداختی (تومان)",
-  colUnit: "بهای واحد (تومان)",
+  get colTotal() {
+    return `مبلغ پرداختی (${currencyLabel()})`
+  },
+  get colUnit() {
+    return `بهای واحد (${currencyLabel()})`
+  },
   badgeMaterial: "متریال",
   badgeProduct: "محصول",
   footerMonth: (month: string, n: number) => `جمع خریدهای ${month} (${formatNumber(n)} مورد)`,
@@ -56,7 +60,9 @@ export const U = {
   supplierGone: "این تأمین‌کننده دیگر در دسترس نیست — لطفاً دوباره انتخاب کنید",
   fieldQty: "مقدار",
   fieldTotal: "مبلغ کل پرداختی",
-  toman: "تومان",
+  get toman() {
+    return currencyLabel()
+  },
   fieldDate: "تاریخ خرید",
   fieldDateMobile: "تاریخ",
   today: "امروز",
@@ -81,9 +87,9 @@ export const U = {
   avgNowMobile: (q: string) => `میانگین فعلی (${q})`,
   avgAfterMobile: (q: string) => `میانگین پس از خرید (${q})`,
   formula: (stock: number, cost: number, total: number, after: number) =>
-    `میانگین موزون = (${formatQuantity(stock)} × ${formatNumber(cost)} + ${formatNumber(total)}) ÷ ${formatQuantity(after)}`,
+    `میانگین موزون = (${formatQuantity(stock)} × ${formatMoneyNumber(cost)} + ${formatMoneyNumber(total)}) ÷ ${formatQuantity(after)}`,
   formulaMobile: (stock: number, cost: number, total: number, after: number) =>
-    `(${formatQuantity(stock)} × ${formatNumber(cost)} + ${formatNumber(total)}) ÷ ${formatQuantity(after)}`,
+    `(${formatQuantity(stock)} × ${formatMoneyNumber(cost)} + ${formatMoneyNumber(total)}) ÷ ${formatQuantity(after)}`,
   firstPurchase: "اولین خرید — میانگین قبلی ندارد؛ میانگین = بهای واحد این خرید.", // NEW
   noStockNow: "موجودی فعلی صفر است؛ میانگین = بهای واحد این خرید.", // NEW
   noCost: "—",

@@ -5,11 +5,12 @@ import { ChevronLeft } from "lucide-react"
 import { DateField } from "@/components/common/date-field"
 import { badgeBase } from "@/components/common/status"
 import { SaveError } from "@/components/products/drawer-shell"
-import { InlineMessage, IntInput, Label } from "@/components/record-sale/primitives"
+import { InlineMessage, IntInput, Label, MoneyInput } from "@/components/record-sale/primitives"
+import { Money } from "@/components/common/money"
 import { ApiError, createPostageBatch, type PostageBatch } from "@/lib/api"
 import { dateToISO, formatJalali, utcToLocal } from "@/lib/jalali"
 import { formatNumber } from "@/lib/persian-numbers"
-import { formatMoney } from "@/lib/money"
+import { formatMoney, formatMoneyNumber } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { T } from "./copy"
 import { project, rateOf } from "./figures"
@@ -35,7 +36,8 @@ export const PaymentForm = React.forwardRef<
     onSaved: () => Promise<void>
   }
 >(function PaymentForm({ batches, windowSize, currentEstimate, timeZone, mobile, onBusyChange, onSaved }, ref) {
-  const [total, setTotal] = React.useState(0)
+  /** Integer Toman; null while the typed amount isn't exact (MoneyInput) — blocks submit. */
+  const [total, setTotal] = React.useState<number | null>(0)
   const [orders, setOrders] = React.useState(0)
   const [note, setNote] = React.useState("")
   // null = today, resolved at submission (a session can cross midnight).
@@ -54,13 +56,13 @@ export const PaymentForm = React.forwardRef<
 
   const ordersOk = orders >= 1
   const ordersError = (touched || orders !== 0) && !ordersOk
-  const rate = ordersOk ? rateOf(total, orders) : null
-  const proj = ordersOk ? project(batches, windowSize, { total, orders, day: pickedDate }, timeZone) : null
+  const rate = ordersOk && total !== null ? rateOf(total, orders) : null
+  const proj = ordersOk && total !== null ? project(batches, windowSize, { total, orders, day: pickedDate }, timeZone) : null
   const delta = proj ? proj.estimate - currentEstimate : 0
 
   const submit = async () => {
     setTouched(true)
-    if (!ordersOk || busy) return
+    if (!ordersOk || total === null || busy) return
     setBusy(true)
     onBusyChange(true)
     setError(null)
@@ -97,7 +99,7 @@ export const PaymentForm = React.forwardRef<
     return local ? formatJalali(local.iso, "yyyy/MM/dd") : utc
   }
   const arithmetic = proj
-    ? `(${proj.window.map((b) => formatNumber(b.total_paid)).join(" + ")}) ÷ (${proj.window
+    ? `(${proj.window.map((b) => formatMoneyNumber(b.total_paid)).join(" + ")}) ÷ (${proj.window
         .map((b) => formatNumber(b.order_count))
         .join(" + ")})${proj.dropped ? T.projDropped(shortDay(proj.dropped.paid_date)) : ""}`
     : null
@@ -119,12 +121,11 @@ export const PaymentForm = React.forwardRef<
       <div className={cn("grid gap-3", mobile ? "grid-cols-1" : "grid-cols-2")}>
         <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="pp-total">{T.fieldTotal}</Label>
-          <IntInput
+          <MoneyInput
             ref={totalRef}
             id="pp-total"
             value={total}
-            onValue={setTotal}
-            suffix={T.toman}
+            onValue={(v) => setTotal(v ?? null)}
             tone={touched && total === 0 ? "warn" : null}
             className={mobile ? "h-12" : undefined}
           />
@@ -147,19 +148,21 @@ export const PaymentForm = React.forwardRef<
 
       <div className="flex items-center justify-between gap-3 rounded-[10px] bg-surface-2 p-3 text-[13px]">
         <span className="text-text-2">{T.rateLabel}</span>
-        <b className="text-lg tabular-nums">{rate == null ? "—" : mobile ? formatNumber(rate) : formatMoney(rate)}</b>
+        <b className="text-lg tabular-nums">{rate == null ? "—" : formatMoney(rate)}</b>
       </div>
 
       <div className="flex flex-col gap-2 rounded-[10px] border border-border p-3">
         <span className="text-xs font-bold text-text-3">{mobile ? T.projLabelMobile : T.projLabel}</span>
         <span className="flex flex-wrap items-center gap-2">
-          <span className="text-[17px] text-text-2 tabular-nums">{formatNumber(currentEstimate)}</span>
+          <Money value={currentEstimate} className="text-[17px] text-text-2" />
           {/* current → after in reading order: in RTL the chevron points left. */}
           <ChevronLeft className="size-[18px] text-text-3" aria-hidden />
-          <b className="text-[22px] tabular-nums">{formatNumber(proj ? proj.estimate : currentEstimate)}</b>
+          <b className="text-[22px]">
+            <Money value={proj ? proj.estimate : currentEstimate} />
+          </b>
           <span className={cn(badgeBase, "tabular-nums", delta > 0 ? "bg-warn-soft text-warn" : "bg-profit-soft text-profit")}>
             {delta >= 0 ? "+" : ""}
-            {formatNumber(delta)}
+            {formatMoney(delta)}
           </span>
         </span>
         {proj?.outside ? (

@@ -3,7 +3,8 @@
 import { Info } from "lucide-react"
 import { cardClass } from "@/components/record-sale/primitives"
 import type { ExpenseBreakdown } from "@/lib/api"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
+import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { E } from "./copy"
 import { sharesOf } from "./shares"
@@ -36,7 +37,9 @@ export function BreakdownCard({
         <h2 id="exp-breakdown" className="text-base font-bold text-heading">
           {E.breakdownTitle}
         </h2>
-        <b className="tabular-nums">{formatNumber(breakdownTotal(rows))}</b>
+        <b>
+          <Money value={breakdownTotal(rows)} />
+        </b>
       </div>
       <div className="flex flex-col gap-3.5 p-5">
         {scoped && (
@@ -51,7 +54,7 @@ export function BreakdownCard({
           rows.map((r, i) => (
             <div
               key={r.category_name}
-              title={E.breakdownTip(r.category_name, formatNumber(r.total_amount))}
+              title={E.breakdownTip(r.category_name, formatMoney(r.total_amount))}
               className={cn(
                 "flex flex-col gap-1.5",
                 highlight != null && highlight !== r.category_name && "opacity-55"
@@ -62,7 +65,9 @@ export function BreakdownCard({
                   {r.category_name}
                 </span>
                 <span className="flex shrink-0 items-center gap-2 tabular-nums">
-                  <b>{formatNumber(r.total_amount)}</b>
+                  <b>
+                    <Money value={r.total_amount} />
+                  </b>
                   <span className="w-9 text-end text-text-3">{E.percent(shares[i])}</span>
                 </span>
               </div>
@@ -84,7 +89,9 @@ export function MobileSummary({ rows, label, scoped }: { rows: ExpenseBreakdown[
     <section className={cn(cardClass, "flex flex-col gap-2.5 p-3.5")}>
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-[13px] font-bold text-heading">{label}</span>
-        <b className="text-xl tabular-nums">{formatNumber(breakdownTotal(rows))}</b>
+        <b className="text-xl">
+          <Money value={breakdownTotal(rows)} />
+        </b>
       </div>
       {scoped && <p className="text-xs leading-[19px] text-text-3">{E.breakdownScopeMobile}</p>}
       {rows.length > 0 && (

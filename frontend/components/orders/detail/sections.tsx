@@ -7,6 +7,8 @@ import { Btn, btnClass, cardClass } from "@/components/record-sale/primitives"
 import { categoryPath } from "@/lib/category-path"
 import { invoicePdfUrl, type Catalog, type OrderDetail } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
+import { Money } from "@/components/common/money"
+import { formatMoneyNumber } from "@/lib/money"
 import { formatNumber } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { D } from "../copy"
@@ -39,7 +41,8 @@ function Row({ label, value, className }: { label: React.ReactNode; value: React
   )
 }
 
-const neg = (n: number) => (n ? formatNumber(-n) : formatNumber(0))
+/** A cost row: «−۱۹۹٬۲۷۳ تومان», or «۰ تومان». */
+const neg = (n: number) => <Money value={-n} />
 const sep = <div className="my-0.5 h-px w-full bg-border" />
 
 export type Actions = {
@@ -96,9 +99,7 @@ export function HeaderCard({
         </div>
         <div className="flex items-baseline justify-between text-[15px] font-bold">
           <span>{D.total}</span>
-          <span className="text-xl tabular-nums">
-            {formatNumber(detail.customer_total)} <span className="text-xs font-medium text-text-3">تومان</span>
-          </span>
+          <Money value={detail.customer_total} className="text-xl" unitClassName="text-xs" />
         </div>
         {forward.slice(0, -1).map((s) => (
           <Btn key={s} className="h-12 w-full" disabled={actions.busy} onClick={() => actions.onForward(s)}>
@@ -145,9 +146,7 @@ export function HeaderCard({
         </div>
         <div className="flex shrink-0 flex-col items-end">
           <span className="text-xs text-text-3">{D.total}</span>
-          <span className="text-[22px] font-bold tabular-nums">
-            {formatNumber(detail.customer_total)} <span className="text-xs font-medium text-text-3">تومان</span>
-          </span>
+          <Money value={detail.customer_total} className="text-[22px] font-bold" unitClassName="text-xs" />
         </div>
       </div>
       <div className="h-px w-full bg-border" />
@@ -234,7 +233,8 @@ export function SensitiveActions({ detail, actions }: { detail: OrderDetail; act
 
 // ── [2] items + customer total ─────────────────────────────────────────
 
-function CustomerBlock({ detail, mobile }: { detail: OrderDetail; mobile: boolean }) {
+/** The unit now shows on mobile too (rule 11), so the block no longer differs by layout. */
+function CustomerBlock({ detail }: { detail: OrderDetail }) {
   const discount = itemsDiscount(detail)
   return (
     <div className="flex flex-col gap-1.5">
@@ -242,16 +242,13 @@ function CustomerBlock({ detail, mobile }: { detail: OrderDetail; mobile: boolea
         <CircleUserRound className="size-3.5" aria-hidden />
         {D.customerBlock}
       </div>
-      <Row label={D.itemsGross} value={formatNumber(itemsGross(detail))} />
-      <Row label={D.discount} value={discount ? formatNumber(-discount) : formatNumber(0)} />
-      <Row label={D.shipping} value={formatNumber(detail.order.shipping_charge)} />
+      <Row label={D.itemsGross} value={<Money value={itemsGross(detail)} />} />
+      <Row label={D.discount} value={neg(discount)} />
+      <Row label={D.shipping} value={<Money value={detail.order.shipping_charge} />} />
       {sep}
       <div className="flex items-baseline justify-between gap-3 text-[15px] font-bold">
         <span>{D.total}</span>
-        <span className="text-xl tabular-nums">
-          {formatNumber(detail.customer_total)}
-          {!mobile && <span className="ms-1 text-xs font-medium text-text-3">تومان</span>}
-        </span>
+        <Money value={detail.customer_total} className="text-xl" unitClassName="text-xs" />
       </div>
     </div>
   )
@@ -287,11 +284,13 @@ export function ItemsCard({
                 {i.discount_amount > 0 && ` · ${D.mobileDiscount(i.discount_amount, i.discount_reason)}`}
               </span>
             </div>
-            <b className="tabular-nums">{formatNumber(i.list_price - i.discount_amount)}</b>
+            <b>
+              <Money value={i.list_price - i.discount_amount} />
+            </b>
           </div>
         ))}
         <div className="border-t border-border px-3.5 py-3">
-          <CustomerBlock detail={detail} mobile />
+          <CustomerBlock detail={detail} />
         </div>
       </section>
     )
@@ -335,11 +334,15 @@ export function ItemsCard({
                     </div>
                   </td>
                   <td className="tabular-nums">{formatNumber(i.quantity)}</td>
-                  <td className="tabular-nums">{formatNumber(i.unit_price)}</td>
-                  <td className={cn("tabular-nums", !i.discount_amount && "text-text-3")}>
-                    {i.discount_amount ? formatNumber(-i.discount_amount) : "—"}
+                  <td>
+                    <Money value={i.unit_price} />
                   </td>
-                  <td className="font-bold tabular-nums">{formatNumber(i.list_price - i.discount_amount)}</td>
+                  <td className={cn(!i.discount_amount && "text-text-3")}>
+                    {i.discount_amount ? <Money value={-i.discount_amount} /> : "—"}
+                  </td>
+                  <td className="font-bold">
+                    <Money value={i.list_price - i.discount_amount} />
+                  </td>
                 </tr>
               )
             })}
@@ -348,7 +351,7 @@ export function ItemsCard({
       </div>
       <div className="flex justify-end border-t border-border px-5 py-3.5">
         <div className="w-[340px] max-w-full">
-          <CustomerBlock detail={detail} mobile={false} />
+          <CustomerBlock detail={detail} />
         </div>
       </div>
     </section>
@@ -357,7 +360,8 @@ export function ItemsCard({
 
 // ── [3] internal cost and profit (never on the invoice) ────────────────
 
-function ProfitBand({ label, value, tone }: { label: string; value: string; tone: "pos" | "neg" | "nil" }) {
+/** `value` is integer Toman, or null for «—». */
+function ProfitBand({ label, value, tone }: { label: string; value: number | null; tone: "pos" | "neg" | "nil" }) {
   return (
     <div
       className={cn(
@@ -368,9 +372,8 @@ function ProfitBand({ label, value, tone }: { label: string; value: string; tone
       )}
     >
       <span>{label}</span>
-      <span className="text-xl whitespace-nowrap tabular-nums">
-        {value}
-        {tone !== "nil" && <span className="ms-1 text-xs font-medium">تومان</span>}
+      <span className="text-xl whitespace-nowrap">
+        {value == null ? "—" : <Money value={value} unitClassName="text-xs text-current" />}
       </span>
     </div>
   )
@@ -398,7 +401,7 @@ export function InternalCard({
   const noCosts = draft || cancelled
   const costRows = (
     <>
-      {!mobile && <Row label={D.revenue} value={formatNumber(detail.customer_total)} />}
+      {!mobile && <Row label={D.revenue} value={<Money value={detail.customer_total} />} />}
       <Row label={D.cogs} value={noCosts ? "—" : neg(cogs(detail))} />
       <Row label={D.packagingRow(kit)} value={noCosts ? "—" : neg(order.packaging_cost)} />
       <Row
@@ -425,7 +428,7 @@ export function InternalCard({
   if (draft) {
     bottom = (
       <>
-        <ProfitBand label={mobile ? D.profitMobile : D.profit} value="—" tone="nil" />
+        <ProfitBand label={mobile ? D.profitMobile : D.profit} value={null} tone="nil" />
         <Note>{D.draftNote}</Note>
       </>
     )
@@ -433,9 +436,9 @@ export function InternalCard({
     const loss = cancelLoss(order)
     bottom = (
       <>
-        <ProfitBand label={mobile ? D.profitMobile : D.profit} value="—" tone="nil" />
+        <ProfitBand label={mobile ? D.profitMobile : D.profit} value={null} tone="nil" />
         <Note>{D.cancelledNote}</Note>
-        {loss > 0 && <Row label={D.cancelLoss} value={formatNumber(-loss)} className="font-bold text-loss" />}
+        {loss > 0 && <Row label={D.cancelLoss} value={<Money value={-loss} unitClassName="text-current" />} className="font-bold text-loss" />}
       </>
     )
   } else if (refunded) {
@@ -445,12 +448,12 @@ export function InternalCard({
         <div className="flex flex-col">
           <Row
             label={D.refundOriginal}
-            value={formatNumber(detail.profit)}
+            value={<Money value={detail.profit} unitClassName="text-current" />}
             className={cn("font-bold", detail.profit < 0 ? "text-loss" : "text-profit")}
           />
           <span className="text-[11px] text-text-3">{D.refundOriginalNote}</span>
         </div>
-        <ProfitBand label={D.refundLoss} value={formatNumber(-loss)} tone="neg" />
+        <ProfitBand label={D.refundLoss} value={-loss} tone="neg" />
         <span className="text-xs text-text-3 tabular-nums">
           {D.refundLossBreakdown(order.packaging_cost, order.postage_cost, order.transaction_fee)}
         </span>
@@ -465,7 +468,7 @@ export function InternalCard({
       <>
         <ProfitBand
           label={mobile ? D.profitMobile : profit < 0 ? D.loss : D.profit}
-          value={formatNumber(profit)}
+          value={profit}
           tone={profit < 0 ? "neg" : "pos"}
         />
         {!mobile && (
@@ -476,8 +479,10 @@ export function InternalCard({
         )}
         {!mobile && (order.shipping_charge > 0 || order.postage_cost > 0) && (
           <div className="rounded-lg border border-border bg-card px-2.5 py-2 text-xs text-text-2 tabular-nums">
-            {D.shipEcon(formatNumber(order.shipping_charge), formatNumber(shipCost))}{" "}
-            <b className={shipResult < 0 ? "text-loss" : "text-profit"}>{formatNumber(shipResult)}</b>
+            {D.shipEcon(formatMoneyNumber(order.shipping_charge), formatMoneyNumber(shipCost))}{" "}
+            <b className={shipResult < 0 ? "text-loss" : "text-profit"}>
+              <Money value={shipResult} unitClassName="text-current" />
+            </b>
           </div>
         )}
       </>

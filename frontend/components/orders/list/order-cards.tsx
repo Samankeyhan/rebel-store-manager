@@ -7,7 +7,7 @@ import { ChannelBadge, StatusBadge } from "@/components/common/status"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { OrderListItem } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
-import { formatNumber } from "@/lib/persian-numbers"
+import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { L } from "../copy"
 import { profitView } from "../order-figures"
@@ -53,7 +53,10 @@ export function OrderCards({
       <div className="flex items-baseline justify-between text-[13px]">
         <span className="text-text-3">{L.mobileCount(rows.length)}</span>
         <span>
-          {L.salesTotal} <b className="tabular-nums">{formatNumber(totals.sales)}</b>
+          {L.salesTotal}{" "}
+          <b>
+            <Money value={totals.sales} />
+          </b>
         </span>
       </div>
       {visible.map((o) => (
@@ -76,7 +79,9 @@ export function OrderCards({
               <ChannelBadge channel={o.channel} />
               <span className="truncate">{o.customer_name || "—"}</span>
             </span>
-            <b className="tabular-nums">{formatNumber(o.customer_total)}</b>
+            <b>
+              <Money value={o.customer_total} />
+            </b>
           </span>
           <span className="flex items-start justify-between gap-2 text-xs">
             <span className="text-text-3 tabular-nums">{formatJalaliDateTime(o.order_date, timeZone)}</span>

@@ -3,6 +3,7 @@
  * Strings the design doesn't have are marked // NEW.
  */
 
+import { currencyLabel, formatMoney, formatMoneyNumber } from "@/lib/money"
 import { formatNumber } from "@/lib/persian-numbers"
 
 const fa = formatNumber
@@ -11,12 +12,16 @@ export const T = {
   // hero
   heroLabel: "تخمین فعلی هزینه پست برای سفارش‌های جدید",
   heroLabelMobile: "تخمین فعلی پست برای سفارش‌های جدید",
-  perOrder: "تومان / سفارش",
-  toman: "تومان",
+  get perOrder() {
+    return `${currencyLabel()} / سفارش`
+  },
+  get toman() {
+    return currencyLabel()
+  },
   heroCaption: (n: number, channels: string) =>
     `جمع پرداختی ÷ جمع سفارش‌ها در ${fa(n)} پرداخت اخیر${channels ? ` · برای ${channels}` : ""}`,
   heroCaptionMobile: (total: number, orders: number, n: number) =>
-    `جمع پرداختی ÷ جمع سفارش‌ها: ${fa(total)} ÷ ${fa(orders)} در ${fa(n)} پرداخت اخیر`,
+    `جمع پرداختی ÷ جمع سفارش‌ها: ${formatMoneyNumber(total)} ÷ ${fa(orders)} در ${fa(n)} پرداخت اخیر`,
   heroDefault: "هنوز پرداختی ثبت نشده؛ این مقدار پیش‌فرض تنظیمات است.", // NEW
   heroNotAverage: "میانگین نرخ تک‌تک پرداخت‌ها نیست؛ جمع مبالغ تقسیم بر جمع سفارش‌هاست.", // NEW
   windowLink: (n: number) => `تعداد پرداخت‌ها: ${fa(n)} · تغییر`,
@@ -44,14 +49,18 @@ export const T = {
   notePlaceholder: "مثلاً: شماره رسید اداره پست",
   submit: "ثبت پرداخت",
   saveFailed: "ثبت نشد", // NEW
-  toastSaved: (estimate: number) => `پرداخت ثبت شد · تخمین جدید: ${fa(estimate)} تومان / سفارش`, // NEW
+  toastSaved: (estimate: number) => `پرداخت ثبت شد · تخمین جدید: ${formatMoney(estimate)} / سفارش`, // NEW
 
   // ledger
   ledgerTitle: "پرداخت‌ها به پست",
   colDate: "تاریخ",
-  colTotal: "مبلغ پرداختی (تومان)",
+  get colTotal() {
+    return `مبلغ پرداختی (${currencyLabel()})`
+  },
   colOrders: "تعداد سفارش",
-  colRate: "هزینه هر سفارش (تومان)",
+  get colRate() {
+    return `هزینه هر سفارش (${currencyLabel()})`
+  },
   inWindow: "در تخمین فعلی",
   footerMonth: (month: string) => `جمع ${month}`,
   footerRange: "جمع این بازه", // NEW
@@ -59,7 +68,7 @@ export const T = {
   noMatch: "پرداختی در این بازه نیست.", // NEW
   recent: "پرداخت‌های اخیر",
   recentMeta: (date: string, n: number) => `${date} · ${fa(n)} سفارش`,
-  recentRate: (rate: number) => `${fa(rate)} / سفارش`,
+  recentRate: (rate: number) => `${formatMoney(rate)} / سفارش`,
 
   // states
   emptyTitle: "هنوز پرداختی به پست ثبت نشده",

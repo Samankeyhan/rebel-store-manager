@@ -5,10 +5,15 @@ import { Check, ChevronUp, CircleUserRound, Lock, Truck, X } from "lucide-react"
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import type { Catalog } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { Money } from "@/components/common/money"
+import { formatMoneyNumber } from "@/lib/money"
 import { formatNumber } from "@/lib/persian-numbers"
 import { T, type Channel, type SaleStatus } from "./copy"
 import type { Summary } from "./derive"
-import { Alert, Btn, ChannelBadge, Kbd, cardClass, negAmount } from "./primitives"
+import { Alert, Btn, ChannelBadge, Kbd, cardClass } from "./primitives"
+
+/** A cost row: «−۱۹۹٬۲۷۳ تومان», or «۰ تومان». */
+const neg = (n: number) => <Money value={-n} />
 
 function Row({
   label,
@@ -38,8 +43,8 @@ function profitTone(profit: number | null) {
 function CustomerRows({ s, mobile }: { s: Summary; mobile: boolean }) {
   return (
     <>
-      <Row label={T.itemsGross(s.qtyTotal)} value={formatNumber(s.itemsGross)} />
-      <Row label={T.discount} value={s.discount ? formatNumber(-s.discount) : formatNumber(0)} />
+      <Row label={T.itemsGross(s.qtyTotal)} value={<Money value={s.itemsGross} />} />
+      <Row label={T.discount} value={neg(s.discount)} />
       <Row
         label={
           <>
@@ -51,15 +56,12 @@ function CustomerRows({ s, mobile }: { s: Summary; mobile: boolean }) {
             )}
           </>
         }
-        value={formatNumber(s.shipping)}
+        value={<Money value={s.shipping} />}
       />
       {!mobile && sep}
       <div className="flex items-baseline justify-between gap-3 text-[15px] font-bold">
         <span>{T.payable}</span>
-        <span className="text-xl whitespace-nowrap tabular-nums">
-          {formatNumber(s.total)}
-          {!mobile && <span className="ms-1 text-xs font-medium text-text-3">{T.toman}</span>}
-        </span>
+        <Money value={s.total} className="text-xl" unitClassName="text-xs" />
       </div>
     </>
   )
@@ -69,8 +71,8 @@ function InternalRows({ s, window, mobile }: { s: Summary; window: number; mobil
   const tone = profitTone(s.profit)
   return (
     <>
-      <Row label={T.cogs} value={s.cost == null ? T.unknown : negAmount(s.cost)} />
-      <Row label={T.packaging(s.kitName)} value={negAmount(s.kitCost)} />
+      <Row label={T.cogs} value={s.cost == null ? T.unknown : neg(s.cost)} />
+      <Row label={T.packaging(s.kitName)} value={neg(s.kitCost)} />
       <Row
         label={
           <span className="flex flex-col leading-[1.35]">
@@ -78,9 +80,9 @@ function InternalRows({ s, window, mobile }: { s: Summary; window: number; mobil
             <span className="text-[11px] text-text-3">{mobile ? T.postageHintShort : T.postageHint(window)}</span>
           </span>
         }
-        value={negAmount(s.postage)}
+        value={neg(s.postage)}
       />
-      <Row label={T.fee} value={negAmount(s.fee)} />
+      <Row label={T.fee} value={neg(s.fee)} />
       {!mobile && sep}
       <div
         className={cn(
@@ -90,9 +92,8 @@ function InternalRows({ s, window, mobile }: { s: Summary; window: number; mobil
         )}
       >
         <span className={tone.text}>{tone.label}</span>
-        <span className={cn("text-xl whitespace-nowrap tabular-nums", tone.text)}>
-          {s.profit == null ? T.unknown : formatNumber(s.profit)}
-          {s.profit != null && !mobile && <span className="ms-1 text-xs font-medium">{T.toman}</span>}
+        <span className={cn("text-xl whitespace-nowrap", tone.text)}>
+          {s.profit == null ? T.unknown : <Money value={s.profit} unitClassName="text-xs text-current" />}
         </span>
       </div>
       {!mobile && (
@@ -112,8 +113,10 @@ function InternalRows({ s, window, mobile }: { s: Summary; window: number; mobil
         >
           {!mobile && <Truck className="mt-0.5 size-3.5 shrink-0 -scale-x-100" aria-hidden />}
           <span>
-            {T.shipEcon} {formatNumber(s.shipping)} {T.shipEconCost} {formatNumber(s.shipCost)} ={" "}
-            <b className={s.shipResult < 0 ? "text-loss" : "text-profit"}>{formatNumber(s.shipResult)}</b>
+            {T.shipEcon} {formatMoneyNumber(s.shipping)} {T.shipEconCost} {formatMoneyNumber(s.shipCost)} ={" "}
+            <b className={s.shipResult < 0 ? "text-loss" : "text-profit"}>
+              <Money value={s.shipResult} unitClassName="text-current" />
+            </b>
           </span>
         </div>
       )}
@@ -238,17 +241,15 @@ export function MobileSummarySheet({
         >
           <span className="flex flex-col items-start leading-[1.35]">
             <span className="text-xs text-text-3">{T.payable}</span>
-            <span className="text-[19px] font-bold tabular-nums">
-              {formatNumber(summary.total)} <span className="text-xs font-medium text-text-3">{T.toman}</span>
-            </span>
+            <Money value={summary.total} className="text-[19px] font-bold" unitClassName="text-xs" />
           </span>
           <span className="flex flex-col items-end leading-[1.35]">
             <span className="flex items-center gap-1 text-xs text-text-3">
               <Lock className="size-3" aria-hidden />
               {T.profitShort}
             </span>
-            <span className={cn("font-bold tabular-nums", tone.text)}>
-              {summary.profit == null ? T.unknown : formatNumber(summary.profit)}
+            <span className={cn("font-bold", tone.text)}>
+              {summary.profit == null ? T.unknown : <Money value={summary.profit} unitClassName="text-current" />}
             </span>
           </span>
           <ChevronUp className="size-4 text-text-3" aria-hidden />

@@ -3,6 +3,7 @@
  * «ماده» standardized on «متریال»). Strings the design doesn't have are // NEW.
  */
 
+import { currencyLabel, formatMoney } from "@/lib/money"
 import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
 
 export const K = {
@@ -34,7 +35,7 @@ export const K = {
   colUnitCost: "بهای واحد فعلی",
   colLineCost: "هزینه در کیت",
   stockCaption: (q: number, unit: string) => `موجودی ${formatQuantity(q)} ${unit}`,
-  unitCost: (cost: number, unit: string) => `${formatNumber(cost)} / ${unit}`,
+  unitCost: (cost: number, unit: string) => `${formatMoney(cost)} / ${unit}`,
   delete: "حذف",
   addMaterial: "افزودن متریال",
   searchMaterial: "جستجوی متریال", // NEW
@@ -51,7 +52,9 @@ export const K = {
   tileAvail: "کیت قابل آماده‌سازی",
   limiting: (name: string, q: number, unit: string) => `محدودکننده: «${name}» (${formatQuantity(q)} ${unit})`,
   noLimit: "بدون محدودیت",
-  toman: "تومان",
+  get toman() {
+    return currencyLabel()
+  },
   editKit: "ویرایش کیت",
   pickKit: "کیتی را انتخاب کنید.", // NEW
 
