@@ -25,8 +25,8 @@ export const R = {
   noProductMatch: (q: string) => `محصولی با «${q}» پیدا نشد.`,
   stockPill: (n: number) => `موجودی ${formatNumber(n)}`,
   fieldQty: "تعداد تولید",
-  qtyHelpMaxPrefix: "عدد صحیح؛ حداکثر با موجودی فعلی مواد: ",
-  qtyHelpUnbounded: "عدد صحیح؛ مواد کالایی این دستور محدودیتی ایجاد نمی‌کنند.", // NEW (design printed «∞»)
+  qtyHelpMaxPrefix: "عدد صحیح؛ حداکثر با موجودی فعلی متریال: ",
+  qtyHelpUnbounded: "عدد صحیح؛ متریال کالایی این دستور محدودیتی ایجاد نمی‌کند.", // NEW (design printed «∞»)
   qtyMin: "تعداد تولید باید دست‌کم ۱ باشد.", // NEW
   fieldDate: "تاریخ تولید",
   today: "امروز",
@@ -35,7 +35,7 @@ export const R = {
   notePlaceholder: "مثلاً: پرس نوبت دوم",
 
   // preview
-  previewTitle: "پیش‌نمایش مصرف مواد",
+  previewTitle: "پیش‌نمایش مصرف متریال",
   previewCaption: (n: number, name: string) => `${formatNumber(n)} عدد «${name}»`,
   editRecipe: "ویرایش دستور",
   colMaterial: "متریال",
@@ -57,10 +57,10 @@ export const R = {
   avgNoCost: "بهای ثبت‌شده ندارد", // NEW
   avgFirstCost: "اولین بها؛ میانگین = بهای هر عدد این تولید", // NEW
   avgNoStock: "موجودی فعلی صفر است؛ میانگین = بهای هر عدد این تولید", // NEW
-  previewNote: "پیش‌نمایش بر اساس بهای فعلی مواد است؛ بهای نهایی از پاسخ ثبت می‌آید.", // NEW
+  previewNote: "پیش‌نمایش بر اساس بهای فعلی متریال است؛ بهای نهایی از پاسخ ثبت می‌آید.", // NEW
   submit: (n: number) => `ثبت تولید ${formatNumber(n)} عدد`,
-  submitNote: (n: number) => `مواد کالایی از موجودی کم و ${formatNumber(n)} عدد به موجودی محصول اضافه می‌شود.`,
-  pickToPreview: "محصولی را انتخاب کنید تا مصرف مواد و بهای تولید را ببینید.", // NEW
+  submitNote: (n: number) => `متریال کالایی از موجودی کم و ${formatNumber(n)} عدد به موجودی محصول اضافه می‌شود.`,
+  pickToPreview: "محصولی را انتخاب کنید تا مصرف متریال و بهای تولید را ببینید.", // NEW
   recipeLoading: "در حال بررسی دستور تولید…", // NEW
   recipeFailed: "دستور تولید بارگذاری نشد؛ ثبت تولید را سرور بررسی می‌کند.", // NEW
   noRecipeTitle: "این محصول دستور تولید ندارد", // NEW
@@ -68,14 +68,14 @@ export const R = {
   makeRecipe: "ساخت دستور تولید",
 
   // shortage
-  shortTitle: "کمبود مواد — تولید ممکن نیست",
-  shortTitleMobile: "کمبود مواد",
+  shortTitle: "کمبود متریال — تولید ممکن نیست",
+  shortTitleMobile: "کمبود متریال",
   shortLine: (q: number, unit: string, name: string) => `${formatQuantity(q)} ${unit} «${name}» کم است.`,
   shortTail: (n: number) => `حداکثر قابل تولید با موجودی فعلی: ${formatNumber(n)} عدد.`,
   shortTailMobile: (n: number) => `حداکثر قابل تولید: ${formatNumber(n)}.`,
-  buyMaterials: "ثبت خرید مواد",
+  buyMaterials: "ثبت خرید متریال",
   produceMax: (n: number) => `تولید ${formatNumber(n)} عدد`,
-  serverShortTitle: "موجودی مواد تغییر کرده — تولید ثبت نشد", // NEW
+  serverShortTitle: "موجودی متریال تغییر کرده — تولید ثبت نشد", // NEW
   serverShortLine: (name: string, needed: number, available: number, unit: string) =>
     `«${name}»: لازم ${formatQuantity(needed)} ${unit}، موجود ${formatQuantity(available)} ${unit}.`, // NEW
 
@@ -114,7 +114,7 @@ export const R = {
   duplicateHint: "محصولاتی که در ردیف دیگری هستند در این فهرست نیستند؛ تعداد همان ردیف را بیشتر کنید.", // NEW
 
   // mobile run
-  mobileSection: "مصرف مواد",
+  mobileSection: "مصرف متریال",
   mobileLineNeed: (basis: string, need: string, stock: string | null) =>
     stock == null ? `${basis} · لازم ${need}` : `${basis} · لازم ${need} · موجودی ${stock}`,
   mobileTotal: "هزینه کل",
@@ -138,7 +138,7 @@ export const R = {
   deleteLine: "حذف",
   addLine: "افزودن متریال یا خدمت",
   searchMaterial: "جستجوی متریال یا خدمت", // NEW
-  noMaterialsLeft: "همه مواد فعال در این دستور هستند.", // NEW
+  noMaterialsLeft: "همه متریال‌های فعال در این دستور هستند.", // NEW
   noMaterialMatch: (q: string) => `متریالی با «${q}» پیدا نشد.`, // NEW
   explainTitle: "«به ازای هر عدد» یا «یک‌بار برای کل تولید»؟",
   explainPerUnit: "به ازای هر عدد",
@@ -185,7 +185,7 @@ export const R = {
   batchTitle: "جزئیات تولید", // NEW
   batchFacts: (n: number) => `${formatNumber(n)} عدد`,
   batchUnitCost: "بهای هر عدد", // NEW
-  batchMaterials: "مواد مصرف‌شده", // NEW
+  batchMaterials: "متریال مصرف‌شده", // NEW
   colUsed: "مقدار مصرف", // NEW
   colUnitCostAt: "بهای واحد در زمان تولید", // NEW
   colLineTotal: "هزینه", // NEW
@@ -195,7 +195,7 @@ export const R = {
   // states
   emptyTitle: "هنوز تولیدی ثبت نشده",
   emptyBody:
-    "ابتدا برای یک محصول «دستور تولید» بسازید: مواد، مقدار و این‌که هر متریال به ازای هر عدد مصرف می‌شود یا یک‌بار برای کل تولید.",
+    "ابتدا برای یک محصول «دستور تولید» بسازید: متریال، مقدار و این‌که هر متریال به ازای هر عدد مصرف می‌شود یا یک‌بار برای کل تولید.",
   emptyBodyMobile: "ابتدا دستور تولید یک محصول را بسازید.",
   errorTitle: "اطلاعات تولید بارگذاری نشد",
   errorBody: "اتصال به سرور برقرار نشد. داده‌های شما سالم است؛ دوباره تلاش کنید.",

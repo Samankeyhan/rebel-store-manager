@@ -95,7 +95,7 @@ function ConnectionStatusCard() {
               value={formatNumber(state.catalog.products.length)}
             />
             <Stat
-              label="مواد اولیه"
+              label="متریال"
               value={formatNumber(state.catalog.materials.length)}
             />
             <Stat

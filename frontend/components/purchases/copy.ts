@@ -10,7 +10,7 @@ export const U = {
   search: "جستجوی کالا",
   searchAria: "جستجو",
   typeAll: "همه",
-  typeMaterials: "مواد",
+  typeMaterials: "متریال",
   typeProducts: "محصولات",
   typeFilterLabel: "نوع کالا", // NEW (aria)
   supplierPrefix: "تأمین‌کننده:",
@@ -113,7 +113,7 @@ export const U = {
 
   // states
   emptyTitle: "هنوز خریدی ثبت نشده",
-  emptyBody: "خرید مواد اولیه، بسته‌بندی یا محصولات آماده را ثبت کنید تا موجودی و بهای تمام‌شده خودکار به‌روز شود.",
+  emptyBody: "خرید متریال، بسته‌بندی یا محصولات آماده را ثبت کنید تا موجودی و بهای تمام‌شده خودکار به‌روز شود.",
   emptyBodyMobile: "خریدها موجودی و بهای تمام‌شده را به‌روز می‌کنند.",
   emptyCta: "ثبت اولین خرید",
   errorTitle: "فهرست خریدها بارگذاری نشد",

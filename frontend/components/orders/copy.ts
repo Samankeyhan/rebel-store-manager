@@ -194,7 +194,7 @@ export const D = {
   cancelSubtitle: (status: string) => `این سفارش «${status}» است و هنوز ارسال نشده. با لغو:`,
   cancelSubtitleDraft: (status: string) => `این سفارش «${status}» است. با لغو:`, // NEW
   effProductsLead: "کالا به موجودی برمی‌گردد:",
-  effMadeToOrder: (name: string) => `مواد مصرف‌شده برای ساخت «${name}» به موجودی برمی‌گردد.`, // NEW
+  effMadeToOrder: (name: string) => `متریال مصرف‌شده برای ساخت «${name}» به موجودی برمی‌گردد.`, // NEW
   effDraftNothing: "پیش‌نویس موجودی رزرو نکرده بود؛ چیزی به موجودی برنمی‌گردد.", // NEW
   effPackagingLead: "بسته‌بندی به موجودی برمی‌گردد:",
   effNoPostageLead: "بدون هزینه پست:",

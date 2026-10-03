@@ -20,7 +20,7 @@ export const P = {
 
   // tabs
   tabProducts: "محصولات",
-  tabMaterials: "مواد و خدمات",
+  tabMaterials: "متریال",
 
   // banner (computed; the design's string for one product, a count for more)
   bannerOne: "۱ محصول بدون بهای تمام‌شده",
@@ -45,7 +45,7 @@ export const P = {
   noCost: "بدون بهای تمام‌شده",
   fromRecipe: "هنگام فروش از دستور تولید", // NEW
   // NEW: an estimate only — the real cost is frozen again at the moment of sale.
-  recipeEstimate: (n: number) => `برآورد: ${formatNumber(n)} تومان (بر اساس بهای مواد فعلی)`,
+  recipeEstimate: (n: number) => `برآورد: ${formatNumber(n)} تومان (بر اساس بهای فعلی متریال)`,
   madeToOrder: "ساخت هنگام فروش", // NEW
   active: "فعال",
   inactive: "غیرفعال",
@@ -65,7 +65,7 @@ export const P = {
   typeService: "خدماتی",
   noStock: "بدون موجودی",
   materialsFootnote:
-    "«خدماتی» (مثل مسترینگ یا چاپ سیلک) موجودی ندارد و فقط هزینه‌اش در تولید حساب می‌شود. مقدار مواد می‌تواند اعشاری باشد (۱٫۵ کیلوگرم).",
+    "«خدماتی» (مثل مسترینگ یا چاپ سیلک) موجودی ندارد و فقط هزینه‌اش در تولید حساب می‌شود. مقدار متریال می‌تواند اعشاری باشد (۱٫۵ کیلوگرم).",
 
   // mobile cards
   stockPillMobile: (n: number) => `موجودی ${formatNumber(n)}`,
@@ -134,8 +134,8 @@ export const P = {
   effHistory: "سفارش‌ها، گزارش‌ها و تاریخچه موجودی آن دست‌نخورده می‌مانند.",
   effStock: (stock: number) => `موجودی فعلی (${formatNumber(stock)} عدد) باقی می‌ماند و در ارزش انبار حساب می‌شود.`,
   deactivateFinal: "هر زمان با روشن کردن «نمایش غیرفعال‌ها» می‌توانید دوباره فعالش کنید.",
-  matDeactivateSubtitle: "مواد حذف نمی‌شوند تا سوابق حفظ شود.", // NEW
-  matEffHidden: "از فهرست انتخاب مواد در «خرید»، دستور تولید و کیت‌های بسته‌بندی پنهان می‌شود.", // NEW
+  matDeactivateSubtitle: "متریال حذف نمی‌شود تا سوابق حفظ شود.", // NEW
+  matEffHidden: "از فهرست انتخاب متریال در «خرید»، دستور تولید و کیت‌های بسته‌بندی پنهان می‌شود.", // NEW
   matEffStock: (stock: string) => `موجودی فعلی (${stock}) باقی می‌ماند.`, // NEW
 
   // toasts (NEW)
@@ -152,13 +152,13 @@ export const P = {
   emptyCta: "اضافه کردن اولین محصول",
   emptyCtaMobile: "اضافه کردن محصول",
   emptyMatTitle: "هنوز متریالی تعریف نشده", // NEW
-  emptyMatBody: "مواد اولیه، بسته‌بندی و خدمات تولید را این‌جا تعریف کنید.", // NEW
+  emptyMatBody: "متریال، بسته‌بندی و خدمات تولید را این‌جا تعریف کنید.", // NEW
   emptyMatCta: "اضافه کردن اولین متریال", // NEW
   noProductMatch: (q: string) => `محصولی با «${q}» پیدا نشد.`,
   noMaterialMatch: (q: string) => `متریالی با «${q}» پیدا نشد.`, // NEW
   noMatchFiltered: "با این فیلترها چیزی پیدا نشد.", // NEW
   clearFilters: "پاک کردن فیلترها",
-  errorTitle: "فهرست محصولات و مواد بارگذاری نشد",
+  errorTitle: "فهرست محصولات و متریال بارگذاری نشد",
   errorTitleMobile: "محصولات بارگذاری نشد",
   errorBody: "اتصال به سرور برقرار نشد. داده‌های شما سالم است؛ دوباره تلاش کنید.",
   retry: "تلاش دوباره",

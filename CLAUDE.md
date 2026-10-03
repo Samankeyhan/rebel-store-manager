@@ -8,6 +8,19 @@ Currently a Python CLI (`cli/main.py`) over SQLite (`data/shop.db`). It is being
 
 All money is stored as **INTEGER** in the smallest currency unit (Toman). See Architecture rules below.
 
+## Working agreement
+
+1. **Plan first.** Anything beyond a trivial change gets a written plan; then stop and wait for explicit approval before writing code.
+2. **Branch from the latest `origin/main`**, one feature per branch, using the branch name given in the prompt.
+3. **Never write to `data/shop.db`.** API startup applies migrations, so tests and manual runs use a scratchpad copy of the database via `REBEL_DB`. Reading `data/shop.db` read-only to establish facts is fine.
+4. **Commit and push before finishing.** The final message must include the branch, the full commit hash, and confirmation that `git status` is clean. Never leave work uncommitted.
+5. **Money:** `db/` owns every formula. Money is an integer in Toman. The frontend displays API numbers; any preview it computes mirrors the backend exactly (the existing `lib/costing.ts` pattern) and is labelled as a preview. No money arithmetic in routers.
+6. **Don't silently fix backend gaps** found during frontend work; list them in the report. Backend changes only when the prompt asks for them.
+7. **Schema changes only through a new numbered migration**; never edit an existing one; a backfill must not touch `updated_at` (the 005 lesson). Every `db/` change gets tests, and the full suite stays green.
+8. **Persian UI:** «متریال», never «ماده» or «مواد» (nav item and page title: «محصولات و متریال»; products page tabs: «محصولات»، «متریال»، «دسته‌ها»). Persian digits through `lib/persian-numbers`; dates through `lib/jalali`; logical CSS properties; RTL; desktop and mobile; loading, error and empty states; copy lives in `copy.ts` with new strings marked `// NEW`.
+9. **The final report lists:** what was verified, what could NOT be verified (e.g. no browser tools, so the visual check is left to the owner), choices made on open questions, and backend gaps.
+10. **Don't install browser extensions or change anything outside the repo.**
+
 ## Module map
 
 - `db/connection.py` — opens the SQLite connection and runs migrations (`init_db`); tracks applied migrations in `schema_migrations` with a content hash, refuses to run if an applied migration file was edited.
