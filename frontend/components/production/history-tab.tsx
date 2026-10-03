@@ -34,6 +34,7 @@ export function HistoryTab({
   onRangeChange,
   defaultRange,
   mobile,
+  showDetails,
 }: {
   batches: ProductionBatchListItem[]
   materials: Material[]
@@ -42,6 +43,8 @@ export function HistoryTab({
   onRangeChange: (r: IsoRange) => void
   defaultRange: IsoRange
   mobile: boolean
+  /** OFF: no unit-cost column or sitting totals; the sheet shows only date, product and quantity. */
+  showDetails: boolean
 }) {
   const [productFilter, setProductFilter] = React.useState("")
   const [openId, setOpenId] = React.useState<number | null>(null)
@@ -140,9 +143,11 @@ export function HistoryTab({
         </span>
         <span className="flex items-center justify-between gap-2 text-xs text-text-3">
           <span className="tabular-nums">{formatJalaliDateTime(b.production_date, timeZone)}</span>
-          <span className="tabular-nums">
-            {R.batchUnitCost}: <b className="text-foreground">{formatNumber(b.unit_cost)}</b>
-          </span>
+          {showDetails && (
+            <span className="tabular-nums">
+              {R.batchUnitCost}: <b className="text-foreground">{formatNumber(b.unit_cost)}</b>
+            </span>
+          )}
         </span>
         {b.notes && <span className="text-xs text-text-3">{b.notes}</span>}
       </button>
@@ -154,7 +159,14 @@ export function HistoryTab({
             card(g.batches[0])
           ) : (
             <div key={g.key} className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-2 p-2">
-              <SittingHeader group={g} timeZone={timeZone} open={!collapsed.has(g.key)} onToggle={() => toggle(g.key)} mobile />
+              <SittingHeader
+                group={g}
+                timeZone={timeZone}
+                open={!collapsed.has(g.key)}
+                onToggle={() => toggle(g.key)}
+                showTotal={showDetails}
+                mobile
+              />
               {!collapsed.has(g.key) && g.batches.map(card)}
             </div>
           )
@@ -180,7 +192,7 @@ export function HistoryTab({
         </td>
         <td className="font-bold">{b.product_name}</td>
         <td className="text-end tabular-nums">{formatNumber(b.quantity_produced)}</td>
-        <td className="text-end font-bold tabular-nums">{formatNumber(b.unit_cost)}</td>
+        {showDetails && <td className="text-end font-bold tabular-nums">{formatNumber(b.unit_cost)}</td>}
         <td className="max-w-[320px] truncate text-text-3">{b.notes || "—"}</td>
       </tr>
     )
@@ -196,9 +208,11 @@ export function HistoryTab({
                   <th scope="col" className="text-end!">
                     {R.colQty}
                   </th>
-                  <th scope="col" className="text-end!">
-                    {R.colUnitCost}
-                  </th>
+                  {showDetails && (
+                    <th scope="col" className="text-end!">
+                      {R.colUnitCost}
+                    </th>
+                  )}
                   <th scope="col" className="w-full">
                     {R.colNote}
                   </th>
@@ -211,8 +225,14 @@ export function HistoryTab({
                   return (
                     <React.Fragment key={g.key}>
                       <tr className="[&>td]:border-b [&>td]:border-border [&>td]:bg-surface-2 [&>td]:p-0">
-                        <td colSpan={5}>
-                          <SittingHeader group={g} timeZone={timeZone} open={isOpen} onToggle={() => toggle(g.key)} />
+                        <td colSpan={showDetails ? 5 : 4}>
+                          <SittingHeader
+                            group={g}
+                            timeZone={timeZone}
+                            open={isOpen}
+                            onToggle={() => toggle(g.key)}
+                            showTotal={showDetails}
+                          />
                         </td>
                       </tr>
                       {isOpen && g.batches.map((b) => row(b, true))}
@@ -237,6 +257,7 @@ export function HistoryTab({
         materials={materials}
         timeZone={timeZone}
         mobile={mobile}
+        showDetails={showDetails}
         onClose={() => setOpenId(null)}
       />
     </div>
@@ -253,12 +274,14 @@ function SittingHeader({
   timeZone,
   open,
   onToggle,
+  showTotal,
   mobile,
 }: {
   group: SittingGroup
   timeZone: string
   open: boolean
   onToggle: () => void
+  showTotal: boolean
   mobile?: boolean
 }) {
   const first = group.batches[0]
@@ -290,7 +313,7 @@ function SittingHeader({
         {recorded && <span className="text-xs text-text-3 tabular-nums">{R.sittingRecorded(toPersianDigits(recorded.time))}</span>}
       </span>
       <span className="flex items-center gap-3">
-        {group.total != null && (
+        {showTotal && group.total != null && (
           <span className="flex flex-col items-end leading-tight">
             <span className="text-xs text-text-3">
               {R.sittingTotal} <span className="hidden sm:inline">({R.sittingTotalCaption})</span>

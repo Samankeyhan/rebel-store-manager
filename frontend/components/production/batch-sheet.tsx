@@ -20,16 +20,19 @@ export function BatchSheet({
   materials,
   timeZone,
   mobile,
+  showDetails,
   onClose,
 }: {
   batch: ProductionBatchListItem | null
   materials: Material[]
   timeZone: string
   mobile: boolean
+  /** OFF: only date, product and quantity; the detail (materials, costs) isn't fetched. */
+  showDetails: boolean
   onClose: () => void
 }) {
   const [load, setLoad] = React.useState<{ id: number; load: Load } | null>(null)
-  const id = batch?.id ?? null
+  const id = showDetails ? (batch?.id ?? null) : null
 
   React.useEffect(() => {
     if (id == null) return
@@ -61,20 +64,26 @@ export function BatchSheet({
             <span className="text-text-3 tabular-nums">
               {formatJalaliDateTime(batch.production_date, timeZone)} · {R.batchFacts(batch.quantity_produced)}
             </span>
-            <span className="text-text-3">
-              {R.batchUnitCost}: <b className="text-foreground tabular-nums">{formatMoney(batch.unit_cost)}</b>
-            </span>
-            {batch.notes && <span className="text-text-3">{batch.notes}</span>}
+            {showDetails && (
+              <span className="text-text-3">
+                {R.batchUnitCost}: <b className="text-foreground tabular-nums">{formatMoney(batch.unit_cost)}</b>
+              </span>
+            )}
+            {showDetails && batch.notes && <span className="text-text-3">{batch.notes}</span>}
           </div>
-          <h3 className="text-sm font-bold text-heading">{R.batchMaterials}</h3>
-          {current.status === "loading" && (
-            <p className="flex items-center justify-center gap-2 py-6 text-[13px] text-text-3">
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            </p>
-          )}
-          {current.status === "error" && <Alert tone="err">{R.batchLoadFailed}</Alert>}
-          {current.status === "ready" && (
-            <BatchMaterials detail={current.detail} unitOf={unitOf} />
+          {showDetails && (
+            <>
+              <h3 className="text-sm font-bold text-heading">{R.batchMaterials}</h3>
+              {current.status === "loading" && (
+                <p className="flex items-center justify-center gap-2 py-6 text-[13px] text-text-3">
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                </p>
+              )}
+              {current.status === "error" && <Alert tone="err">{R.batchLoadFailed}</Alert>}
+              {current.status === "ready" && (
+                <BatchMaterials detail={current.detail} unitOf={unitOf} />
+              )}
+            </>
           )}
         </>
       )}
