@@ -17,6 +17,7 @@ from config.store_info import (
     STORE_NAME,
     STORE_PHONE,
 )
+from db.currency import currency_label, get_display_currency, to_display_amount
 from db.orders import get_order
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -78,10 +79,11 @@ def prepare_persian(text: str) -> str:
     return get_display(reshaped)
 
 
-def to_persian_digits(number: int) -> str:
-    formatted = f"{number:,}"
-    persian = formatted.translate(PERSIAN_DIGIT_MAP)
-    return persian + " تومان"
+def format_amount(toman: int, currency: str) -> str:
+    """An integer Toman amount in the display currency, Persian digits and unit:
+    (180000, "TOMAN") -> "۱۸۰,۰۰۰ تومان", (180000, "RIAL") -> "۱,۸۰۰,۰۰۰ ریال"."""
+    formatted = f"{to_display_amount(toman, currency):,}"
+    return formatted.translate(PERSIAN_DIGIT_MAP) + " " + currency_label(currency)
 
 
 def _channel_label(channel: str) -> str:
@@ -155,11 +157,12 @@ def _draw_amount_right(
     x: float,
     y: float,
     amount: int,
+    currency: str,
     *,
     font: str = "Vazir",
     size: int = 11,
 ) -> None:
-    _draw_persian_right(c, x, y, to_persian_digits(amount), font=font, size=size)
+    _draw_persian_right(c, x, y, format_amount(amount, currency), font=font, size=size)
 
 
 def _draw_store_header(c: canvas.Canvas, right: float, y: float) -> float:
@@ -227,7 +230,7 @@ def _draw_table_header(c: canvas.Canvas, y: float) -> float:
     return y - TABLE_ROW_HEIGHT
 
 
-def _draw_line_item(c: canvas.Canvas, item, y: float) -> float:
+def _draw_line_item(c: canvas.Canvas, item, y: float, currency: str) -> float:
     c.setFont("Vazir", 10)
     product_name = _truncate_to_width(
         item["product_name"], "Vazir", 10, PRODUCT_NAME_MAX_WIDTH
@@ -237,14 +240,14 @@ def _draw_line_item(c: canvas.Canvas, item, y: float) -> float:
     qty_text = prepare_persian(str(item["quantity"]))
     c.drawRightString(COL_QUANTITY, y, qty_text)
 
-    _draw_amount_right(c, COL_UNIT_PRICE, y, item["unit_price"], size=10)
-    _draw_amount_right(c, COL_LINE_TOTAL, y, _line_total(item), size=10)
+    _draw_amount_right(c, COL_UNIT_PRICE, y, item["unit_price"], currency, size=10)
+    _draw_amount_right(c, COL_LINE_TOTAL, y, _line_total(item), currency, size=10)
 
     y -= TABLE_ROW_HEIGHT
 
     if item["discount_amount"] > 0:
         reason = item["discount_reason"] or ""
-        discount_label = f"تخفیف: {to_persian_digits(item['discount_amount'])}"
+        discount_label = f"تخفیف: {format_amount(item['discount_amount'], currency)}"
         if reason:
             discount_label += f" ({reason})"
         _draw_persian_right(c, COL_PRODUCT, y, discount_label, size=9)
@@ -259,6 +262,7 @@ def _draw_totals_section(
     items: list,
     final_total: int,
     y: float,
+    currency: str,
 ) -> float:
     y -= LINE_HEIGHT
     c.line(PAGE_MARGIN, y, COL_PRODUCT + 10, y)
@@ -266,7 +270,7 @@ def _draw_totals_section(
 
     subtotal = sum(_line_total(item) for item in items)
     _draw_persian_right(c, COL_PRODUCT, y, "جمع اقلام:", font="Vazir-Bold", size=10)
-    _draw_amount_right(c, COL_PRODUCT - 80, y, subtotal, size=10)
+    _draw_amount_right(c, COL_PRODUCT - 80, y, subtotal, currency, size=10)
     y -= TABLE_ROW_HEIGHT
 
     if order["shipping_charge"] > 0:
@@ -274,7 +278,7 @@ def _draw_totals_section(
             c, COL_PRODUCT, y, "هزینه ارسال:", font="Vazir-Bold", size=10
         )
         _draw_amount_right(
-            c, COL_PRODUCT - 80, y, order["shipping_charge"], size=10
+            c, COL_PRODUCT - 80, y, order["shipping_charge"], currency, size=10
         )
         y -= TABLE_ROW_HEIGHT
 
@@ -283,7 +287,7 @@ def _draw_totals_section(
         c, COL_PRODUCT, y, "مبلغ نهایی:", font="Vazir-Bold", size=13
     )
     _draw_amount_right(
-        c, COL_PRODUCT - 80, y, final_total, font="Vazir-Bold", size=13
+        c, COL_PRODUCT - 80, y, final_total, currency, font="Vazir-Bold", size=13
     )
     return y - LINE_HEIGHT * 2
 
@@ -304,6 +308,7 @@ def generate_invoice_pdf(
     order = order_data["order"]
     items = order_data["items"]
     final_total = order_data["customer_total"]
+    currency = get_display_currency(conn)
 
     out_dir = _resolve_output_dir(output_dir)
     invoice_number = order["invoice_number"]
@@ -343,9 +348,9 @@ def generate_invoice_pdf(
 
     y = _draw_table_header(c, y)
     for item in items:
-        y = _draw_line_item(c, item, y)
+        y = _draw_line_item(c, item, y, currency)
 
-    y = _draw_totals_section(c, order, items, final_total, y)
+    y = _draw_totals_section(c, order, items, final_total, y, currency)
 
     _draw_thank_you_line(c, right, y)
 

@@ -973,7 +973,9 @@ export interface paths {
         /**
          * Put Setting
          * @description Set one of: default_shipping_charge, postage_estimate_window,
-         *     default_postage_estimate, timezone. Any other key is a 422 (field "key").
+         *     default_postage_estimate, timezone, display_currency ("TOMAN" or "RIAL";
+         *     display only, money stays Toman everywhere). Any other key is a 422
+         *     (field "key"); a bad value is a 422 (field "value").
          */
         put: operations["put_setting_settings__key__put"];
         post?: never;
@@ -2241,6 +2243,11 @@ export interface components {
             default_postage_estimate: number;
             /** Timezone */
             timezone: string;
+            /**
+             * Display Currency
+             * @enum {string}
+             */
+            display_currency: "TOMAN" | "RIAL";
             /** Channels */
             channels: {
                 [key: string]: components["schemas"]["ChannelSettingsOut"];

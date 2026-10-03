@@ -40,6 +40,7 @@ settings (key/value):
 - postage_estimate_window = 3
 - default_postage_estimate = 0
 - timezone = Asia/Tehran
+- display_currency = TOMAN (TOMAN or RIAL). Display only: how amounts are shown in the UI and on the customer invoice. Every stored, computed, sent and reported amount stays integer Toman; Rial = Toman × 10, exact, applied only when displaying.
 
 channel_settings:
 | channel   | applies_shipping_charge | applies_postage | default_packaging_kit_id |

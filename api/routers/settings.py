@@ -10,6 +10,7 @@ from api.schemas.settings import (
     SettingUpdate,
 )
 from db.constants import VALID_CHANNELS
+from db.currency import get_display_currency
 from db.settings import (
     get_channel_settings,
     get_setting,
@@ -30,6 +31,7 @@ def build_settings(conn: sqlite3.Connection) -> SettingsOut:
         postage_estimate_window=int(get_setting(conn, "postage_estimate_window")),
         default_postage_estimate=int(get_setting(conn, "default_postage_estimate")),
         timezone=get_setting(conn, "timezone"),
+        display_currency=get_display_currency(conn),
         channels=channels,
     )
 
@@ -59,6 +61,8 @@ def put_setting(
     key: str, body: SettingUpdate, conn: sqlite3.Connection = Depends(get_db)
 ) -> SettingsOut:
     """Set one of: default_shipping_charge, postage_estimate_window,
-    default_postage_estimate, timezone. Any other key is a 422 (field "key")."""
+    default_postage_estimate, timezone, display_currency ("TOMAN" or "RIAL";
+    display only, money stays Toman everywhere). Any other key is a 422
+    (field "key"); a bad value is a 422 (field "value")."""
     set_setting(conn, key, body.value)
     return build_settings(conn)

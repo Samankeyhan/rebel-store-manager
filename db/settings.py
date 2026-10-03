@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from db.connection import transaction
 from db.constants import VALID_CHANNELS
+from db.currency import DISPLAY_CURRENCIES
 from db.errors import NotFoundError, ValidationError
 
 _UNSET = object()
@@ -12,6 +13,7 @@ VALID_SETTING_KEYS = (
     "postage_estimate_window",
     "default_postage_estimate",
     "timezone",
+    "display_currency",
 )
 
 _NON_NEGATIVE_INT_KEYS = {"default_shipping_charge", "default_postage_estimate"}
@@ -42,6 +44,14 @@ def _validate_setting_value(key: str, value: str) -> None:
                 f"Setting 'timezone' must be a valid IANA timezone name, got {value!r}",
                 field="value",
             ) from None
+    elif key == "display_currency":
+        # Exact and case-sensitive: the frontend compares the stored string.
+        if value not in DISPLAY_CURRENCIES:
+            valid = ", ".join(DISPLAY_CURRENCIES)
+            raise ValidationError(
+                f"Setting 'display_currency' must be one of: {valid}, got {value!r}",
+                field="value",
+            )
 
 
 def get_setting(conn: sqlite3.Connection, key: str, default: str | None = None) -> str | None:

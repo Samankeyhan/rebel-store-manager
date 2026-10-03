@@ -342,6 +342,7 @@ def test_settings(seeded):
     assert resp.status_code == 200
     body = resp.json()
     assert body["timezone"] == "Asia/Tehran"
+    assert body["display_currency"] == "TOMAN"
     assert set(body["channels"]) == {
         "INSTAGRAM", "WEBSITE", "WHOLESALE", "IN_PERSON", "OTHER",
     }

@@ -14,6 +14,7 @@ def test_get_setting_returns_seeded_defaults(test_db):
     assert get_setting(test_db, "postage_estimate_window") == "3"
     assert get_setting(test_db, "default_postage_estimate") == "0"
     assert get_setting(test_db, "timezone") == "Asia/Tehran"
+    assert get_setting(test_db, "display_currency") == "TOMAN"
 
 
 def test_get_setting_missing_key_returns_default(test_db):
@@ -57,6 +58,27 @@ def test_set_setting_rejects_invalid_timezone(test_db):
 def test_set_setting_accepts_valid_timezone(test_db):
     set_setting(test_db, "timezone", "UTC")
     assert get_setting(test_db, "timezone") == "UTC"
+
+
+def test_set_setting_display_currency_round_trips(test_db):
+    set_setting(test_db, "display_currency", "RIAL")
+    assert get_setting(test_db, "display_currency") == "RIAL"
+    set_setting(test_db, "display_currency", "TOMAN")
+    assert get_setting(test_db, "display_currency") == "TOMAN"
+
+
+@pytest.mark.parametrize("bad", ["rial", "Toman", "USD", "", " RIAL", 5, 10])
+def test_set_setting_rejects_unknown_display_currency(test_db, bad):
+    with pytest.raises(ValidationError) as exc_info:
+        set_setting(test_db, "display_currency", bad)
+    assert exc_info.value.field == "value"
+    assert get_setting(test_db, "display_currency") == "TOMAN"
+
+
+def test_display_currency_does_not_change_money_settings(test_db):
+    set_setting(test_db, "display_currency", "RIAL")
+    assert get_setting(test_db, "default_shipping_charge") == "180000"
+    assert get_setting(test_db, "default_postage_estimate") == "0"
 
 
 def test_get_channel_settings_seeded_rows(test_db):

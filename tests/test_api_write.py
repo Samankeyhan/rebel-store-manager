@@ -526,6 +526,40 @@ def test_put_setting_updates_value(api):
     assert response.json()["default_shipping_charge"] == 200_000
 
 
+def test_put_display_currency_accepts_a_string(api):
+    client, _ = api
+    response = client.put("/settings/display_currency", json={"value": "RIAL"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["display_currency"] == "RIAL"
+    # Display only: every money setting is still the same Toman integer.
+    assert body["default_shipping_charge"] == 180_000
+    response = client.put("/settings/display_currency", json={"value": "TOMAN"})
+    assert response.json()["display_currency"] == "TOMAN"
+
+
+@pytest.mark.parametrize("bad", ["EUR", "rial", "", 10, True])
+def test_put_display_currency_rejects_other_values(api, bad):
+    client, _ = api
+    response = client.put("/settings/display_currency", json={"value": bad})
+    assert response.status_code == 422
+    assert client.get("/settings").json()["display_currency"] == "TOMAN"
+
+
+def test_put_display_currency_bad_string_is_field_value(api):
+    client, _ = api
+    response = client.put("/settings/display_currency", json={"value": "EUR"})
+    assert _error(response)["field"] == "value"
+
+
+def test_put_money_setting_still_rejects_a_word(api):
+    client, _ = api
+    response = client.put("/settings/default_shipping_charge", json={"value": "RIAL"})
+    assert response.status_code == 422
+    assert _error(response)["field"] == "value"
+    assert client.get("/settings").json()["default_shipping_charge"] == 180_000
+
+
 # ------------------------------------------------------------------ misc writes
 
 

@@ -173,3 +173,77 @@ def test_invoice_shows_shipping_and_total_not_postage_or_fee(invoice_order_setup
     assert total_text in text
     assert postage_text not in text
     assert fee_text not in text
+
+
+def _invoice_text(test_db, order_id, output_dir) -> str:
+    path = generate_invoice_pdf(test_db, order_id, output_dir=output_dir)
+    with pdfplumber.open(path) as pdf:
+        return "\n".join(page.extract_text() or "" for page in pdf.pages)
+
+
+def _fa(amount: int) -> str:
+    return f"{amount:,}".translate(invoice_module.PERSIAN_DIGIT_MAP)
+
+
+def _discounted_order(test_db, product_id):
+    return record_order(
+        test_db,
+        "INSTAGRAM",
+        [{"product_id": product_id, "quantity": 2, "unit_price": 3000,
+          "discount_amount": 700, "discount_reason": "promo"}],
+        customer_name="Test Customer",
+        shipping_charge=170_000,
+        postage_cost=88_888,
+        transaction_fee=77_777,
+    )
+
+
+@pytest.mark.parametrize("currency, factor, unit, other_unit", [
+    ("TOMAN", 1, "تومان", "ریال"),
+    ("RIAL", 10, "ریال", "تومان"),
+])
+def test_invoice_amounts_follow_display_currency(
+    invoice_order_setup, test_db, currency, factor, unit, other_unit
+):
+    from db.settings import set_setting
+
+    set_setting(test_db, "display_currency", currency)
+    order_id = _discounted_order(test_db, invoice_order_setup["product_id"])
+    detail = get_order(test_db, order_id)
+    order = detail["order"]
+    item = detail["items"][0]
+
+    text = _invoice_text(test_db, order_id, invoice_order_setup["output_dir"])
+
+    for toman in (
+        item["unit_price"],
+        item["list_price"] - item["discount_amount"],
+        item["discount_amount"],
+        order["shipping_charge"],
+        detail["customer_total"],
+    ):
+        assert _fa(toman * factor) in text, toman
+    # pdfplumber returns RTL words as visual glyph runs; check the reshaped unit.
+    assert invoice_module.prepare_persian(unit) in text
+    assert invoice_module.prepare_persian(other_unit) not in text
+    # Still customer amounts only, in either currency.
+    for hidden in (order["postage_cost"], order["transaction_fee"]):
+        assert _fa(hidden) not in text
+        assert _fa(hidden * 10) not in text
+
+
+def test_rial_invoice_values_are_exactly_ten_times_toman(invoice_order_setup, test_db):
+    from db.settings import set_setting
+
+    order_id = invoice_order_setup["order_id"]
+    total = get_order(test_db, order_id)["customer_total"]
+    out = invoice_order_setup["output_dir"]
+
+    toman_text = _invoice_text(test_db, order_id, out)
+    set_setting(test_db, "display_currency", "RIAL")
+    rial_text = _invoice_text(test_db, order_id, out)
+
+    assert _fa(total) in toman_text
+    assert _fa(total * 10) in rial_text
+    assert invoice_module.format_amount(total, "RIAL") == _fa(total * 10) + " ریال"
+    assert invoice_module.format_amount(total, "TOMAN") == _fa(total) + " تومان"

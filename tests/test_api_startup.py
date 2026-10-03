@@ -56,6 +56,15 @@ def _applied(db_path):
         conn.close()
 
 
+def _setting(db_path, key):
+    conn = get_connection(str(db_path))
+    try:
+        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
+    finally:
+        conn.close()
+
+
 @pytest.fixture(autouse=True)
 def _no_overrides():
     # Exercise the real get_db / REBEL_DB path, not a test override.
@@ -69,11 +78,10 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
     monkeypatch.setenv("REBEL_DB", str(db_path))
     assert LATEST not in _applied(db_path)
 
-    # Without the startup event (no `with`), the stale schema breaks reads:
-    # this is the outage the startup migration prevents.
-    # /products needs 005's columns, /production needs 006's.
-    stale = TestClient(app, raise_server_exceptions=False)
-    assert 500 in {stale.get("/products").status_code, stale.get("/production").status_code}
+    # Without the startup event (no `with`), nothing applies the newest
+    # migration. (007 only seeds the display_currency row; earlier ones added
+    # the columns /products and /production need, and reads 500'd without them.)
+    assert _setting(db_path, "display_currency") is None
 
     with TestClient(app) as client:
         response = client.get("/products")
@@ -90,6 +98,7 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
         assert batches.json()[0]["total_cost"] is None
 
     assert _applied(db_path) == ALL_MIGRATIONS
+    assert _setting(db_path, "display_currency") == "TOMAN"
 
 
 def test_startup_on_current_db_is_a_no_op(tmp_path, monkeypatch):

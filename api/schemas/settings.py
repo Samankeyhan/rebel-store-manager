@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
 
 
@@ -17,6 +19,7 @@ class SettingsOut(BaseModel):
     postage_estimate_window: int
     default_postage_estimate: int
     timezone: str
+    display_currency: Literal["TOMAN", "RIAL"]
     channels: dict[str, ChannelSettingsOut]
 
 
