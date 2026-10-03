@@ -80,6 +80,7 @@ export function RunTab({
   recipes,
   productId,
   mobile,
+  showDetails,
   onGoRecipe,
   onRunsDone,
   markMissing,
@@ -90,6 +91,8 @@ export function RunTab({
   /** ?product= — pre-fills a line (e.g. coming back from the recipe tab). */
   productId: number | null
   mobile: boolean
+  /** «نمایش جزئیات و بها»: OFF hides the preview, costs and the session total. */
+  showDetails: boolean
   onGoRecipe: (productId: number | null) => void
   /** After a run of lines: refresh products, materials and history; show the toast. */
   onRunsDone: (succeeded: number) => Promise<void>
@@ -281,6 +284,7 @@ export function RunTab({
         open={expanded === line.key}
         locked={busy || !editable(line)}
         mobile={mobile}
+        showDetails={showDetails}
         onToggle={() => setExpanded(expanded === line.key ? null : line.key)}
         onChange={(patch) => {
           update(line.key, patch)
@@ -301,7 +305,7 @@ export function RunTab({
 
   const footer = (
     <div className={cn("flex flex-col gap-2", !mobile && "border-t border-border px-5 py-4")}>
-      {eligible.length > 0 && (
+      {showDetails && eligible.length > 0 && (
         <div className="flex items-baseline justify-between gap-3 text-[13.5px]">
           <span className="flex flex-col">
             <b>{R.runsTotal}</b>
@@ -396,7 +400,7 @@ export function RunTab({
 
 // ---------------------------------------------------------------- one line
 
-function StatusPill({ status }: { status: LineStatus }) {
+function StatusPill({ status, showDetails }: { status: LineStatus; showDetails: boolean }) {
   switch (status.kind) {
     case "queued":
       return <span className={cn(badgeBase, "bg-surface-2 text-text-2")}>{R.statusQueued}</span>
@@ -411,7 +415,7 @@ function StatusPill({ status }: { status: LineStatus }) {
       return (
         <span className={cn(badgeBase, "bg-profit-soft text-profit before:hidden")}>
           <CircleCheck className="size-3.5" aria-hidden />
-          {R.statusSuccess(status.unitCost)}
+          {showDetails ? R.statusSuccess(status.unitCost) : R.statusSuccessPlain}
         </span>
       )
     case "failed":
@@ -455,6 +459,7 @@ function LineBlock({
   open,
   locked,
   mobile,
+  showDetails,
   onToggle,
   onChange,
   onRemove,
@@ -469,6 +474,7 @@ function LineBlock({
   open: boolean
   locked: boolean
   mobile: boolean
+  showDetails: boolean
   onToggle: () => void
   onChange: (patch: Partial<Line>) => void
   onRemove: () => void
@@ -595,23 +601,26 @@ function LineBlock({
     body = (
       <>
         {shortAlert}
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          className="flex w-full cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg px-1 py-1 text-start text-[13px] outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-ring/30"
-        >
-          <span className="tabular-nums">
-            {R.collapsedSummary(preview.batchTotal, preview.unitCost)}
-            {" · "}
-            {R.collapsedAvg(avg.old == null ? R.avgNoCost : formatNumber(avg.old), avg.after)}
-          </span>
-          <span className="flex items-center gap-1 text-xs font-semibold text-text-3">
-            {open ? R.hideDetails : R.showDetails}
-            <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
-          </span>
-        </button>
-        {open && (
+        {/* Hidden mode: the shortage above stays (it blocks); costs and the material table don't render. */}
+        {showDetails && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={open}
+            className="flex w-full cursor-pointer flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg px-1 py-1 text-start text-[13px] outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-ring/30"
+          >
+            <span className="tabular-nums">
+              {R.collapsedSummary(preview.batchTotal, preview.unitCost)}
+              {" · "}
+              {R.collapsedAvg(avg.old == null ? R.avgNoCost : formatNumber(avg.old), avg.after)}
+            </span>
+            <span className="flex items-center gap-1 text-xs font-semibold text-text-3">
+              {open ? R.hideDetails : R.showDetails}
+              <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
+            </span>
+          </button>
+        )}
+        {showDetails && open && (
           <div className="-mx-4 overflow-hidden border-t border-border">
             {mobile ? (
               <MobilePreview preview={preview} product={product} qty={line.qty} />
@@ -635,7 +644,7 @@ function LineBlock({
     >
       {status.kind !== "draft" && (
         <div className="flex justify-end">
-          <StatusPill status={status} />
+          <StatusPill status={status} showDetails={showDetails} />
         </div>
       )}
       {header}

@@ -14,6 +14,8 @@ export const R = {
   segRecipe: "دستور",
   segHistory: "سوابق",
   tabsLabel: "بخش‌های تولید", // NEW
+  detailsToggle: "نمایش جزئیات و بها", // NEW
+  detailsHidden: "جزئیات دستور تولید و همه بهاها پنهان است؛ برای دیدن، «نمایش جزئیات و بها» را روشن کنید.", // NEW
 
   // run form
   formTitle: "تولید جدید",
@@ -104,6 +106,7 @@ export const R = {
   submitManyNote: "متریال‌های کالایی هر ردیف از موجودی کم و تعداد آن به موجودی همان محصول اضافه می‌شود.", // NEW
   statusQueued: "در صف", // NEW
   statusSubmitting: "در حال ثبت", // NEW
+  statusSuccessPlain: "ثبت شد", // NEW
   statusSuccess: (unitCost: number) => `ثبت شد · بهای هر عدد ${formatNumber(unitCost)}`, // NEW
   statusFailed: "ناموفق", // NEW
   progress: (done: number, total: number) => `در حال ثبت ${formatNumber(done)} از ${formatNumber(total)}…`, // NEW
