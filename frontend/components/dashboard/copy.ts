@@ -18,25 +18,29 @@ export const D = {
   newProduction: "ثبت تولید", // NEW (quick action)
   quickActionsAria: "اقدام‌های سریع", // NEW
   periodAria: "بازه گزارش", // NEW
+  periodToday: "امروز", // NEW
+  periodLast7: "۷ روز گذشته", // NEW
   periodThisMonth: "این ماه", // NEW
   periodLastMonth: "ماه گذشته", // NEW
   periodCustom: "بازه دلخواه", // NEW
   periodRange: (from: string, to: string) => `${from} تا ${to}`, // NEW
 
   // The period as it reads after a KPI label: «درآمد این ماه».
-  periodWord: { thisMonth: "این ماه", lastMonth: "ماه گذشته", custom: "این بازه" } as const, // NEW (ماه گذشته / این بازه)
+  periodWord: {
+    today: "امروز",
+    last7: "۷ روز گذشته",
+    thisMonth: "این ماه",
+    lastMonth: "ماه گذشته",
+    custom: "بازه انتخابی",
+  } as const, // NEW (all but «این ماه»)
 
   // ── KPIs ──
   kpiAria: "شاخص‌های کلیدی",
-  kpiToday: "فروش امروز",
   kpiRevenue: (period: string) => `درآمد ${period}`,
   kpiNet: (period: string) => `سود خالص ${period}`,
   kpiOrders: (period: string) => `سفارش‌های ${period}`,
   toman: "تومان",
   orderUnit: "سفارش",
-  todayCaption: (count: number, pending: number) => `${fa(count)} سفارش · ${fa(pending)} در انتظار پرداخت`,
-  todayCaptionMobile: (count: number) => `تومان · ${fa(count)} سفارش`,
-  todayNone: "امروز فروشی ثبت نشده", // NEW
   revenueCaption: (items: string, shipping: string) => `کالا ${items} · ارسال ${shipping}`, // NEW (replaces the delta)
   margin: (pct: string) => `حاشیه سود ${pct}`,
   ordersExcluded: "بدون پیش‌نویس، لغوشده و مرجوعی", // NEW (tooltip)
@@ -46,6 +50,16 @@ export const D = {
   unavailable: "در دسترس نیست",
   retry: "تلاش دوباره",
   retryAria: (what: string) => `تلاش دوباره: ${what}`, // NEW
+
+  // ── purchases & costs (NEW card: not in the design) ──
+  costsTitle: "خرید و هزینه‌ها", // NEW
+  costsOperating: "هزینه‌های عملیاتی", // NEW
+  costsMaterials: "خرید متریال", // NEW
+  costsProducts: "خرید محصول آماده", // NEW
+  costsPostage: "هزینه پست پرداخت‌شده", // NEW
+  costsCount: (n: number) => `(${fa(n)})`, // NEW
+  costsNote: "خرید متریال و محصول، موجودی می‌شود و مستقیماً در سود و زیان نمی‌آید", // NEW
+  costsLinkAria: (what: string) => `مشاهده ${what} در این بازه`, // NEW
 
   // ── shipping economics ──
   shipTitle: (period: string) => `اقتصاد ارسال ${period}`,

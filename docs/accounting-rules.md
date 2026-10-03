@@ -115,6 +115,8 @@ Shipping summary for a date range: shipping_revenue, packaging_cost, postage_est
 - postage_gap = postage_estimated − postage_actual. Positive means part of the period's estimated postage has not been paid or recorded yet. (Not the P&L postage_variance: that one also counts postage on REFUNDED orders.)
 - Per-order averages (avg_shipping_revenue, avg_packaging_cost, avg_postage_actual, avg_net_shipping_result, avg_net_shipping_result_estimated) = round(total / shipped_order_count), 0 when there are no shipped orders. shipped_order_count = eligible orders whose channel applies_postage.
 
+Purchases summary for a date range: material_purchases_total / material_purchases_count and product_purchases_total / product_purchases_count = sum(total_paid) and count of material_purchases / product_purchases with purchase_date in range (section 1 date rules). Purchases are inventory, not expenses: they raise stock and its weighted-average cost (section 2) and reach the P&L only as COGS (or production / packaging cost) when the stock is sold or consumed. No section 9 P&L figure includes them, and the two totals are reported separately, never added to operating_expenses.
+
 ## 10. Invoice numbers
 Order invoices INV-000001..., purchase invoices PUR-000001... (one sequence shared by material and product purchases). Numbers come from a counters table incremented inside the same transaction as the insert. invoice_number columns are UNIQUE.
 

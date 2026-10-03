@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Check, Loader2, Plus, Truck } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { ErrorBlock, LoadingBlock, StateShell } from "@/components/common/screen-states"
@@ -13,6 +14,7 @@ import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { PostageBatch, Settings } from "@/lib/api"
 import { formatJalali, presetRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
 import { formatNumber } from "@/lib/persian-numbers"
+import { readUrlRange, writeUrlRange } from "@/lib/url-range"
 import { cn } from "@/lib/utils"
 import { T } from "./copy"
 import { rateOf, sums, windowOf } from "./figures"
@@ -36,7 +38,15 @@ export function PostagePage() {
   const { state, reload, refresh } = usePostageData()
   const [now] = React.useState(() => new Date())
   const defaultRange = React.useMemo(() => presetRange("thisYear", now), [now])
-  const [range, setRange] = React.useState<IsoRange>(defaultRange)
+  // The ledger's range lives in the URL (?from=&to=) so other screens can link to it.
+  const router = useRouter()
+  const pathname = usePathname()
+  const params = useSearchParams()
+  const range: IsoRange = readUrlRange(new URLSearchParams(params.toString()), defaultRange)
+  const setRange = (r: IsoRange) => {
+    const qs = writeUrlRange(new URLSearchParams(window.location.search), r, defaultRange).toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
   const [busy, setBusy] = React.useState(false)
   const [toast, setToast] = React.useState<string | null>(null)
   const closeToast = React.useCallback(() => setToast(null), [])

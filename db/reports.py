@@ -415,6 +415,33 @@ def get_expense_breakdown(
     )
 
 
+def get_purchases_summary(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict:
+    """What was spent buying stock in the date range, per accounting-rules.md
+    section 9: Σ total_paid and the purchase count, materials and finished
+    products kept apart. Purchases become inventory, not expenses — they reach
+    the P&L only as COGS when the stock is sold or consumed — so nothing here
+    feeds get_profit_and_loss.
+    """
+    date_clause, date_params = _date_range_clause(conn, "purchase_date", start_date, end_date)
+    result = {}
+    for prefix, table in (("material", "material_purchases"), ("product", "product_purchases")):
+        row = conn.execute(
+            f"""
+            SELECT COALESCE(SUM(total_paid), 0) AS total, COUNT(*) AS count
+            FROM {table}
+            WHERE 1=1 {date_clause}
+            """,
+            date_params,
+        ).fetchone()
+        result[f"{prefix}_purchases_total"] = row["total"]
+        result[f"{prefix}_purchases_count"] = row["count"]
+    return result
+
+
 def get_profit_and_loss(
     conn: sqlite3.Connection,
     start_date: str | None = None,

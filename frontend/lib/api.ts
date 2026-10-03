@@ -605,3 +605,10 @@ export function getChannelBreakdown(r: DateRangeParams): Promise<ChannelBreakdow
 export function getShippingSummary(r: DateRangeParams): Promise<ShippingSummary> {
   return apiFetch<ShippingSummary>(`/reports/shipping?${rangeQuery(r)}`)
 }
+
+export type PurchasesSummary = Schemas["PurchasesSummaryOut"]
+
+/** Σ total_paid and count of material / product purchases in range; inventory, not P&L. */
+export function getPurchasesSummary(r: DateRangeParams): Promise<PurchasesSummary> {
+  return apiFetch<PurchasesSummary>(`/reports/purchases?${rangeQuery(r)}`)
+}

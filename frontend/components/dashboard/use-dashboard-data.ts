@@ -13,7 +13,7 @@ import {
   getChannelBreakdown,
   getPostageEstimate,
   getProfitAndLoss,
-  getRevenueSummary,
+  getPurchasesSummary,
   getSettings,
   getShippingSummary,
   listOrders,
@@ -22,7 +22,7 @@ import {
   type OrderListItem,
   type PostageEstimate,
   type ProfitAndLoss,
-  type RevenueSummary,
+  type PurchasesSummary,
   type ShippingSummary,
 } from "@/lib/api"
 import type { IsoRange } from "@/lib/jalali"
@@ -84,16 +84,16 @@ export function useStoreTimeZone(): string | null {
   return tz
 }
 
-export type TodayData = { summary: RevenueSummary; pending: number }
 export type ShippingData = { summary: ShippingSummary; estimate: PostageEstimate | null }
 
 export const RECENT_ORDERS = 8
 
-export function useDashboardData(range: IsoRange | null, today: string | null) {
+export function useDashboardData(range: IsoRange | null) {
   const rangeKey = range ? `${range.from}|${range.to}` : null
 
   const pnl = useLoad<ProfitAndLoss>("REPORTS", rangeKey, () => getProfitAndLoss(range!))
   const channels = useLoad<ChannelBreakdown[]>("REPORTS", rangeKey, () => getChannelBreakdown(range!))
+  const purchases = useLoad<PurchasesSummary>("REPORTS", rangeKey, () => getPurchasesSummary(range!))
   const shipping = useLoad<ShippingData>("REPORTS", rangeKey, async () => {
     const [summary, estimate] = await Promise.all([
       getShippingSummary(range!),
@@ -102,18 +102,10 @@ export function useDashboardData(range: IsoRange | null, today: string | null) {
     ])
     return { summary, estimate }
   })
-  const todayLoad = useLoad<TodayData>("REPORTS", today, async () => {
-    const day = { from: today!, to: today! }
-    const [summary, pending] = await Promise.all([
-      getRevenueSummary(day),
-      listOrders({ status: "PENDING", start_date: today, end_date: today }),
-    ])
-    return { summary, pending: pending.length }
-  })
   // GET /orders has no limit: the newest rows are the first ones returned
   // (order_date DESC, id DESC). Backend gap: a ?limit= parameter.
   const orders = useLoad<OrderListItem[]>("ORDERS", "all", () => listOrders())
   const catalog = useLoad<Catalog>("CATALOG", "all", () => getCatalog())
 
-  return { pnl, channels, shipping, today: todayLoad, orders, catalog }
+  return { pnl, channels, purchases, shipping, orders, catalog }
 }

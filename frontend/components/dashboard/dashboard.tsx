@@ -5,7 +5,6 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Factory, Info, Plus, Truck } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { Segment } from "@/components/common/segment"
 import { DateRangePopover } from "@/components/orders/list/date-range-popover"
 import { JalaliDateRangePicker, type IsoDateRange } from "@/components/jalali-date-picker"
 import { btnClass } from "@/components/record-sale/primitives"
@@ -13,7 +12,7 @@ import { formatJalali, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
 import { cn } from "@/lib/utils"
 import { D } from "./copy"
 import { KpiCards } from "./kpi-cards"
-import { periodQuery, presets, readPeriod, storeToday, type PeriodKind } from "./period"
+import { PRESET_KINDS, periodQuery, presets, readPeriod, storeToday, type PeriodKind } from "./period"
 import { RecentOrders } from "./recent-orders"
 import { ShippingCard } from "./shipping-card"
 import { StockCard } from "./stock-card"
@@ -43,7 +42,7 @@ export function Dashboard() {
   const today = timeZone ? storeToday(now, timeZone) : null
   const period = today ? readPeriod(new URLSearchParams(params.toString()), today) : null
 
-  const data = useDashboardData(period?.range ?? null, today)
+  const data = useDashboardData(period?.range ?? null)
 
   const setRange = (range: IsoRange) => {
     if (!today) return
@@ -82,20 +81,29 @@ export function Dashboard() {
         </div>
       )}
 
-      <KpiCards periodWord={periodWord} pnl={data.pnl} channels={data.channels} today={data.today} mobile={mobile} />
+      <KpiCards
+        periodWord={periodWord}
+        range={period?.range ?? null}
+        pnl={data.pnl}
+        channels={data.channels}
+        purchases={data.purchases}
+        mobile={mobile}
+      />
 
       <div className={cn("flex flex-col", mobile ? "gap-4" : "gap-5 lg:flex-row lg:items-stretch")}>
-        <ShippingCard
-          periodWord={periodWord}
-          rangeText={period ? rangeText(period.range) : ""}
-          shipping={data.shipping}
-          storeHasOrders={data.orders.status !== "ready" || data.orders.data.length > 0}
-          mobile={mobile}
-        />
         <StockCard catalog={data.catalog} mobile={mobile} />
+        <div className="min-w-0 grow">
+          <RecentOrders orders={data.orders} timeZone={timeZone ?? "Asia/Tehran"} mobile={mobile} />
+        </div>
       </div>
 
-      <RecentOrders orders={data.orders} timeZone={timeZone ?? "Asia/Tehran"} mobile={mobile} />
+      <ShippingCard
+        periodWord={periodWord}
+        rangeText={period ? rangeText(period.range) : ""}
+        shipping={data.shipping}
+        storeHasOrders={data.orders.status !== "ready" || data.orders.data.length > 0}
+        mobile={mobile}
+      />
 
       {mobile && (
         <nav
@@ -120,6 +128,58 @@ export function Dashboard() {
   )
 }
 
+const PRESET_LABELS: Record<PeriodKind, string> = {
+  today: D.periodToday,
+  last7: D.periodLast7,
+  thisMonth: D.periodThisMonth,
+  lastMonth: D.periodLastMonth,
+  custom: D.periodCustom,
+}
+
+/**
+ * `.seg` that scrolls sideways instead of overflowing: five options don't fit
+ * a 358px phone row. `value` null = no option selected (a custom range on
+ * desktop, where the range button stands in for «بازه دلخواه»).
+ */
+function PeriodSegment({
+  value,
+  options,
+  onChange,
+  mobile,
+}: {
+  value: PeriodKind | null
+  options: readonly PeriodKind[]
+  onChange: (k: PeriodKind) => void
+  mobile: boolean
+}) {
+  return (
+    <div className={cn(mobile && "-mx-4 overflow-x-auto px-4 [scrollbar-width:none]")}>
+      <div
+        role="radiogroup"
+        aria-label={D.periodAria}
+        className="flex w-max gap-0.5 rounded-[10px] border border-border bg-surface-2 p-[3px]"
+      >
+        {options.map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="radio"
+            aria-checked={value === k}
+            onClick={() => onChange(k)}
+            className={cn(
+              "shrink-0 cursor-pointer rounded-[7px] px-3 text-[13px] font-semibold whitespace-nowrap text-text-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+              mobile ? "h-10" : "h-[32px]",
+              value === k && "bg-card text-heading shadow-[0_4px_14px_rgba(18,22,38,.08)]"
+            )}
+          >
+            {PRESET_LABELS[k]}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Header({
   today,
   period,
@@ -138,22 +198,16 @@ function Header({
   const [draft, setDraft] = React.useState<IsoDateRange>({ from: null, to: null })
   const kind: PeriodKind | null = period ? (customOpen ? "custom" : period.kind) : null
 
-  const longDate = today ? formatJalali(today, "EEEE، d MMMM yyyy") : " "
-  const options: [PeriodKind, string][] = [
-    ["thisMonth", D.periodThisMonth],
-    ["lastMonth", D.periodLastMonth],
-    ["custom", D.periodCustom],
-  ]
+  const longDate = today ? formatJalali(today, "EEEE، d MMMM yyyy") : "\u00a0"
 
   if (mobile) {
     return (
       <div className="flex flex-col gap-2.5">
         <span className="text-[13px] font-semibold text-text-2">{longDate}</span>
         {kind && (
-          <Segment
+          <PeriodSegment
             value={kind}
-            options={options}
-            label={D.periodAria}
+            options={[...PRESET_KINDS, "custom"]}
             mobile
             onChange={(k) => {
               if (k === "custom") {
@@ -188,12 +242,7 @@ function Header({
       <span className="text-[15px] font-semibold text-text-2">{longDate}</span>
       <div className="flex flex-wrap items-center gap-2">
         {kind && (
-          <Segment
-            value={kind === "custom" ? "custom" : kind}
-            options={options.slice(0, 2)}
-            label={D.periodAria}
-            onChange={(k) => onPick(k)}
-          />
+          <PeriodSegment value={kind === "custom" ? null : kind} options={PRESET_KINDS} mobile={false} onChange={onPick} />
         )}
         {period && <DateRangePopover value={period.range} onApply={onRange} />}
         <span className="mx-1 h-6 w-px bg-border" aria-hidden />

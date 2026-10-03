@@ -13,6 +13,7 @@ from db.reports import (
     get_low_stock_products,
     get_product_performance,
     get_profit_and_loss,
+    get_purchases_summary,
     get_shipping_by_channel,
     get_shipping_summary,
     get_waste_report,
@@ -700,3 +701,88 @@ def test_full_scenario_cancellation_contributes_fee_only_to_refund_losses(
     assert pnl["postage_estimated"] == 0
     assert pnl["postage_variance"] == 0
     assert pnl["net_profit"] == -25_000
+
+
+@pytest.fixture
+def purchase_items(test_db):
+    material_id = add_material(test_db, "Purchase Report Box", "STOCK", 10_000, initial_stock=0)
+    product_id = add_product(test_db, "Purchase Report Vinyl", cat(test_db, "VINYL"), 3000, 2000)
+    return material_id, product_id
+
+
+def test_get_purchases_summary_totals_and_counts_per_range(test_db, purchase_items):
+    material_id, product_id = purchase_items
+    # March: two material purchases, one product purchase.
+    record_material_purchase(test_db, material_id, 10, 100_000, purchase_date="2026-03-02")
+    record_material_purchase(test_db, material_id, 5, 55_000, purchase_date="2026-03-20")
+    record_product_purchase(test_db, product_id, 4, 800_000, purchase_date="2026-03-15")
+    # April: one of each.
+    record_material_purchase(test_db, material_id, 1, 12_000, purchase_date="2026-04-01")
+    record_product_purchase(test_db, product_id, 2, 450_000, purchase_date="2026-04-10")
+
+    assert get_purchases_summary(test_db, "2026-03-01", "2026-03-31") == {
+        "material_purchases_total": 155_000,
+        "material_purchases_count": 2,
+        "product_purchases_total": 800_000,
+        "product_purchases_count": 1,
+    }
+    assert get_purchases_summary(test_db, "2026-04-01", "2026-04-30") == {
+        "material_purchases_total": 12_000,
+        "material_purchases_count": 1,
+        "product_purchases_total": 450_000,
+        "product_purchases_count": 1,
+    }
+    # No range: everything.
+    assert get_purchases_summary(test_db)["material_purchases_total"] == 167_000
+    assert get_purchases_summary(test_db)["product_purchases_count"] == 2
+
+
+def test_get_purchases_summary_boundary_days_are_whole_local_days(test_db, purchase_items):
+    material_id, product_id = purchase_items
+    # "2026-03-31" is stored as local midnight (2026-03-30 20:30 UTC in
+    # Asia/Tehran): it belongs to the 31st, so March includes it and April
+    # does not.
+    record_material_purchase(test_db, material_id, 1, 30_000, purchase_date="2026-03-31")
+    record_product_purchase(test_db, product_id, 1, 70_000, purchase_date="2026-04-01")
+
+    march = get_purchases_summary(test_db, "2026-03-01", "2026-03-31")
+    april = get_purchases_summary(test_db, "2026-04-01", "2026-04-30")
+    assert (march["material_purchases_total"], march["product_purchases_total"]) == (30_000, 0)
+    assert (april["material_purchases_total"], april["product_purchases_total"]) == (0, 70_000)
+    single_day = get_purchases_summary(test_db, "2026-03-31", "2026-03-31")
+    assert single_day["material_purchases_count"] == 1
+    assert single_day["product_purchases_count"] == 0
+
+
+def test_get_purchases_summary_empty_range(test_db, purchase_items):
+    material_id, _ = purchase_items
+    record_material_purchase(test_db, material_id, 1, 30_000, purchase_date="2026-03-10")
+    assert get_purchases_summary(test_db, "2025-01-01", "2025-01-31") == {
+        "material_purchases_total": 0,
+        "material_purchases_count": 0,
+        "product_purchases_total": 0,
+        "product_purchases_count": 0,
+    }
+
+
+def test_get_purchases_summary_backdated_purchase_lands_in_its_own_period(test_db, purchase_items):
+    material_id, product_id = purchase_items
+    # Recorded now (today) but dated in January: it counts in January, not
+    # in the period it was entered.
+    record_product_purchase(test_db, product_id, 3, 600_000, purchase_date="2026-01-15")
+    record_material_purchase(test_db, material_id, 2, 20_000)  # no date: now
+
+    january = get_purchases_summary(test_db, "2026-01-01", "2026-01-31")
+    assert january["product_purchases_total"] == 600_000
+    assert january["material_purchases_count"] == 0
+    february = get_purchases_summary(test_db, "2026-02-01", "2026-02-28")
+    assert february["product_purchases_count"] == 0
+
+
+def test_get_purchases_summary_is_not_in_profit_and_loss(test_db, purchase_items):
+    material_id, product_id = purchase_items
+    record_material_purchase(test_db, material_id, 10, 100_000, purchase_date="2026-03-02")
+    record_product_purchase(test_db, product_id, 4, 800_000, purchase_date="2026-03-15")
+    pnl = get_profit_and_loss(test_db, "2026-03-01", "2026-03-31")
+    assert pnl["operating_expenses"] == 0
+    assert pnl["net_profit"] == 0

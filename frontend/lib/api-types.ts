@@ -1119,6 +1119,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/purchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Purchases Summary */
+        get: operations["read_purchases_summary_reports_purchases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/catalog": {
         parameters: {
             query?: never;
@@ -2139,6 +2156,17 @@ export interface components {
             net_profit: number;
             /** Order Count */
             order_count: number;
+        };
+        /** PurchasesSummaryOut */
+        PurchasesSummaryOut: {
+            /** Material Purchases Total */
+            material_purchases_total: number;
+            /** Material Purchases Count */
+            material_purchases_count: number;
+            /** Product Purchases Total */
+            product_purchases_total: number;
+            /** Product Purchases Count */
+            product_purchases_count: number;
         };
         /** RecipeItemCreate */
         RecipeItemCreate: {
@@ -4781,6 +4809,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevenueSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_purchases_summary_reports_purchases_get: {
+        parameters: {
+            query?: {
+                start_date?: string | null;
+                end_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchasesSummaryOut"];
                 };
             };
             /** @description Validation Error */
