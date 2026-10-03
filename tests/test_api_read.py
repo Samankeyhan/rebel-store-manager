@@ -16,7 +16,7 @@ from db.partners import add_partner
 from db.products import add_product
 from db.purchases import record_material_purchase, record_product_purchase
 from db.recipes import add_recipe_item
-from db.reports import get_profit_and_loss
+from db.reports import get_profit_and_loss, get_purchases_summary, get_shipping_summary
 from db.suppliers import add_supplier
 from tests.helpers import cat
 
@@ -131,6 +131,38 @@ def test_profit_and_loss_key_parity(seeded):
     )
     assert resp.status_code == 200
     assert set(resp.json().keys()) == expected_keys
+
+
+def test_shipping_summary_key_parity(seeded):
+    client, conn = seeded["client"], seeded["conn"]
+    params = {"start_date": "2020-01-01", "end_date": "2030-01-01"}
+    expected = get_shipping_summary(conn, **params)
+
+    resp = client.get("/reports/shipping", params=params)
+    assert resp.status_code == 200
+    assert resp.json() == expected
+    assert "net_shipping_result_estimated" in expected
+    assert "avg_net_shipping_result_estimated" in expected
+    assert "postage_gap" in expected
+
+
+def test_purchases_summary_matches_db(seeded):
+    client, conn = seeded["client"], seeded["conn"]
+    params = {"start_date": "2020-01-01", "end_date": "2030-01-01"}
+    expected = get_purchases_summary(conn, **params)
+
+    resp = client.get("/reports/purchases", params=params)
+    assert resp.status_code == 200
+    assert resp.json() == expected
+    # The seeded fixture records one purchase of each kind.
+    assert expected["material_purchases_count"] >= 1
+    assert expected["product_purchases_count"] >= 1
+
+
+def test_purchases_summary_rejects_bad_date(api):
+    client, _ = api
+    resp = client.get("/reports/purchases", params={"start_date": "not-a-date"})
+    assert resp.status_code == 422
 
 
 def test_products_list_and_detail(seeded):

@@ -13,6 +13,7 @@ from db.reports import (
     get_low_stock_products,
     get_product_performance,
     get_profit_and_loss,
+    get_purchases_summary,
     get_shipping_by_channel,
     get_shipping_summary,
     get_waste_report,
@@ -476,6 +477,117 @@ def test_get_shipping_summary_excludes_non_shipping_channel_costs(test_db):
     assert pnl["order_count"] == 3
 
 
+def test_get_shipping_summary_estimated_fields_exclude_non_shipping_channel(test_db):
+    # The estimate-based figures are derived from the shipped-only sums too:
+    # the IN_PERSON order's kit (60,000), shipping charge (50,000) and postage
+    # override (30,000) must not reach net_shipping_result_estimated, its
+    # average or postage_gap.
+    product_id = add_product(test_db, "Ship Est Scope Item", cat(test_db, "OTHER"), 1_000_000, 800_000)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 400000 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+    box_id = add_material(test_db, "Est Scope Box", "STOCK", 60_000, initial_stock=10)
+    kit_id = packaging.create_kit(test_db, "Est scope kit")
+    packaging.add_kit_item(test_db, kit_id, box_id, 1)
+    item = [{"product_id": product_id, "quantity": 1, "unit_price": 1_000_000}]
+
+    record_order(
+        test_db, "IN_PERSON", item,
+        packaging_kit_id=kit_id, shipping_charge=50_000, postage_cost=30_000,
+    )
+    for _ in range(2):
+        record_order(test_db, "WEBSITE", item, packaging_kit_id=kit_id, postage_cost=200_000)
+    postage.record_postage_batch(test_db, total_paid=150_000, order_count=1)
+
+    shipping = get_shipping_summary(test_db)
+    # Shipped-only totals: 2 WEBSITE orders.
+    assert shipping["shipping_revenue"] == 360_000
+    assert shipping["packaging_cost"] == 120_000
+    assert shipping["postage_estimated"] == 400_000
+    assert shipping["net_shipping_result_estimated"] == (
+        shipping["shipping_revenue"] - shipping["packaging_cost"] - shipping["postage_estimated"]
+    )
+    assert shipping["net_shipping_result_estimated"] == -160_000  # not 410,000 − 180,000 − 430,000
+    assert shipping["avg_net_shipping_result_estimated"] == -80_000
+    assert shipping["postage_gap"] == 400_000 - 150_000
+    assert shipping["net_shipping_result_estimated"] == sum(
+        r["net"] for r in get_shipping_by_channel(test_db)
+    )
+
+
+def test_get_shipping_summary_estimated_result_with_unpaid_postage(test_db):
+    # Three shipped WEBSITE orders carry 100,000 estimated postage each, but
+    # only one postage batch (100,000) has been paid in the range. The
+    # actual-based result looks profitable; the estimated one charges every
+    # shipped order its frozen postage. postage_gap is what's still unpaid.
+    product_id = add_product(test_db, "Shipping Est Item", cat(test_db, "OTHER"), 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+    for _ in range(3):
+        record_order(
+            test_db,
+            "WEBSITE",
+            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            shipping_charge=50_000,
+            packaging_kit_id=None,
+            postage_cost=100_000,
+            status="PAID",
+        )
+    postage.record_postage_batch(test_db, total_paid=100_000, order_count=1)
+
+    shipping = get_shipping_summary(test_db)
+    assert shipping["shipped_order_count"] == 3
+    assert shipping["shipping_revenue"] == 150_000
+    assert shipping["packaging_cost"] == 0
+    assert shipping["postage_estimated"] == 300_000
+    assert shipping["postage_actual"] == 100_000
+    assert shipping["net_shipping_result"] == 50_000
+    # 150,000 - 0 - 300,000
+    assert shipping["net_shipping_result_estimated"] == -150_000
+    assert shipping["avg_net_shipping_result_estimated"] == -50_000
+    assert shipping["postage_gap"] == 200_000
+
+
+def test_get_shipping_summary_estimated_average_rounds_like_by_channel(test_db):
+    # Same per-order average rule as get_shipping_by_channel's net_per_order:
+    # round(net / shipped_order_count).
+    product_id = add_product(test_db, "Shipping Round Item", cat(test_db, "OTHER"), 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+    for postage_cost in (10_000, 10_001, 10_001):
+        record_order(
+            test_db,
+            "WEBSITE",
+            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            shipping_charge=0,
+            packaging_kit_id=None,
+            postage_cost=postage_cost,
+        )
+
+    shipping = get_shipping_summary(test_db)
+    by_channel = get_shipping_by_channel(test_db)
+    assert shipping["net_shipping_result_estimated"] == -30_002 == by_channel[0]["net"]
+    assert shipping["avg_net_shipping_result_estimated"] == round(-30_002 / 3)
+    assert shipping["avg_net_shipping_result_estimated"] == by_channel[0]["net_per_order"]
+    # No postage paid at all: the whole estimate is outstanding.
+    assert shipping["postage_gap"] == 30_002
+
+
+def test_get_shipping_summary_no_shipped_orders(test_db):
+    shipping = get_shipping_summary(test_db)
+    assert shipping["net_shipping_result_estimated"] == 0
+    assert shipping["avg_net_shipping_result_estimated"] == 0
+    assert shipping["postage_gap"] == 0
+
+
 def test_get_shipping_by_channel(test_db):
     product_id = add_product(test_db, "Shipping Test Item", cat(test_db, "OTHER"), 1000, 800)
     test_db.execute(
@@ -638,6 +750,10 @@ def test_full_scenario_stock_and_reconciliation(full_scenario_setup, test_db):
     assert shipping["packaging_cost"] == 45_000
     assert shipping["postage_actual"] == 600_000
     assert shipping["net_shipping_result"] == -465_000
+    assert shipping["net_shipping_result_estimated"] == (
+        180_000 - 45_000 - shipping["postage_estimated"]
+    )
+    assert shipping["postage_gap"] == shipping["postage_estimated"] - 600_000
 
     pnl = get_profit_and_loss(test_db, "2026-03-05", "2026-03-31")
     refunded_postage_cost = test_db.execute(
@@ -679,3 +795,88 @@ def test_full_scenario_cancellation_contributes_fee_only_to_refund_losses(
     assert pnl["postage_estimated"] == 0
     assert pnl["postage_variance"] == 0
     assert pnl["net_profit"] == -25_000
+
+
+@pytest.fixture
+def purchase_items(test_db):
+    material_id = add_material(test_db, "Purchase Report Box", "STOCK", 10_000, initial_stock=0)
+    product_id = add_product(test_db, "Purchase Report Vinyl", cat(test_db, "VINYL"), 3000, 2000)
+    return material_id, product_id
+
+
+def test_get_purchases_summary_totals_and_counts_per_range(test_db, purchase_items):
+    material_id, product_id = purchase_items
+    # March: two material purchases, one product purchase.
+    record_material_purchase(test_db, material_id, 10, 100_000, purchase_date="2026-03-02")
+    record_material_purchase(test_db, material_id, 5, 55_000, purchase_date="2026-03-20")
+    record_product_purchase(test_db, product_id, 4, 800_000, purchase_date="2026-03-15")
+    # April: one of each.
+    record_material_purchase(test_db, material_id, 1, 12_000, purchase_date="2026-04-01")
+    record_product_purchase(test_db, product_id, 2, 450_000, purchase_date="2026-04-10")
+
+    assert get_purchases_summary(test_db, "2026-03-01", "2026-03-31") == {
+        "material_purchases_total": 155_000,
+        "material_purchases_count": 2,
+        "product_purchases_total": 800_000,
+        "product_purchases_count": 1,
+    }
+    assert get_purchases_summary(test_db, "2026-04-01", "2026-04-30") == {
+        "material_purchases_total": 12_000,
+        "material_purchases_count": 1,
+        "product_purchases_total": 450_000,
+        "product_purchases_count": 1,
+    }
+    # No range: everything.
+    assert get_purchases_summary(test_db)["material_purchases_total"] == 167_000
+    assert get_purchases_summary(test_db)["product_purchases_count"] == 2
+
+
+def test_get_purchases_summary_boundary_days_are_whole_local_days(test_db, purchase_items):
+    material_id, product_id = purchase_items
+    # "2026-03-31" is stored as local midnight (2026-03-30 20:30 UTC in
+    # Asia/Tehran): it belongs to the 31st, so March includes it and April
+    # does not.
+    record_material_purchase(test_db, material_id, 1, 30_000, purchase_date="2026-03-31")
+    record_product_purchase(test_db, product_id, 1, 70_000, purchase_date="2026-04-01")
+
+    march = get_purchases_summary(test_db, "2026-03-01", "2026-03-31")
+    april = get_purchases_summary(test_db, "2026-04-01", "2026-04-30")
+    assert (march["material_purchases_total"], march["product_purchases_total"]) == (30_000, 0)
+    assert (april["material_purchases_total"], april["product_purchases_total"]) == (0, 70_000)
+    single_day = get_purchases_summary(test_db, "2026-03-31", "2026-03-31")
+    assert single_day["material_purchases_count"] == 1
+    assert single_day["product_purchases_count"] == 0
+
+
+def test_get_purchases_summary_empty_range(test_db, purchase_items):
+    material_id, _ = purchase_items
+    record_material_purchase(test_db, material_id, 1, 30_000, purchase_date="2026-03-10")
+    assert get_purchases_summary(test_db, "2025-01-01", "2025-01-31") == {
+        "material_purchases_total": 0,
+        "material_purchases_count": 0,
+        "product_purchases_total": 0,
+        "product_purchases_count": 0,
+    }
+
+
+def test_get_purchases_summary_backdated_purchase_lands_in_its_own_period(test_db, purchase_items):
+    material_id, product_id = purchase_items
+    # Recorded now (today) but dated in January: it counts in January, not
+    # in the period it was entered.
+    record_product_purchase(test_db, product_id, 3, 600_000, purchase_date="2026-01-15")
+    record_material_purchase(test_db, material_id, 2, 20_000)  # no date: now
+
+    january = get_purchases_summary(test_db, "2026-01-01", "2026-01-31")
+    assert january["product_purchases_total"] == 600_000
+    assert january["material_purchases_count"] == 0
+    february = get_purchases_summary(test_db, "2026-02-01", "2026-02-28")
+    assert february["product_purchases_count"] == 0
+
+
+def test_get_purchases_summary_is_not_in_profit_and_loss(test_db, purchase_items):
+    material_id, product_id = purchase_items
+    record_material_purchase(test_db, material_id, 10, 100_000, purchase_date="2026-03-02")
+    record_product_purchase(test_db, product_id, 4, 800_000, purchase_date="2026-03-15")
+    pnl = get_profit_and_loss(test_db, "2026-03-01", "2026-03-31")
+    assert pnl["operating_expenses"] == 0
+    assert pnl["net_profit"] == 0

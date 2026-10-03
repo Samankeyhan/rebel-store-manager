@@ -55,6 +55,9 @@ class ShippingSummaryOut(BaseModel):
     avg_packaging_cost: int
     avg_postage_actual: int
     avg_net_shipping_result: int
+    net_shipping_result_estimated: int
+    avg_net_shipping_result_estimated: int
+    postage_gap: int
 
 
 class ShippingByChannelOut(BaseModel):
@@ -94,3 +97,12 @@ class RevenueSummaryOut(BaseModel):
     order_count: int
     total_revenue: int
     total_profit: int
+
+
+class PurchasesSummaryOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    material_purchases_total: int
+    material_purchases_count: int
+    product_purchases_total: int
+    product_purchases_count: int

@@ -18,4 +18,4 @@ Next.js (App Router) + Tailwind v4 + shadcn/ui, built as a **static export** (`o
 
 - Backend: `.venv\Scripts\uvicorn api.main:app --port 8000` (repo root)
 - Frontend: `npm run dev` → http://localhost:3000 (API URL via `NEXT_PUBLIC_API_URL`, see `.env.example`)
-- `npm run build` (writes `out/`), `npm run lint`, `npm run gen:api`
+- `npm run build` (writes `out/`), `npm run lint`, `npm run gen:api`, `npm test` (Node's built-in runner over `lib/**/*.test.mjs`; for dependency-free `lib/` helpers only — no test framework is installed)

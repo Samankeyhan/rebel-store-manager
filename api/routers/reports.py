@@ -9,6 +9,7 @@ from api.schemas.reports import (
     ExpenseBreakdownOut,
     ProductPerformanceOut,
     ProfitAndLossOut,
+    PurchasesSummaryOut,
     RevenueSummaryOut,
     ShippingByChannelOut,
     ShippingSummaryOut,
@@ -20,6 +21,7 @@ from db.reports import (
     get_expense_breakdown,
     get_product_performance,
     get_profit_and_loss,
+    get_purchases_summary,
     get_shipping_by_channel,
     get_shipping_summary,
     get_waste_report,
@@ -108,4 +110,15 @@ def read_revenue_summary(
 ) -> RevenueSummaryOut:
     return RevenueSummaryOut.model_validate(
         get_revenue_summary(conn, start_date=start_date, end_date=end_date)
+    )
+
+
+@router.get("/purchases", response_model=PurchasesSummaryOut)
+def read_purchases_summary(
+    start_date: DateStr | None = None,
+    end_date: DateStr | None = None,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> PurchasesSummaryOut:
+    return PurchasesSummaryOut.model_validate(
+        get_purchases_summary(conn, start_date=start_date, end_date=end_date)
     )
