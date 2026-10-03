@@ -116,6 +116,7 @@ export function ProductionPage() {
           onProductChange={pickProduct}
           setRecipe={data.setRecipe}
           mobile={mobile}
+          showDetails={showDetails}
         />
       )
     } else {

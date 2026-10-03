@@ -15,6 +15,7 @@ export const R = {
   segHistory: "سوابق",
   tabsLabel: "بخش‌های تولید", // NEW
   detailsToggle: "نمایش جزئیات و بها", // NEW
+  showRecipe: "نمایش دستور تولید", // NEW
   detailsHidden: "جزئیات دستور تولید و همه بهاها پنهان است؛ برای دیدن، «نمایش جزئیات و بها» را روشن کنید.", // NEW
 
   // run form

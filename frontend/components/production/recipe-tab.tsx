@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Info, Loader2, Plus, Trash2 } from "lucide-react"
+import { Eye, Info, Loader2, Plus, Trash2 } from "lucide-react"
 import { ItemPicker, type PickerItem } from "@/components/common/item-picker"
 import { Segment } from "@/components/common/segment"
 import { badgeBase } from "@/components/common/status"
@@ -20,6 +20,7 @@ import { batchPreview, recipeSums } from "@/lib/costing"
 import { formatMoney, formatQuantity, parseDecimal } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
+import { setShowDetails } from "./show-details"
 import type { RecipeEntry } from "./use-production-data"
 
 type Basis = "PER_UNIT" | "PER_BATCH"
@@ -61,6 +62,7 @@ export function RecipeTab({
   onProductChange,
   setRecipe,
   mobile,
+  showDetails,
 }: {
   products: Product[]
   materials: Material[]
@@ -69,6 +71,8 @@ export function RecipeTab({
   onProductChange: (id: number) => void
   setRecipe: (productId: number, recipe: Recipe) => void
   mobile: boolean
+  /** OFF: recipe lines, quantities, costs and tiles don't render; the editor opens only when ON. */
+  showDetails: boolean
 }) {
   const active = products.filter((p) => p.is_active === 1)
   const product = active.find((p) => p.id === productId) ?? active[0] ?? null
@@ -203,7 +207,19 @@ export function RecipeTab({
 
   const rowGrid = "grid grid-cols-[minmax(0,1fr)_110px_290px_130px_36px] items-center gap-3"
 
-  const editor = (
+  const editor = !showDetails ? (
+    <section className={cn(cardClass, "min-w-0 grow")} aria-labelledby="recipe-title">
+      <div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
+        <h2 id="recipe-title" className="text-base font-bold text-heading">
+          {R.editorTitle(product.name)}
+        </h2>
+        <Btn onClick={() => setShowDetails(true)}>
+          <Eye className="size-4" aria-hidden />
+          {R.showRecipe}
+        </Btn>
+      </div>
+    </section>
+  ) : (
     <section className={cn(cardClass, "min-w-0 grow")} aria-labelledby="recipe-title">
       <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex flex-col">
