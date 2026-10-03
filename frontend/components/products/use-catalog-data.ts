@@ -5,6 +5,7 @@ import {
   listCategoryTree,
   listMaterials,
   listProducts,
+  type CategoryKind,
   type CategoryTree,
   type Material,
   type Product,
@@ -84,5 +85,30 @@ export function useCatalogData() {
     )
   }, [])
 
-  return { state, reload, upsertProduct, upsertMaterial }
+  /**
+   * Refetch one category tree after a category write. A rename changes the
+   * children's parent_name too, so this is simpler than patching nodes.
+   * Products/materials carry their category's name, so a rename also needs
+   * those lists; `withItems` refetches them in the same round.
+   */
+  const reloadTree = React.useCallback(async (kind: CategoryKind, withItems = false) => {
+    const [tree, items] = await Promise.all([
+      listCategoryTree(kind),
+      withItems ? (kind === "PRODUCT" ? listProducts() : listMaterials()) : Promise.resolve(null),
+    ])
+    setState((s) => {
+      if (s.status !== "ready") return s
+      const next = { ...s }
+      if (kind === "PRODUCT") {
+        next.productTree = sortTree(tree)
+        if (items) next.products = items as Product[]
+      } else {
+        next.materialTree = sortTree(tree)
+        if (items) next.materials = items as Material[]
+      }
+      return next
+    })
+  }, [])
+
+  return { state, reload, reloadTree, upsertProduct, upsertMaterial }
 }

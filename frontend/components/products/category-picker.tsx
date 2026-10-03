@@ -41,6 +41,8 @@ export function CategoryPicker({
   mobile,
   error,
   allowNone,
+  excludeId,
+  labelledBy,
 }: {
   id?: string
   tree: CategoryTree[]
@@ -50,10 +52,14 @@ export function CategoryPicker({
   error?: boolean
   /** Offer «بدون دسته» (materials: a category is optional). */
   allowNone?: boolean
+  /** Leave this category out (a move's source). Its parent stays a heading. */
+  excludeId?: number
+  labelledBy?: string
 }) {
   const active = tree
     .filter((t) => t.is_active === 1)
     .map((t) => ({ ...t, children: t.children.filter((c) => c.is_active === 1) }))
+  const offered = (id: number) => id !== excludeId
   const label = value == null ? null : pathOf(tree, value)
   return (
     <DropdownMenu dir="rtl">
@@ -61,6 +67,7 @@ export function CategoryPicker({
         <button
           id={id}
           type="button"
+          aria-labelledby={labelledBy}
           className={cn(textInputClass(mobile, error), "flex cursor-pointer items-center justify-between")}
         >
           <span className={label ? "" : "text-text-3"}>{label ?? (allowNone && value == null ? P.noCategory : P.pickCategory)}</span>
@@ -75,18 +82,22 @@ export function CategoryPicker({
           {allowNone && <DropdownMenuRadioItem value={NONE}>{P.noCategory}</DropdownMenuRadioItem>}
           {active.map((t) =>
             t.children.length === 0 ? (
-              <DropdownMenuRadioItem key={t.id} value={String(t.id)}>
-                {t.name}
-              </DropdownMenuRadioItem>
+              offered(t.id) && (
+                <DropdownMenuRadioItem key={t.id} value={String(t.id)}>
+                  {t.name}
+                </DropdownMenuRadioItem>
+              )
             ) : (
+              t.children.some((c) => offered(c.id)) && (
               <React.Fragment key={t.id}>
                 <DropdownMenuLabel className="text-xs text-text-3">{t.name}</DropdownMenuLabel>
-                {t.children.map((c) => (
+                {t.children.filter((c) => offered(c.id)).map((c) => (
                   <DropdownMenuRadioItem key={c.id} value={String(c.id)} className="ps-6">
                     {c.name}
                   </DropdownMenuRadioItem>
                 ))}
               </React.Fragment>
+              )
             )
           )}
         </DropdownMenuRadioGroup>

@@ -247,6 +247,36 @@ export function listCategoryTree(kind: CategoryKind, activeOnly = false): Promis
   return apiFetch<CategoryTree[]>(`/categories/tree?kind=${kind}&active_only=${activeOnly}`)
 }
 
+export type CategoryCreate = Schemas["CategoryCreate"]
+
+/**
+ * 409 ConflictError when a sibling (active or not) has the name; 422 with
+ * field "name" when blank, field "parent_id" for a parent that is missing,
+ * a subcategory, of the other kind, or inactive.
+ */
+export function createCategory(body: CategoryCreate): Promise<Category> {
+  return apiFetch<Category>("/categories", { method: "POST", body: JSON.stringify(body) })
+}
+
+/** Same name refusals as createCategory. */
+export function renameCategory(categoryId: number, name: string): Promise<Category> {
+  return apiFetch<Category>(`/categories/${categoryId}`, { method: "PATCH", body: JSON.stringify({ name }) })
+}
+
+/**
+ * 409 ConflictError while any product/material (inactive ones too) uses it,
+ * or while it has active subcategories. The item count is only in the
+ * message; details is empty.
+ */
+export function deactivateCategory(categoryId: number): Promise<Category> {
+  return apiFetch<Category>(`/categories/${categoryId}/deactivate`, { method: "POST" })
+}
+
+/** 409 ConflictError for a subcategory whose parent is inactive. */
+export function reactivateCategory(categoryId: number): Promise<Category> {
+  return apiFetch<Category>(`/categories/${categoryId}/reactivate`, { method: "POST" })
+}
+
 /** 422 with field "category_id" if the category isn't assignable (wrong kind, inactive, has subcategories). */
 export function setProductCategory(productId: number, categoryId: number): Promise<Product> {
   return apiFetch<Product>(`/products/${productId}/category`, {

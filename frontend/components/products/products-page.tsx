@@ -6,12 +6,27 @@ import { CircleCheck, Plus, Search, X } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Alert, Btn } from "@/components/record-sale/primitives"
 import { useRecipes } from "@/components/record-sale/use-recipes"
+import { Segment } from "@/components/common/segment"
+import { CategoriesTab, type CategoryActions } from "@/components/categories/categories-tab"
+import { CategoryDialog, type CategoryForm } from "@/components/categories/category-dialog"
+import { C } from "@/components/categories/copy"
+import {
+  DeactivateCategoryDialog,
+  type Blockers,
+} from "@/components/categories/deactivate-category-dialog"
+import { blockers, errorInfo, findNode, itemCounts, refusalOf, type CategoryNode } from "@/components/categories/logic"
+import { MoveItemsSheet, type MoveSource } from "@/components/categories/move-items-sheet"
 import {
   ApiError,
+  deactivateCategory,
   deactivateMaterial,
   deactivateProduct,
+  reactivateCategory,
   reactivateMaterial,
   reactivateProduct,
+  setMaterialCategory,
+  setProductCategory,
+  type CategoryKind,
   type CategoryTree,
   type Material,
   type Product,
@@ -31,7 +46,7 @@ import { ProductsTab } from "./products-tab"
 import { EmptyState, ErrorState, LoadingState, NoMatch } from "./states"
 import { useCatalogData } from "./use-catalog-data"
 
-const TABS = ["products", "materials"] as const
+const TABS = ["products", "materials", "categories"] as const
 type Tab = (typeof TABS)[number]
 
 /** A ?category= value naming a node of this tree. */
@@ -49,10 +64,14 @@ type Panel =
   | { kind: "editProduct"; id: number }
   | { kind: "addMaterial" }
 
+/** Server-reported blockers for the category being deactivated (local data was stale). */
+type ServerBlock = { items: number | null | undefined; children: boolean }
+
 /**
- * Products & materials (design 05). The active tab, search, category and
- * «نمایش غیرفعال‌ها» live in the URL (?tab= as before), so a reload or a link
- * (e.g. straight to ?tab=materials) restores them.
+ * Products & materials (design 05), plus «دسته‌ها» (no design: manage both
+ * category trees). The active tab, search, category, the categories tab's
+ * kind and «نمایش غیرفعال‌ها» live in the URL (?tab= as before), so a reload
+ * or a link (e.g. straight to ?tab=materials) restores them.
  */
 export function ProductsPage() {
   const router = useRouter()
@@ -62,6 +81,7 @@ export function ProductsPage() {
   const tabParam = params.get("tab")
   const tab: Tab = isTab(tabParam) ? tabParam : "products"
   const showInactive = params.get("inactive") === "1"
+  const catKind: CategoryKind = params.get("kind") === "material" ? "MATERIAL" : "PRODUCT"
   // Category filters: a category id per tab (?category= products,
   // ?matCategory= materials), or "none" for uncategorised materials.
   // Anything unrecognised — e.g. an old ?category=VINYL link — means «همه».
@@ -91,7 +111,7 @@ export function ProductsPage() {
     return () => window.clearTimeout(t)
   }, [search, q, setParams])
 
-  const { state, reload, upsertProduct, upsertMaterial } = useCatalogData()
+  const { state, reload, reloadTree, upsertProduct, upsertMaterial } = useCatalogData()
   const [panel, setPanel] = React.useState<Panel>({ kind: "none" })
   const [deactivating, setDeactivating] = React.useState<DeactivateTarget | null>(null)
   const [deactivateBusy, setDeactivateBusy] = React.useState(false)
@@ -104,6 +124,114 @@ export function ProductsPage() {
 
   const productTree = React.useMemo(() => (state.status === "ready" ? state.productTree : []), [state])
   const materialTree = React.useMemo(() => (state.status === "ready" ? state.materialTree : []), [state])
+
+  // «دسته‌ها»: the tree of the selected kind and item counts per category,
+  // derived from the lists already loaded (inactive items included, as the
+  // backend counts them when refusing a deactivation).
+  const catTree = catKind === "PRODUCT" ? productTree : materialTree
+  const catItems: (Product | Material)[] = catKind === "PRODUCT" ? products : materials
+  const catCounts = React.useMemo(() => itemCounts(catItems), [catItems])
+  const uncategorised = React.useMemo(() => {
+    const none = catItems.filter((it) => it.category_id == null)
+    return { total: none.length, inactive: none.filter((it) => it.is_active !== 1).length }
+  }, [catItems])
+  const catCount = catTree.reduce(
+    (n, t) =>
+      n +
+      (showInactive || t.is_active === 1 ? 1 : 0) +
+      t.children.filter((c) => showInactive || c.is_active === 1).length,
+    0
+  )
+
+  const [catForm, setCatForm] = React.useState<CategoryForm | null>(null)
+  const [catDeactivating, setCatDeactivating] = React.useState<CategoryNode | null>(null)
+  const [catServerBlock, setCatServerBlock] = React.useState<ServerBlock | null>(null)
+  const [catBusy, setCatBusy] = React.useState(false)
+  const [moveSource, setMoveSource] = React.useState<MoveSource | null>(null)
+
+  /** Refetch the tree (and, for renames and refusals, the items) without failing the screen. */
+  const refreshCategories = React.useCallback(
+    (withItems = false) => reloadTree(catKind, withItems).catch((e) => setPageError(errorInfo(e).message)),
+    [reloadTree, catKind]
+  )
+
+  // The node being deactivated, as it is in the current tree.
+  const catDeactivateNode = catDeactivating ? (findNode(catTree, catDeactivating.id)?.node ?? catDeactivating) : null
+  const catBlockers: Blockers = React.useMemo(() => {
+    if (!catDeactivateNode) return { items: 0, activeChildren: [], children: false }
+    const local = blockers(catDeactivateNode, catCounts)
+    return {
+      items: local.items > 0 ? local.items : catServerBlock?.items !== undefined ? catServerBlock.items : 0,
+      activeChildren: local.activeChildren,
+      children: local.activeChildren.length > 0 || (catServerBlock?.children ?? false),
+    }
+  }, [catDeactivateNode, catCounts, catServerBlock])
+
+  const confirmCatDeactivate = async () => {
+    if (!catDeactivating || catBusy) return
+    setCatBusy(true)
+    try {
+      const c = await deactivateCategory(catDeactivating.id)
+      setCatDeactivating(null)
+      setToast(C.toastDeactivated(c.name))
+      await refreshCategories()
+    } catch (e) {
+      const r = refusalOf(e)
+      if (r.kind === "inUse") {
+        // The page's data was stale: show the server's reason, then catch up.
+        setCatServerBlock((b) => ({ items: r.count, children: b?.children ?? false }))
+        await refreshCategories(true)
+      } else if (r.kind === "hasChildren") {
+        setCatServerBlock((b) => ({ items: b?.items, children: true }))
+        await refreshCategories()
+      } else {
+        setCatDeactivating(null)
+        setPageError(r.kind === "other" ? r.message : e instanceof Error ? e.message : String(e))
+      }
+    } finally {
+      setCatBusy(false)
+    }
+  }
+
+  const catActions: CategoryActions = {
+    onAddSub: (parent) => setCatForm({ mode: "create", parentId: parent.id }),
+    onRename: (node) => setCatForm({ mode: "rename", node }),
+    onMove: (node) => setMoveSource({ from: node }),
+    onDeactivate: (node) => {
+      setCatServerBlock(null)
+      setCatDeactivating(node)
+    },
+    /** Not destructive, so no confirmation. */
+    onReactivate: async (node) => {
+      try {
+        const c = await reactivateCategory(node.id)
+        setToast(C.toastReactivated(c.name))
+        await refreshCategories()
+      } catch (e) {
+        const r = refusalOf(e)
+        if (r.kind === "parentInactive") {
+          setPageError(C.parentInactiveNote(node.parent_name ?? ""))
+          await refreshCategories()
+        } else setPageError(r.kind === "other" ? r.message : e instanceof Error ? e.message : String(e))
+      }
+    },
+    onShowItems: (node) => {
+      const patch: Record<string, string | null> =
+        catKind === "PRODUCT"
+          ? { tab: "products", category: String(node.id), q: null }
+          : { tab: "materials", matCategory: String(node.id), q: null }
+      // Inactive items count here, so make sure they show up there too.
+      if ((catCounts.get(node.id)?.inactive ?? 0) > 0) patch.inactive = "1"
+      setSearch("")
+      setParams(patch)
+    },
+  }
+
+  const moveItem = async (itemId: number, categoryId: number) => {
+    if (catKind === "PRODUCT") upsertProduct(await setProductCategory(itemId, categoryId))
+    else upsertMaterial(await setMaterialCategory(itemId, categoryId))
+  }
+
   const { category, matCategory, productCategoryIds, materialCategoryIds } = React.useMemo(() => {
     const category = isCategoryParam(categoryParam, productTree) ? categoryParam : ""
     const matCategory =
@@ -199,16 +327,31 @@ export function ProductsPage() {
   const addProduct = () => setPanel({ kind: "addProduct" })
   const addMaterial = () => setPanel({ kind: "addMaterial" })
   // One add action, scoped to the visible tab.
-  const onAdd = tab === "products" ? addProduct : addMaterial
-  const addLabel = tab === "products" ? P.addProduct : P.addMaterial
+  const addCategory = () => setCatForm({ mode: "create", parentId: null })
+  const onAdd = tab === "products" ? addProduct : tab === "materials" ? addMaterial : addCategory
+  const addLabel = tab === "products" ? P.addProduct : tab === "materials" ? P.addMaterial : C.add
+
+  const kindSwitch = (
+    <Segment
+      value={catKind}
+      label={C.kindLabel}
+      mobile={mobile}
+      className={mobile ? "w-full" : "w-[220px]"}
+      options={[
+        ["PRODUCT", C.kindProducts],
+        ["MATERIAL", C.kindMaterials],
+      ]}
+      onChange={(k) => setParams({ kind: k === "MATERIAL" ? "material" : null })}
+    />
+  )
 
   const toolbar = mobile ? (
-    <SearchBox value={search} onChange={setSearch} mobile />
+    tab === "categories" ? kindSwitch : <SearchBox value={search} onChange={setSearch} mobile />
   ) : (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2.5">
-        <SearchBox value={search} onChange={setSearch} />
-        {tab === "products" ? (
+        {tab === "categories" ? kindSwitch : <SearchBox value={search} onChange={setSearch} />}
+        {tab === "categories" ? null : tab === "products" ? (
           <CategoryFilter tree={productTree} value={category} onChange={(c) => setParams({ category: c || null })} />
         ) : (
           <CategoryFilter
@@ -233,6 +376,20 @@ export function ProductsPage() {
   let body: React.ReactNode
   if (state.status === "loading") body = <LoadingState mobile={mobile} />
   else if (state.status === "error") body = <ErrorState onRetry={reload} mobile={mobile} />
+  else if (tab === "categories")
+    body = (
+      <CategoriesTab
+        kind={catKind}
+        tree={catTree}
+        counts={catCounts}
+        uncategorised={catKind === "MATERIAL" ? uncategorised : { total: 0, inactive: 0 }}
+        showInactive={showInactive}
+        mobile={mobile}
+        actions={catActions}
+        onAdd={addCategory}
+        onShowInactive={() => setParams({ inactive: "1" })}
+      />
+    )
   else if (tab === "products") {
     if (products.length === 0) body = <EmptyState kind="products" onAdd={addProduct} mobile={mobile} />
     else if (visibleProducts.length === 0)
@@ -273,6 +430,7 @@ export function ProductsPage() {
             [
               ["products", P.tabProducts, productCount],
               ["materials", P.tabMaterials, materialCount],
+              ["categories", C.tab, catCount],
             ] as const
           ).map(([id, label, count]) => {
             const on = tab === id
@@ -358,6 +516,45 @@ export function ProductsPage() {
           setToast(message)
           setPanel({ kind: "none" })
         }}
+      />
+      <CategoryDialog
+        form={catForm}
+        kind={catKind}
+        tree={catTree}
+        counts={catCounts}
+        mobile={mobile}
+        onClose={() => setCatForm(null)}
+        onSaved={(c, mode) => {
+          setCatForm(null)
+          setToast(mode === "rename" ? C.toastRenamed(c.name) : C.toastCreated(c.name))
+          // Items carry their category's name, so a rename refetches them too.
+          refreshCategories(mode === "rename")
+        }}
+        onStale={() => refreshCategories()}
+      />
+      <DeactivateCategoryDialog
+        target={catDeactivating}
+        kind={catKind}
+        blockers={catBlockers}
+        mobile={mobile}
+        busy={catBusy}
+        onCancel={() => setCatDeactivating(null)}
+        onConfirm={confirmCatDeactivate}
+        onMove={(node) => {
+          setCatDeactivating(null)
+          setMoveSource({ from: node })
+        }}
+      />
+      <MoveItemsSheet
+        source={moveSource}
+        kind={catKind}
+        tree={catTree}
+        items={catItems}
+        mobile={mobile}
+        onClose={() => setMoveSource(null)}
+        move={moveItem}
+        onFinished={(n, to) => setToast(C.toastMoved(n, catKind, to))}
+        onStale={() => refreshCategories()}
       />
       <DeactivateDialog
         target={deactivating}
