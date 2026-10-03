@@ -1,0 +1,39 @@
+# Rebel Store Manager: project plan (saved from the planning chat)
+
+## Status
+Merged to main (head 4ff7d46 at the time of writing):
+- Backend accounting engine, API, frontend shell.
+- Screens: Record Sale, Orders, Products and Materials, Categories (plus Manage Categories tab), Production (costs and recipes inside closed collapsibles), Purchases, Packaging, Postage, Stock Adjustments, Expenses, Suppliers, Settings, Dashboard (periods: today, last 7 days, this month, last month, custom).
+- Display currency: Toman or Rial switch (display only; storage is integer Toman). Working agreement in CLAUDE.md. Label cleanup (use the word متریال, never ماده or مواد).
+- Shipping figures now count only shipped orders (channels with applies_postage = 1); estimate-based result plus postage gap.
+
+## Next, in this order (branch names in brackets)
+A. Payment methods and fees, BACKEND [backend-payment-methods]. Plan stage; needs exact migration SQL reviewed first. Examples from the owner: Zarinpal = small percentage fee, pays next day; card to card = no fee, immediate; Digipay = bigger percentage fee, pays on the 7th of the next Jalali month. Rates and rules are owner-entered data, never seeded. Fee computed in db/ only (half-even on customer_total x basis points / 10000 plus fixed fee), frozen on the order; manual override allowed. Settlement date set once when the order first becomes PAID or COMPLETED. Jalali calendar helper in Python (test Esfand and leap years). Settlements table and endpoints (record payouts, pending list with overdue flag). Cancelled or refunded unsettled orders drop out of pending. Channel default payment method. Report /reports/payment-methods whose fee total must equal the P&L transaction fees. Invoice never shows fees.
+B. Payment methods FRONTEND [frontend-payment-methods]: Settings card for methods, channel default method, Record Sale picker with fee preview from the API, optional receipt reference, order detail and list filter.
+C. Settlements screen [frontend-settlements]: tabs Pending and History, record a settlement (expected vs received, difference shown), plus a dashboard card for money still owed by gateways.
+D. Reports [frontend-reports]: tabs P&L (all 15 keys with explanations), Products, Channels, Shipping (headline uses ESTIMATED figures, actual postage as a reference, amber note for the gap), Payment methods, Waste, Expenses; also show purchases totals from /reports/purchases. Default period: current Jalali month, presets, no previous-period comparison. Must include reconciliation checks against seeded data. PDF and print come later.
+E. Partners [frontend-partners]: owner sets partners and percentages (live total must be 100); for each payout the owner enters the FULL amount, the app splits it across ALL active partners by percentage (rounding exactly as the backend does) and records who received what and the date. Undistributed-profit guard, overlap and over-limit confirmations. Paying only some partners is NOT needed.
+F. Backend hardening [backend-hardening]: audit_log table and helper; structured error details for refusals; PATCH product name and material name and unit; cost-seeding endpoint for products that have stock but no cost; name normalization (Persian and Arabic letters, ZWNJ) through a stored name_key with unique indexes; server-side validation (no future dates, expense amount above zero, postage total above zero and order count at least 1, reject inactive expense category); server-side guard when deactivating a kit that a channel uses as default; orders pagination (limit and offset); review payment-method and settlement validation.
+G. Corrections [backend-corrections]: edit and delete for expenses and postage payments (audit logged); rename, deactivate and reactivate expense categories. Purchases, production batches and stock adjustments are NOT editable; mistakes there are fixed with an opposite entry (usually a stock adjustment). Document the correction recipes.
+H. Integrity check [tools-integrity-check]: read-only tool (python -m tools.integrity_check) plus docs/real-use-test.md with daily and weekly routines and a bug log. Include invariants for settlements and fees.
+I. Packaging for daily use [release-daily-use]: one process serving the built frontend and the API (API under /api, bound to 127.0.0.1), start.bat, setup.bat, update.bat, desktop shortcut with the logo icon, daily backup at startup using SQLite's backup API (keep the newest 30, optional second folder, warn but never crash), rotating log file, a Settings card for backups, delete cli/ and the two old scripts import_catalog_v2.py and setup_shipping.py (and decide on scripts/partner_walkthrough.py), docs/RUNNING.md.
+J. Go-live reset (prompt not written yet): needs two owner answers. (1) Clear test data before the real-use week? Recommended: yes; keep catalogue, recipes, kits, categories, suppliers, partners, payment methods and settings; clear orders, purchases, production, adjustments, expenses, postage payments, settlements, distributions, invoice counter; take a full backup first. (2) How to enter real opening stock: a small stocktake screen, or keep current numbers and correct with stock adjustments.
+K. One-week real-use test on a single laptop with the bug log, then decide about the later online and multi-user phase.
+
+## Parked decisions
+- Minimum-stock levels and low-stock warnings on the dashboard: decide at the end.
+- Exact odd-Rial storage (store money in Rial, Toman as display): parked. If wanted, do it BEFORE the real-use week, because it needs a migration multiplying every money column by 10. Today stored money is whole Toman, so Rial input must be a multiple of 10.
+- PDF and print for reports: after the real-use week.
+- Invoice "amount in words": removed from scope.
+- Online, multi-user, logins: decide after the real-use week.
+
+## Rules for every task (also in the CLAUDE.md Working agreement)
+Plan first and wait for approval; one feature per branch off the latest origin/main; never write to data/shop.db (use a scratchpad copy with REBEL_DB); commit and push and report the full hash; money formulas live in db/ only; money display through formatMoney or the Money component and inputs through MoneyInput; list backend gaps instead of silently fixing them; the report must say what could not be verified (no browser tools means the owner checks the screens).
+
+## Owner routine after each task
+Back up (copy data\shop.db data\shop.db.backup), fetch, check out the branch, run pytest and the app, test against real data, merge to main, push, then run git log --oneline -3 to confirm.
+
+## Open items to remember
+- Run the cost check: products with stock but no recorded cost (none expected, never run).
+- The real database still contains test entries (a test sale, test adjustments, changed packaging stock); the go-live reset handles this.
+- Known small gaps: no minimum stock, no status history for orders, backend error messages are English, kit and expense category renaming not yet possible.
