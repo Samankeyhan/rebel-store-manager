@@ -108,6 +108,8 @@ export const R = {
   statusQueued: "در صف", // NEW
   statusSubmitting: "در حال ثبت", // NEW
   statusSuccessPlain: "ثبت شد", // NEW
+  costDetails: "جزئیات و بها", // NEW (collapsible label)
+  successUnitCost: (unitCost: number) => `بهای هر عدد: ${formatNumber(unitCost)} تومان`, // NEW
   statusSuccess: (unitCost: number) => `ثبت شد · بهای هر عدد ${formatNumber(unitCost)}`, // NEW
   statusFailed: "ناموفق", // NEW
   progress: (done: number, total: number) => `در حال ثبت ${formatNumber(done)} از ${formatNumber(total)}…`, // NEW

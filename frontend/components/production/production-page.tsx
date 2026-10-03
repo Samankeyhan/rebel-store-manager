@@ -97,7 +97,6 @@ export function ProductionPage() {
           recipes={recipes}
           productId={productId}
           mobile={mobile}
-          showDetails={showDetails}
           onGoRecipe={goRecipe}
           onRunsDone={async (succeeded) => {
             await data.refreshAfterRuns().catch(() => data.reload())
