@@ -111,6 +111,10 @@ Profit & loss for a date range:
 Product performance: revenue = sum(items_net), cost = sum(quantity × unit_cost_at_time). Must reconcile exactly with items_revenue and cogs in the P&L for the same range.
 
 Shipping summary for a date range: shipping_revenue, packaging_cost, postage_estimated, postage_actual, and net_shipping_result = shipping_revenue − packaging_cost − postage_actual, plus per-order averages.
+- Shipped orders = revenue-eligible orders in range whose channel applies_postage = 1. shipping_revenue, packaging_cost and postage_estimated are sums over shipped orders only, so every figure derived from them (net results, averages) describes shipping alone: an IN_PERSON order that used a packaging kit is a cost of that sale, not of shipping. These totals equal the shipping-by-channel totals for the same range. (They can therefore differ from the P&L's shipping_revenue / packaging_cost / postage_estimated, which cover all eligible orders.)
+- order_count = all revenue-eligible orders in range; shipped_order_count = shipped orders.
+- postage_actual = sum(total_paid) of postage batches with paid_date in range. Batches pay for parcels, which only shipped orders produce, so it has no channel filter.
+- Per-order averages = round(total / shipped_order_count), 0 when there are no shipped orders.
 
 ## 10. Invoice numbers
 Order invoices INV-000001..., purchase invoices PUR-000001... (one sequence shared by material and product purchases). Numbers come from a counters table incremented inside the same transaction as the insert. invoice_number columns are UNIQUE.

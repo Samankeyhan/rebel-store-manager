@@ -422,6 +422,60 @@ def test_get_shipping_summary_shipped_order_count(test_db):
     assert shipping["avg_net_shipping_result"] == 180_000
 
 
+def test_get_shipping_summary_excludes_non_shipping_channel_costs(test_db):
+    # One IN_PERSON order uses the packaging kit (and, by override, carries a
+    # shipping charge and postage), plus two WEBSITE orders with the same kit.
+    # IN_PERSON doesn't apply postage, so it never ships: none of its money
+    # belongs in the shipping economics. Before the fix its packaging inflated
+    # packaging_cost (180,000) and avg_packaging_cost (90,000).
+    product_id = add_product(test_db, "Ship Scope Item", cat(test_db, "OTHER"), 1_000_000, 800_000)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 400000 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+    box_id = add_material(test_db, "Scope Box", "STOCK", 60_000, initial_stock=10)
+    kit_id = packaging.create_kit(test_db, "Scope kit")
+    packaging.add_kit_item(test_db, kit_id, box_id, 1)
+    item = [{"product_id": product_id, "quantity": 1, "unit_price": 1_000_000}]
+
+    record_order(
+        test_db, "IN_PERSON", item,
+        packaging_kit_id=kit_id, shipping_charge=50_000, postage_cost=30_000,
+    )
+    for _ in range(2):
+        record_order(test_db, "WEBSITE", item, packaging_kit_id=kit_id, postage_cost=200_000)
+    postage.record_postage_batch(test_db, total_paid=200_000, order_count=1)
+
+    shipping = get_shipping_summary(test_db)
+    assert shipping["order_count"] == 3
+    assert shipping["shipped_order_count"] == 2
+    assert shipping["shipping_revenue"] == 360_000  # 2 × 180,000; not the 50,000 in-person charge
+    assert shipping["packaging_cost"] == 120_000  # 2 × 60,000; not 180,000
+    assert shipping["postage_estimated"] == 400_000  # not the 30,000 in-person override
+    assert shipping["postage_actual"] == 200_000
+    assert shipping["net_shipping_result"] == 360_000 - 120_000 - 200_000
+    assert shipping["avg_shipping_revenue"] == 180_000
+    assert shipping["avg_packaging_cost"] == 60_000
+    assert shipping["avg_postage_actual"] == 100_000
+    assert shipping["avg_net_shipping_result"] == 20_000
+
+    # The summary is the per-channel report, totalled.
+    by_channel = get_shipping_by_channel(test_db)
+    assert [r["channel"] for r in by_channel] == ["WEBSITE"]
+    for key in ("shipped_order_count", "shipping_revenue", "packaging_cost", "postage_estimated"):
+        assert shipping[key] == sum(r[key] for r in by_channel)
+    assert shipping["shipping_revenue"] - shipping["packaging_cost"] - shipping["postage_estimated"] == sum(
+        r["net"] for r in by_channel
+    )
+
+    # The P&L still counts every eligible order's packaging and shipping.
+    pnl = get_profit_and_loss(test_db)
+    assert pnl["packaging_cost"] == 180_000
+    assert pnl["shipping_revenue"] == 410_000
+    assert pnl["order_count"] == 3
+
+
 def test_get_shipping_by_channel(test_db):
     product_id = add_product(test_db, "Shipping Test Item", cat(test_db, "OTHER"), 1000, 800)
     test_db.execute(

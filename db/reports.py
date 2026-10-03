@@ -137,13 +137,14 @@ def _postage_committed_on_shipped_orders(
     return row["total"]
 
 
-def _shipped_order_count(
+def _shipped_order_aggregates(
     conn: sqlite3.Connection, start_date: str | None, end_date: str | None
-) -> int:
-    """Revenue-eligible orders in range whose channel actually ships
-    (applies_postage = 1) — the correct denominator for shipping per-order
-    averages (a channel like IN_PERSON never ships, so it shouldn't dilute
-    the average shipping/packaging/postage cost per shipped order).
+) -> dict:
+    """Sums over the orders that make up the shipping economics: revenue-
+    eligible orders in range whose channel ships (applies_postage = 1) — the
+    same set get_shipping_by_channel groups. A channel like IN_PERSON never
+    ships, so its orders stay out of every shipping figure, even when one used
+    a packaging kit or was given a shipping charge.
     """
     date_clause, date_params = _date_range_clause(
         conn, "orders.order_date", start_date, end_date
@@ -151,7 +152,11 @@ def _shipped_order_count(
     status_clause, status_params = _revenue_eligible_status_clause()
     row = conn.execute(
         f"""
-        SELECT COUNT(*) AS total
+        SELECT
+            COUNT(*) AS shipped_order_count,
+            COALESCE(SUM(orders.shipping_charge), 0) AS shipping_revenue,
+            COALESCE(SUM(orders.packaging_cost), 0) AS packaging_cost,
+            COALESCE(SUM(orders.postage_cost), 0) AS postage_estimated
         FROM orders
         JOIN channel_settings ON channel_settings.channel = orders.channel
         WHERE {status_clause}
@@ -160,7 +165,7 @@ def _shipped_order_count(
         """,
         status_params + date_params,
     ).fetchone()
-    return row["total"]
+    return dict(row)
 
 
 def _refund_losses(
@@ -472,13 +477,23 @@ def get_shipping_summary(
     start_date: str | None = None,
     end_date: str | None = None,
 ) -> dict:
-    """Shipping economics per accounting-rules.md section 9."""
-    agg = _eligible_order_aggregates(conn, start_date, end_date)
-    shipping_revenue = agg["shipping_revenue"]
-    packaging_cost = agg["packaging_cost"]
-    postage_estimated = agg["postage_estimated"]
-    order_count = agg["order_count"]
-    shipped_order_count = _shipped_order_count(conn, start_date, end_date)
+    """Shipping economics per accounting-rules.md section 9.
+
+    shipping_revenue, packaging_cost, postage_estimated and every figure
+    derived from them cover shipped orders only (revenue-eligible orders on
+    channels with applies_postage = 1), the same set as shipped_order_count
+    and get_shipping_by_channel, so the totals equal the per-channel report's
+    and each avg_* is a true per-shipped-order figure. order_count stays the
+    number of all revenue-eligible orders in range. postage_actual is the sum
+    of postage batches paid in range: batches pay for parcels, which only
+    shipped orders produce, so it needs no channel filter.
+    """
+    shipped = _shipped_order_aggregates(conn, start_date, end_date)
+    shipping_revenue = shipped["shipping_revenue"]
+    packaging_cost = shipped["packaging_cost"]
+    postage_estimated = shipped["postage_estimated"]
+    shipped_order_count = shipped["shipped_order_count"]
+    order_count = _eligible_order_aggregates(conn, start_date, end_date)["order_count"]
 
     postage_actual = _postage_actual(conn, start_date, end_date)
     net_shipping_result = shipping_revenue - packaging_cost - postage_actual
