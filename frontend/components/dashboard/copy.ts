@@ -19,7 +19,7 @@ export const D = {
   quickActionsAria: "اقدام‌های سریع", // NEW
   periodAria: "بازه گزارش", // NEW
   periodToday: "امروز", // NEW
-  periodLast7: "۷ روز گذشته", // NEW
+  periodLast7: "۷ روز اخیر", // NEW
   periodThisMonth: "این ماه", // NEW
   periodLastMonth: "ماه گذشته", // NEW
   periodCustom: "بازه دلخواه", // NEW
@@ -28,7 +28,7 @@ export const D = {
   // The period as it reads after a KPI label: «درآمد این ماه».
   periodWord: {
     today: "امروز",
-    last7: "۷ روز گذشته",
+    last7: "۷ روز اخیر",
     thisMonth: "این ماه",
     lastMonth: "ماه گذشته",
     custom: "بازه انتخابی",

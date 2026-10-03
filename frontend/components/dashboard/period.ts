@@ -26,7 +26,7 @@ export function storeToday(now: Date, timeZone: string): string {
 
 /**
  * Preset ranges relative to the store's today: «امروز» = today only,
- * «۷ روز گذشته» = today and the 6 days before it, and the Jalali months.
+ * «۷ روز اخیر» = today and the 6 days before it, and the Jalali months.
  */
 export function presets(todayIso: string): Record<PresetKind, IsoRange> {
   const today = isoToDate(todayIso)
