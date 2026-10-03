@@ -2259,6 +2259,12 @@ export interface components {
             avg_postage_actual: number;
             /** Avg Net Shipping Result */
             avg_net_shipping_result: number;
+            /** Net Shipping Result Estimated */
+            net_shipping_result_estimated: number;
+            /** Avg Net Shipping Result Estimated */
+            avg_net_shipping_result_estimated: number;
+            /** Postage Gap */
+            postage_gap: number;
         };
         /** SupplierCreate */
         SupplierCreate: {

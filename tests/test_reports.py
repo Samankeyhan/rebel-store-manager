@@ -422,6 +422,77 @@ def test_get_shipping_summary_shipped_order_count(test_db):
     assert shipping["avg_net_shipping_result"] == 180_000
 
 
+def test_get_shipping_summary_estimated_result_with_unpaid_postage(test_db):
+    # Three shipped WEBSITE orders carry 100,000 estimated postage each, but
+    # only one postage batch (100,000) has been paid in the range. The
+    # actual-based result looks profitable; the estimated one charges every
+    # shipped order its frozen postage. postage_gap is what's still unpaid.
+    product_id = add_product(test_db, "Shipping Est Item", cat(test_db, "OTHER"), 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+    for _ in range(3):
+        record_order(
+            test_db,
+            "WEBSITE",
+            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            shipping_charge=50_000,
+            packaging_kit_id=None,
+            postage_cost=100_000,
+            status="PAID",
+        )
+    postage.record_postage_batch(test_db, total_paid=100_000, order_count=1)
+
+    shipping = get_shipping_summary(test_db)
+    assert shipping["shipped_order_count"] == 3
+    assert shipping["shipping_revenue"] == 150_000
+    assert shipping["packaging_cost"] == 0
+    assert shipping["postage_estimated"] == 300_000
+    assert shipping["postage_actual"] == 100_000
+    assert shipping["net_shipping_result"] == 50_000
+    # 150,000 - 0 - 300,000
+    assert shipping["net_shipping_result_estimated"] == -150_000
+    assert shipping["avg_net_shipping_result_estimated"] == -50_000
+    assert shipping["postage_gap"] == 200_000
+
+
+def test_get_shipping_summary_estimated_average_rounds_like_by_channel(test_db):
+    # Same per-order average rule as get_shipping_by_channel's net_per_order:
+    # round(net / shipped_order_count).
+    product_id = add_product(test_db, "Shipping Round Item", cat(test_db, "OTHER"), 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 100 WHERE id = ?",
+        (product_id,),
+    )
+    test_db.commit()
+    for postage_cost in (10_000, 10_001, 10_001):
+        record_order(
+            test_db,
+            "WEBSITE",
+            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            shipping_charge=0,
+            packaging_kit_id=None,
+            postage_cost=postage_cost,
+        )
+
+    shipping = get_shipping_summary(test_db)
+    by_channel = get_shipping_by_channel(test_db)
+    assert shipping["net_shipping_result_estimated"] == -30_002 == by_channel[0]["net"]
+    assert shipping["avg_net_shipping_result_estimated"] == round(-30_002 / 3)
+    assert shipping["avg_net_shipping_result_estimated"] == by_channel[0]["net_per_order"]
+    # No postage paid at all: the whole estimate is outstanding.
+    assert shipping["postage_gap"] == 30_002
+
+
+def test_get_shipping_summary_no_shipped_orders(test_db):
+    shipping = get_shipping_summary(test_db)
+    assert shipping["net_shipping_result_estimated"] == 0
+    assert shipping["avg_net_shipping_result_estimated"] == 0
+    assert shipping["postage_gap"] == 0
+
+
 def test_get_shipping_by_channel(test_db):
     product_id = add_product(test_db, "Shipping Test Item", cat(test_db, "OTHER"), 1000, 800)
     test_db.execute(
@@ -584,6 +655,10 @@ def test_full_scenario_stock_and_reconciliation(full_scenario_setup, test_db):
     assert shipping["packaging_cost"] == 45_000
     assert shipping["postage_actual"] == 600_000
     assert shipping["net_shipping_result"] == -465_000
+    assert shipping["net_shipping_result_estimated"] == (
+        180_000 - 45_000 - shipping["postage_estimated"]
+    )
+    assert shipping["postage_gap"] == shipping["postage_estimated"] - 600_000
 
     pnl = get_profit_and_loss(test_db, "2026-03-05", "2026-03-31")
     refunded_postage_cost = test_db.execute(

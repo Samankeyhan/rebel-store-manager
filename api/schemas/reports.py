@@ -55,6 +55,9 @@ class ShippingSummaryOut(BaseModel):
     avg_packaging_cost: int
     avg_postage_actual: int
     avg_net_shipping_result: int
+    net_shipping_result_estimated: int
+    avg_net_shipping_result_estimated: int
+    postage_gap: int
 
 
 class ShippingByChannelOut(BaseModel):

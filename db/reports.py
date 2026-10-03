@@ -482,6 +482,11 @@ def get_shipping_summary(
 
     postage_actual = _postage_actual(conn, start_date, end_date)
     net_shipping_result = shipping_revenue - packaging_cost - postage_actual
+    # The estimate-based result counts every shipped order at the postage
+    # frozen on it, so it doesn't look profitable while batches are unpaid.
+    net_shipping_result_estimated = shipping_revenue - packaging_cost - postage_estimated
+    # Positive: estimated postage in range not yet paid (or not yet recorded).
+    postage_gap = postage_estimated - postage_actual
 
     def _avg(total: int) -> int:
         return round(total / shipped_order_count) if shipped_order_count else 0
@@ -498,6 +503,9 @@ def get_shipping_summary(
         "avg_packaging_cost": _avg(packaging_cost),
         "avg_postage_actual": _avg(postage_actual),
         "avg_net_shipping_result": _avg(net_shipping_result),
+        "net_shipping_result_estimated": net_shipping_result_estimated,
+        "avg_net_shipping_result_estimated": _avg(net_shipping_result_estimated),
+        "postage_gap": postage_gap,
     }
 
 

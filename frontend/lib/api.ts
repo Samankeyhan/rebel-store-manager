@@ -573,3 +573,35 @@ export function getExpenseBreakdown(f: { from?: string | null; to?: string | nul
   const s = qs.toString()
   return apiFetch<ExpenseBreakdown[]>(`/reports/expenses${s ? `?${s}` : ""}`)
 }
+
+// ------------------------------------------------------------ reports
+
+export type ProfitAndLoss = Schemas["ProfitAndLossOut"]
+export type RevenueSummary = Schemas["RevenueSummaryOut"]
+export type ChannelBreakdown = Schemas["ChannelBreakdownOut"]
+export type ShippingSummary = Schemas["ShippingSummaryOut"]
+
+/** Whole local days, both ends inclusive (accounting-rules §1). */
+export type DateRangeParams = { from: string; to: string }
+
+function rangeQuery(r: DateRangeParams): string {
+  return new URLSearchParams({ start_date: r.from, end_date: r.to }).toString()
+}
+
+export function getProfitAndLoss(r: DateRangeParams): Promise<ProfitAndLoss> {
+  return apiFetch<ProfitAndLoss>(`/reports/profit-and-loss?${rangeQuery(r)}`)
+}
+
+/** PENDING/PAID/COMPLETED orders only: count, Σ revenue, Σ per-order profit. */
+export function getRevenueSummary(r: DateRangeParams): Promise<RevenueSummary> {
+  return apiFetch<RevenueSummary>(`/reports/revenue-summary?${rangeQuery(r)}`)
+}
+
+/** Revenue-eligible orders per channel; channels with no orders are omitted. */
+export function getChannelBreakdown(r: DateRangeParams): Promise<ChannelBreakdown[]> {
+  return apiFetch<ChannelBreakdown[]>(`/reports/channels?${rangeQuery(r)}`)
+}
+
+export function getShippingSummary(r: DateRangeParams): Promise<ShippingSummary> {
+  return apiFetch<ShippingSummary>(`/reports/shipping?${rangeQuery(r)}`)
+}
