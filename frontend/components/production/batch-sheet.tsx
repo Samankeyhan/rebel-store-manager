@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Loader2 } from "lucide-react"
+import { Collapsible } from "@/components/common/collapsible"
 import { DrawerShell } from "@/components/products/drawer-shell"
 import { TypeBadge } from "@/components/products/badges"
 import { unitLabel } from "@/components/products/figures"
@@ -20,19 +21,18 @@ export function BatchSheet({
   materials,
   timeZone,
   mobile,
-  showDetails,
   onClose,
 }: {
   batch: ProductionBatchListItem | null
   materials: Material[]
   timeZone: string
   mobile: boolean
-  /** OFF: only date, product and quantity; the detail (materials, costs) isn't fetched. */
-  showDetails: boolean
   onClose: () => void
 }) {
   const [load, setLoad] = React.useState<{ id: number; load: Load } | null>(null)
-  const id = showDetails ? (batch?.id ?? null) : null
+  // The detail (materials and costs) is fetched only once «جزئیات و بها» is first opened for this batch.
+  const [requested, setRequested] = React.useState<number | null>(null)
+  const id = batch != null && requested === batch.id ? batch.id : null
 
   React.useEffect(() => {
     if (id == null) return
@@ -64,15 +64,13 @@ export function BatchSheet({
             <span className="text-text-3 tabular-nums">
               {formatJalaliDateTime(batch.production_date, timeZone)} · {R.batchFacts(batch.quantity_produced)}
             </span>
-            {showDetails && (
-              <span className="text-text-3">
+            {batch.notes && <span className="text-text-3">{batch.notes}</span>}
+          </div>
+          <Collapsible key={batch.id} label={R.costDetails} onFirstOpen={() => setRequested(batch.id)}>
+            <div className="flex flex-col gap-2 pt-1">
+              <span className="px-1 text-[13px] text-text-3">
                 {R.batchUnitCost}: <b className="text-foreground tabular-nums">{formatMoney(batch.unit_cost)}</b>
               </span>
-            )}
-            {showDetails && batch.notes && <span className="text-text-3">{batch.notes}</span>}
-          </div>
-          {showDetails && (
-            <>
               <h3 className="text-sm font-bold text-heading">{R.batchMaterials}</h3>
               {current.status === "loading" && (
                 <p className="flex items-center justify-center gap-2 py-6 text-[13px] text-text-3">
@@ -80,11 +78,9 @@ export function BatchSheet({
                 </p>
               )}
               {current.status === "error" && <Alert tone="err">{R.batchLoadFailed}</Alert>}
-              {current.status === "ready" && (
-                <BatchMaterials detail={current.detail} unitOf={unitOf} />
-              )}
-            </>
-          )}
+              {current.status === "ready" && <BatchMaterials detail={current.detail} unitOf={unitOf} />}
+            </div>
+          </Collapsible>
         </>
       )}
     </DrawerShell>

@@ -127,7 +127,6 @@ export function ProductionPage() {
           onRangeChange={setRange}
           defaultRange={defaultRange}
           mobile={mobile}
-          showDetails={showDetails}
         />
       )
     }

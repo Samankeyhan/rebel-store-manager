@@ -9,6 +9,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Collapsible } from "@/components/common/collapsible"
 import { StateShell } from "@/components/common/screen-states"
 import { DateRangePopover } from "@/components/orders/list/date-range-popover"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
@@ -34,7 +35,6 @@ export function HistoryTab({
   onRangeChange,
   defaultRange,
   mobile,
-  showDetails,
 }: {
   batches: ProductionBatchListItem[]
   materials: Material[]
@@ -43,11 +43,18 @@ export function HistoryTab({
   onRangeChange: (r: IsoRange) => void
   defaultRange: IsoRange
   mobile: boolean
-  /** OFF: no unit-cost column or sitting totals; the sheet shows only date, product and quantity. */
-  showDetails: boolean
 }) {
   const [productFilter, setProductFilter] = React.useState("")
   const [openId, setOpenId] = React.useState<number | null>(null)
+  // Desktop rows whose costs are shown (closed on every load, never persisted).
+  const [costRows, setCostRows] = React.useState<Set<number>>(new Set())
+  const toggleCosts = (id: number) =>
+    setCostRows((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   // Sittings are expanded by default; this holds the ones the user collapsed.
   const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set())
   // Sittings come from the full list, so filters can't split or merge them.
@@ -131,26 +138,25 @@ export function HistoryTab({
     )
   } else if (mobile) {
     const card = (b: (typeof rows)[number]) => (
-      <button
-        key={b.id}
-        type="button"
-        onClick={() => setOpenId(b.id)}
-        className={cn(cardClass, "flex flex-col gap-1.5 px-3.5 py-3 text-start outline-none focus-visible:ring-3 focus-visible:ring-ring/30")}
-      >
-        <span className="flex items-center justify-between gap-2">
-          <span className="font-bold">{b.product_name}</span>
-          <span className="text-sm tabular-nums">{R.qtyUnits(b.quantity_produced)}</span>
-        </span>
-        <span className="flex items-center justify-between gap-2 text-xs text-text-3">
-          <span className="tabular-nums">{formatJalaliDateTime(b.production_date, timeZone)}</span>
-          {showDetails && (
-            <span className="tabular-nums">
-              {R.batchUnitCost}: <b className="text-foreground">{formatNumber(b.unit_cost)}</b>
-            </span>
-          )}
-        </span>
-        {b.notes && <span className="text-xs text-text-3">{b.notes}</span>}
-      </button>
+      <div key={b.id} className={cn(cardClass, "flex flex-col px-3.5 py-3")}>
+        <button
+          type="button"
+          onClick={() => setOpenId(b.id)}
+          className="flex flex-col gap-1.5 rounded-md text-start outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+        >
+          <span className="flex items-center justify-between gap-2">
+            <span className="font-bold">{b.product_name}</span>
+            <span className="text-sm tabular-nums">{R.qtyUnits(b.quantity_produced)}</span>
+          </span>
+          <span className="flex items-center justify-between gap-2 text-xs text-text-3">
+            <span className="tabular-nums">{formatJalaliDateTime(b.production_date, timeZone)}</span>
+          </span>
+          {b.notes && <span className="text-xs text-text-3">{b.notes}</span>}
+        </button>
+        <Collapsible label={R.costDetails} className="mt-1" buttonClassName="text-xs">
+          <BatchCosts batch={b} />
+        </Collapsible>
+      </div>
     )
     body = (
       <div className="flex flex-col gap-3">
@@ -159,14 +165,8 @@ export function HistoryTab({
             card(g.batches[0])
           ) : (
             <div key={g.key} className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-2 p-2">
-              <SittingHeader
-                group={g}
-                timeZone={timeZone}
-                open={!collapsed.has(g.key)}
-                onToggle={() => toggle(g.key)}
-                showTotal={showDetails}
-                mobile
-              />
+              <SittingHeader group={g} timeZone={timeZone} open={!collapsed.has(g.key)} onToggle={() => toggle(g.key)} mobile />
+              <SittingTotal group={g} className="px-2" />
               {!collapsed.has(g.key) && g.batches.map(card)}
             </div>
           )
@@ -175,26 +175,46 @@ export function HistoryTab({
     )
   } else {
     const row = (b: (typeof rows)[number], inSitting: boolean) => (
-      <tr
-        key={b.id}
-        tabIndex={0}
-        onClick={() => setOpenId(b.id)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault()
-            setOpenId(b.id)
-          }
-        }}
-        className="cursor-pointer outline-none hover:[&>td]:bg-surface-2 focus-visible:[&>td]:bg-surface-2 [&>td]:h-[52px] [&>td]:border-b [&>td]:border-border [&>td]:px-4 [&>td]:whitespace-nowrap"
-      >
-        <td className={cn("text-text-3 tabular-nums", inSitting && "border-s-[3px] border-s-border-strong")}>
-          {formatJalaliDateTime(b.production_date, timeZone)}
-        </td>
-        <td className="font-bold">{b.product_name}</td>
-        <td className="text-end tabular-nums">{formatNumber(b.quantity_produced)}</td>
-        {showDetails && <td className="text-end font-bold tabular-nums">{formatNumber(b.unit_cost)}</td>}
-        <td className="max-w-[320px] truncate text-text-3">{b.notes || "—"}</td>
-      </tr>
+      <React.Fragment key={b.id}>
+        <tr
+          key={b.id}
+          tabIndex={0}
+          onClick={() => setOpenId(b.id)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              setOpenId(b.id)
+            }
+          }}
+          className="cursor-pointer outline-none hover:[&>td]:bg-surface-2 focus-visible:[&>td]:bg-surface-2 [&>td]:h-[52px] [&>td]:border-b [&>td]:border-border [&>td]:px-4 [&>td]:whitespace-nowrap"
+        >
+          <td className={cn("text-text-3 tabular-nums", inSitting && "border-s-[3px] border-s-border-strong")}>
+            {formatJalaliDateTime(b.production_date, timeZone)}
+          </td>
+          <td className="font-bold">{b.product_name}</td>
+          <td className="text-end tabular-nums">{formatNumber(b.quantity_produced)}</td>
+          <td className="max-w-[320px] truncate text-text-3">{b.notes || "—"}</td>
+          <td onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              aria-expanded={costRows.has(b.id)}
+              aria-controls={`batch-costs-${b.id}`}
+              aria-label={`${R.costDetails} — ${b.product_name}`}
+              onClick={() => toggleCosts(b.id)}
+              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-text-3 outline-none hover:bg-surface-3 focus-visible:ring-3 focus-visible:ring-ring/30"
+            >
+              <ChevronDown className={cn("size-4 transition-transform", costRows.has(b.id) && "rotate-180")} aria-hidden />
+            </button>
+          </td>
+        </tr>
+        {costRows.has(b.id) && (
+          <tr id={`batch-costs-${b.id}`} className="[&>td]:border-b [&>td]:border-border [&>td]:bg-surface-2 [&>td]:px-4 [&>td]:py-2.5">
+            <td colSpan={5}>
+              <BatchCosts batch={b} />
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
     )
     body = (
       <>
@@ -208,13 +228,11 @@ export function HistoryTab({
                   <th scope="col" className="text-end!">
                     {R.colQty}
                   </th>
-                  {showDetails && (
-                    <th scope="col" className="text-end!">
-                      {R.colUnitCost}
-                    </th>
-                  )}
                   <th scope="col" className="w-full">
                     {R.colNote}
+                  </th>
+                  <th scope="col" className="w-14">
+                    <span className="sr-only">{R.costDetails}</span>
                   </th>
                 </tr>
               </thead>
@@ -225,14 +243,9 @@ export function HistoryTab({
                   return (
                     <React.Fragment key={g.key}>
                       <tr className="[&>td]:border-b [&>td]:border-border [&>td]:bg-surface-2 [&>td]:p-0">
-                        <td colSpan={showDetails ? 5 : 4}>
-                          <SittingHeader
-                            group={g}
-                            timeZone={timeZone}
-                            open={isOpen}
-                            onToggle={() => toggle(g.key)}
-                            showTotal={showDetails}
-                          />
+                        <td colSpan={5}>
+                          <SittingHeader group={g} timeZone={timeZone} open={isOpen} onToggle={() => toggle(g.key)} />
+                          <SittingTotal group={g} className="px-4 pb-2" />
                         </td>
                       </tr>
                       {isOpen && g.batches.map((b) => row(b, true))}
@@ -257,7 +270,6 @@ export function HistoryTab({
         materials={materials}
         timeZone={timeZone}
         mobile={mobile}
-        showDetails={showDetails}
         onClose={() => setOpenId(null)}
       />
     </div>
@@ -274,14 +286,12 @@ function SittingHeader({
   timeZone,
   open,
   onToggle,
-  showTotal,
   mobile,
 }: {
   group: SittingGroup
   timeZone: string
   open: boolean
   onToggle: () => void
-  showTotal: boolean
   mobile?: boolean
 }) {
   const first = group.batches[0]
@@ -313,16 +323,37 @@ function SittingHeader({
         {recorded && <span className="text-xs text-text-3 tabular-nums">{R.sittingRecorded(toPersianDigits(recorded.time))}</span>}
       </span>
       <span className="flex items-center gap-3">
-        {showTotal && group.total != null && (
-          <span className="flex flex-col items-end leading-tight">
-            <span className="text-xs text-text-3">
-              {R.sittingTotal} <span className="hidden sm:inline">({R.sittingTotalCaption})</span>
-            </span>
-            <b className="tabular-nums">{formatMoney(group.total)}</b>
-          </span>
-        )}
         <ChevronDown className={cn("size-4 text-text-3 transition-transform", open && "rotate-180")} aria-hidden />
       </span>
     </button>
+  )
+}
+
+/** A sitting's total of its batches' real costs, behind a closed «جزئیات و بها». */
+function SittingTotal({ group, className }: { group: SittingGroup; className?: string }) {
+  if (group.total == null) return null
+  return (
+    <Collapsible label={R.sittingTotal} className={className} buttonClassName="text-xs">
+      <span className="flex items-baseline justify-between gap-3 px-1 text-[13px]">
+        <span className="text-xs text-text-3">{R.sittingTotalCaption}</span>
+        <b className="tabular-nums">{formatMoney(group.total)}</b>
+      </span>
+    </Collapsible>
+  )
+}
+
+/** One batch's unit cost and stored total (null for batches recorded before total_cost existed). */
+function BatchCosts({ batch }: { batch: ProductionBatchListItem }) {
+  return (
+    <span className="flex flex-wrap gap-x-5 gap-y-1 px-1 text-[13px] tabular-nums">
+      <span>
+        <span className="text-text-3">{R.batchUnitCost}: </span>
+        <b>{formatMoney(batch.unit_cost)}</b>
+      </span>
+      <span>
+        <span className="text-text-3">{R.totalLabel}: </span>
+        <b>{batch.total_cost == null ? "—" : formatMoney(batch.total_cost)}</b>
+      </span>
+    </span>
   )
 }
