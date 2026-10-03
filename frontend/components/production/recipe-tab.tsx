@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Eye, Info, Loader2, Plus, Trash2 } from "lucide-react"
+import { Info, Loader2, Plus, Trash2 } from "lucide-react"
+import { Collapsible } from "@/components/common/collapsible"
 import { ItemPicker, type PickerItem } from "@/components/common/item-picker"
 import { Segment } from "@/components/common/segment"
 import { badgeBase } from "@/components/common/status"
@@ -20,7 +21,6 @@ import { batchPreview, recipeSums } from "@/lib/costing"
 import { formatMoney, formatQuantity, parseDecimal } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
-import { setShowDetails } from "./show-details"
 import type { RecipeEntry } from "./use-production-data"
 
 type Basis = "PER_UNIT" | "PER_BATCH"
@@ -62,7 +62,6 @@ export function RecipeTab({
   onProductChange,
   setRecipe,
   mobile,
-  showDetails,
 }: {
   products: Product[]
   materials: Material[]
@@ -71,8 +70,6 @@ export function RecipeTab({
   onProductChange: (id: number) => void
   setRecipe: (productId: number, recipe: Recipe) => void
   mobile: boolean
-  /** OFF: recipe lines, quantities, costs and tiles don't render; the editor opens only when ON. */
-  showDetails: boolean
 }) {
   const active = products.filter((p) => p.is_active === 1)
   const product = active.find((p) => p.id === productId) ?? active[0] ?? null
@@ -207,19 +204,7 @@ export function RecipeTab({
 
   const rowGrid = "grid grid-cols-[minmax(0,1fr)_110px_290px_130px_36px] items-center gap-3"
 
-  const editor = !showDetails ? (
-    <section className={cn(cardClass, "min-w-0 grow")} aria-labelledby="recipe-title">
-      <div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
-        <h2 id="recipe-title" className="text-base font-bold text-heading">
-          {R.editorTitle(product.name)}
-        </h2>
-        <Btn onClick={() => setShowDetails(true)}>
-          <Eye className="size-4" aria-hidden />
-          {R.showRecipe}
-        </Btn>
-      </div>
-    </section>
-  ) : (
+  const editor = (
     <section className={cn(cardClass, "min-w-0 grow")} aria-labelledby="recipe-title">
       <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex flex-col">
@@ -229,182 +214,184 @@ export function RecipeTab({
           <span className="text-xs text-text-3">{R.editorCaption}</span>
         </div>
       </div>
-      <div className={cn("flex flex-col", mobile ? "gap-3 p-3.5" : "gap-3.5 p-5")}>
-        <div role="note" className="flex items-start gap-3 rounded-[10px] bg-info-soft px-4 py-3 text-[13px] leading-[22px]">
-          <Info className="mt-0.5 size-[18px] shrink-0 text-info" aria-hidden />
-          <div>
-            <div className="mb-0.5 font-bold">{R.explainTitle}</div>
-            <b>{R.explainPerUnit}</b>
-            {R.explainPerUnitBody}
-            <b>{R.explainPerBatch}</b>
-            {R.explainPerBatchBody}
-          </div>
-        </div>
-
-        {entry?.status === "loading" && (
-          <p className="flex items-center justify-center gap-2 py-6 text-[13px] text-text-3">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-            {R.recipeLoading}
-          </p>
-        )}
-        {entry?.status === "failed" && <Alert tone="warn">{R.recipeFailed}</Alert>}
-        {entry?.status === "missing" && <p className="py-2 text-[13px] text-text-3">{R.emptyRecipe}</p>}
-
-        {items.length > 0 && !mobile && (
-          <div className={cn(rowGrid, "text-xs font-semibold text-text-3")}>
-            <span>{R.colLineMaterial}</span>
-            <span>{R.colLineQty}</span>
-            <span>{R.colLineBasis}</span>
-            <span>{R.colLineCost}</span>
-            <span />
-          </div>
-        )}
-
-        {items.map((item) => {
-          const service = item.material_type === "SERVICE"
-          const unit = unitLabel(item.material_unit)
-          const rowBusy = busy.has(item.material_id)
-          const inactive = materialById.get(item.material_id)?.is_active === 0
-          const qtyInput = (
-            <div className="relative flex items-center">
-              <input
-                inputMode="decimal"
-                aria-label={`${R.colLineQty} — ${item.material_name}`}
-                value={drafts[item.material_id] ?? formatQuantity(item.quantity_needed)}
-                disabled={rowBusy}
-                onChange={(e) => setDrafts((d) => ({ ...d, [item.material_id]: e.target.value }))}
-                onBlur={() => saveQty(item)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.currentTarget.blur()
-                }}
-                onFocus={(e) => e.currentTarget.select()}
-                className={cn(
-                  "w-full min-w-0 rounded-lg border border-border-strong bg-card ps-3 pe-12 text-sm tabular-nums outline-none focus:border-heading focus:ring-3 focus:ring-ring/30",
-                  mobile ? "h-11" : "h-10",
-                  rowErrors[item.material_id] && "border-loss"
-                )}
-              />
-              <span className="pointer-events-none absolute end-3 text-xs text-text-3">{unit}</span>
+      <Collapsible key={product.id} label={R.recipeDetails} className={mobile ? "px-3.5 py-2" : "px-5 py-3"}>
+        <div className={cn("flex flex-col pt-2", mobile ? "gap-3" : "gap-3.5")}>
+          <div role="note" className="flex items-start gap-3 rounded-[10px] bg-info-soft px-4 py-3 text-[13px] leading-[22px]">
+            <Info className="mt-0.5 size-[18px] shrink-0 text-info" aria-hidden />
+            <div>
+              <div className="mb-0.5 font-bold">{R.explainTitle}</div>
+              <b>{R.explainPerUnit}</b>
+              {R.explainPerUnitBody}
+              <b>{R.explainPerBatch}</b>
+              {R.explainPerBatchBody}
             </div>
-          )
-          const basis = (
-            <Segment<Basis>
-              value={item.cost_basis as Basis}
-              options={[
-                ["PER_UNIT", R.perUnit],
-                ["PER_BATCH", R.perBatch],
-              ]}
-              onChange={(b) => setBasis(item, b)}
-              label={`${R.colLineBasis} — ${item.material_name}`}
-              mobile={mobile}
-              className="[&_button]:text-[12.5px]"
-            />
-          )
-          const cost = (
-            <span className="text-[13px] font-bold tabular-nums">
-              {item.cost_basis === "PER_BATCH"
-                ? R.lineCostOnce(Math.round(item.quantity_needed * item.material_unit_cost))
-                : R.lineCostPerUnit(Math.round(item.quantity_needed * item.material_unit_cost))}
-            </span>
-          )
-          const del = (
-            <Btn
-              variant="ghost"
-              size="sm"
-              className="size-8 px-0"
-              aria-label={`${R.deleteLine} — ${item.material_name}`}
-              disabled={rowBusy}
-              onClick={() => remove(item)}
-            >
-              {rowBusy ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-            </Btn>
-          )
-          const name = (
-            <span className="flex min-w-0 flex-col">
-              <span className="flex items-center gap-1.5 truncate text-[13.5px] font-bold">
-                {item.material_name}
-                {inactive && <span className={cn(badgeBase, "bg-surface-2 text-text-3")}>{R.inactiveMaterial}</span>}
+          </div>
+
+          {entry?.status === "loading" && (
+            <p className="flex items-center justify-center gap-2 py-6 text-[13px] text-text-3">
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              {R.recipeLoading}
+            </p>
+          )}
+          {entry?.status === "failed" && <Alert tone="warn">{R.recipeFailed}</Alert>}
+          {entry?.status === "missing" && <p className="py-2 text-[13px] text-text-3">{R.emptyRecipe}</p>}
+
+          {items.length > 0 && !mobile && (
+            <div className={cn(rowGrid, "text-xs font-semibold text-text-3")}>
+              <span>{R.colLineMaterial}</span>
+              <span>{R.colLineQty}</span>
+              <span>{R.colLineBasis}</span>
+              <span>{R.colLineCost}</span>
+              <span />
+            </div>
+          )}
+
+          {items.map((item) => {
+            const service = item.material_type === "SERVICE"
+            const unit = unitLabel(item.material_unit)
+            const rowBusy = busy.has(item.material_id)
+            const inactive = materialById.get(item.material_id)?.is_active === 0
+            const qtyInput = (
+              <div className="relative flex items-center">
+                <input
+                  inputMode="decimal"
+                  aria-label={`${R.colLineQty} — ${item.material_name}`}
+                  value={drafts[item.material_id] ?? formatQuantity(item.quantity_needed)}
+                  disabled={rowBusy}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [item.material_id]: e.target.value }))}
+                  onBlur={() => saveQty(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur()
+                  }}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className={cn(
+                    "w-full min-w-0 rounded-lg border border-border-strong bg-card ps-3 pe-12 text-sm tabular-nums outline-none focus:border-heading focus:ring-3 focus:ring-ring/30",
+                    mobile ? "h-11" : "h-10",
+                    rowErrors[item.material_id] && "border-loss"
+                  )}
+                />
+                <span className="pointer-events-none absolute end-3 text-xs text-text-3">{unit}</span>
+              </div>
+            )
+            const basis = (
+              <Segment<Basis>
+                value={item.cost_basis as Basis}
+                options={[
+                  ["PER_UNIT", R.perUnit],
+                  ["PER_BATCH", R.perBatch],
+                ]}
+                onChange={(b) => setBasis(item, b)}
+                label={`${R.colLineBasis} — ${item.material_name}`}
+                mobile={mobile}
+                className="[&_button]:text-[12.5px]"
+              />
+            )
+            const cost = (
+              <span className="text-[13px] font-bold tabular-nums">
+                {item.cost_basis === "PER_BATCH"
+                  ? R.lineCostOnce(Math.round(item.quantity_needed * item.material_unit_cost))
+                  : R.lineCostPerUnit(Math.round(item.quantity_needed * item.material_unit_cost))}
               </span>
-              <span className="truncate text-xs text-text-3">{R.lineSub(service, item.material_unit_cost, unit)}</span>
-            </span>
-          )
-          return (
-            <div key={item.material_id} className="flex flex-col gap-1.5">
-              {mobile ? (
-                <div className="flex flex-col gap-2 rounded-[10px] border border-border p-3">
-                  <div className="flex items-start justify-between gap-2">
+            )
+            const del = (
+              <Btn
+                variant="ghost"
+                size="sm"
+                className="size-8 px-0"
+                aria-label={`${R.deleteLine} — ${item.material_name}`}
+                disabled={rowBusy}
+                onClick={() => remove(item)}
+              >
+                {rowBusy ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              </Btn>
+            )
+            const name = (
+              <span className="flex min-w-0 flex-col">
+                <span className="flex items-center gap-1.5 truncate text-[13.5px] font-bold">
+                  {item.material_name}
+                  {inactive && <span className={cn(badgeBase, "bg-surface-2 text-text-3")}>{R.inactiveMaterial}</span>}
+                </span>
+                <span className="truncate text-xs text-text-3">{R.lineSub(service, item.material_unit_cost, unit)}</span>
+              </span>
+            )
+            return (
+              <div key={item.material_id} className="flex flex-col gap-1.5">
+                {mobile ? (
+                  <div className="flex flex-col gap-2 rounded-[10px] border border-border p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      {name}
+                      {del}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {qtyInput}
+                      <div className="flex items-center justify-end">{cost}</div>
+                    </div>
+                    {basis}
+                  </div>
+                ) : (
+                  <div className={rowGrid}>
                     {name}
+                    {qtyInput}
+                    {basis}
+                    {cost}
                     {del}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {qtyInput}
-                    <div className="flex items-center justify-end">{cost}</div>
-                  </div>
-                  {basis}
-                </div>
-              ) : (
-                <div className={rowGrid}>
-                  {name}
-                  {qtyInput}
-                  {basis}
-                  {cost}
-                  {del}
-                </div>
-              )}
-              {rowErrors[item.material_id] && (
-                <InlineMessage severity="error">{rowErrors[item.material_id]}</InlineMessage>
-              )}
-              {confirmDelete === item.material_id && (
-                <Alert
-                  tone="warn"
-                  title={R.lastLineWarnTitle}
-                  action={
-                    <span className="flex shrink-0 gap-2">
-                      <Btn size="sm" className="border-loss-border text-loss" onClick={() => remove(item)}>
-                        {R.lastLineConfirm}
-                      </Btn>
-                      <Btn variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>
-                        {R.cancel}
-                      </Btn>
-                    </span>
+                )}
+                {rowErrors[item.material_id] && (
+                  <InlineMessage severity="error">{rowErrors[item.material_id]}</InlineMessage>
+                )}
+                {confirmDelete === item.material_id && (
+                  <Alert
+                    tone="warn"
+                    title={R.lastLineWarnTitle}
+                    action={
+                      <span className="flex shrink-0 gap-2">
+                        <Btn size="sm" className="border-loss-border text-loss" onClick={() => remove(item)}>
+                          {R.lastLineConfirm}
+                        </Btn>
+                        <Btn variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>
+                          {R.cancel}
+                        </Btn>
+                      </span>
+                    }
+                  >
+                    {R.lastLineWarn}
+                  </Alert>
+                )}
+              </div>
+            )
+          })}
+
+          {entry?.status !== "loading" && (
+            <div className="flex flex-col gap-1.5">
+              <div className={mobile ? "w-full" : "w-[320px]"}>
+                <AddLine
+                  items={addable}
+                  busy={busy.has("add")}
+                  mobile={mobile}
+                  onPick={(materialId) =>
+                    run("add", () =>
+                      addRecipeItem(product.id, { material_id: materialId, quantity_needed: 1, cost_basis: "PER_UNIT" })
+                    )
                   }
-                >
-                  {R.lastLineWarn}
-                </Alert>
-              )}
+                />
+              </div>
+              {addError && <InlineMessage severity="error">{addError}</InlineMessage>}
             </div>
-          )
-        })}
+          )}
 
-        {entry?.status !== "loading" && (
-          <div className="flex flex-col gap-1.5">
-            <div className={mobile ? "w-full" : "w-[320px]"}>
-              <AddLine
-                items={addable}
-                busy={busy.has("add")}
-                mobile={mobile}
-                onPick={(materialId) =>
-                  run("add", () =>
-                    addRecipeItem(product.id, { material_id: materialId, quantity_needed: 1, cost_basis: "PER_UNIT" })
-                  )
-                }
-              />
-            </div>
-            {addError && <InlineMessage severity="error">{addError}</InlineMessage>}
-          </div>
-        )}
-
-        {items.length > 0 && (
-          <>
-            <div className="h-px bg-border" />
-            <div className={cn("grid gap-3", mobile ? "grid-cols-1" : "grid-cols-3")}>
-              <Tile caption={R.tilePerUnit} value={formatMoney(sums.perUnit)} />
-              <Tile caption={R.tilePerBatch} value={formatMoney(sums.perBatch)} />
-              <Tile caption={R.tileAt} value={`${formatMoney(at30)} / ${formatMoney(at100)}`} />
-            </div>
-          </>
-        )}
-      </div>
+          {items.length > 0 && (
+            <>
+              <div className="h-px bg-border" />
+              <div className={cn("grid gap-3", mobile ? "grid-cols-1" : "grid-cols-3")}>
+                <Tile caption={R.tilePerUnit} value={formatMoney(sums.perUnit)} />
+                <Tile caption={R.tilePerBatch} value={formatMoney(sums.perBatch)} />
+                <Tile caption={R.tileAt} value={`${formatMoney(at30)} / ${formatMoney(at100)}`} />
+              </div>
+            </>
+          )}
+        </div>
+      </Collapsible>
     </section>
   )
 
