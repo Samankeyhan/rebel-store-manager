@@ -157,7 +157,8 @@ export function RecipeTab({
     .map((m) => ({
       id: m.id,
       name: m.name,
-      sub: R.lineSub(m.type === "SERVICE", m.unit_cost, unitLabel(m.unit)),
+      // Stock only — never costs — in the picker.
+      sub: m.type === "SERVICE" || m.current_stock == null ? R.service : R.materialStock(formatQuantity(m.current_stock), unitLabel(m.unit)),
     }))
   const materialById = new Map(materials.map((m) => [m.id, m]))
 

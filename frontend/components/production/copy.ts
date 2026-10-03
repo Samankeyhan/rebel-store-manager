@@ -14,9 +14,7 @@ export const R = {
   segRecipe: "دستور",
   segHistory: "سوابق",
   tabsLabel: "بخش‌های تولید", // NEW
-  detailsToggle: "نمایش جزئیات و بها", // NEW
   recipeDetails: "دستور تولید و بها", // NEW (collapsible label)
-  detailsHidden: "جزئیات دستور تولید و همه بهاها پنهان است؛ برای دیدن، «نمایش جزئیات و بها» را روشن کنید.", // NEW
 
   // run form
   formTitle: "تولید جدید",
@@ -99,8 +97,6 @@ export const R = {
   collapsedSummary: (total: number, unit: number) =>
     `هزینه کل ${formatNumber(total)} · بهای هر عدد ${formatNumber(unit)}`, // NEW
   collapsedAvg: (from: string, to: number) => `میانگین ${from} ← ${formatNumber(to)}`, // NEW
-  showDetails: "نمایش جزئیات", // NEW
-  hideDetails: "بستن جزئیات", // NEW
   runsTotal: "جمع هزینه این اجراها", // NEW
   runsTotalCaption: "جمع چند تولید جداگانه؛ یک تولید واحد نیست.", // NEW
   submitMany: (n: number) => `ثبت ${formatNumber(n)} تولید`, // NEW
@@ -108,9 +104,9 @@ export const R = {
   statusQueued: "در صف", // NEW
   statusSubmitting: "در حال ثبت", // NEW
   statusSuccessPlain: "ثبت شد", // NEW
+  materialStock: (qty: string, unit: string) => `موجودی ${qty} ${unit}`, // NEW (add-material picker sub-line)
   costDetails: "جزئیات و بها", // NEW (collapsible label)
   successUnitCost: (unitCost: number) => `بهای هر عدد: ${formatNumber(unitCost)} تومان`, // NEW
-  statusSuccess: (unitCost: number) => `ثبت شد · بهای هر عدد ${formatNumber(unitCost)}`, // NEW
   statusFailed: "ناموفق", // NEW
   progress: (done: number, total: number) => `در حال ثبت ${formatNumber(done)} از ${formatNumber(total)}…`, // NEW
   summaryTitle: (ok: number, total: number) => `${formatNumber(ok)} از ${formatNumber(total)} تولید با موفقیت ثبت شد`,

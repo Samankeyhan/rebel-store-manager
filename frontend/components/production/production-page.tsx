@@ -14,7 +14,6 @@ import { R } from "./copy"
 import { HistoryTab } from "./history-tab"
 import { RecipeTab } from "./recipe-tab"
 import { RunTab } from "./run-tab"
-import { setShowDetails, useShowDetails } from "./show-details"
 import { useProductionData } from "./use-production-data"
 
 const TABS = ["run", "recipe", "history"] as const
@@ -55,7 +54,6 @@ export function ProductionPage() {
   const defaultRange = React.useMemo(() => presetRange("thisYear", now), [now])
   const [range, setRange] = React.useState<IsoRange>(defaultRange)
 
-  const showDetails = useShowDetails()
   const data = useProductionData()
   const { base, recipes } = data
   const [toast, setToast] = React.useState<string | null>(null)
@@ -177,33 +175,6 @@ export function ProductionPage() {
 
   return (
     <div className={cn("flex flex-col", mobile ? "gap-3" : "gap-5")}>
-      {base.status === "ready" && (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex justify-end">
-            <label className="inline-flex cursor-pointer items-center gap-2.5 text-[13px] font-semibold text-text-2">
-              {R.detailsToggle}
-              <button
-                type="button"
-                role="switch"
-                aria-checked={showDetails}
-                onClick={() => setShowDetails(!showDetails)}
-                className={cn(
-                  "relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
-                  showDetails ? "bg-primary" : "bg-border-strong"
-                )}
-              >
-                <span
-                  className={cn(
-                    "absolute top-0.5 size-5 rounded-full bg-white shadow transition-[inset-inline-start]",
-                    showDetails ? "start-[18px]" : "start-0.5"
-                  )}
-                />
-              </button>
-            </label>
-          </div>
-          {!showDetails && <p className="text-end text-xs text-text-3">{R.detailsHidden}</p>}
-        </div>
-      )}
       {base.status === "ready" && tabs}
       {body}
       {toast && <Toast title={toast} onClose={closeToast} closeLabel={R.close} />}
