@@ -20,6 +20,7 @@ All money is stored as **INTEGER** in the smallest currency unit (Toman). See Ar
 8. **Persian UI:** «متریال», never «ماده» or «مواد» (nav item and page title: «محصولات و متریال»; products page tabs: «محصولات»، «متریال»، «دسته‌ها»). Persian digits through `lib/persian-numbers`; dates through `lib/jalali`; logical CSS properties; RTL; desktop and mobile; loading, error and empty states; copy lives in `copy.ts` with new strings marked `// NEW`.
 9. **The final report lists:** what was verified, what could NOT be verified (e.g. no browser tools, so the visual check is left to the owner), choices made on open questions, and backend gaps.
 10. **Don't install browser extensions or change anything outside the repo.**
+11. **Money display and input.** Money is stored and sent as integer Toman — the display currency (Settings → «واحد پول», Toman or Rial = Toman × 10) never reaches the database or the API. Every displayed amount goes through `formatMoney` (`frontend/lib/money.ts`) or the shared `<Money>` component; every money input is `MoneyInput`; never hard-code a currency unit (use `currencyLabel()`). `npm run check:money` must pass. On the backend, `db/currency.py` is the only place that converts (the invoice uses it).
 
 ## Module map
 

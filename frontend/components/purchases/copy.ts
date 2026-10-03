@@ -3,7 +3,8 @@
  * Strings the design doesn't have are marked // NEW.
  */
 
-import { formatMoney, formatNumber, formatQuantity, toPersianDigits } from "@/lib/persian-numbers"
+import { formatNumber, formatQuantity, toPersianDigits } from "@/lib/persian-numbers"
+import { formatMoney } from "@/lib/money"
 
 export const U = {
   // toolbar

@@ -1,4 +1,5 @@
-import { formatMoney, formatQuantity } from "@/lib/persian-numbers"
+import { formatQuantity } from "@/lib/persian-numbers"
+import { formatMoney } from "@/lib/money"
 
 /** Screen 10 copy (design/screens/10-stock-adjustments.md §2). `// NEW` = not in the design. */
 export const A = {

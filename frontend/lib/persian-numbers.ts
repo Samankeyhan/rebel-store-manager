@@ -1,12 +1,14 @@
 /**
  * Persian number formatting. EVERY number shown in the UI goes through this
- * module (toPersianDigits / formatNumber / formatMoney) — never render a raw
- * number or call toLocaleString directly, so digits and separators stay
+ * module (toPersianDigits / formatNumber / formatQuantity) — never render a
+ * raw number or call toLocaleString directly, so digits and separators stay
  * consistent across screens.
  *
- * Money is always an integer count of Toman (see the backend's money rule).
- * These functions never throw: a non-integer amount means a rounding slip
- * upstream, which must not crash a screen — it is rounded and warned about.
+ * MONEY does not use formatNumber directly: it goes through lib/money.ts
+ * (formatMoney / <Money> / MoneyInput), which adds the unit and applies the
+ * display currency. These functions never throw: a non-integer means a
+ * rounding slip upstream, which must not crash a screen — it is rounded and
+ * warned about.
  */
 
 const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
@@ -47,11 +49,6 @@ export function formatNumber(n: number): string {
     THOUSANDS_SEPARATOR
   )
   return (int < 0 ? MINUS : "") + toPersianDigits(grouped)
-}
-
-/** Integer Toman amount: 180000 → "۱۸۰٬۰۰۰ تومان". */
-export function formatMoney(n: number): string {
-  return `${formatNumber(toInteger(n, "formatMoney"))} تومان`
 }
 
 /** U+066B ARABIC DECIMAL SEPARATOR */

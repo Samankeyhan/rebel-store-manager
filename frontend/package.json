@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "gen:api": "node scripts/gen-api.mjs",
+    "check:money": "node scripts/check-money.mjs",
     "test": "node --test \"lib/**/*.test.mjs\""
   },
   "dependencies": {

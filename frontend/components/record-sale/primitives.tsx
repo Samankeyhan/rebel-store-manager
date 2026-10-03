@@ -10,7 +10,10 @@
 import * as React from "react"
 import { CircleAlert, Info, Lock, Minus, Plus, TriangleAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { formatNumber, parseInteger } from "@/lib/persian-numbers"
+import { formatNumber, parseInteger, toLatinDigits } from "@/lib/persian-numbers"
+import { M } from "@/components/common/copy"
+import { currencyLabel, formatMoney, fromDisplayAmount, toDisplayAmount, type Currency } from "@/lib/money"
+import { useCurrency } from "@/lib/use-currency"
 import { T } from "./copy"
 
 const focusRing = "outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
@@ -97,7 +100,7 @@ export const inputClass = (tone?: "error" | "warn" | null, className?: string) =
     className
   )
 
-/** Integer input (money or product quantity): shows Persian digits, accepts any. */
+/** Integer input for quantities and counts: shows Persian digits, accepts any. Money uses MoneyInput. */
 export function IntInput({
   value,
   onValue,
@@ -127,6 +130,74 @@ export function IntInput({
     <div className="relative flex w-full items-center">
       {input}
       <span className="pointer-events-none absolute end-3 text-xs text-text-3">{suffix}</span>
+    </div>
+  )
+}
+
+/** A typed amount (Latin digits) in `currency` → Toman, null when not exact, undefined when empty. */
+function readMoney(digits: string, currency: Currency, allowEmpty: boolean): number | null | undefined {
+  if (digits === "") return allowEmpty ? undefined : 0
+  return fromDisplayAmount(parseInteger(digits), currency)
+}
+
+const moneyDigits = (v: number | null | undefined, currency: Currency) =>
+  v == null ? "" : String(toDisplayAmount(v, currency))
+
+/**
+ * THE money input. `value` and `onValue` are integer Toman; the user types in
+ * the display currency (lib/money.ts) and the unit is the suffix inside the
+ * field. In Rial an amount that isn't a multiple of 10 can't be exact Toman:
+ * it is never rounded — onValue(null) is reported and the field shows why.
+ * A caller stores `number | null` and must treat null as a blocking error
+ * (don't submit). With `allowEmpty`, an empty field reports undefined.
+ */
+export function MoneyInput({
+  value,
+  onValue,
+  allowEmpty = false,
+  tone,
+  className,
+  wrapperClassName,
+  ...props
+}: Omit<React.ComponentProps<"input">, "value" | "onChange"> & {
+  value: number | null | undefined
+  onValue: (toman: number | null | undefined) => void
+  allowEmpty?: boolean
+  tone?: "error" | "warn" | null
+  wrapperClassName?: string
+}) {
+  const currency = useCurrency()
+  // The typed digits, so a half-typed Rial amount (e.g. 15) isn't lost. Re-derived
+  // when the value changes from outside (revert, reset) or the currency switches.
+  const [sync, setSync] = React.useState(() => ({ value, currency, digits: moneyDigits(value, currency) }))
+  if (sync.value !== value || sync.currency !== currency) {
+    setSync({ value, currency, digits: value === null ? sync.digits : moneyDigits(value, currency) })
+  }
+  const invalid = value === null
+  const message = invalid ? (currency === "RIAL" ? M.notMultipleOf10 : M.reenter) : null
+  const shown = sync.digits === "" ? (allowEmpty ? "" : formatNumber(0)) : formatNumber(Number(sync.digits))
+
+  return (
+    <div className={cn("flex w-full min-w-0 flex-col gap-1.5", wrapperClassName)}>
+      <div className="relative flex w-full items-center">
+        <input
+          inputMode="numeric"
+          autoComplete="off"
+          value={shown}
+          onChange={(e) => {
+            const digits = toLatinDigits(e.target.value).replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "")
+            const next = readMoney(digits, currency, allowEmpty)
+            setSync({ value: next, currency, digits })
+            onValue(next)
+          }}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-invalid={invalid || props["aria-invalid"] || undefined}
+          className={inputClass(invalid ? "error" : tone, cn("pe-14 tabular-nums", className))}
+          {...props}
+        />
+        <span className="pointer-events-none absolute end-3 text-xs text-text-3">{currencyLabel(currency)}</span>
+      </div>
+      {message && <InlineMessage severity="error">{message}</InlineMessage>}
     </div>
   )
 }
@@ -376,7 +447,7 @@ export function Kbd({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** Signed amount for the internal summary: «−۱۹۹٬۲۷۳», or «۰». */
+/** Signed amount for the internal summary, with its unit: «−۱۹۹٬۲۷۳ تومان», or «۰ تومان». */
 export function negAmount(n: number): string {
-  return n ? formatNumber(-n) : formatNumber(0)
+  return formatMoney(n ? -n : 0)
 }

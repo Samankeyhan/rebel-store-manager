@@ -10,7 +10,8 @@ import { Alert, Btn } from "@/components/record-sale/primitives"
 import { getProductionBatch, type Material, type ProductionBatchDetail, type ProductionBatchListItem } from "@/lib/api"
 import { roundHalfEven } from "@/lib/costing"
 import { formatJalaliDateTime } from "@/lib/jalali"
-import { formatMoney, formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatMoney } from "@/lib/money"
 import { R } from "./copy"
 
 type Load = { status: "loading" } | { status: "error" } | { status: "ready"; detail: ProductionBatchDetail }

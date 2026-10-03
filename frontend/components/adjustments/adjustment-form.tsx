@@ -16,7 +16,8 @@ import {
   type Product,
 } from "@/lib/api"
 import { dateToISO } from "@/lib/jalali"
-import { formatMoney, formatNumber, formatQuantity, parseDecimal, toLatinDigits } from "@/lib/persian-numbers"
+import { formatNumber, formatQuantity, parseDecimal, toLatinDigits } from "@/lib/persian-numbers"
+import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { A } from "./copy"
 import {

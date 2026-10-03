@@ -18,7 +18,8 @@ import {
   type Recipe,
 } from "@/lib/api"
 import { batchPreview, recipeSums } from "@/lib/costing"
-import { formatMoney, formatQuantity, parseDecimal } from "@/lib/persian-numbers"
+import { formatQuantity, parseDecimal } from "@/lib/persian-numbers"
+import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
 import type { RecipeEntry } from "./use-production-data"

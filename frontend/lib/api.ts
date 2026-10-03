@@ -181,6 +181,14 @@ export function updateSetting(key: GlobalSettingKey, value: number): Promise<Set
   return apiFetch<Settings>(`/settings/${key}`, { method: "PUT", body: JSON.stringify({ value }) })
 }
 
+/**
+ * PUT /settings/display_currency: "TOMAN" or "RIAL" (422, field "value", for
+ * anything else). Display only — every amount stays integer Toman on the wire.
+ */
+export function updateDisplayCurrency(value: Settings["display_currency"]): Promise<Settings> {
+  return apiFetch<Settings>("/settings/display_currency", { method: "PUT", body: JSON.stringify({ value }) })
+}
+
 export type Product = Schemas["ProductOut"]
 export type Material = Schemas["MaterialOut"]
 export type ProductCreate = Schemas["ProductCreate"]

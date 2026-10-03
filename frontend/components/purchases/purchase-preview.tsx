@@ -3,7 +3,8 @@
 import { ChevronLeft } from "lucide-react"
 import { badgeBase } from "@/components/common/status"
 import { blendUnitCost, purchaseUnitCost } from "@/lib/costing"
-import { formatMoney, formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
+import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { U } from "./copy"
 
