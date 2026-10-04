@@ -37,7 +37,12 @@ def test_007_seeds_display_currency_and_touches_nothing_else(tmp_path):
     conn = get_connection(str(db_path))
     try:
         settings_after = {r["key"]: r["value"] for r in conn.execute("SELECT * FROM settings")}
-        channels_after = [dict(r) for r in conn.execute("SELECT * FROM channel_settings ORDER BY channel")]
+        # Later migrations may add channel_settings columns; 007 must not
+        # change the columns that existed when it ran.
+        channels_after = [
+            {k: dict(r)[k] for k in channels_before[0]}
+            for r in conn.execute("SELECT * FROM channel_settings ORDER BY channel")
+        ]
         applied = [r["filename"] for r in conn.execute("SELECT filename FROM schema_migrations")]
     finally:
         conn.close()

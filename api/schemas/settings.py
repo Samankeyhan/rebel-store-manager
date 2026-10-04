@@ -10,6 +10,7 @@ class ChannelSettingsOut(BaseModel):
     applies_shipping_charge: int
     applies_postage: int
     default_packaging_kit_id: int | None
+    default_payment_method_id: int | None
 
 
 class SettingsOut(BaseModel):

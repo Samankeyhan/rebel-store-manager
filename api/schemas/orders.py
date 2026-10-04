@@ -21,6 +21,15 @@ class OrderListItemOut(BaseModel):
     packaging_kit_id: int | None
     packaging_cost: int
     stock_committed: int
+    # Migration 008: payment method and settlement state. NULL on orders
+    # recorded before it; paid/expected dates are local calendar days.
+    payment_method_id: int | None
+    payment_reference: str | None
+    paid_date: str | None
+    expected_settlement_date: str | None
+    paid_jalali_year: int | None
+    paid_jalali_month: int | None
+    settlement_id: int | None
     customer_total: int
     profit: int | None
 
@@ -41,6 +50,15 @@ class OrderOut(BaseModel):
     packaging_kit_id: int | None
     packaging_cost: int
     stock_committed: int
+    # Migration 008: payment method and settlement state. NULL on orders
+    # recorded before it; paid/expected dates are local calendar days.
+    payment_method_id: int | None
+    payment_reference: str | None
+    paid_date: str | None
+    expected_settlement_date: str | None
+    paid_jalali_year: int | None
+    paid_jalali_month: int | None
+    settlement_id: int | None
 
 
 class OrderItemOut(BaseModel):

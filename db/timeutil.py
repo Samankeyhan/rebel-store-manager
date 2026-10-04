@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from db.errors import ValidationError
@@ -68,6 +68,16 @@ def validate_calendar_date(value: str) -> str:
             f"Invalid date '{value}'. Expected 'YYYY-MM-DD'.", field="date"
         ) from None
     return stripped
+
+
+def parse_calendar_date(value: str) -> date:
+    """A validated local calendar-day string ("YYYY-MM-DD") as a date."""
+    return datetime.strptime(validate_calendar_date(value), _DATE_FORMAT).date()
+
+
+def today_local(conn: sqlite3.Connection | None = None) -> date:
+    """Today's calendar day in the store timezone (the `timezone` setting)."""
+    return datetime.now(_get_timezone(conn)).date()
 
 
 def to_utc_range(
