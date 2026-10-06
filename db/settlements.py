@@ -424,10 +424,14 @@ def record_settlement(
                 raise ConflictError(
                     "Some of these orders were settled meanwhile; reload and try again."
                 )
-    except sqlite3.IntegrityError:
+    except sqlite3.IntegrityError as exc:
+        if monthly:
+            raise ConflictError(
+                f"{method['name']}'s month {jy}/{jm:02d} is already settled."
+            ) from None
         raise ConflictError(
-            f"{method['name']}'s month {jy}/{jm:02d} is already settled."
-        ) from None
+            "Could not record the settlement: it conflicts with existing data"
+        ) from exc
     return settlement_id
 
 
