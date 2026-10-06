@@ -106,3 +106,22 @@ class PurchasesSummaryOut(BaseModel):
     material_purchases_count: int
     product_purchases_total: int
     product_purchases_count: int
+
+
+class PaymentMethodReportRowOut(BaseModel):
+    """One payment method, or (payment_method_id null) orders without one."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    payment_method_id: int | None
+    name: str | None
+    settlement_rule: str | None
+    is_active: int | None
+    order_count: int
+    customer_total: int
+    transaction_fees: int
+    fees_lost_on_returns: int
+    pending_expected: int
+    settled_expected: int
+    settled_received: int
+    settlement_difference: int

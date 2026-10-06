@@ -7,7 +7,8 @@ from db.orders import (
     compute_order_profit,
     compute_order_revenue,
 )
-from db.timeutil import to_utc_range
+from db.payment_methods import PAID_STATUSES, list_payment_methods
+from db.timeutil import to_utc_range, validate_calendar_date
 
 REFUND_INCLUDED_STATUSES = REVENUE_ELIGIBLE_STATUSES + ("REFUNDED",)
 
@@ -599,3 +600,158 @@ def get_shipping_by_channel(
         )
 
     return sorted(results, key=lambda row: row["shipping_revenue"], reverse=True)
+
+
+_PAYMENT_REPORT_FIGURES = (
+    "order_count",
+    "customer_total",
+    "transaction_fees",
+    "fees_lost_on_returns",
+    "pending_expected",
+    "settled_expected",
+    "settled_received",
+    "settlement_difference",
+)
+
+# The same customer_total formula as db/orders.py::list_orders.
+_ORDER_CUSTOMER_TOTAL_SQL = """
+    (SELECT COALESCE(SUM(order_items.list_price - order_items.discount_amount), 0)
+     FROM order_items WHERE order_items.order_id = orders.id)
+    + orders.shipping_charge
+"""
+
+
+def _sums_by_method(conn: sqlite3.Connection, query: str, params: list) -> dict:
+    """{payment_method_id (None = no method): row dict} for a GROUP BY query."""
+    return {row["method_id"]: dict(row) for row in conn.execute(query, params).fetchall()}
+
+
+def get_payment_method_report(
+    conn: sqlite3.Connection,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
+    """Fees and settlements per payment method (accounting-rules.md section 14).
+
+    One row per payment method (active, or inactive with any non-zero figure),
+    sorted by name, then one "no method" row (payment_method_id None).
+    - order_count, customer_total, transaction_fees: revenue-eligible orders
+      (PENDING, PAID, COMPLETED) with order_date in range, the P&L's order set.
+      Summed over all rows they equal the P&L order_count, total_revenue and
+      transaction_fees.
+    - fees_lost_on_returns: transaction_fee of REFUNDED orders, plus CANCELLED
+      orders with stock_committed = 1, order_date in range: the fee part of
+      the P&L refund_losses.
+    - pending_expected: sum(customer_total - transaction_fee) of orders still
+      pending settlement now (has a method, PAID or COMPLETED, no
+      settlement_id) with order_date in range.
+    - settled_expected, settled_received: sum(expected_amount) and
+      sum(amount_received) of settlements whose settled_date (a local
+      calendar day) is in range; settlement_difference = received - expected.
+      Always 0 on the no-method row.
+    """
+    order_clause, order_params = _date_range_clause(
+        conn, "orders.order_date", start_date, end_date
+    )
+    eligible_placeholders = ", ".join("?" for _ in REVENUE_ELIGIBLE_STATUSES)
+    paid_placeholders = ", ".join("?" for _ in PAID_STATUSES)
+
+    eligible = _sums_by_method(
+        conn,
+        f"""
+        SELECT orders.payment_method_id AS method_id,
+               COUNT(*) AS order_count,
+               COALESCE(SUM({_ORDER_CUSTOMER_TOTAL_SQL}), 0) AS customer_total,
+               COALESCE(SUM(orders.transaction_fee), 0) AS transaction_fees
+        FROM orders
+        WHERE orders.status IN ({eligible_placeholders})
+        {order_clause}
+        GROUP BY orders.payment_method_id
+        """,
+        list(REVENUE_ELIGIBLE_STATUSES) + order_params,
+    )
+
+    returned = _sums_by_method(
+        conn,
+        f"""
+        SELECT orders.payment_method_id AS method_id,
+               COALESCE(SUM(orders.transaction_fee), 0) AS fees_lost_on_returns
+        FROM orders
+        WHERE (orders.status = 'REFUNDED'
+               OR (orders.status = 'CANCELLED' AND orders.stock_committed = 1))
+        {order_clause}
+        GROUP BY orders.payment_method_id
+        """,
+        order_params,
+    )
+
+    pending = _sums_by_method(
+        conn,
+        f"""
+        SELECT orders.payment_method_id AS method_id,
+               COALESCE(SUM({_ORDER_CUSTOMER_TOTAL_SQL} - orders.transaction_fee), 0)
+                   AS pending_expected
+        FROM orders
+        WHERE orders.payment_method_id IS NOT NULL
+          AND orders.status IN ({paid_placeholders})
+          AND orders.settlement_id IS NULL
+        {order_clause}
+        GROUP BY orders.payment_method_id
+        """,
+        list(PAID_STATUSES) + order_params,
+    )
+
+    settled_query = """
+        SELECT settlements.payment_method_id AS method_id,
+               COALESCE(SUM(settlements.expected_amount), 0) AS settled_expected,
+               COALESCE(SUM(settlements.amount_received), 0) AS settled_received
+        FROM settlements
+        WHERE 1=1
+    """
+    settled_params: list = []
+    if start_date is not None:
+        settled_query += " AND settlements.settled_date >= ?"
+        settled_params.append(validate_calendar_date(start_date))
+    if end_date is not None:
+        settled_query += " AND settlements.settled_date <= ?"
+        settled_params.append(validate_calendar_date(end_date))
+    settled_query += " GROUP BY settlements.payment_method_id"
+    settled = _sums_by_method(conn, settled_query, settled_params)
+
+    def figures(method_id: int | None) -> dict:
+        row = {
+            "order_count": eligible.get(method_id, {}).get("order_count", 0),
+            "customer_total": eligible.get(method_id, {}).get("customer_total", 0),
+            "transaction_fees": eligible.get(method_id, {}).get("transaction_fees", 0),
+            "fees_lost_on_returns": returned.get(method_id, {}).get("fees_lost_on_returns", 0),
+            "pending_expected": pending.get(method_id, {}).get("pending_expected", 0),
+            "settled_expected": settled.get(method_id, {}).get("settled_expected", 0),
+            "settled_received": settled.get(method_id, {}).get("settled_received", 0),
+        }
+        row["settlement_difference"] = row["settled_received"] - row["settled_expected"]
+        return row
+
+    report = []
+    for method in list_payment_methods(conn, include_inactive=True):
+        row = figures(method["id"])
+        if not method["is_active"] and not any(row.values()):
+            continue
+        report.append(
+            {
+                "payment_method_id": method["id"],
+                "name": method["name"],
+                "settlement_rule": method["settlement_rule"],
+                "is_active": method["is_active"],
+                **row,
+            }
+        )
+    report.append(
+        {
+            "payment_method_id": None,
+            "name": None,
+            "settlement_rule": None,
+            "is_active": None,
+            **figures(None),
+        }
+    )
+    return report

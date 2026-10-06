@@ -7,6 +7,7 @@ from api.schemas.common import DateStr
 from api.schemas.reports import (
     ChannelBreakdownOut,
     ExpenseBreakdownOut,
+    PaymentMethodReportRowOut,
     ProductPerformanceOut,
     ProfitAndLossOut,
     PurchasesSummaryOut,
@@ -19,6 +20,7 @@ from db.orders import get_revenue_summary
 from db.reports import (
     get_channel_breakdown,
     get_expense_breakdown,
+    get_payment_method_report,
     get_product_performance,
     get_profit_and_loss,
     get_purchases_summary,
@@ -122,3 +124,19 @@ def read_purchases_summary(
     return PurchasesSummaryOut.model_validate(
         get_purchases_summary(conn, start_date=start_date, end_date=end_date)
     )
+
+
+@router.get("/payment-methods", response_model=list[PaymentMethodReportRowOut])
+def read_payment_method_report(
+    start_date: DateStr | None = None,
+    end_date: DateStr | None = None,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> list[PaymentMethodReportRowOut]:
+    """Per payment method, then a "no method" row (payment_method_id null).
+    order_count / customer_total / transaction_fees cover revenue-eligible
+    orders by order_date (their transaction_fees sum to the P&L's);
+    fees_lost_on_returns is the fee part of the P&L refund_losses;
+    pending_expected covers orders still pending, by order_date;
+    settled_* cover settlements by settled_date."""
+    rows = get_payment_method_report(conn, start_date=start_date, end_date=end_date)
+    return [PaymentMethodReportRowOut.model_validate(r) for r in rows]
