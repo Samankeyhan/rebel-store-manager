@@ -30,6 +30,7 @@ class OrderListItemOut(BaseModel):
     paid_jalali_year: int | None
     paid_jalali_month: int | None
     settlement_id: int | None
+    payment_method_name: str | None
     customer_total: int
     profit: int | None
 
@@ -59,6 +60,7 @@ class OrderOut(BaseModel):
     paid_jalali_year: int | None
     paid_jalali_month: int | None
     settlement_id: int | None
+    payment_method_name: str | None
 
 
 class OrderItemOut(BaseModel):

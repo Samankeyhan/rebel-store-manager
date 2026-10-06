@@ -1,14 +1,27 @@
 import sqlite3
+from datetime import date
 
+from db import jalali
 from db.connection import next_counter, transaction
 from db.constants import VALID_CHANNELS, VALID_STATUSES  # re-exported for existing importers
 from db.errors import ConflictError, InsufficientStockError, NotFoundError, ValidationError
 from db.materials import get_material
 from db.packaging import calculate_kit_cost, get_kit
+from db.payment_methods import (
+    PAID_STATUSES,
+    compute_expected_settlement_date,
+    compute_fee,
+    get_payment_method,
+)
 from db.postage import get_current_postage_estimate
 from db.products import get_product
 from db.settings import get_channel_settings, get_setting
-from db.timeutil import normalize_record_date, to_utc_range
+from db.timeutil import (
+    normalize_record_date,
+    parse_calendar_date,
+    to_utc_range,
+    today_local,
+)
 
 REVENUE_ELIGIBLE_STATUSES = ("PENDING", "PAID", "COMPLETED")
 CREATION_ALLOWED_STATUSES = ("DRAFT", "PENDING", "PAID", "COMPLETED")
@@ -16,6 +29,8 @@ CREATION_ALLOWED_STATUSES = ("DRAFT", "PENDING", "PAID", "COMPLETED")
 USE_CHANNEL_DEFAULT = object()
 
 _RETURN_STATUSES = ("CANCELLED", "REFUNDED")
+
+SETTLEMENT_STATES = ("pending", "settled")
 
 _ALLOWED_TRANSITIONS = {
     "DRAFT": {"PENDING", "PAID", "COMPLETED"},
@@ -152,6 +167,93 @@ def _resolve_packaging_kit_id(conn, channel_settings: dict, packaging_kit_id) ->
             )
 
     return resolved
+
+
+def _resolve_payment_method(conn, channel_settings: dict, payment_method_id) -> dict | None:
+    """The method a new order uses; it must be active. An inactive method's
+    existing orders still change status and settle normally."""
+    if payment_method_id is USE_CHANNEL_DEFAULT:
+        resolved = channel_settings["default_payment_method_id"]
+    else:
+        resolved = payment_method_id
+
+    if resolved is None:
+        return None
+    method = get_payment_method(conn, resolved)  # raises NotFoundError if missing
+    if not method["is_active"]:
+        raise ValidationError(
+            f"Payment method '{method['name']}' is not active. Choose another method "
+            f"or update the channel's default payment method.",
+            field="payment_method_id",
+        )
+    return method
+
+
+def _validate_paid_day_not_future(conn: sqlite3.Connection, paid_day: date) -> None:
+    today = today_local(conn)
+    if paid_day > today:
+        raise ValidationError(
+            f"paid_date {paid_day.isoformat()} is in the future (today is "
+            f"{today.isoformat()})",
+            field="paid_date",
+        )
+
+
+def _parse_paid_date(conn: sqlite3.Connection, value: str) -> date:
+    try:
+        paid_day = parse_calendar_date(value)
+    except ValidationError as exc:
+        raise ValidationError(str(exc), field="paid_date") from None
+    _validate_paid_day_not_future(conn, paid_day)
+    return paid_day
+
+
+def _check_month_open(conn: sqlite3.Connection, method: dict | None, paid_day: date) -> None:
+    """Closed-month guard: a DAY_OF_NEXT_MONTH method settles whole Jalali
+    months, so no paid order may land in a month that is already settled."""
+    if method is None or method["settlement_rule"] != "DAY_OF_NEXT_MONTH":
+        return
+    jy, jm, _ = jalali.to_jalali(paid_day)
+    row = conn.execute(
+        """
+        SELECT id FROM settlements
+        WHERE payment_method_id = ? AND jalali_year = ? AND jalali_month = ?
+        """,
+        (method["id"], jy, jm),
+    ).fetchone()
+    if row is not None:
+        raise ConflictError(
+            f"{method['name']}'s month {jy}/{jm:02d} is already settled "
+            f"(settlement #{row['id']}); choose a paid date in an open month."
+        )
+
+
+def _paid_fields(paid_day: date, method: dict | None) -> dict:
+    """The columns frozen on an order when it becomes paid (or its paid_date moves)."""
+    jy, jm, _ = jalali.to_jalali(paid_day)
+    return {
+        "paid_date": paid_day.isoformat(),
+        "expected_settlement_date": (
+            compute_expected_settlement_date(paid_day, method).isoformat()
+            if method is not None
+            else None
+        ),
+        "paid_jalali_year": jy,
+        "paid_jalali_month": jm,
+    }
+
+
+def _write_paid_fields(conn: sqlite3.Connection, order_id: int, fields: dict) -> None:
+    assignments = ", ".join(f"{name} = ?" for name in fields)
+    conn.execute(
+        f"UPDATE orders SET {assignments} WHERE id = ?", [*fields.values(), order_id]
+    )
+
+
+def _order_method(conn: sqlite3.Connection, order: sqlite3.Row) -> dict | None:
+    if order["payment_method_id"] is None:
+        return None
+    return get_payment_method(conn, order["payment_method_id"])
 
 
 def _commit_order(
@@ -374,17 +476,29 @@ def record_order(
     shipping_charge: int | None = None,
     packaging_kit_id=USE_CHANNEL_DEFAULT,
     postage_cost: int | None = None,
-    transaction_fee: int = 0,
+    transaction_fee: int | None = None,
     notes: str | None = None,
     status: str = "COMPLETED",
+    payment_method_id=USE_CHANNEL_DEFAULT,
+    payment_reference: str | None = None,
+    paid_date: str | None = None,
 ) -> int:
+    """transaction_fee None means computed from the payment method (0 with no
+    method); an int, including 0, overrides it. paid_date is only for an order
+    created PAID/COMPLETED and defaults to the local day of order_date."""
     _validate_channel(channel)
     _validate_creation_status(status)
     if shipping_charge is not None:
         _validate_non_negative(shipping_charge, "shipping_charge")
     if postage_cost is not None:
         _validate_non_negative(postage_cost, "postage_cost")
-    _validate_non_negative(transaction_fee, "transaction_fee")
+    if transaction_fee is not None:
+        _validate_non_negative(transaction_fee, "transaction_fee")
+    if paid_date is not None and status not in PAID_STATUSES:
+        raise ValidationError(
+            f"paid_date can only be given for a PAID or COMPLETED order, not {status}",
+            field="paid_date",
+        )
 
     if not items:
         raise ValidationError("An order must have at least one item", field="items")
@@ -399,9 +513,23 @@ def record_order(
         )
 
     resolved_kit_id = _resolve_packaging_kit_id(conn, channel_settings, packaging_kit_id)
+    method = _resolve_payment_method(conn, channel_settings, payment_method_id)
 
+    order_local_day = today_local(conn)
     if order_date is not None:
+        raw_order_date = order_date
         order_date = normalize_record_date(order_date, conn)
+        # Valid by now, so its first 10 characters are the local calendar day.
+        order_local_day = parse_calendar_date(raw_order_date.strip()[:10])
+
+    paid_fields: dict = {}
+    if status in PAID_STATUSES:
+        if paid_date is not None:
+            paid_day = _parse_paid_date(conn, paid_date)
+        else:
+            paid_day = order_local_day
+            _validate_paid_day_not_future(conn, paid_day)
+        paid_fields = _paid_fields(paid_day, method)
 
     with transaction(conn):
         validated_items: list[dict] = []
@@ -466,16 +594,30 @@ def record_order(
                 }
             )
 
+        if paid_fields:
+            _check_month_open(conn, method, paid_day)
+
+        if transaction_fee is None:
+            customer_total = shipping_charge + sum(
+                _line_revenue(item["list_price"], item["discount_amount"])
+                for item in validated_items
+            )
+            transaction_fee = compute_fee(customer_total, method) if method else 0
+
         insert_columns = [
             "status", "channel", "customer_name", "shipping_charge",
             "postage_cost", "transaction_fee", "notes", "invoice_number",
             "packaging_kit_id", "packaging_cost", "stock_committed",
+            "payment_method_id", "payment_reference",
         ]
         insert_values = [
             status, channel, customer_name, shipping_charge,
             0, transaction_fee, notes, f"INV-{next_counter(conn, 'INV'):06d}",
             resolved_kit_id, 0, 0,
+            method["id"] if method else None, payment_reference,
         ]
+        insert_columns.extend(paid_fields)
+        insert_values.extend(paid_fields.values())
         if order_date is not None:
             insert_columns.append("order_date")
             insert_values.append(order_date)
@@ -514,7 +656,15 @@ def record_order(
 
 
 def get_order(conn: sqlite3.Connection, order_id: int) -> dict:
-    order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    order = conn.execute(
+        """
+        SELECT orders.*, payment_methods.name AS payment_method_name
+        FROM orders
+        LEFT JOIN payment_methods ON payment_methods.id = orders.payment_method_id
+        WHERE orders.id = ?
+        """,
+        (order_id,),
+    ).fetchone()
     if order is None:
         raise NotFoundError(f"Order with id {order_id} does not exist")
 
@@ -533,15 +683,26 @@ def list_orders(
     status: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
+    payment_method_id: int | None = None,
+    settlement_state: str | None = None,
 ) -> list[dict]:
+    """settlement_state 'pending': paid, has a method, not yet settled;
+    'settled': in a settlement."""
     if channel is not None:
         _validate_channel(channel)
     if status is not None:
         _validate_status(status)
+    if settlement_state is not None and settlement_state not in SETTLEMENT_STATES:
+        valid = ", ".join(SETTLEMENT_STATES)
+        raise ValidationError(
+            f"Invalid settlement_state '{settlement_state}'. Must be one of: {valid}",
+            field="settlement_state",
+        )
 
     query = """
         SELECT
             orders.*,
+            payment_methods.name AS payment_method_name,
             COALESCE(SUM(order_items.list_price - order_items.discount_amount), 0)
                 + orders.shipping_charge AS customer_total,
             CASE
@@ -554,9 +715,24 @@ def list_orders(
             END AS profit
         FROM orders
         LEFT JOIN order_items ON order_items.order_id = orders.id
+        LEFT JOIN payment_methods ON payment_methods.id = orders.payment_method_id
         WHERE 1=1
     """
     params: list = []
+
+    if payment_method_id is not None:
+        query += " AND orders.payment_method_id = ?"
+        params.append(payment_method_id)
+    if settlement_state == "pending":
+        paid_placeholders = ", ".join("?" for _ in PAID_STATUSES)
+        query += (
+            " AND orders.payment_method_id IS NOT NULL"
+            f" AND orders.status IN ({paid_placeholders})"
+            " AND orders.settlement_id IS NULL"
+        )
+        params.extend(PAID_STATUSES)
+    elif settlement_state == "settled":
+        query += " AND orders.settlement_id IS NOT NULL"
 
     if channel is not None:
         query += " AND orders.channel = ?"
@@ -619,8 +795,14 @@ def get_revenue_summary(
 
 
 def update_order_status(
-    conn: sqlite3.Connection, order_id: int, new_status: str
+    conn: sqlite3.Connection,
+    order_id: int,
+    new_status: str,
+    paid_date: str | None = None,
 ) -> None:
+    """Moving from DRAFT/PENDING into PAID/COMPLETED is the payment: it sets
+    paid_date (default today) and freezes the settlement fields. PAID→COMPLETED
+    is not a new payment, so paid_date is refused there, never ignored."""
     _validate_status(new_status)
 
     order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
@@ -640,10 +822,54 @@ def update_order_status(
             f"Cannot transition order #{order_id} from {current_status} to {new_status}"
         )
 
+    becomes_paid = current_status not in PAID_STATUSES and new_status in PAID_STATUSES
+    if paid_date is not None and not becomes_paid:
+        raise ValidationError(
+            f"paid_date can only be given when an order becomes paid; "
+            f"{current_status} to {new_status} is not a payment",
+            field="paid_date",
+        )
+
+    paid_fields: dict = {}
+    if becomes_paid:
+        paid_day = (
+            _parse_paid_date(conn, paid_date) if paid_date is not None else today_local(conn)
+        )
+        method = _order_method(conn, order)
+        paid_fields = _paid_fields(paid_day, method)
+
     with transaction(conn):
+        if paid_fields:
+            _check_month_open(conn, method, paid_day)
+            _write_paid_fields(conn, order_id, paid_fields)
         conn.execute(
             "UPDATE orders SET status = ? WHERE id = ?",
             (new_status, order_id),
         )
         if current_status == "DRAFT":
             _commit_order(conn, order_id, postage_cost_override=None)
+
+
+def set_paid_date(conn: sqlite3.Connection, order_id: int, paid_date: str) -> None:
+    """Move a paid, unsettled order's paid_date and recompute its frozen
+    expected_settlement_date and Jalali month."""
+    order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    if order is None:
+        raise NotFoundError(f"Order with id {order_id} does not exist")
+    if order["status"] not in PAID_STATUSES:
+        raise ConflictError(
+            f"Order #{order_id} is {order['status']}, not paid; it has no paid date to change."
+        )
+    if order["settlement_id"] is not None:
+        raise ConflictError(
+            f"Order #{order_id} is part of settlement #{order['settlement_id']}; "
+            f"its paid date can no longer change."
+        )
+
+    paid_day = _parse_paid_date(conn, paid_date)
+    method = _order_method(conn, order)
+    paid_fields = _paid_fields(paid_day, method)
+
+    with transaction(conn):
+        _check_month_open(conn, method, paid_day)
+        _write_paid_fields(conn, order_id, paid_fields)
