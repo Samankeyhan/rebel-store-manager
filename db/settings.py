@@ -5,6 +5,7 @@ from db.connection import transaction
 from db.constants import VALID_CHANNELS
 from db.currency import DISPLAY_CURRENCIES
 from db.errors import NotFoundError, ValidationError
+from db.payment_methods import get_payment_method
 
 _UNSET = object()
 
@@ -105,7 +106,12 @@ def update_channel_settings(
     applies_shipping_charge: int | None = None,
     applies_postage: int | None = None,
     default_packaging_kit_id=_UNSET,
+    default_payment_method_id=_UNSET,
 ) -> None:
+    """Omitted fields are unchanged; default_packaging_kit_id and
+    default_payment_method_id may be set to None to clear them. A new default
+    payment method must be active; deactivating a method that is already a
+    channel's default is not blocked (record_order then refuses it)."""
     _validate_channel(channel)
     get_channel_settings(conn, channel)  # raises NotFoundError if missing
 
@@ -137,6 +143,18 @@ def update_channel_settings(
                     f"exist or is not active"
                 )
         fields["default_packaging_kit_id"] = default_packaging_kit_id
+
+    if default_payment_method_id is not _UNSET:
+        if default_payment_method_id is not None:
+            # raises NotFoundError if missing
+            method = get_payment_method(conn, default_payment_method_id)
+            if not method["is_active"]:
+                raise ValidationError(
+                    f"Payment method '{method['name']}' is not active and cannot be "
+                    f"a channel's default payment method",
+                    field="default_payment_method_id",
+                )
+        fields["default_payment_method_id"] = default_payment_method_id
 
     if not fields:
         return
