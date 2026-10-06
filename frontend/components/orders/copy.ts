@@ -23,6 +23,16 @@ export const L = {
   searchAriaMobile: "جستجو",
   channelLabel: "کانال:",
   allChannels: "همه کانال‌ها",
+  methodLabel: "روش پرداخت:", // NEW
+  allMethods: "همه روش‌ها", // NEW
+  inactiveTag: "غیرفعال", // NEW
+  unknownMethod: (id: string) => `روش ${toPersianDigits(id)}`, // NEW
+  settlementAria: "وضعیت تسویه", // NEW
+  settleAll: "همه", // NEW
+  settlePending: "تسویه‌نشده", // NEW
+  settleSettled: "تسویه‌شده", // NEW
+  sheetMethod: "روش پرداخت", // NEW
+  sheetSettlement: "وضعیت تسویه", // NEW
   dateLabel: "تاریخ:",
   dateValue: (from: string, to: string) => `${from} تا ${to}`,
   clearFilters: "پاک کردن فیلترها",
@@ -60,6 +70,7 @@ export const L = {
   colInvoice: "شماره فاکتور",
   colDate: "تاریخ ↓",
   colChannel: "کانال",
+  colMethod: "روش پرداخت", // NEW
   colCustomer: "مشتری",
   colStatus: "وضعیت",
   get colTotal() {
@@ -169,6 +180,27 @@ export const D = {
   postageHint: (window: number) => `جمع پرداختی ÷ جمع سفارش‌ها در ${fa(window)} پرداخت اخیر`,
   postageHintShort: "جمع پرداختی ÷ جمع سفارش‌ها",
   fee: "کارمزد تراکنش",
+  payBlock: "پرداخت و تسویه", // NEW
+  payMethod: "روش پرداخت", // NEW
+  payNone: "بدون روش پرداخت", // NEW
+  payRef: "شماره پیگیری", // NEW
+  paidDate: "تاریخ پرداخت", // NEW
+  expectedDate: "تاریخ مورد انتظار تسویه", // NEW
+  settleState: "وضعیت تسویه", // NEW
+  unsettled: "تسویه‌نشده", // NEW
+  settled: (n: number) => `تسویه‌شده (تسویه شماره ${formatNumber(n)})`, // NEW
+  notPaidYet: "هنوز پرداخت نشده", // NEW
+  changePaidDate: "تغییر تاریخ پرداخت", // NEW
+  paidDateLabel: "تاریخ پرداخت", // NEW
+  paidDateHelp: "روزی که مشتری پول را پرداخت کرد؛ تاریخ آینده مجاز نیست.", // NEW
+  today: "امروز", // NEW
+  paidTitle: (status: string) => `پرداخت شد — تغییر وضعیت به «${status}»؟`, // NEW
+  paidBody: "این سفارش حالا پرداخت‌شده حساب می‌شود. روز پرداخت را مشخص کنید؛ تاریخ مورد انتظار تسویه از روی آن حساب می‌شود.", // NEW
+  paidConfirm: (status: string) => `ثبت به‌عنوان «${status}»`, // NEW
+  changePaidTitle: "تغییر تاریخ پرداخت", // NEW
+  changePaidBody: "تاریخ مورد انتظار تسویه و ماه تسویه این سفارش با تاریخ جدید دوباره حساب می‌شوند؛ کارمزد تغییری نمی‌کند.", // NEW
+  changePaidConfirm: "ذخیره تاریخ", // NEW
+  toastPaidDate: "تاریخ پرداخت تغییر کرد", // NEW
   profit: "سود این سفارش",
   profitMobile: "سود",
   loss: "زیان این سفارش",

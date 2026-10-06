@@ -6,7 +6,7 @@ import { ChannelBadge, StatusBadge, statusName } from "@/components/common/statu
 import { Btn, btnClass, cardClass } from "@/components/record-sale/primitives"
 import { categoryPath } from "@/lib/category-path"
 import { invoicePdfUrl, type Catalog, type OrderDetail } from "@/lib/api"
-import { formatJalaliDateTime } from "@/lib/jalali"
+import { formatJalali, formatJalaliDateTime } from "@/lib/jalali"
 import { Money } from "@/components/common/money"
 import { formatMoneyNumber } from "@/lib/money"
 import { formatNumber } from "@/lib/persian-numbers"
@@ -50,7 +50,15 @@ export type Actions = {
   onForward: (status: string) => void
   onCancel: () => void
   onRefund: () => void
+  /** «تغییر تاریخ پرداخت» (only offered for a paid order not yet in a settlement). */
+  onChangePaidDate: () => void
 }
+
+const PAID_STATUSES = new Set(["PAID", "COMPLETED"])
+
+/** A paid order not yet in a settlement can still have its payment day moved. */
+export const canChangePaidDate = (order: OrderDetail["order"]) =>
+  PAID_STATUSES.has(order.status) && order.paid_date != null && order.settlement_id == null
 
 // ── [1] header card ─────────────────────────────────────────────────────
 
@@ -379,14 +387,75 @@ function ProfitBand({ label, value, tone }: { label: string; value: number | nul
   )
 }
 
+/**
+ * Payment and settlement facts (internal only, never on the invoice): the
+ * method, the reference, the payment day, the STORED expected settlement
+ * date (not recomputed here) and whether a settlement holds the order.
+ */
+function PaymentBlock({ detail, actions }: { detail: OrderDetail; actions: Actions | null }) {
+  const { order } = detail
+  const paid = PAID_STATUSES.has(order.status)
+  const settleText =
+    order.settlement_id != null ? D.settled(order.settlement_id) : paid ? D.unsettled : D.notPaidYet
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="text-xs font-bold text-text-3">{D.payBlock}</div>
+      <Row label={D.payMethod} value={<span className="max-w-[220px] truncate">{order.payment_method_name ?? D.payNone}</span>} />
+      {order.payment_reference && (
+        <Row
+          label={D.payRef}
+          value={
+            <span dir="auto" className="max-w-[220px] truncate">
+              {order.payment_reference}
+            </span>
+          }
+        />
+      )}
+      <Row
+        label={D.paidDate}
+        value={<span className="tabular-nums">{order.paid_date ? formatJalali(order.paid_date) : "—"}</span>}
+      />
+      {order.payment_method_id != null && (
+        <>
+          <Row
+            label={D.expectedDate}
+            value={
+              <span className="tabular-nums">
+                {order.expected_settlement_date ? formatJalali(order.expected_settlement_date) : "—"}
+              </span>
+            }
+          />
+          <Row
+            label={D.settleState}
+            value={
+              <span className={cn(order.settlement_id != null ? "text-profit" : paid ? "text-warn" : "text-text-3")}>
+                {settleText}
+              </span>
+            }
+          />
+        </>
+      )}
+      {actions && canChangePaidDate(order) && (
+        <div className="flex justify-end">
+          <Btn size="sm" variant="ghost" disabled={actions.busy} onClick={actions.onChangePaidDate}>
+            {D.changePaidDate}
+          </Btn>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function InternalCard({
   detail,
   catalog,
   mobile,
+  actions = null,
 }: {
   detail: OrderDetail
   catalog: Catalog | null
   mobile: boolean
+  actions?: Actions | null
 }) {
   const { order } = detail
   const status = order.status
@@ -507,6 +576,8 @@ export function InternalCard({
         {costRows}
         {sep}
         {bottom}
+        {sep}
+        <PaymentBlock detail={detail} actions={actions} />
       </div>
     </section>
   )

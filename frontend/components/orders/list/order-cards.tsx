@@ -77,6 +77,11 @@ export function OrderCards({
           <span className="flex items-center justify-between gap-2 text-[13px]">
             <span className="flex min-w-0 items-center gap-2">
               <ChannelBadge channel={o.channel} />
+              {o.payment_method_name && (
+                <span className="max-w-[96px] shrink-0 truncate rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-text-2">
+                  {o.payment_method_name}
+                </span>
+              )}
               <span className="truncate">{o.customer_name || "—"}</span>
             </span>
             <b>

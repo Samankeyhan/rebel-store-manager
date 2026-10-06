@@ -16,6 +16,7 @@ import {
   getCatalog,
   getOrder,
   returnOrder,
+  setOrderPaidDate,
   type Catalog,
   type OrderDetail as Detail,
 } from "@/lib/api"
@@ -23,11 +24,13 @@ import { formatQuantity } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { D, L } from "../copy"
 import { LIST_QUERY_KEY } from "../order-figures"
-import { CancelDialog, CommitConfirm, RefundDialog } from "./dialogs"
+import { classifyPaymentError } from "@/lib/payment-methods"
+import { DEFAULT_TZ, storeToday } from "@/lib/store-day"
+import { paymentErrorText } from "@/components/payment-methods/copy"
+import { CancelDialog, ChangePaidDateDialog, CommitConfirm, PaidConfirm, RefundDialog } from "./dialogs"
 import { HeaderCard, InternalCard, ItemsCard, SensitiveActions, type Actions } from "./sections"
 import { useCurrency } from "@/lib/use-currency"
 
-const DEFAULT_TZ = "Asia/Tehran"
 
 type Load =
   | { status: "loading" }
@@ -36,7 +39,17 @@ type Load =
   | { status: "ready"; detail: Detail }
 
 type Banner = { tone: "info" | "err"; title?: string; text: string; code?: string }
-type Dialog = { kind: "cancel" } | { kind: "refund" } | { kind: "commit"; target: string } | null
+type Dialog =
+  | { kind: "cancel" }
+  | { kind: "refund" }
+  | { kind: "commit"; target: string }
+  /** PENDING → PAID / COMPLETED: asks for the payment day. */
+  | { kind: "paid"; target: string }
+  | { kind: "paidDate" }
+  | null
+
+const PAID = new Set(["PAID", "COMPLETED"])
+const UNPAID = new Set(["DRAFT", "PENDING"])
 
 function listHref(): string {
   try {
@@ -62,6 +75,9 @@ export function OrderDetail() {
   const [dialog, setDialog] = React.useState<Dialog>(null)
   const [banner, setBanner] = React.useState<Banner | null>(null)
   const [toast, setToast] = React.useState<string | null>(null)
+  /** The payment day picked in the open dialog, and the server's refusal of it (Persian). */
+  const [pickedDay, setPickedDay] = React.useState<string>("")
+  const [dayError, setDayError] = React.useState<string | null>(null)
   // Rendered client-side only (useSearchParams under Suspense), so window exists.
   const [backHref] = React.useState(() => (typeof window === "undefined" ? "/orders/" : listHref()))
 
@@ -110,7 +126,18 @@ export function OrderDetail() {
 
   /** Maps an action failure to what the screen shows; the API decides. */
   const handleError = async (error: unknown, d: Detail) => {
+    // A refused payment day stays in its dialog, in Persian, so it can be corrected.
+    const payment = error instanceof ApiError ? classifyPaymentError(error) : null
+    if (payment && dialog && (dialog.kind === "commit" || dialog.kind === "paid" || dialog.kind === "paidDate")) {
+      setDayError(paymentErrorText(payment))
+      return
+    }
     setDialog(null)
+    if (payment) {
+      setBanner({ tone: "err", title: D.actionFailed, text: paymentErrorText(payment) })
+      if (payment.kind === "settled" || payment.kind === "unpaid") await refetch()
+      return
+    }
     if (!(error instanceof ApiError)) {
       setBanner({ tone: "err", title: D.actionFailed, text: String(error), code: "UNKNOWN" })
       return
@@ -181,15 +208,45 @@ export function OrderDetail() {
   }
 
   const d = load.detail
-  const forward = (target: string) =>
-    run(d, () => changeOrderStatus(d.order.id, target), (r) => D.toastStatus(statusName(r.order.status)))
+  /** The store's calendar day, read when it's needed (a session can cross midnight). */
+  const today = () => storeToday(new Date(), timeZone)
+  const becomesPaid = (target: string) => UNPAID.has(d.order.status) && PAID.has(target)
+  /**
+   * paidDate only when the order becomes paid. The dialog's default is the
+   * store's today — what the server stores when paid_date is omitted — so the
+   * day is sent only when it differs from today at submit time: what is
+   * stored is always what the dialog showed.
+   */
+  const forward = (target: string, paidDay?: string) => {
+    const paidDate = paidDay && becomesPaid(target) && paidDay !== today() ? paidDay : null
+    return run(d, () => changeOrderStatus(d.order.id, target, paidDate), (r) => D.toastStatus(statusName(r.order.status)))
+  }
+  const openWithDay = (next: NonNullable<Dialog>, day: string) => {
+    setPickedDay(day)
+    setDayError(null)
+    setDialog(next)
+  }
 
   const actions: Actions = {
     busy,
-    // Leaving DRAFT deducts stock for the first time: confirm that one.
-    onForward: (target) => (d.order.status === "DRAFT" ? setDialog({ kind: "commit", target }) : forward(target)),
+    onForward: (target) => {
+      // Leaving DRAFT deducts stock for the first time: confirm that one (with the payment day if it becomes paid).
+      if (d.order.status === "DRAFT") return openWithDay({ kind: "commit", target }, today())
+      if (becomesPaid(target)) return openWithDay({ kind: "paid", target }, today())
+      void forward(target)
+    },
     onCancel: () => setDialog({ kind: "cancel" }),
     onRefund: () => setDialog({ kind: "refund" }),
+    onChangePaidDate: () => openWithDay({ kind: "paidDate" }, d.order.paid_date ?? today()),
+  }
+  const pick = {
+    value: pickedDay,
+    today: today(),
+    onChange: (iso: string) => {
+      setPickedDay(iso)
+      setDayError(null)
+    },
+    error: dayError,
   }
   const dialogProps = {
     detail: d,
@@ -243,7 +300,22 @@ export function OrderDetail() {
         {...dialogProps}
         open={dialog?.kind === "commit"}
         target={dialog?.kind === "commit" ? dialog.target : "COMPLETED"}
-        onConfirm={() => dialog?.kind === "commit" && forward(dialog.target)}
+        paid={dialog?.kind === "commit" && PAID.has(dialog.target) ? pick : null}
+        onConfirm={() => dialog?.kind === "commit" && forward(dialog.target, pickedDay)}
+      />
+      <PaidConfirm
+        {...dialogProps}
+        open={dialog?.kind === "paid"}
+        target={dialog?.kind === "paid" ? dialog.target : "PAID"}
+        paid={pick}
+        onConfirm={() => dialog?.kind === "paid" && forward(dialog.target, pickedDay)}
+      />
+      <ChangePaidDateDialog
+        {...dialogProps}
+        open={dialog?.kind === "paidDate"}
+        current={d.order.paid_date ?? ""}
+        paid={pick}
+        onConfirm={() => run(d, () => setOrderPaidDate(d.order.id, pickedDay), () => D.toastPaidDate)}
       />
       {toast && <Toast title={toast} onClose={() => setToast(null)} />}
     </>
@@ -255,7 +327,7 @@ export function OrderDetail() {
         {bannerNode}
         <HeaderCard detail={d} catalog={catalog} timeZone={timeZone} actions={actions} mobile />
         <ItemsCard detail={d} catalog={catalog} mobile />
-        <InternalCard detail={d} catalog={catalog} mobile />
+        <InternalCard detail={d} catalog={catalog} mobile actions={actions} />
         <SensitiveActions detail={d} actions={actions} />
         {dialogs}
       </div>
@@ -271,7 +343,7 @@ export function OrderDetail() {
           <ItemsCard detail={d} catalog={catalog} mobile={false} />
         </div>
         <div className="flex w-full shrink-0 flex-col gap-5 xl:w-[388px]">
-          <InternalCard detail={d} catalog={catalog} mobile={false} />
+          <InternalCard detail={d} catalog={catalog} mobile={false} actions={actions} />
         </div>
       </div>
       {dialogs}

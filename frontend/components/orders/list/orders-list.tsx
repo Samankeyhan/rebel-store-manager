@@ -15,7 +15,8 @@ import {
 import { ORDER_STATUS_IDS } from "@/components/common/status"
 import { CHANNEL_IDS, CHANNELS } from "@/components/record-sale/copy"
 import { Btn, btnClass } from "@/components/record-sale/primitives"
-import { ApiError, getSettings, listOrders, type OrderListItem } from "@/lib/api"
+import { Segment } from "@/components/common/segment"
+import { ApiError, getSettings, listOrders, listPaymentMethods, type OrderListItem, type PaymentMethod } from "@/lib/api"
 import { jalaliMonthRange, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
 import { toLatinDigits } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
@@ -32,9 +33,16 @@ const ISO_RE = /^\d{4}-\d{2}-\d{2}$/
 /** Store time zone (accounting-rules header) until /settings answers. */
 const DEFAULT_TZ = "Asia/Tehran"
 
+export const SETTLEMENT_FILTERS = ["", "pending", "settled"] as const
+export type SettlementFilter = (typeof SETTLEMENT_FILTERS)[number]
+
 export type Filters = {
   status: string
   channel: string
+  /** A payment method id ("" = all). Filtered by the API. */
+  method: string
+  /** "pending" = paid, has a method, not yet settled; "settled" = in a settlement. Filtered by the API. */
+  settlement: SettlementFilter
   range: IsoRange
   q: string
   page: number
@@ -43,6 +51,8 @@ export type Filters = {
 function readFilters(params: URLSearchParams, defaultRange: IsoRange): Filters {
   const status = params.get("status") ?? ""
   const channel = params.get("channel") ?? ""
+  const method = params.get("method") ?? ""
+  const settlement = params.get("settlement") ?? ""
   const from = params.get("from") ?? ""
   const to = params.get("to") ?? ""
   const page = Number(params.get("page") ?? 1)
@@ -50,6 +60,8 @@ function readFilters(params: URLSearchParams, defaultRange: IsoRange): Filters {
   return {
     status: (ORDER_STATUS_IDS as readonly string[]).includes(status) ? status : "",
     channel: (CHANNEL_IDS as readonly string[]).includes(channel) ? channel : "",
+    method: /^\d+$/.test(method) ? method : "",
+    settlement: (SETTLEMENT_FILTERS as readonly string[]).includes(settlement) ? (settlement as SettlementFilter) : "",
     range: validRange ? { from, to } : defaultRange,
     q: params.get("q") ?? "",
     page: Number.isInteger(page) && page > 0 ? page : 1,
@@ -84,6 +96,8 @@ export function OrdersList() {
       const qs = new URLSearchParams()
       if (next.status) qs.set("status", next.status)
       if (next.channel) qs.set("channel", next.channel)
+      if (next.method) qs.set("method", next.method)
+      if (next.settlement) qs.set("settlement", next.settlement)
       if (next.range.from !== defaultRange.from || next.range.to !== defaultRange.to) {
         qs.set("from", next.range.from)
         qs.set("to", next.range.to)
@@ -126,11 +140,18 @@ export function OrdersList() {
     )
   }, [])
 
+  // Payment methods name the filter's options (inactive ones too: old orders use them).
+  const [methods, setMethods] = React.useState<PaymentMethod[]>([])
+  React.useEffect(() => {
+    listPaymentMethods(true).then(setMethods, () => {})
+  }, [])
+
   // Status, search and paging are client-side over the rows for the current
-  // channel + date range (GET /orders has no search or paging).
+  // channel + date range + payment method + settlement state (GET /orders has
+  // no search or paging).
   const [load, setLoad] = React.useState<Load>({ status: "loading" })
   const [attempt, setAttempt] = React.useState(0)
-  const fetchKey = `${filters.channel}|${filters.range.from}|${filters.range.to}|${attempt}`
+  const fetchKey = `${filters.channel}|${filters.range.from}|${filters.range.to}|${filters.method}|${filters.settlement}|${attempt}`
   const [loadedKey, setLoadedKey] = React.useState<string | null>(null)
   if (loadedKey !== fetchKey && load.status !== "loading") {
     // A new fetch is starting: show the loading state instead of stale rows.
@@ -138,10 +159,16 @@ export function OrdersList() {
   }
   React.useEffect(() => {
     let cancelled = false
-    const [channel, from, to] = fetchKey.split("|")
+    const [channel, from, to, method, settlement] = fetchKey.split("|")
     ;(async () => {
       try {
-        const rows = await listOrders({ channel: channel || null, start_date: from, end_date: to })
+        const rows = await listOrders({
+          channel: channel || null,
+          start_date: from,
+          end_date: to,
+          payment_method_id: method || null,
+          settlement_state: (settlement || null) as "pending" | "settled" | null,
+        })
         // An empty result needs one unfiltered look to tell "no orders at
         // all" (empty state) from "nothing matches" (filtered-empty).
         const storeHasOrders = rows.length > 0 || (await listOrders()).length > 0
@@ -188,7 +215,7 @@ export function OrdersList() {
         {!storeEmpty && (
           <>
             <SearchBox value={search} onChange={setSearch} mobile />
-            <MobileFilterChips filters={filters} defaultRange={defaultRange} onOpen={() => setSheetOpen(true)} />
+            <MobileFilterChips filters={filters} methods={methods} defaultRange={defaultRange} onOpen={() => setSheetOpen(true)} />
           </>
         )}
         {load.status === "loading" && <LoadingState mobile />}
@@ -206,6 +233,7 @@ export function OrdersList() {
           open={sheetOpen}
           onOpenChange={setSheetOpen}
           filters={filters}
+          methods={methods}
           defaultRange={defaultRange}
           today={today}
           onApply={(patch) => setFilters(patch)}
@@ -239,6 +267,14 @@ export function OrdersList() {
         <div role="search" aria-label={L.filterAria} className="flex flex-wrap items-center gap-2.5">
           <SearchBox value={search} onChange={setSearch} />
           <ChannelFilter value={filters.channel} onChange={(channel) => setFilters({ channel })} />
+          <MethodFilter value={filters.method} methods={methods} onChange={(method) => setFilters({ method })} />
+          <Segment
+            value={filters.settlement}
+            options={SETTLEMENT_OPTIONS}
+            onChange={(settlement) => setFilters({ settlement })}
+            label={L.settlementAria}
+            className="h-10"
+          />
           <DateRangePopover value={filters.range} onApply={(range) => setFilters({ range })} />
           <Btn variant="ghost" size="sm" onClick={clearFilters}>
             <X className="size-3.5" />
@@ -322,3 +358,50 @@ function ChannelFilter({ value, onChange }: { value: string; onChange: (v: strin
   )
 }
 
+
+export const SETTLEMENT_OPTIONS = [
+  ["", L.settleAll],
+  ["pending", L.settlePending],
+  ["settled", L.settleSettled],
+] as const satisfies readonly (readonly [SettlementFilter, string])[]
+
+/** The filter's label for a method id (an id the list doesn't know yet reads «روش N»). */
+export function methodName(id: string, methods: PaymentMethod[]): string {
+  return methods.find((m) => String(m.id) === id)?.name ?? L.unknownMethod(id)
+}
+
+function MethodFilter({
+  value,
+  methods,
+  onChange,
+}: {
+  value: string
+  methods: PaymentMethod[]
+  onChange: (v: string) => void
+}) {
+  const label = value ? methodName(value, methods) : L.allMethods
+  return (
+    <DropdownMenu dir="rtl">
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="flex h-10 max-w-[260px] cursor-pointer items-center gap-2.5 rounded-lg border border-border-strong bg-card px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+        >
+          <span className="shrink-0 text-text-3">{L.methodLabel}</span>
+          <span className="truncate font-bold">{label}</span>
+          <ChevronDown className="size-3.5 shrink-0 text-text-3" aria-hidden />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
+          <DropdownMenuRadioItem value="">{L.allMethods}</DropdownMenuRadioItem>
+          {methods.map((m) => (
+            <DropdownMenuRadioItem key={m.id} value={String(m.id)}>
+              <span className="truncate">{m.is_active ? m.name : `${m.name} (${L.inactiveTag})`}</span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

@@ -11,7 +11,10 @@ import {
   Truck,
   Undo2,
   Wallet,
+  CalendarCheck,
 } from "lucide-react"
+import { DateField } from "@/components/common/date-field"
+import { InlineMessage, Label, Help } from "@/components/record-sale/primitives"
 import { statusName } from "@/components/common/status"
 import { cn } from "@/lib/utils"
 import type { Catalog, OrderDetail } from "@/lib/api"
@@ -268,12 +271,43 @@ export function RefundDialog({
   )
 }
 
-/** Leaving DRAFT commits stock for the first time: say so before doing it. */
+/** The payment day picked in a dialog: shown as given, never after the store's today. */
+export type PaidDatePick = {
+  value: string
+  /** The store's calendar day (settings.timezone). */
+  today: string
+  onChange: (iso: string) => void
+  /** The server refused the day (closed month, future…), in Persian. */
+  error: string | null
+}
+
+function PaidDateBlock({ pick, mobile }: { pick: PaidDatePick; mobile: boolean }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="dlg-paid-date">{D.paidDateLabel}</Label>
+      <DateField
+        id="dlg-paid-date"
+        value={pick.value}
+        today={pick.today}
+        onChange={pick.onChange}
+        todayLabel={D.today}
+        mobile={mobile}
+      />
+      {pick.error ? <InlineMessage severity="error">{pick.error}</InlineMessage> : <Help>{D.paidDateHelp}</Help>}
+    </div>
+  )
+}
+
+/**
+ * Leaving DRAFT commits stock for the first time: say so before doing it.
+ * Into PAID / COMPLETED it is also the payment, so it asks for the payment day.
+ */
 export function CommitConfirm({
   target,
   onConfirm,
+  paid,
   ...p
-}: Omit<DialogProps, "catalog" | "timeZone"> & { target: string; onConfirm: () => void }) {
+}: Omit<DialogProps, "catalog" | "timeZone"> & { target: string; onConfirm: () => void; paid: PaidDatePick | null }) {
   const name = statusName(target)
   return (
     <ConfirmShell
@@ -289,6 +323,61 @@ export function CommitConfirm({
       width={480}
     >
       <p className="text-[13px] leading-[22px] text-text-2">{D.commitBody}</p>
+      {paid && <PaidDateBlock pick={paid} mobile={p.mobile} />}
+    </ConfirmShell>
+  )
+}
+
+/** PENDING → PAID / COMPLETED: the order becomes paid; ask for the payment day (default the store's today). */
+export function PaidConfirm({
+  target,
+  onConfirm,
+  paid,
+  ...p
+}: Omit<DialogProps, "catalog" | "timeZone"> & { target: string; onConfirm: () => void; paid: PaidDatePick }) {
+  const name = statusName(target)
+  return (
+    <ConfirmShell
+      open={p.open}
+      onOpenChange={p.onOpenChange}
+      mobile={p.mobile}
+      busy={p.busy}
+      danger={false}
+      icon={CalendarCheck}
+      title={D.paidTitle(name)}
+      confirmLabel={D.paidConfirm(name)}
+      onConfirm={onConfirm}
+      width={480}
+    >
+      <p className="text-[13px] leading-[22px] text-text-2">{D.paidBody}</p>
+      <PaidDateBlock pick={paid} mobile={p.mobile} />
+    </ConfirmShell>
+  )
+}
+
+/** «تغییر تاریخ پرداخت» for a paid order not yet in a settlement (PATCH /orders/{id}/paid-date). */
+export function ChangePaidDateDialog({
+  current,
+  onConfirm,
+  paid,
+  ...p
+}: Omit<DialogProps, "catalog" | "timeZone"> & { current: string; onConfirm: () => void; paid: PaidDatePick }) {
+  return (
+    <ConfirmShell
+      open={p.open}
+      onOpenChange={p.onOpenChange}
+      mobile={p.mobile}
+      busy={p.busy}
+      danger={false}
+      icon={CalendarCheck}
+      title={D.changePaidTitle}
+      confirmLabel={D.changePaidConfirm}
+      confirmDisabled={paid.value === current}
+      onConfirm={onConfirm}
+      width={480}
+    >
+      <p className="text-[13px] leading-[22px] text-text-2">{D.changePaidBody}</p>
+      <PaidDateBlock pick={paid} mobile={p.mobile} />
     </ConfirmShell>
   )
 }

@@ -138,6 +138,7 @@ export function OrdersTable({
                 <th scope="col">{L.colInvoice}</th>
                 <th scope="col">{L.colDate}</th>
                 <th scope="col">{L.colChannel}</th>
+                <th scope="col">{L.colMethod}</th>
                 <th scope="col" className="w-full">
                   {L.colCustomer}
                 </th>
@@ -172,6 +173,7 @@ export function OrdersTable({
                   <td>
                     <ChannelBadge channel={o.channel} />
                   </td>
+                  <td className="max-w-[140px] truncate text-text-2">{o.payment_method_name ?? "—"}</td>
                   <td className="max-w-[260px] truncate">{o.customer_name || "—"}</td>
                   <td>
                     <StatusBadge status={o.status} />

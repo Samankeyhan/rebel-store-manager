@@ -12,7 +12,8 @@ import { toPersianDigits } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { L } from "../copy"
 import { rangeLabel } from "./date-range-popover"
-import type { Filters } from "./orders-list"
+import type { PaymentMethod } from "@/lib/api"
+import { SETTLEMENT_OPTIONS, methodName, type Filters, type SettlementFilter } from "./orders-list"
 
 type DateMode = "last7" | "thisMonth" | "custom"
 
@@ -20,6 +21,8 @@ function activeCount(filters: Filters, defaultRange: IsoRange): number {
   let n = 0
   if (filters.status) n++
   if (filters.channel) n++
+  if (filters.method) n++
+  if (filters.settlement) n++
   if (filters.range.from !== defaultRange.from || filters.range.to !== defaultRange.to) n++
   return n
 }
@@ -33,10 +36,12 @@ const chipBase =
  */
 export function MobileFilterChips({
   filters,
+  methods,
   defaultRange,
   onOpen,
 }: {
   filters: Filters
+  methods: PaymentMethod[]
   defaultRange: IsoRange
   onOpen: () => void
 }) {
@@ -60,6 +65,16 @@ export function MobileFilterChips({
       <button type="button" onClick={onOpen} className={chipBase}>
         {filters.channel ? CHANNELS[filters.channel as keyof typeof CHANNELS].name : L.allChannels}
       </button>
+      {filters.method && (
+        <button type="button" onClick={onOpen} className={cn(chipBase, "max-w-[180px]")}>
+          <span className="truncate">{methodName(filters.method, methods)}</span>
+        </button>
+      )}
+      {filters.settlement && (
+        <button type="button" onClick={onOpen} className={chipBase}>
+          {filters.settlement === "pending" ? L.settlePending : L.settleSettled}
+        </button>
+      )}
     </div>
   )
 }
@@ -73,6 +88,7 @@ export function MobileFilterSheet({
   open,
   onOpenChange,
   filters,
+  methods,
   defaultRange,
   today,
   onApply,
@@ -81,6 +97,7 @@ export function MobileFilterSheet({
   open: boolean
   onOpenChange: (open: boolean) => void
   filters: Filters
+  methods: PaymentMethod[]
   defaultRange: IsoRange
   today: Date
   onApply: (patch: Partial<Filters>) => void
@@ -88,6 +105,8 @@ export function MobileFilterSheet({
 }) {
   const [status, setStatus] = React.useState(filters.status)
   const [channel, setChannel] = React.useState(filters.channel)
+  const [method, setMethod] = React.useState(filters.method)
+  const [settlement, setSettlement] = React.useState<SettlementFilter>(filters.settlement)
   const [range, setRange] = React.useState<IsoRange>(filters.range)
   const [mode, setMode] = React.useState<DateMode>("thisMonth")
 
@@ -104,6 +123,8 @@ export function MobileFilterSheet({
     setSeededFor(true)
     setStatus(filters.status)
     setChannel(filters.channel)
+    setMethod(filters.method)
+    setSettlement(filters.settlement)
     setRange(filters.range)
     setMode(modeOf(filters.range))
   } else if (!open && seededFor) {
@@ -204,6 +225,53 @@ export function MobileFilterSheet({
           </div>
         </fieldset>
 
+        {methods.length > 0 && (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-[13px] font-semibold">{L.sheetMethod}</legend>
+            <div className="flex flex-wrap gap-2">
+              {methods.map((m) => {
+                const id = String(m.id)
+                const on = method === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setMethod(on ? "" : id)}
+                    className={cn(
+                      "inline-flex h-9 max-w-full cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-medium text-text-2",
+                      on && "border-heading ring-2 ring-heading/40"
+                    )}
+                  >
+                    <span className="truncate">{m.name}</span>
+                    {on && <Check className="size-3 shrink-0" aria-hidden />}
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+        )}
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-[13px] font-semibold">{L.sheetSettlement}</legend>
+          <div className="grid grid-cols-3 gap-0.5 rounded-[10px] border border-border bg-surface-2 p-[3px]">
+            {SETTLEMENT_OPTIONS.map(([v, label]) => (
+              <button
+                key={v || "all"}
+                type="button"
+                aria-pressed={settlement === v}
+                onClick={() => setSettlement(v)}
+                className={cn(
+                  "h-10 cursor-pointer rounded-[7px] text-[13px] font-semibold text-text-2",
+                  settlement === v && "bg-card text-heading shadow-[0_4px_14px_rgba(18,22,38,.08)]"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-[13px] font-semibold">{L.sheetDate}</legend>
           <div className="grid grid-cols-3 gap-0.5 rounded-[10px] border border-border bg-surface-2 p-[3px]">
@@ -251,7 +319,7 @@ export function MobileFilterSheet({
           size="lg"
           className="w-full"
           onClick={() => {
-            onApply({ status, channel, range })
+            onApply({ status, channel, method, settlement, range })
             onOpenChange(false)
           }}
         >
