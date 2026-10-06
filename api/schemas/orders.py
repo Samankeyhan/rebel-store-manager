@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StrictInt
 
 from api.schemas.common import DateStr, Money
 
@@ -111,15 +111,33 @@ class OrderCreate(BaseModel):
     # null = use the channel default (current estimate if the channel applies
     # postage, else 0); 0 = a real zero override.
     postage_cost: Money | None = None
-    transaction_fee: Money = 0
+    # null (or omitted) = computed from the payment method (0 with no method);
+    # an integer, including 0, overrides it.
+    transaction_fee: Money | None = None
     notes: str | None = None
     status: str = "COMPLETED"
+    # "default" = the channel's default payment method (none if it has no
+    # default); null = no payment method; int = that method (must be active).
+    payment_method_id: StrictInt | Literal["default"] | None = "default"
+    payment_reference: str | None = None
+    # Only for a PAID/COMPLETED order: the local day the money was paid
+    # (default: the local day of order_date, or today). Never in the future.
+    paid_date: DateStr | None = None
 
 
 class OrderStatusUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: str
+    # Only when the order becomes paid (DRAFT/PENDING -> PAID/COMPLETED);
+    # default today. Anything else with a paid_date is a 422.
+    paid_date: DateStr | None = None
+
+
+class OrderPaidDateUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    paid_date: DateStr
 
 
 class OrderReturn(BaseModel):

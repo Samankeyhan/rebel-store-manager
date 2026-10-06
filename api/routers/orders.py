@@ -11,6 +11,7 @@ from api.schemas.orders import (
     OrderCreate,
     OrderDetailOut,
     OrderListItemOut,
+    OrderPaidDateUpdate,
     OrderReturn,
     OrderStatusUpdate,
 )
@@ -19,6 +20,7 @@ from db.orders import (
     get_order,
     list_orders,
     record_order,
+    set_paid_date,
     update_order_status,
 )
 from db.returns import process_return
@@ -33,10 +35,20 @@ def read_orders(
     status: str | None = None,
     start_date: DateStr | None = None,
     end_date: DateStr | None = None,
+    payment_method_id: int | None = None,
+    settlement_state: str | None = None,
     conn: sqlite3.Connection = Depends(get_db),
 ) -> list[OrderListItemOut]:
+    """settlement_state: "pending" (paid, has a payment method, not yet
+    settled) or "settled" (in a settlement); anything else is a 422."""
     orders = list_orders(
-        conn, channel=channel, status=status, start_date=start_date, end_date=end_date
+        conn,
+        channel=channel,
+        status=status,
+        start_date=start_date,
+        end_date=end_date,
+        payment_method_id=payment_method_id,
+        settlement_state=settlement_state,
     )
     return [OrderListItemOut.model_validate(o) for o in orders]
 
@@ -65,12 +77,26 @@ def create_order(
     postage_cost defaults to the current postage estimate if the channel
     applies postage, else 0. Sending `0` is a real zero override.
 
+    **payment_method_id** follows the packaging_kit_id pattern: `"default"` (or
+    omitted) = the channel's default method, `null` = no method, an integer =
+    that method (must be active).
+
+    **transaction_fee**: `null` (or omitted) = computed from the payment method
+    (0 without one); an integer, including 0, overrides it.
+
+    **paid_date**: only for a PAID/COMPLETED order; defaults to the local day
+    of order_date (or today). Never in the future.
+
     DRAFT orders commit no stock and freeze no costs until they leave DRAFT.
     """
     if body.packaging_kit_id == "default":
         packaging_kit_id = USE_CHANNEL_DEFAULT
     else:
         packaging_kit_id = body.packaging_kit_id
+    if body.payment_method_id == "default":
+        payment_method_id = USE_CHANNEL_DEFAULT
+    else:
+        payment_method_id = body.payment_method_id
 
     order_id = record_order(
         conn,
@@ -84,6 +110,9 @@ def create_order(
         transaction_fee=body.transaction_fee,
         notes=body.notes,
         status=body.status,
+        payment_method_id=payment_method_id,
+        payment_reference=body.payment_reference,
+        paid_date=body.paid_date,
     )
     return OrderDetailOut.model_validate(get_order(conn, order_id))
 
@@ -96,8 +125,22 @@ def change_order_status(
 ) -> OrderDetailOut:
     """Move an order forward (DRAFT → PENDING/PAID/COMPLETED, PENDING →
     PAID/COMPLETED, PAID → COMPLETED). Anything else is a 409. CANCELLED and
-    REFUNDED go through /orders/{order_id}/return."""
-    update_order_status(conn, order_id, body.status)
+    REFUNDED go through /orders/{order_id}/return. Becoming paid sets
+    paid_date (body value, default today)."""
+    update_order_status(conn, order_id, body.status, paid_date=body.paid_date)
+    return OrderDetailOut.model_validate(get_order(conn, order_id))
+
+
+@router.patch("/orders/{order_id}/paid-date", response_model=OrderDetailOut)
+def change_paid_date(
+    order_id: int,
+    body: OrderPaidDateUpdate,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> OrderDetailOut:
+    """Move a paid, unsettled order's paid_date; its expected settlement date
+    and Jalali month follow. 409 if the order is unpaid or settled, or if the
+    new day falls in a month its DAY_OF_NEXT_MONTH method has already settled."""
+    set_paid_date(conn, order_id, body.paid_date)
     return OrderDetailOut.model_validate(get_order(conn, order_id))
 
 

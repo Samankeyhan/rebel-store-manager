@@ -16,6 +16,7 @@ from api.routers import (
     orders,
     packaging,
     partners,
+    payment_methods,
     postage,
     production,
     products,
@@ -23,6 +24,7 @@ from api.routers import (
     recipes,
     reports,
     settings,
+    settlements,
     suppliers,
 )
 from db.connection import init_db
@@ -129,3 +131,5 @@ app.include_router(settings.router)
 app.include_router(reports.router)
 app.include_router(catalog.router)
 app.include_router(categories.router)
+app.include_router(payment_methods.router)
+app.include_router(settlements.router)

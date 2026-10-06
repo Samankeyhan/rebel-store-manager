@@ -32,10 +32,11 @@ class SettingUpdate(BaseModel):
 
 class ChannelSettingsUpdate(BaseModel):
     """Only the fields present in the body change. An explicit null
-    default_packaging_kit_id clears the channel's default kit."""
+    default_packaging_kit_id / default_payment_method_id clears that default."""
 
     model_config = ConfigDict(extra="forbid")
 
     applies_shipping_charge: int | None = None
     applies_postage: int | None = None
     default_packaging_kit_id: int | None = None
+    default_payment_method_id: StrictInt | None = None

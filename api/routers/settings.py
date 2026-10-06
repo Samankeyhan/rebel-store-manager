@@ -50,8 +50,9 @@ def patch_channel_settings(
     conn: sqlite3.Connection = Depends(get_db),
 ) -> ChannelSettingsOut:
     """Only the fields present in the body change. An explicit null
-    default_packaging_kit_id clears the channel's default kit; omitting it
-    leaves it as is."""
+    default_packaging_kit_id or default_payment_method_id clears that default;
+    omitting it leaves it as is. A new default payment method must exist (404)
+    and be active (422, field "default_payment_method_id")."""
     update_channel_settings(conn, channel, **body.model_dump(exclude_unset=True))
     return ChannelSettingsOut.model_validate(get_channel_settings(conn, channel))
 

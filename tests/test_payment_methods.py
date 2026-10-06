@@ -14,6 +14,7 @@ from db.payment_methods import (
     deactivate_payment_method,
     get_payment_method,
     list_payment_methods,
+    preview_fee,
     reactivate_payment_method,
     update_payment_method,
 )
@@ -352,3 +353,40 @@ def test_expected_date_unknown_rule_is_validation_error():
     with pytest.raises(ValidationError) as exc_info:
         compute_expected_settlement_date(date(2026, 9, 22), _method(rule="WEEKLY"))
     assert exc_info.value.field == "settlement_rule"
+
+
+# ---------------------------------------------------------------- preview_fee
+
+
+def test_preview_fee(test_db):
+    method_id = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1, fee_bps=150, fee_fixed=500)
+    assert preview_fee(test_db, method_id, 240000) == {
+        "payment_method_id": method_id,
+        "amount": 240000,
+        "transaction_fee": 4100,
+        "expected_amount": 235900,
+    }
+
+
+def test_preview_fee_can_exceed_amount(test_db):
+    method_id = add_payment_method(test_db, "Fixed", "IMMEDIATE", fee_fixed=500)
+    assert preview_fee(test_db, method_id, 0)["expected_amount"] == -500
+
+
+def test_preview_fee_inactive_method_allowed(test_db):
+    method_id = add_payment_method(test_db, "Old", "IMMEDIATE", fee_bps=100)
+    deactivate_payment_method(test_db, method_id)
+    assert preview_fee(test_db, method_id, 10000)["transaction_fee"] == 100
+
+
+def test_preview_fee_missing_method(test_db):
+    with pytest.raises(NotFoundError):
+        preview_fee(test_db, 999, 1000)
+
+
+@pytest.mark.parametrize("amount", [-1, 1.5, "1000", True, None])
+def test_preview_fee_rejects_bad_amount(test_db, amount):
+    method_id = add_payment_method(test_db, "Card", "IMMEDIATE")
+    with pytest.raises(ValidationError) as exc_info:
+        preview_fee(test_db, method_id, amount)
+    assert exc_info.value.field == "amount"

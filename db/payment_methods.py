@@ -225,3 +225,18 @@ def compute_expected_settlement_date(paid_date: date, method: dict) -> date:
         ny, nm = jalali.next_month(jy, jm)
         return jalali.to_gregorian(ny, nm, min(days, jalali.month_length(ny, nm)))
     raise ValidationError(f"Unknown settlement_rule '{rule}'", field="settlement_rule")
+
+
+def preview_fee(conn: sqlite3.Connection, payment_method_id: int, amount: int) -> dict:
+    """The fee this method would charge on a customer_total of `amount`, and
+    what it would then pay out. Display only; an inactive method may be previewed."""
+    if isinstance(amount, bool) or not isinstance(amount, int) or amount < 0:
+        raise ValidationError(f"amount must be an integer >= 0, got {amount!r}", field="amount")
+    method = get_payment_method(conn, payment_method_id)  # raises NotFoundError
+    fee = compute_fee(amount, method)
+    return {
+        "payment_method_id": method["id"],
+        "amount": amount,
+        "transaction_fee": fee,
+        "expected_amount": amount - fee,
+    }
