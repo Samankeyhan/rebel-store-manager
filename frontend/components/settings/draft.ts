@@ -27,7 +27,11 @@ export const kitIdOf = (choice: string): number | null => (choice === NONE ? nul
 
 export const WINDOW_MAX = 12
 
-export type ChannelDraft = { applies_shipping_charge: number; applies_postage: number; kit: string }
+/** The channel's default payment method picker value: NONE («بدون روش») or a method id. */
+export const methodChoice = (id: number | null): string => (id == null ? NONE : String(id))
+export const methodIdOf = (choice: string): number | null => (choice === NONE ? null : Number(choice))
+
+export type ChannelDraft = { applies_shipping_charge: number; applies_postage: number; kit: string; method: string }
 
 /** The money keys are integer Toman, or null while MoneyInput holds an amount that isn't exact (blocks save). */
 export type Draft = {
@@ -52,6 +56,7 @@ function channelDraft(c: ChannelSettings | undefined): ChannelDraft {
     applies_shipping_charge: c?.applies_shipping_charge ?? 0,
     applies_postage: c?.applies_postage ?? 0,
     kit: kitChoice(c?.default_packaging_kit_id ?? null),
+    method: methodChoice(c?.default_payment_method_id ?? null),
   }
 }
 
@@ -64,15 +69,21 @@ export function fromSettings(s: Settings): Draft {
   }
 }
 
-type ChannelPatch = { applies_shipping_charge?: number; applies_postage?: number; default_packaging_kit_id?: number | null }
+export type ChannelPatch = {
+  applies_shipping_charge?: number
+  applies_postage?: number
+  default_packaging_kit_id?: number | null
+  default_payment_method_id?: number | null
+}
 
-/** Only the fields that differ, ready for PATCH (null = no packaging). */
-function channelPatch(saved: ChannelSettings | undefined, draft: ChannelDraft): ChannelPatch {
+/** Only the fields that differ, ready for PATCH (null = no packaging / no payment method). */
+export function channelPatch(saved: ChannelSettings | undefined, draft: ChannelDraft): ChannelPatch {
   const base = channelDraft(saved)
   const patch: ChannelPatch = {}
   if (draft.applies_shipping_charge !== base.applies_shipping_charge) patch.applies_shipping_charge = draft.applies_shipping_charge
   if (draft.applies_postage !== base.applies_postage) patch.applies_postage = draft.applies_postage
   if (draft.kit !== base.kit) patch.default_packaging_kit_id = kitIdOf(draft.kit)
+  if (draft.method !== base.method) patch.default_payment_method_id = methodIdOf(draft.method)
   return patch
 }
 
@@ -82,6 +93,7 @@ function patchLabels(channel: Channel, patch: ChannelPatch): string[] {
   if ("applies_shipping_charge" in patch) labels.push(S.chChannelShipping(name))
   if ("applies_postage" in patch) labels.push(S.chChannelPostage(name))
   if ("default_packaging_kit_id" in patch) labels.push(S.chChannelKit(name))
+  if ("default_payment_method_id" in patch) labels.push(S.chChannelMethod(name))
   return labels
 }
 
@@ -113,6 +125,8 @@ export type SaveFailure = {
   key: GlobalSettingKey | null
   /** A kit choice was part of the failed PATCH (e.g. the kit was deactivated meanwhile). */
   kitChanged: boolean
+  /** A payment-method choice was part of the failed PATCH (e.g. the method was deactivated meanwhile). */
+  methodChanged: boolean
 }
 
 export type SaveResult = {
@@ -135,13 +149,13 @@ export async function saveDraft(baseline: Settings, draft: Draft): Promise<SaveR
     const value = draft[key]
     if (value === current[key]) continue
     // validate() refuses a null amount, so save() never gets here with one.
-    if (value === null) return fail({ label: GLOBAL_LABELS[key], error: new Error(M.notMultipleOf10), key, kitChanged: false })
+    if (value === null) return fail({ label: GLOBAL_LABELS[key], error: new Error(M.notMultipleOf10), key, kitChanged: false, methodChanged: false })
     try {
       current = await updateSetting(key, value)
       saved.push(GLOBAL_LABELS[key])
       savedGlobal = true
     } catch (e) {
-      return fail({ label: GLOBAL_LABELS[key], error: asError(e), key, kitChanged: false })
+      return fail({ label: GLOBAL_LABELS[key], error: asError(e), key, kitChanged: false, methodChanged: false })
     }
   }
 
@@ -159,6 +173,7 @@ export async function saveDraft(baseline: Settings, draft: Draft): Promise<SaveR
         error: asError(e),
         key: null,
         kitChanged: "default_packaging_kit_id" in patch,
+        methodChanged: "default_payment_method_id" in patch,
       })
     }
   }

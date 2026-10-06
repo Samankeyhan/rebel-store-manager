@@ -11,15 +11,18 @@ import { ApiError, updateDisplayCurrency, type GlobalSettingKey } from "@/lib/ap
 import { currencyLabel, getCurrency, setCurrency, type Currency } from "@/lib/money"
 import { useCurrency } from "@/lib/use-currency"
 import { cn } from "@/lib/utils"
+import { PM } from "@/components/payment-methods/copy"
 import { ChannelsCard } from "./channels-card"
 import { S, joinList } from "./copy"
 import { changes, fromSettings, saveDraft, validate, type ChannelDraft, type Draft } from "./draft"
 import { GeneralCard } from "./general-card"
+import { PaymentMethodsCard } from "./payment-methods-card"
 import { PostageCard, heroFigure } from "./postage-card"
 import { useSettingsData } from "./use-settings-data"
 
 const SECTIONS = [
   { hash: "#ship", label: S.navShip },
+  { hash: "#pay", label: S.navPay },
   { hash: "#post", label: S.navPost },
   { hash: "#general", label: S.navGeneral },
 ] as const
@@ -40,7 +43,7 @@ const useHash = () => React.useSyncExternalStore(subscribeHash, () => window.loc
 export function SettingsPage() {
   const mobile = useIsMobile()
   const hash = useHash()
-  const { state, reload, setSettings, refreshKits, refreshEstimate } = useSettingsData()
+  const { state, reload, setSettings, refreshKits, refreshEstimate, refreshMethods, putMethod } = useSettingsData()
   const [draft, setDraft] = React.useState<Draft | null>(null)
   const [busy, setBusy] = React.useState(false)
   const [saveError, setSaveError] = React.useState<string | null>(null)
@@ -78,7 +81,7 @@ export function SettingsPage() {
   if (state.status === "error" || !draft)
     return <ErrorBlock title={S.errorTitle} body={S.errorBody} retry={S.retry} onRetry={reload} mobile={mobile} />
 
-  const { settings, kits, batches, estimate } = state
+  const { settings, kits, batches, estimate, methods } = state
   const clientErrors = validate(draft)
   const errorFor = (key: GlobalSettingKey) => clientErrors[key] ?? (serverError?.key === key ? serverError.message : null)
   const invalid = Object.keys(clientErrors).length > 0
@@ -130,11 +133,32 @@ export function SettingsPage() {
     if (result.savedGlobal) await refreshEstimate().catch(() => {})
     const f = result.failure
     if (f) {
-      const parts = [S.saveStep(f.label, f.error.message), result.saved.length ? S.savePartial(joinList(result.saved, 99)) : ""]
+      // A refused default payment method gets the Persian reason; everything else the server's message.
+      const methodRefused =
+        f.methodChanged && f.error instanceof ApiError
+          ? f.error.type === "NotFoundError"
+            ? PM.methodGone
+            : f.error.field === "default_payment_method_id"
+              ? PM.inactiveDefault
+              : null
+          : null
+      const parts = [
+        S.saveStep(f.label, methodRefused ?? f.error.message),
+        result.saved.length ? S.savePartial(joinList(result.saved, 99)) : "",
+      ]
       if (f.kitChanged && f.error instanceof ApiError && f.error.type === "NotFoundError") {
         // The chosen kit was deactivated meanwhile: show the picker's real options.
         await refreshKits().catch(() => {})
         parts.push(S.kitsReloaded)
+      }
+      if (
+        f.methodChanged &&
+        f.error instanceof ApiError &&
+        (f.error.type === "NotFoundError" || f.error.field === "default_payment_method_id")
+      ) {
+        // The chosen method was deactivated (or removed) meanwhile: show the picker's real options.
+        await refreshMethods().catch(() => {})
+        parts.push(S.methodsReloaded)
       }
       setSaveError(parts.filter(Boolean).join(" "))
       if (f.key && f.error instanceof ApiError && f.error.field === "value") setServerError({ key: f.key, message: f.error.message })
@@ -170,11 +194,20 @@ export function SettingsPage() {
       <ChannelsCard
         draft={draft}
         kits={kits}
+        methods={methods}
         estimate={hero.estimate}
         shippingError={errorFor("default_shipping_charge")}
         onShipping={setGlobal("default_shipping_charge")}
         onChannel={setChannel}
         mobile={mobile}
+      />
+      <PaymentMethodsCard
+        methods={methods}
+        settings={settings}
+        mobile={mobile}
+        onChanged={putMethod}
+        onRefresh={refreshMethods}
+        onToast={setToast}
       />
       <PostageCard
         draft={draft}

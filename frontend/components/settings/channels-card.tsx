@@ -3,15 +3,17 @@
 import { Switch } from "@/components/products/drawer-shell"
 import { CHANNEL_IDS, CHANNELS, type Channel } from "@/components/record-sale/copy"
 import { Alert, ChannelBadge, Help, InlineMessage, Label, MoneyInput, cardClass } from "@/components/record-sale/primitives"
-import type { KitDetail } from "@/lib/api"
+import type { KitDetail, PaymentMethod } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { S, joinList } from "./copy"
 import type { ChannelDraft, Draft } from "./draft"
 import { KitPicker, isInactiveChoice } from "./kit-picker"
+import { MethodPicker, isInactiveMethodChoice } from "./method-picker"
 
 type Props = {
   draft: Draft
   kits: KitDetail[]
+  methods: PaymentMethod[]
   /** The estimate the hero shows (echoed on channels whose postage is on). */
   estimate: number
   shippingError: string | null
@@ -44,12 +46,18 @@ function SwitchCell({
   )
 }
 
-/** [1] ارسال و کانال‌ها: the one default shipping amount, then each channel's two switches and default kit. */
-export function ChannelsCard({ draft, kits, estimate, shippingError, onShipping, onChannel, mobile }: Props) {
+/** [1] ارسال و کانال‌ها: the one default shipping amount, then each channel's two switches, default kit and default payment method. */
+export function ChannelsCard({ draft, kits, methods, estimate, shippingError, onShipping, onChannel, mobile }: Props) {
   const inactiveChannels = CHANNEL_IDS.filter((c) => isInactiveChoice(draft.channels[c].kit, kits))
   const inactiveAlert = inactiveChannels.length > 0 && (
     <Alert tone="warn" icon="triangle" title={S.kitInactiveTitle}>
       {S.kitInactiveWarn(joinList(inactiveChannels.map((c) => `«${CHANNELS[c].name}»`), 5))}
+    </Alert>
+  )
+  const inactiveMethodChannels = CHANNEL_IDS.filter((c) => isInactiveMethodChoice(draft.channels[c].method, methods))
+  const inactiveMethodAlert = inactiveMethodChannels.length > 0 && (
+    <Alert tone="warn" icon="triangle" title={S.methodInactiveTitle}>
+      {S.methodInactiveWarn(joinList(inactiveMethodChannels.map((c) => `«${CHANNELS[c].name}»`), 5))}
     </Alert>
   )
   // While the amount isn't exact (null) the caption keeps no figure rather than a stale one.
@@ -89,6 +97,7 @@ export function ChannelsCard({ draft, kits, estimate, shippingError, onShipping,
             {S.channelsTitleMobile}
           </h2>
           {inactiveAlert && <div className="px-3.5 pb-3">{inactiveAlert}</div>}
+          {inactiveMethodAlert && <div className="px-3.5 pb-3">{inactiveMethodAlert}</div>}
           {CHANNEL_IDS.map((c) => {
             const d = draft.channels[c]
             const name = CHANNELS[c].name
@@ -98,6 +107,18 @@ export function ChannelsCard({ draft, kits, estimate, shippingError, onShipping,
                   <ChannelBadge channel={c} />
                   <div className="w-[200px] min-w-0">
                     <KitPicker value={d.kit} kits={kits} onChange={(kit) => onChannel(c, { kit })} label={S.kitAria(name)} mobile />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-text-3">{S.colMethod}</span>
+                  <div className="w-[200px] min-w-0">
+                    <MethodPicker
+                      value={d.method}
+                      methods={methods}
+                      onChange={(method) => onChannel(c, { method })}
+                      label={S.methodAria(name)}
+                      mobile
+                    />
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-4">
@@ -143,7 +164,8 @@ export function ChannelsCard({ draft, kits, estimate, shippingError, onShipping,
       <div className="flex flex-col gap-5 p-5">
         {shippingField}
         {inactiveAlert}
-        <div className="overflow-hidden rounded-[10px] border border-border">
+        {inactiveMethodAlert}
+        <div className="overflow-x-auto rounded-[10px] border border-border">
           <table className="w-full border-separate border-spacing-0 text-[13.5px]">
             <thead>
               <tr className="text-xs font-semibold text-text-3 [&>th]:h-10 [&>th]:border-b [&>th]:border-border [&>th]:bg-surface-2 [&>th]:px-4 [&>th]:text-start [&>th]:whitespace-nowrap">
@@ -151,6 +173,7 @@ export function ChannelsCard({ draft, kits, estimate, shippingError, onShipping,
                 <th scope="col">{S.colShipping}</th>
                 <th scope="col">{S.colPostage}</th>
                 <th scope="col">{S.colKit}</th>
+                <th scope="col">{S.colMethod}</th>
               </tr>
             </thead>
             <tbody>
@@ -188,6 +211,15 @@ export function ChannelsCard({ draft, kits, estimate, shippingError, onShipping,
                     </td>
                     <td>
                       <KitPicker value={d.kit} kits={kits} onChange={(kit) => onChannel(c, { kit })} label={S.kitAria(name)} mobile={false} />
+                    </td>
+                    <td>
+                      <MethodPicker
+                        value={d.method}
+                        methods={methods}
+                        onChange={(method) => onChannel(c, { method })}
+                        label={S.methodAria(name)}
+                        mobile={false}
+                      />
                     </td>
                   </tr>
                 )

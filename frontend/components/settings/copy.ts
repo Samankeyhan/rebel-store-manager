@@ -14,6 +14,7 @@ export const S = {
   navShip: "ارسال و کانال‌ها",
   navPost: "تخمین هزینه پست",
   navGeneral: "عمومی", // NEW
+  navPay: "روش‌های پرداخت", // NEW
 
   // [1] shipping and channels
   shipTitle: "ارسال و کانال‌ها",
@@ -40,6 +41,11 @@ export const S = {
   kitAria: (channel: string) => `کیت بسته‌بندی پیش‌فرض ${channel}`, // NEW
   kitInactive: (name: string) => `${name} (غیرفعال)`, // NEW
   kitInactiveTitle: "کیت پیش‌فرض غیرفعال", // NEW
+  colMethod: "روش پرداخت پیش‌فرض", // NEW
+  methodAria: (channel: string) => `روش پرداخت پیش‌فرض ${channel}`, // NEW
+  methodInactiveTitle: "روش پرداخت پیش‌فرض غیرفعال", // NEW
+  methodInactiveWarn: (channels: string) =>
+    `روش پرداخت پیش‌فرض ${channels} غیرفعال است؛ سفارش‌های این کانال با روش پیش‌فرض ثبت نمی‌شوند. روش دیگری یا «بدون روش» انتخاب کنید.`, // NEW
   kitInactiveWarn: (channels: string) =>
     `کیت پیش‌فرض ${channels} غیرفعال است؛ سفارش‌های این کانال با کیت پیش‌فرض ثبت نمی‌شوند. کیت دیگری یا «بدون بسته‌بندی» انتخاب کنید.`, // NEW
 
@@ -93,6 +99,7 @@ export const S = {
   saveStep: (what: string, msg: string) => `«${what}» ذخیره نشد: ${msg}`, // NEW
   savePartial: (what: string) => `این موارد ذخیره شد: ${what}. بقیه هنوز ذخیره نشده‌اند.`, // NEW
   kitsReloaded: "فهرست کیت‌ها دوباره خوانده شد.", // NEW
+  methodsReloaded: "فهرست روش‌های پرداخت دوباره خوانده شد.", // NEW
   toastSaved: "تنظیمات ذخیره شد", // NEW
   close: "بستن",
 
@@ -103,6 +110,7 @@ export const S = {
   chChannelShipping: (channel: string) => `هزینه ارسال «${channel}»`, // NEW
   chChannelPostage: (channel: string) => `هزینه پست «${channel}»`, // NEW
   chChannelKit: (channel: string) => `کیت «${channel}»`,
+  chChannelMethod: (channel: string) => `روش پرداخت «${channel}»`, // NEW
   chChannel: (channel: string) => `تنظیمات «${channel}»`, // NEW
 
   // states
@@ -112,6 +120,63 @@ export const S = {
   retry: "تلاش دوباره",
 
   amountError: "این مبلغ بیش از حد بزرگ است.", // NEW
+
+  // [4] payment methods
+  payTitle: "روش‌های پرداخت", // NEW
+  payCaption: "کارمزد هر روش هنگام ثبت فروش خودکار حساب و روی سفارش ثابت می‌شود؛ قاعده تسویه می‌گوید پول کی به حساب می‌رسد.", // NEW
+  payAdd: "افزودن روش پرداخت", // NEW
+  payEmptyTitle: "هنوز روش پرداختی تعریف نشده", // NEW
+  payEmptyBody: "روش‌هایی مثل کارت‌به‌کارت یا درگاه پرداخت را با کارمزد و زمان تسویه‌شان اضافه کنید.", // NEW
+  payShowInactive: "نمایش روش‌های غیرفعال", // NEW
+  payColName: "نام", // NEW
+  payColFee: "کارمزد", // NEW
+  payColRule: "تسویه", // NEW
+  payColPending: "در انتظار تسویه", // NEW
+  payColActions: "عملیات", // NEW
+  payActive: "فعال", // NEW
+  payInactive: "غیرفعال", // NEW
+  payNoPending: "—", // NEW
+  payEdit: "ویرایش", // NEW
+  payEditAria: (name: string) => `ویرایش ${name}`, // NEW
+  payDeactivate: "غیرفعال‌سازی", // NEW
+  payReactivate: "فعال‌سازی", // NEW
+  payDeactivateTitle: (name: string) => `غیرفعال‌سازی «${name}»`, // NEW
+  payDeactivateSubtitle: "روش غیرفعال پاک نمی‌شود و هر وقت بخواهید دوباره فعال می‌شود.", // NEW
+  payEffNew: "برای فروش جدید و به‌عنوان پیش‌فرض کانال قابل انتخاب نیست.", // NEW
+  payEffExisting: "سفارش‌های قبلی این روش همچنان پرداخت و تسویه می‌شوند.", // NEW
+  payEffDefault: (channels: string) => `پیش‌فرض ${channels} است؛ بعد از غیرفعال‌سازی، روش پیش‌فرض این کانال‌ها را عوض کنید.`, // NEW
+  payDeactivated: (name: string) => `«${name}» غیرفعال شد`, // NEW
+  payReactivated: (name: string) => `«${name}» دوباره فعال شد`, // NEW
+  payActionFailed: (msg: string) => `انجام نشد: ${msg}`, // NEW
+  paySaved: (name: string) => `«${name}» ذخیره شد`, // NEW
+  payCreated: (name: string) => `«${name}» اضافه شد`, // NEW
+
+  // payment method drawer
+  drawerAdd: "روش پرداخت جدید", // NEW
+  drawerEdit: (name: string) => `ویرایش «${name}»`, // NEW
+  fName: "نام روش", // NEW
+  fNamePlaceholder: "مثلاً زرین‌پال", // NEW
+  fNameError: "نام روش را بنویسید.", // NEW
+  fPercent: "کارمزد درصدی", // NEW
+  fPercentHelp: "تا دو رقم اعشار؛ مثلاً ۱٫۵ یعنی یک‌ونیم درصد مبلغی که مشتری می‌پردازد.", // NEW
+  fPercentFormat: "یک عدد بنویسید؛ مثلاً ۱٫۵", // NEW
+  fPercentDecimals: "حداکثر دو رقم اعشار.", // NEW
+  fPercentRange: "کارمزد درصدی باید بین ۰ و ۱۰۰ باشد.", // NEW
+  fFixed: "کارمزد ثابت هر تراکنش", // NEW
+  fFixedHelp: "به کارمزد درصدی اضافه می‌شود؛ اگر ندارد صفر بگذارید.", // NEW
+  fFixedError: "کارمزد ثابت معتبر نیست.", // NEW
+  fRule: "زمان تسویه", // NEW
+  fRuleAria: "قاعده تسویه", // NEW
+  fDays: "تعداد روز بعد از پرداخت", // NEW
+  fDayOfMonth: "روز ماه بعد (شمسی)", // NEW
+  fDaysRange: (min: number, max: number) => `عددی از ${fa(min)} تا ${fa(max)}.`, // NEW
+  fDaysError: (min: number, max: number) => `باید عددی از ${fa(min)} تا ${fa(max)} باشد.`, // NEW
+  fRuleError: "قاعده تسویه معتبر نیست.", // NEW
+  fRuleLocked: "قاعده تسویه", // NEW
+  fCancel: "انصراف", // NEW
+  fSave: "ذخیره", // NEW
+  fAdd: "افزودن", // NEW
+  fNoChanges: "تغییری نداده‌اید.", // NEW
 }
 
 /** «a، b و c»; past `max` items, «a، b، c و ۲ مورد دیگر». */

@@ -128,6 +128,10 @@ export type OrderListParams = {
   status?: string | null
   start_date?: string | null
   end_date?: string | null
+  /** Orders paid with this method. */
+  payment_method_id?: string | null
+  /** "pending": paid, has a method, not yet settled; "settled": in a settlement. */
+  settlement_state?: "pending" | "settled" | null
 }
 
 export function listOrders(params: OrderListParams = {}): Promise<OrderListItem[]> {
@@ -143,11 +147,27 @@ export function getOrder(orderId: number): Promise<OrderDetail> {
   return apiFetch<OrderDetail>(`/orders/${orderId}`)
 }
 
-/** Forward move only: DRAFT → PENDING/PAID/COMPLETED, PENDING → PAID/COMPLETED, PAID → COMPLETED. */
-export function changeOrderStatus(orderId: number, status: string): Promise<OrderDetail> {
+/**
+ * Forward move only: DRAFT → PENDING/PAID/COMPLETED, PENDING → PAID/COMPLETED,
+ * PAID → COMPLETED. `paidDate` only when the order becomes paid (from DRAFT or
+ * PENDING); omitted, the server stores today. Any other move with a paid date is a 422.
+ */
+export function changeOrderStatus(orderId: number, status: string, paidDate?: string | null): Promise<OrderDetail> {
   return apiFetch<OrderDetail>(`/orders/${orderId}/status`, {
     method: "POST",
-    body: JSON.stringify({ status }),
+    body: JSON.stringify(paidDate ? { status, paid_date: paidDate } : { status }),
+  })
+}
+
+/**
+ * PATCH /orders/{id}/paid-date: move a paid, unsettled order's payment day.
+ * 409 if the order is unpaid or settled, or the day falls in a month its
+ * method has already settled; 422 (field "paid_date") for a future day.
+ */
+export function setOrderPaidDate(orderId: number, paidDate: string): Promise<OrderDetail> {
+  return apiFetch<OrderDetail>(`/orders/${orderId}/paid-date`, {
+    method: "PATCH",
+    body: JSON.stringify({ paid_date: paidDate }),
   })
 }
 
@@ -467,7 +487,12 @@ export type ChannelSettings = Schemas["ChannelSettingsOut"]
 /** Only the fields sent change; default_packaging_kit_id: null clears the default kit. */
 export function updateChannelSettings(
   channel: string,
-  patch: { default_packaging_kit_id?: number | null; applies_shipping_charge?: number; applies_postage?: number }
+  patch: {
+    default_packaging_kit_id?: number | null
+    default_payment_method_id?: number | null
+    applies_shipping_charge?: number
+    applies_postage?: number
+  }
 ): Promise<ChannelSettings> {
   return apiFetch<ChannelSettings>(`/settings/channels/${channel}`, { method: "PATCH", body: JSON.stringify(patch) })
 }
@@ -619,4 +644,38 @@ export type PurchasesSummary = Schemas["PurchasesSummaryOut"]
 /** Σ total_paid and count of material / product purchases in range; inventory, not P&L. */
 export function getPurchasesSummary(r: DateRangeParams): Promise<PurchasesSummary> {
   return apiFetch<PurchasesSummary>(`/reports/purchases?${rangeQuery(r)}`)
+}
+
+// ------------------------------------------------------------ payment methods
+
+export type PaymentMethod = Schemas["PaymentMethodOut"]
+export type PaymentMethodCreate = Schemas["PaymentMethodCreate"]
+export type PaymentMethodUpdate = Schemas["PaymentMethodUpdate"]
+export type FeePreview = Schemas["FeePreviewOut"]
+
+/** Sorted by name; inactive methods only when asked. Each carries pending_order_count. */
+export function listPaymentMethods(includeInactive = false): Promise<PaymentMethod[]> {
+  return apiFetch<PaymentMethod[]>(`/payment-methods?include_inactive=${includeInactive}`)
+}
+
+export function createPaymentMethod(body: PaymentMethodCreate): Promise<PaymentMethod> {
+  return apiFetch<PaymentMethod>("/payment-methods", { method: "POST", body: JSON.stringify(body) })
+}
+
+/** Only the fields present change. A rule or days change while orders are pending is a 409. */
+export function updatePaymentMethod(id: number, patch: PaymentMethodUpdate): Promise<PaymentMethod> {
+  return apiFetch<PaymentMethod>(`/payment-methods/${id}`, { method: "PATCH", body: JSON.stringify(patch) })
+}
+
+export function deactivatePaymentMethod(id: number): Promise<PaymentMethod> {
+  return apiFetch<PaymentMethod>(`/payment-methods/${id}/deactivate`, { method: "POST" })
+}
+
+export function reactivatePaymentMethod(id: number): Promise<PaymentMethod> {
+  return apiFetch<PaymentMethod>(`/payment-methods/${id}/reactivate`, { method: "POST" })
+}
+
+/** The fee the method charges on a customer_total of `amount` (Toman), computed by the backend. */
+export function getFeePreview(id: number, amount: number, signal?: AbortSignal): Promise<FeePreview> {
+  return apiFetch<FeePreview>(`/payment-methods/${id}/fee-preview?amount=${amount}`, { signal })
 }

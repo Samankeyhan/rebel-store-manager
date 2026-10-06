@@ -6,14 +6,24 @@ import {
   getPostageEstimate,
   getSettings,
   listKits,
+  listPaymentMethods,
   listPostageBatches,
   type KitDetail,
+  type PaymentMethod,
   type PostageBatch,
   type PostageEstimate,
   type Settings,
 } from "@/lib/api"
 
-type Ready = { status: "ready"; settings: Settings; kits: KitDetail[]; batches: PostageBatch[]; estimate: PostageEstimate }
+type Ready = {
+  status: "ready"
+  settings: Settings
+  kits: KitDetail[]
+  batches: PostageBatch[]
+  estimate: PostageEstimate
+  /** Every payment method, inactive ones included (the card lists them; a channel default may point at one). */
+  methods: PaymentMethod[]
+}
 type State = { status: "loading" } | { status: "error" } | Ready
 
 const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name, "fa")
@@ -28,7 +38,8 @@ async function loadKits(): Promise<KitDetail[]> {
 /**
  * Settings (the saved baseline), kits (picker options and their costs; an
  * inactive kit is kept only to name a channel default that points at one),
- * and the postage payments and API estimate the estimate preview needs.
+ * the postage payments and API estimate the estimate preview needs, and the
+ * payment methods (their card and the channel default pickers).
  */
 export function useSettingsData() {
   const [state, setState] = React.useState<State>({ status: "loading" })
@@ -36,9 +47,9 @@ export function useSettingsData() {
 
   React.useEffect(() => {
     let cancelled = false
-    Promise.all([getSettings(), loadKits(), listPostageBatches(), getPostageEstimate()]).then(
-      ([settings, kits, batches, estimate]) =>
-        !cancelled && setState({ status: "ready", settings, kits, batches, estimate }),
+    Promise.all([getSettings(), loadKits(), listPostageBatches(), getPostageEstimate(), listPaymentMethods(true)]).then(
+      ([settings, kits, batches, estimate, methods]) =>
+        !cancelled && setState({ status: "ready", settings, kits, batches, estimate, methods }),
       () => !cancelled && setState({ status: "error" })
     )
     return () => {
@@ -58,6 +69,15 @@ export function useSettingsData() {
   const setSettings = React.useCallback((settings: Settings) => patch({ settings }), [patch])
   const refreshKits = React.useCallback(async () => patch({ kits: await loadKits() }), [patch])
   const refreshEstimate = React.useCallback(async () => patch({ estimate: await getPostageEstimate() }), [patch])
+  const refreshMethods = React.useCallback(async () => patch({ methods: await listPaymentMethods(true) }), [patch])
+  /** Replace (or add) one method after a save, keeping the list sorted by name like the API. */
+  const putMethod = React.useCallback((m: PaymentMethod) => {
+    setState((s) =>
+      s.status === "ready"
+        ? { ...s, methods: [...s.methods.filter((x) => x.id !== m.id), m].sort(byName) }
+        : s
+    )
+  }, [])
 
-  return { state, reload, setSettings, refreshKits, refreshEstimate }
+  return { state, reload, setSettings, refreshKits, refreshEstimate, refreshMethods, putMethod }
 }
