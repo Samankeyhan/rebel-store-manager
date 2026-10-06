@@ -356,7 +356,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Orders */
+        /**
+         * Read Orders
+         * @description settlement_state: "pending" (paid, has a payment method, not yet
+         *     settled) or "settled" (in a settlement); anything else is a 422.
+         */
         get: operations["read_orders_orders_get"];
         put?: never;
         /**
@@ -374,6 +378,16 @@ export interface paths {
          *     default_shipping_charge setting if the channel applies shipping, else 0;
          *     postage_cost defaults to the current postage estimate if the channel
          *     applies postage, else 0. Sending `0` is a real zero override.
+         *
+         *     **payment_method_id** follows the packaging_kit_id pattern: `"default"` (or
+         *     omitted) = the channel's default method, `null` = no method, an integer =
+         *     that method (must be active).
+         *
+         *     **transaction_fee**: `null` (or omitted) = computed from the payment method
+         *     (0 without one); an integer, including 0, overrides it.
+         *
+         *     **paid_date**: only for a PAID/COMPLETED order; defaults to the local day
+         *     of order_date (or today). Never in the future.
          *
          *     DRAFT orders commit no stock and freeze no costs until they leave DRAFT.
          */
@@ -414,13 +428,36 @@ export interface paths {
          * Change Order Status
          * @description Move an order forward (DRAFT → PENDING/PAID/COMPLETED, PENDING →
          *     PAID/COMPLETED, PAID → COMPLETED). Anything else is a 409. CANCELLED and
-         *     REFUNDED go through /orders/{order_id}/return.
+         *     REFUNDED go through /orders/{order_id}/return. Becoming paid sets
+         *     paid_date (body value, default today).
          */
         post: operations["change_order_status_orders__order_id__status_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/orders/{order_id}/paid-date": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change Paid Date
+         * @description Move a paid, unsettled order's paid_date; its expected settlement date
+         *     and Jalali month follow. 409 if the order is unpaid or settled, or if the
+         *     new day falls in a month its DAY_OF_NEXT_MONTH method has already settled.
+         */
+        patch: operations["change_paid_date_orders__order_id__paid_date_patch"];
         trace?: never;
     };
     "/orders/{order_id}/return": {
@@ -956,8 +993,9 @@ export interface paths {
         /**
          * Patch Channel Settings
          * @description Only the fields present in the body change. An explicit null
-         *     default_packaging_kit_id clears the channel's default kit; omitting it
-         *     leaves it as is.
+         *     default_packaging_kit_id or default_payment_method_id clears that default;
+         *     omitting it leaves it as is. A new default payment method must exist (404)
+         *     and be active (422, field "default_payment_method_id").
          */
         patch: operations["patch_channel_settings_settings_channels__channel__patch"];
         trace?: never;
@@ -1138,6 +1176,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Payment Method Report
+         * @description Per payment method, then a "no method" row (payment_method_id null).
+         *     order_count / customer_total / transaction_fees cover revenue-eligible
+         *     orders by order_date (their transaction_fees sum to the P&L's);
+         *     fees_lost_on_returns is the fee part of the P&L refund_losses;
+         *     pending_expected covers orders still pending, by order_date;
+         *     settled_* cover settlements by settled_date.
+         */
+        get: operations["read_payment_method_report_reports_payment_methods_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/catalog": {
         parameters: {
             query?: never;
@@ -1246,6 +1309,181 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Payment Methods */
+        get: operations["read_payment_methods_payment_methods_get"];
+        put?: never;
+        /** Create Payment Method */
+        post: operations["create_payment_method_payment_methods_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-methods/{payment_method_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Payment Method */
+        get: operations["read_payment_method_payment_methods__payment_method_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Payment Method
+         * @description Only the fields present in the body change. Fee changes are always
+         *     allowed (each order keeps its frozen fee). Changing settlement_rule or
+         *     settlement_days while paid orders are pending settlement is a 409.
+         */
+        patch: operations["patch_payment_method_payment_methods__payment_method_id__patch"];
+        trace?: never;
+    };
+    "/payment-methods/{payment_method_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate
+         * @description An inactive method can't be used for a new order or as a channel
+         *     default; its existing orders still get paid and settle normally.
+         */
+        post: operations["deactivate_payment_methods__payment_method_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-methods/{payment_method_id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivate */
+        post: operations["reactivate_payment_methods__payment_method_id__reactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-methods/{payment_method_id}/fee-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Fee Preview
+         * @description The fee the method would charge on a customer_total of `amount`
+         *     (half-even on amount × fee_bps / 10000, plus fee_fixed), and the amount
+         *     it would then pay out. A negative amount is a 422 (field "amount").
+         */
+        get: operations["read_fee_preview_payment_methods__payment_method_id__fee_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settlements/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pending
+         * @description Paid orders with a payment method that are not yet in a settlement,
+         *     per method (inactive methods included). IMMEDIATE / DAYS_AFTER groups are
+         *     by expected date; DAY_OF_NEXT_MONTH groups are Jalali months.
+         */
+        get: operations["read_pending_settlements_pending_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Settlements
+         * @description Newest first; start_date / end_date are inclusive days on settled_date.
+         */
+        get: operations["read_settlements_settlements_get"];
+        put?: never;
+        /**
+         * Create Settlement
+         * @description Record money a payment method paid out.
+         *
+         *     - IMMEDIATE / DAYS_AFTER: `order_ids` (pending orders of this method);
+         *       jalali_year / jalali_month must be absent.
+         *     - DAY_OF_NEXT_MONTH: `jalali_year` + `jalali_month` of a month that has
+         *       ended; every pending order of that month is included. `order_ids` is a
+         *       422 (field "order_ids"): the method settles whole months only.
+         */
+        post: operations["create_settlement_settlements_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settlements/{settlement_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Settlement */
+        get: operations["read_settlement_settlements__settlement_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Settlement
+         * @description Correct amount_received, settled_date or note; only fields present
+         *     in the body change.
+         */
+        patch: operations["patch_settlement_settlements__settlement_id__patch"];
         trace?: never;
     };
 }
@@ -1394,11 +1632,13 @@ export interface components {
             applies_postage: number;
             /** Default Packaging Kit Id */
             default_packaging_kit_id: number | null;
+            /** Default Payment Method Id */
+            default_payment_method_id: number | null;
         };
         /**
          * ChannelSettingsUpdate
          * @description Only the fields present in the body change. An explicit null
-         *     default_packaging_kit_id clears the channel's default kit.
+         *     default_packaging_kit_id / default_payment_method_id clears that default.
          */
         ChannelSettingsUpdate: {
             /** Applies Shipping Charge */
@@ -1407,6 +1647,8 @@ export interface components {
             applies_postage?: number | null;
             /** Default Packaging Kit Id */
             default_packaging_kit_id?: number | null;
+            /** Default Payment Method Id */
+            default_payment_method_id?: number | null;
         };
         /** DistributionCreate */
         DistributionCreate: {
@@ -1529,6 +1771,17 @@ export interface components {
             description: string | null;
             /** Category Name */
             category_name: string;
+        };
+        /** FeePreviewOut */
+        FeePreviewOut: {
+            /** Payment Method Id */
+            payment_method_id: number;
+            /** Amount */
+            amount: number;
+            /** Transaction Fee */
+            transaction_fee: number;
+            /** Expected Amount */
+            expected_amount: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1708,11 +1961,8 @@ export interface components {
             packaging_kit_id?: number | "default" | null;
             /** Postage Cost */
             postage_cost?: number | null;
-            /**
-             * Transaction Fee
-             * @default 0
-             */
-            transaction_fee?: number;
+            /** Transaction Fee */
+            transaction_fee?: number | null;
             /** Notes */
             notes?: string | null;
             /**
@@ -1720,6 +1970,15 @@ export interface components {
              * @default COMPLETED
              */
             status?: string;
+            /**
+             * Payment Method Id
+             * @default default
+             */
+            payment_method_id?: number | "default" | null;
+            /** Payment Reference */
+            payment_reference?: string | null;
+            /** Paid Date */
+            paid_date?: string | null;
         };
         /** OrderDetailOut */
         OrderDetailOut: {
@@ -1798,6 +2057,22 @@ export interface components {
             packaging_cost: number;
             /** Stock Committed */
             stock_committed: number;
+            /** Payment Method Id */
+            payment_method_id: number | null;
+            /** Payment Reference */
+            payment_reference: string | null;
+            /** Paid Date */
+            paid_date: string | null;
+            /** Expected Settlement Date */
+            expected_settlement_date: string | null;
+            /** Paid Jalali Year */
+            paid_jalali_year: number | null;
+            /** Paid Jalali Month */
+            paid_jalali_month: number | null;
+            /** Settlement Id */
+            settlement_id: number | null;
+            /** Payment Method Name */
+            payment_method_name: string | null;
             /** Customer Total */
             customer_total: number;
             /** Profit */
@@ -1831,6 +2106,27 @@ export interface components {
             packaging_cost: number;
             /** Stock Committed */
             stock_committed: number;
+            /** Payment Method Id */
+            payment_method_id: number | null;
+            /** Payment Reference */
+            payment_reference: string | null;
+            /** Paid Date */
+            paid_date: string | null;
+            /** Expected Settlement Date */
+            expected_settlement_date: string | null;
+            /** Paid Jalali Year */
+            paid_jalali_year: number | null;
+            /** Paid Jalali Month */
+            paid_jalali_month: number | null;
+            /** Settlement Id */
+            settlement_id: number | null;
+            /** Payment Method Name */
+            payment_method_name: string | null;
+        };
+        /** OrderPaidDateUpdate */
+        OrderPaidDateUpdate: {
+            /** Paid Date */
+            paid_date: string;
         };
         /** OrderReturn */
         OrderReturn: {
@@ -1846,6 +2142,8 @@ export interface components {
         OrderStatusUpdate: {
             /** Status */
             status: string;
+            /** Paid Date */
+            paid_date?: string | null;
         };
         /** PartnerCreate */
         PartnerCreate: {
@@ -1907,6 +2205,191 @@ export interface components {
             total_received: number;
             /** Distribution Count */
             distribution_count: number;
+        };
+        /** PaymentMethodCreate */
+        PaymentMethodCreate: {
+            /** Name */
+            name: string;
+            /** Settlement Rule */
+            settlement_rule: string;
+            /** Settlement Days */
+            settlement_days?: number | null;
+            /**
+             * Fee Bps
+             * @default 0
+             */
+            fee_bps?: number;
+            /**
+             * Fee Fixed
+             * @default 0
+             */
+            fee_fixed?: number;
+        };
+        /** PaymentMethodOut */
+        PaymentMethodOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Fee Bps */
+            fee_bps: number;
+            /** Fee Fixed */
+            fee_fixed: number;
+            /** Settlement Rule */
+            settlement_rule: string;
+            /** Settlement Days */
+            settlement_days: number | null;
+            /** Is Active */
+            is_active: number;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+            /** Pending Order Count */
+            pending_order_count: number;
+        };
+        /**
+         * PaymentMethodReportRowOut
+         * @description One payment method, or (payment_method_id null) orders without one.
+         */
+        PaymentMethodReportRowOut: {
+            /** Payment Method Id */
+            payment_method_id: number | null;
+            /** Name */
+            name: string | null;
+            /** Settlement Rule */
+            settlement_rule: string | null;
+            /** Is Active */
+            is_active: number | null;
+            /** Order Count */
+            order_count: number;
+            /** Customer Total */
+            customer_total: number;
+            /** Transaction Fees */
+            transaction_fees: number;
+            /** Fees Lost On Returns */
+            fees_lost_on_returns: number;
+            /** Pending Expected */
+            pending_expected: number;
+            /** Settled Expected */
+            settled_expected: number;
+            /** Settled Received */
+            settled_received: number;
+            /** Settlement Difference */
+            settlement_difference: number;
+        };
+        /**
+         * PaymentMethodUpdate
+         * @description Only the fields present in the body change; settlement_days may be null
+         *     (required when switching to IMMEDIATE).
+         */
+        PaymentMethodUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Settlement Rule */
+            settlement_rule?: string | null;
+            /** Settlement Days */
+            settlement_days?: number | null;
+            /** Fee Bps */
+            fee_bps?: number | null;
+            /** Fee Fixed */
+            fee_fixed?: number | null;
+        };
+        /**
+         * PendingDateGroupOut
+         * @description IMMEDIATE / DAYS_AFTER: pending orders sharing one expected date.
+         */
+        PendingDateGroupOut: {
+            /** Expected Date */
+            expected_date: string;
+            /** Due */
+            due: boolean;
+            /** Overdue */
+            overdue: boolean;
+            /** Order Count */
+            order_count: number;
+            /** Customer Total Sum */
+            customer_total_sum: number;
+            /** Fee Sum */
+            fee_sum: number;
+            /** Expected Amount */
+            expected_amount: number;
+            /** Orders */
+            orders: components["schemas"]["PendingOrderOut"][];
+        };
+        /** PendingMethodOut */
+        PendingMethodOut: {
+            /** Payment Method Id */
+            payment_method_id: number;
+            /** Name */
+            name: string;
+            /** Settlement Rule */
+            settlement_rule: string;
+            /** Settlement Days */
+            settlement_days: number | null;
+            /** Is Active */
+            is_active: number;
+            /** Total Expected */
+            total_expected: number;
+            /** Groups */
+            groups: (components["schemas"]["PendingDateGroupOut"] | components["schemas"]["PendingMonthGroupOut"])[];
+        };
+        /**
+         * PendingMonthGroupOut
+         * @description DAY_OF_NEXT_MONTH: one Jalali month, settled as a whole once it has ended.
+         */
+        PendingMonthGroupOut: {
+            /** Jalali Year */
+            jalali_year: number;
+            /** Jalali Month */
+            jalali_month: number;
+            /** Month First Day */
+            month_first_day: string;
+            /** Month Last Day */
+            month_last_day: string;
+            /** Expected Date */
+            expected_date: string;
+            /** Month Ended */
+            month_ended: boolean;
+            /** Can Settle */
+            can_settle: boolean;
+            /** Due */
+            due: boolean;
+            /** Overdue */
+            overdue: boolean;
+            /** Order Count */
+            order_count: number;
+            /** Customer Total Sum */
+            customer_total_sum: number;
+            /** Fee Sum */
+            fee_sum: number;
+            /** Expected Amount */
+            expected_amount: number;
+            /** Orders */
+            orders: components["schemas"]["PendingOrderOut"][];
+        };
+        /** PendingOrderOut */
+        PendingOrderOut: {
+            /** Id */
+            id: number;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Order Date */
+            order_date: string;
+            /** Paid Date */
+            paid_date: string;
+            /** Customer Name */
+            customer_name: string | null;
+            /** Channel */
+            channel: string;
+            /** Customer Total */
+            customer_total: number;
+            /** Transaction Fee */
+            transaction_fee: number;
+            /** Expected Amount */
+            expected_amount: number;
+            /** Expected Settlement Date */
+            expected_settlement_date: string;
         };
         /** PostageBatchCreate */
         PostageBatchCreate: {
@@ -2252,6 +2735,122 @@ export interface components {
             channels: {
                 [key: string]: components["schemas"]["ChannelSettingsOut"];
             };
+        };
+        /**
+         * SettlementCreate
+         * @description IMMEDIATE / DAYS_AFTER: give order_ids. DAY_OF_NEXT_MONTH: give
+         *     jalali_year and jalali_month; the server takes every pending order of
+         *     that month.
+         */
+        SettlementCreate: {
+            /** Payment Method Id */
+            payment_method_id: number;
+            /** Settled Date */
+            settled_date: string;
+            /** Amount Received */
+            amount_received: number;
+            /** Note */
+            note?: string | null;
+            /** Order Ids */
+            order_ids?: number[] | null;
+            /** Jalali Year */
+            jalali_year?: number | null;
+            /** Jalali Month */
+            jalali_month?: number | null;
+        };
+        /** SettlementListItemOut */
+        SettlementListItemOut: {
+            /** Id */
+            id: number;
+            /** Payment Method Id */
+            payment_method_id: number;
+            /** Payment Method Name */
+            payment_method_name: string;
+            /** Settlement Rule */
+            settlement_rule: string;
+            /** Settled Date */
+            settled_date: string;
+            /** Jalali Year */
+            jalali_year: number | null;
+            /** Jalali Month */
+            jalali_month: number | null;
+            /** Expected Amount */
+            expected_amount: number;
+            /** Amount Received */
+            amount_received: number;
+            /** Difference */
+            difference: number;
+            /** Note */
+            note: string | null;
+            /** Created At */
+            created_at: string;
+            /** Order Count */
+            order_count: number;
+        };
+        /** SettlementOrderOut */
+        SettlementOrderOut: {
+            /** Id */
+            id: number;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Order Date */
+            order_date: string;
+            /** Paid Date */
+            paid_date: string;
+            /** Customer Name */
+            customer_name: string | null;
+            /** Channel */
+            channel: string;
+            /** Status */
+            status: string;
+            /** Customer Total */
+            customer_total: number;
+            /** Transaction Fee */
+            transaction_fee: number;
+            /** Expected Amount */
+            expected_amount: number;
+        };
+        /** SettlementOut */
+        SettlementOut: {
+            /** Id */
+            id: number;
+            /** Payment Method Id */
+            payment_method_id: number;
+            /** Payment Method Name */
+            payment_method_name: string;
+            /** Settlement Rule */
+            settlement_rule: string;
+            /** Settled Date */
+            settled_date: string;
+            /** Jalali Year */
+            jalali_year: number | null;
+            /** Jalali Month */
+            jalali_month: number | null;
+            /** Expected Amount */
+            expected_amount: number;
+            /** Amount Received */
+            amount_received: number;
+            /** Difference */
+            difference: number;
+            /** Note */
+            note: string | null;
+            /** Created At */
+            created_at: string;
+            /** Orders */
+            orders: components["schemas"]["SettlementOrderOut"][];
+        };
+        /**
+         * SettlementUpdate
+         * @description Only the fields present in the body change; note may be null. Which
+         *     orders a settlement holds, and its expected_amount, never change.
+         */
+        SettlementUpdate: {
+            /** Amount Received */
+            amount_received?: number | null;
+            /** Settled Date */
+            settled_date?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** ShippingByChannelOut */
         ShippingByChannelOut: {
@@ -3138,6 +3737,8 @@ export interface operations {
                 status?: string | null;
                 start_date?: string | null;
                 end_date?: string | null;
+                payment_method_id?: number | null;
+                settlement_state?: string | null;
             };
             header?: never;
             path?: never;
@@ -3241,6 +3842,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OrderStatusUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_paid_date_orders__order_id__paid_date_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderPaidDateUpdate"];
             };
         };
         responses: {
@@ -4861,6 +5497,38 @@ export interface operations {
             };
         };
     };
+    read_payment_method_report_reports_payment_methods_get: {
+        parameters: {
+            query?: {
+                start_date?: string | null;
+                end_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodReportRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_catalog_catalog_get: {
         parameters: {
             query?: never;
@@ -5094,6 +5762,395 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_payment_methods_payment_methods_get: {
+        parameters: {
+            query?: {
+                include_inactive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_payment_method_payment_methods_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentMethodCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_payment_method_payment_methods__payment_method_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_method_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_payment_method_payment_methods__payment_method_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_method_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentMethodUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_payment_methods__payment_method_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_method_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reactivate_payment_methods__payment_method_id__reactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_method_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_fee_preview_payment_methods__payment_method_id__fee_preview_get: {
+        parameters: {
+            query: {
+                /** @description customer_total in Toman */
+                amount: number;
+            };
+            header?: never;
+            path: {
+                payment_method_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeePreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_pending_settlements_pending_get: {
+        parameters: {
+            query?: {
+                payment_method_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingMethodOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_settlements_settlements_get: {
+        parameters: {
+            query?: {
+                payment_method_id?: number | null;
+                start_date?: string | null;
+                end_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementListItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_settlement_settlements_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettlementCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_settlement_settlements__settlement_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settlement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_settlement_settlements__settlement_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                settlement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettlementUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementOut"];
                 };
             };
             /** @description Validation Error */

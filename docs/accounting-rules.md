@@ -7,6 +7,7 @@ Currency: Toman, stored as INTEGER. Store timezone: Asia/Tehran.
 - Dates supplied by users are store-local (Asia/Tehran). A bare "YYYY-MM-DD" given as a record date means local midnight of that day, converted to UTC.
 - A date-range filter (start_date, end_date) covers whole local days, inclusive: stored_value >= (start_date 00:00 local, as UTC) AND stored_value < (end_date + 1 day, 00:00 local, as UTC). Either bound may be omitted.
 - Exception: profit_distributions.period_start and period_end are calendar days, not moments. They are stored as local "YYYY-MM-DD" and mean whole local days, exactly like a date-range filter.
+- Also calendar days (local "YYYY-MM-DD"): orders.paid_date, orders.expected_settlement_date and settlements.settled_date (section 14). The paid_date in the moments list above is the postage batch's (section 6). "Today" for any business rule is today_local() in the store timezone.
 - All conversions go through db/timeutil.py. No other module does timezone arithmetic.
 
 ## 2. Inventory costing — weighted average
@@ -67,7 +68,7 @@ Per line: list_price = quantity × unit_price; items_net = list_price − discou
 Per order:
 - shipping_charge: REVENUE. Default = default_shipping_charge if the channel applies_shipping_charge, else 0. Overridable (>= 0). Set at creation.
 - packaging_cost, postage_cost: COSTS, frozen at commit (sections 5, 6).
-- transaction_fee: COST, entered per order.
+- transaction_fee: COST, frozen per order: computed from the order's payment method, or entered by hand (section 14).
 - cogs = sum(quantity × unit_cost_at_time), frozen at commit.
 
     revenue = sum(items_net) + shipping_charge
@@ -151,3 +152,44 @@ Order invoices INV-000001..., purchase invoices PUR-000001... (one sequence shar
 - A made-to-order product whose unit_cost is NULL is still sellable when to_make covers the whole line, since its cost comes from the recipe. The section 7 NULL-cost refusal applies only to units taken from finished stock.
 - Manufacturing at sale time does not change the product's own unit_cost: no finished units are added to stock.
 - On CANCELLED (section 7), materials consumed for this order are restored by reversing its own PRODUCTION_CONSUMPTION movements (reference_order_id = the order), exactly as packaging is. On REFUNDED, returned units are added back to product stock as finished goods at the line's unit_cost_at_time, blended in by weighted average (section 2), since a returned made item is now finished stock.
+
+## 14. Payment methods, fees and settlements
+Payment methods are owner-entered data (none are seeded). Each has a fee and a settlement rule. Examples: card to card (no fee, IMMEDIATE), Zarinpal (small percentage, DAYS_AFTER 1), Digipay (larger percentage, DAY_OF_NEXT_MONTH 7).
+
+### Fee
+- customer_total = sum(items_net) + shipping_charge (= section 7 revenue).
+- fee = half_even(customer_total × fee_bps / 10000) + fee_fixed, in integer Toman. fee_bps is basis points (150 = 1.5%), 0..10000; fee_fixed >= 0. Half-even means an exact .5 goes to the even neighbour: 1000 at 5 bps (0.5) → 0, 3000 at 5 bps (1.5) → 2. Computed with integer arithmetic only.
+- The fee is computed once, when the order is recorded, and frozen in orders.transaction_fee; later fee edits on the method never change an existing order. A caller may override it with any integer >= 0 (0 is a real zero). With no override and no method, the fee is 0.
+- An order's method: an explicit method, no method, or the channel's default method (channel_settings.default_payment_method_id; none if unset). A new order, and a channel default, require an active method.
+
+### paid_date
+- The local calendar day the customer's money was paid. Set when the order first becomes PAID or COMPLETED (at creation, or by a status change from DRAFT/PENDING). Default: the local day of order_date (or today, with no order_date). Never in the future. Giving it for an order that does not become paid (DRAFT/PENDING creation, PAID → COMPLETED) is a ValidationError.
+- Becoming paid freezes, from paid_date: paid_jalali_year / paid_jalali_month (the Jalali month of paid_date), and, with a method, expected_settlement_date per the method's rule. An order with no method still gets paid_date and its Jalali month, but no expected date and is never pending settlement.
+- set_paid_date moves a paid, unsettled order's paid_date and recomputes these fields; the fee stays. It is refused (ConflictError) on an unpaid or settled order.
+
+### Settlement rules and expected dates
+- IMMEDIATE: expected on paid_date.
+- DAYS_AFTER N (1..365): paid_date + N days.
+- DAY_OF_NEXT_MONTH N (1..31): day N of the Jalali month after paid_date's month, clamped to that month's length (N = 31 in Mehr gives 30 Mehr; in Esfand, 29 or 30). Esfand rolls into Farvardin of the next Jalali year. The Jalali calendar is db/jalali.py, the same arithmetic as the frontend's date-fns-jalali.
+- A method's rule (settlement_rule or settlement_days) cannot change while any of its orders is pending settlement (ConflictError naming the count): deactivate it and create a new method instead. Fee changes are always allowed.
+
+### Pending and settling
+- Pending item: an order with a payment method, status PAID or COMPLETED, and no settlement. Every method creates pending items, IMMEDIATE included; nothing is settled automatically. The owner checks the money and records each settlement.
+- An order's expected amount = customer_total − transaction_fee (may be negative).
+- IMMEDIATE / DAYS_AFTER: pending orders are grouped by expected date (due when expected date <= today, overdue when < today). A settlement takes any chosen set of this method's pending orders; settled_date must be >= the latest paid_date among them and not in the future. Settling before the expected date is allowed.
+- DAY_OF_NEXT_MONTH: the method pays one amount per Jalali month (all orders paid from day 1 to the last day of the month, paid on day N of the next month, fees already deducted). Pending orders are grouped by paid Jalali month. A settlement covers a whole month and only once it has ended (its last day < today); it takes every pending order of that month, never a chosen subset; settled_date must be after the month's last day. One settlement per method and month. Once a month is settled it is closed: an order of that method can no longer become paid, or have its paid_date moved, into that month (ConflictError).
+- A settlement stores expected_amount = sum(customer_total − transaction_fee) of its orders, frozen when recorded, and amount_received (>= 0) as entered. difference = amount_received − expected_amount is computed on read, never stored. amount_received, settled_date and note can be corrected later; the settlement's orders and expected_amount never change.
+- A deactivated method still lists its pending orders, still settles and does not block marking an existing order paid.
+
+### Cancel and refund
+- Before settlement: a CANCELLED or REFUNDED order is no longer PAID/COMPLETED, so it drops out of pending, its group and the next settlement's expected_amount.
+- After settlement: nothing is reversed. The order keeps its settlement_id; the settlement's expected_amount and amount_received stay as they were.
+- Either way, the fee remains a loss as section 7 says (REFUNDED and committed CANCELLED orders), which is how it reaches refund_losses.
+
+### Payment-method report
+For a date range, one row per payment method (active, or inactive with any non-zero figure) plus a "no method" row:
+- order_count, customer_total, transaction_fees: revenue-eligible orders (PENDING, PAID, COMPLETED) by order_date. Summed over all rows these equal the section 9 order_count, total_revenue and transaction_fees for the same range.
+- fees_lost_on_returns: transaction_fee of REFUNDED orders plus CANCELLED orders with stock_committed = 1, by order_date. Summed, this is the fee part of section 9 refund_losses (refund_losses also holds the REFUNDED orders' packaging_cost and postage_cost).
+- pending_expected: sum(customer_total − transaction_fee) of orders pending settlement now, by order_date.
+- settled_expected, settled_received, settlement_difference (= received − expected): settlements by settled_date (local calendar day, inclusive range). 0 on the no-method row.
+- The customer invoice never shows the fee, the method's name or the settlement (section 12).
