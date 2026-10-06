@@ -4,7 +4,14 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { parseMoneyInput, setCurrency } from "./money.ts"
-import { buildOrderBody, initialState, moneyBlocked, priceField, reducer } from "../components/record-sale/state.ts"
+import {
+  buildOrderBody as buildWithMethod,
+  initialState,
+  moneyBlocked,
+  priceField,
+  reducer,
+  resolveMethod,
+} from "../components/record-sale/state.ts"
 import { expenseSubmittable } from "../components/expenses/guard.ts"
 
 /** Types `text` into a record-sale money field, as moneyProps() dispatches it. */
@@ -15,6 +22,11 @@ function typeInto(state, field, onExact, text, currency) {
 }
 
 const product = { id: 7, retail_price: 1_000, wholesale_price: 800 }
+
+const TODAY = "2026-10-06"
+const NO_METHOD = { kind: "none" }
+/** The body of an order with no payment method, built on TODAY. */
+const buildOrderBody = (s) => buildWithMethod(s, NO_METHOD, TODAY)
 
 function saleWithOneLine() {
   let s = initialState(1)
@@ -90,4 +102,117 @@ test("the module default currency drives parseMoneyInput when none is passed", (
     setCurrency("TOMAN")
   }
   assert.equal(parseMoneyInput("15").toman, 15)
+})
+
+
+// ---------------------------------------------------------------- payment method, fee, paid_date
+
+const zarinpal = { id: 2, name: "Zarinpal", is_active: 1 }
+const digipay = { id: 3, name: "Digipay", is_active: 1 }
+const oldCard = { id: 4, name: "Old card", is_active: 0 }
+const METHODS = [zarinpal, digipay, oldCard]
+const asMethod = (m) => ({ kind: "method", method: m })
+
+test("resolveMethod: explicit choice, channel default, none", () => {
+  assert.deepEqual(resolveMethod({ kind: "method", id: 3 }, 2, METHODS), asMethod(digipay))
+  assert.deepEqual(resolveMethod({ kind: "default" }, 2, METHODS), asMethod(zarinpal))
+  assert.deepEqual(resolveMethod({ kind: "default" }, null, METHODS), { kind: "none" })
+  assert.deepEqual(resolveMethod({ kind: "none" }, 2, METHODS), { kind: "none" })
+})
+
+test("resolveMethod: an inactive default or choice blocks; unloaded methods block when one is needed", () => {
+  assert.deepEqual(resolveMethod({ kind: "default" }, 4, METHODS), { kind: "inactive", method: oldCard, isDefault: true })
+  assert.deepEqual(resolveMethod({ kind: "method", id: 4 }, null, METHODS), { kind: "inactive", method: oldCard, isDefault: false })
+  // The methods request failed and the channel has a default: never fall back to "no method".
+  assert.deepEqual(resolveMethod({ kind: "default" }, 2, null), { kind: "unavailable", id: 2 })
+  assert.deepEqual(resolveMethod({ kind: "default" }, 99, METHODS), { kind: "unavailable", id: 99 })
+  // No default on the channel: the sale goes ahead without a method (manual fee, as before).
+  assert.deepEqual(resolveMethod({ kind: "default" }, null, null), { kind: "none" })
+})
+
+test("buildOrderBody refuses an unresolved method", () => {
+  const s = saleWithOneLine()
+  assert.throws(() => buildWithMethod(s, { kind: "inactive", method: oldCard, isDefault: true }, TODAY))
+  assert.throws(() => buildWithMethod(s, { kind: "unavailable", id: 2 }, TODAY))
+})
+
+test("fee: automatic with a method sends null; manual sends the integer, 0 included", () => {
+  let s = saleWithOneLine()
+  let body = buildWithMethod(s, asMethod(zarinpal), TODAY)
+  assert.equal(body.payment_method_id, 2)
+  assert.equal(body.transaction_fee, null)
+
+  s = reducer(s, { type: "feeMode", mode: "manual", fee: 1500 })
+  body = buildWithMethod(s, asMethod(zarinpal), TODAY)
+  assert.equal(body.transaction_fee, 1500)
+
+  s = reducer(s, { type: "fee", value: 0 })
+  assert.equal(buildWithMethod(s, asMethod(zarinpal), TODAY).transaction_fee, 0)
+
+  // Back to automatic.
+  s = reducer(s, { type: "feeMode", mode: "auto" })
+  assert.equal(buildWithMethod(s, asMethod(zarinpal), TODAY).transaction_fee, null)
+})
+
+test("fee: with no method the typed fee is sent exactly as before", () => {
+  let s = saleWithOneLine()
+  let body = buildOrderBody(s)
+  assert.equal(body.payment_method_id, null)
+  assert.equal(body.transaction_fee, 0)
+  s = reducer(s, { type: "fee", value: 2500 })
+  assert.equal(buildOrderBody(s).transaction_fee, 2500)
+})
+
+test("picking another method or another channel returns the fee to automatic", () => {
+  let s = reducer(saleWithOneLine(), { type: "feeMode", mode: "manual", fee: 900 })
+  assert.equal(reducer(s, { type: "payment", choice: { kind: "method", id: 3 } }).feeMode, "auto")
+  const products = new Map([[product.id, product]])
+  const moved = reducer(s, { type: "channel", channel: "INSTAGRAM", products })
+  assert.equal(moved.feeMode, "auto")
+  assert.deepEqual(moved.payment, { kind: "default" })
+})
+
+test("payment_reference is trimmed, empty is null", () => {
+  let s = saleWithOneLine()
+  assert.equal(buildOrderBody(s).payment_reference, null)
+  s = reducer(s, { type: "reference", value: "  TRX-42 " })
+  assert.equal(buildOrderBody(s).payment_reference, "TRX-42")
+})
+
+test("paid_date: omitted only when the order is dated today and paid today", () => {
+  const s = saleWithOneLine() // COMPLETED, no order date, no picked payment day
+  const body = buildOrderBody(s)
+  assert.equal("paid_date" in body, false)
+  assert.equal("order_date" in body, false)
+})
+
+test("paid_date: a picked day is sent explicitly", () => {
+  const s = reducer(saleWithOneLine(), { type: "paidDate", value: "2026-10-01" })
+  assert.equal(buildOrderBody(s).paid_date, "2026-10-01")
+  // Picking today again: back to omitted.
+  assert.equal("paid_date" in buildOrderBody(reducer(s, { type: "paidDate", value: TODAY })), false)
+})
+
+test("paid_date: a backdated order sends its own day (what the form shows and the server stores)", () => {
+  const s = { ...saleWithOneLine(), orderDate: "2026-09-20" }
+  const body = buildOrderBody(s)
+  assert.equal(body.order_date, "2026-09-20")
+  assert.equal(body.paid_date, "2026-09-20")
+  // A backdated order paid on another day: that day.
+  assert.equal(buildOrderBody(reducer(s, { type: "paidDate", value: "2026-09-25" })).paid_date, "2026-09-25")
+  // A backdated order paid today: today must be sent, or the server would store the order's day.
+  assert.equal(buildOrderBody(reducer(s, { type: "paidDate", value: TODAY })).paid_date, TODAY)
+})
+
+test("paid_date: never for DRAFT or PENDING; choosing them clears a picked day", () => {
+  for (const status of ["DRAFT", "PENDING"]) {
+    const picked = reducer(saleWithOneLine(), { type: "paidDate", value: "2026-10-01" })
+    const s = reducer(picked, { type: "status", status })
+    assert.equal(s.paidDate, null)
+    assert.equal("paid_date" in buildOrderBody(s), false)
+    // Even a backdated draft never carries a payment day.
+    assert.equal("paid_date" in buildOrderBody({ ...s, orderDate: "2026-09-20" }), false)
+  }
+  const paid = reducer(reducer(saleWithOneLine(), { type: "paidDate", value: "2026-10-01" }), { type: "status", status: "PAID" })
+  assert.equal(buildOrderBody(paid).paid_date, "2026-10-01")
 })

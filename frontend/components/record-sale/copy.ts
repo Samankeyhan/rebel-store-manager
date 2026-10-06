@@ -273,6 +273,8 @@ export const T = {
   v4Summary: (name: string) => `تخفیف «${name}» از جمع ردیف بیشتر است.`,
   v5: "حداقل یک قلم به سفارش اضافه کنید.",
   vMoney: "مبلغی که وارد شده دقیق نیست؛ آن را اصلاح کنید.", // NEW (MoneyInput null: Rial amount not a multiple of 10)
+  vMethodInactive: (name: string) => `روش پرداخت «${name}» غیرفعال است؛ روش دیگری یا «بدون روش» انتخاب کنید.`, // NEW
+  vMethodUnavailable: "فهرست روش‌های پرداخت بارگذاری نشد و این کانال روش پیش‌فرض دارد؛ دوباره تلاش کنید.", // NEW
   v6: "تعداد باید حداقل ۱ باشد.",
   saveFailedTitle: "ثبت سفارش انجام نشد",
   errorCode: "کد خطا:",

@@ -12,7 +12,8 @@ import type { Catalog } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
 import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
 import { CHANNELS, T } from "./copy"
-import { channelPrice, moneyBlocked, type FormState, type Kit, type Line, type Product } from "./state"
+import { channelPrice, moneyBlocked, type FormState, type Kit, type Line, type Product, type ResolvedMethod } from "./state"
+import type { FeePreview } from "./use-fee-preview"
 
 export type RecipeState =
   | { status: "loading" }
@@ -80,7 +81,10 @@ export type Summary = {
   kitCost: number
   postageOn: boolean
   postage: number
-  fee: number
+  /** The fee the order will carry: the API's preview (auto), the typed fee (manual / no method), or null while the preview is pending. */
+  fee: number | null
+  /** "auto" = computed by the backend for the chosen method; "manual" = typed override; "none" = no method (typed, as before). */
+  feeSource: "auto" | "manual" | "none"
   profit: number | null
   marginPct: number | null
   shipCost: number
@@ -103,11 +107,28 @@ export function defaultShipping(state: FormState, catalog: Catalog): number {
   return ch?.applies_shipping_charge ? catalog.settings.default_shipping_charge : 0
 }
 
+/**
+ * The order's customer total — items after discount + shipping (the backend's
+ * customer_total, section 7 revenue). The fee preview is asked for exactly
+ * this amount, and the summary's total is the same figure.
+ */
+export function orderTotal(state: FormState, catalog: Catalog): number {
+  const itemsNet = state.lines.reduce(
+    (sum, l) => sum + l.qty * l.unitPrice - (l.discountOpen ? l.discount : 0),
+    0
+  )
+  return itemsNet + (state.shipping ?? defaultShipping(state, catalog))
+}
+
+/** What the screen knows about the order's payment method and its fee. */
+export type PaymentView = { resolved: ResolvedMethod; preview: FeePreview }
+
 export function derive(
   state: FormState,
   catalog: Catalog,
   products: Map<number, Product>,
-  recipes: Record<number, RecipeState>
+  recipes: Record<number, RecipeState>,
+  payment: PaymentView
 ): Derived {
   const blocking = state.status !== "DRAFT"
   const sev: Severity = blocking ? "error" : "warn"
@@ -290,6 +311,10 @@ export function derive(
   if (state.lines.length === 0) errors.push(T.v5)
   // A typed amount that isn't exact Toman (MoneyInput shows why on the field).
   if (moneyBlocked(state)) errors.push(T.vMoney)
+  // A payment method the API would refuse, or one we couldn't load: never sent as "no method".
+  const resolved = payment.resolved
+  if (resolved.kind === "inactive") errors.push(T.vMethodInactive(resolved.method.name))
+  if (resolved.kind === "unavailable") errors.push(T.vMethodUnavailable)
 
   const ch = catalog.settings.channels[state.channel]
   const shippingDefault = defaultShipping(state, catalog)
@@ -300,7 +325,12 @@ export function derive(
   const postage = postageOn ? catalog.postage_estimate : 0
   const itemsNet = itemsGross - discount
   const total = itemsNet + shipping
-  const profit = costKnown ? total - cost - kitCost - postage - state.fee : null
+  const feeSource: Summary["feeSource"] =
+    resolved.kind !== "method" ? "none" : state.feeMode === "manual" ? "manual" : "auto"
+  const fee =
+    feeSource !== "auto" ? state.fee : payment.preview.status === "ready" ? payment.preview.fee : null
+  // A preview mirroring the backend's profit formula; unknown until the fee is.
+  const profit = costKnown && fee !== null ? total - cost - kitCost - postage - fee : null
   const shipCost = kitCost + postage
 
   return {
@@ -323,7 +353,8 @@ export function derive(
       kitCost,
       postageOn,
       postage,
-      fee: state.fee,
+      fee,
+      feeSource,
       profit,
       marginPct: profit == null || !total ? null : Math.round((profit / total) * 100),
       shipCost,
