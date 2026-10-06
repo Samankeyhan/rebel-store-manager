@@ -9,6 +9,7 @@ import { formatMoney } from "@/lib/money"
 import { CHANNEL_IDS, CHANNELS, STATUS_IDS, STATUSES, T, type Channel, type SaleStatus } from "./copy"
 import { channelSummaryLine, resolveKit, type Summary } from "./derive"
 import { moneyProps } from "./money-field"
+import { FeeField, PaidDateField, PaymentMethodField, ReferenceField, type PaymentUi } from "./payment-fields"
 import { Help, Label, MoneyInput, OptionTile, PostageBadge, SectionCard, cardClass } from "./primitives"
 import type { Action, FormState, KitChoice } from "./state"
 
@@ -19,6 +20,7 @@ type CardProps = {
   onChannel: (c: Channel) => void
   summary: Summary
   mobile: boolean
+  payment: PaymentUi
 }
 
 // ── [1] کانال فروش و مشتری ──────────────────────────────────────────────
@@ -225,7 +227,8 @@ export function ShippingCard({ state, catalog, dispatch, summary, mobile }: Card
 
 // ── [4a] هزینه‌های داخلی ─────────────────────────────────────────────────
 
-export function InternalCostsCard({ state, catalog, dispatch, summary, mobile }: CardProps) {
+export function InternalCostsCard({ state, catalog, dispatch, summary, mobile, payment }: CardProps) {
+  const paymentProps = { state, dispatch, payment, mobile }
   const window = catalog.settings.postage_estimate_window
   if (mobile) {
     return (
@@ -234,29 +237,20 @@ export function InternalCostsCard({ state, catalog, dispatch, summary, mobile }:
           <Lock className="size-4" aria-hidden />
           {T.internalCard}
         </h2>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-xs font-semibold">{T.postageLabelMobile}</span>
-            <div className="flex h-11 items-center rounded-lg border border-dashed border-border-strong bg-card px-3">
-              <b className={cn(!summary.postageOn && "text-text-3")}>
-                <Money value={summary.postage} />
-              </b>
-            </div>
-            <span className="text-[11px] leading-[17px] text-text-3">
-              {summary.postageOn ? T.postageHint(window) : T.postageHelpOff(CHANNELS[state.channel].name)}
-            </span>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span className="text-xs font-semibold">{T.postageLabelMobile}</span>
+          <div className="flex h-11 items-center rounded-lg border border-dashed border-border-strong bg-card px-3">
+            <b className={cn(!summary.postageOn && "text-text-3")}>
+              <Money value={summary.postage} />
+            </b>
           </div>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <label htmlFor="sale-fee" className="text-xs font-semibold">
-              {T.feeLabel}
-            </label>
-            <MoneyInput
-              id="sale-fee"
-              {...moneyProps(state, dispatch, "fee", state.fee, (n) => dispatch({ type: "fee", value: n }))}
-              className="h-11"
-            />
-          </div>
+          <span className="text-[11px] leading-[17px] text-text-3">
+            {summary.postageOn ? T.postageHint(window) : T.postageHelpOff(CHANNELS[state.channel].name)}
+          </span>
         </div>
+        <PaymentMethodField {...paymentProps} />
+        <FeeField {...paymentProps} summary={summary} />
+        <ReferenceField state={state} dispatch={dispatch} mobile />
         <Help>{T.internalMobileNote}</Help>
       </section>
     )
@@ -279,18 +273,16 @@ export function InternalCostsCard({ state, catalog, dispatch, summary, mobile }:
         </div>
         <Help>{summary.postageOn ? T.postageHelpOn(window) : T.postageHelpOff(CHANNELS[state.channel].name)}</Help>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="sale-fee">{T.feeLabel}</Label>
-        <MoneyInput id="sale-fee" {...moneyProps(state, dispatch, "fee", state.fee, (n) => dispatch({ type: "fee", value: n }))} />
-        <Help>{T.feeHelp}</Help>
-      </div>
+      <PaymentMethodField {...paymentProps} />
+      <FeeField {...paymentProps} summary={summary} />
+      <ReferenceField state={state} dispatch={dispatch} mobile={false} />
     </SectionCard>
   )
 }
 
 // ── [4b] وضعیت سفارش ─────────────────────────────────────────────────────
 
-export function StatusCard({ state, dispatch, mobile }: CardProps) {
+export function StatusCard({ state, dispatch, mobile, payment }: CardProps) {
   const seg = (
     <div
       role="radiogroup"
@@ -325,6 +317,7 @@ export function StatusCard({ state, dispatch, mobile }: CardProps) {
           {T.statusCard}
         </h2>
         {seg}
+        <PaidDateField state={state} dispatch={dispatch} payment={payment} mobile />
         <p className="text-xs leading-[19px] text-text-3">
           <b>{T.draftNoteBold}</b>
           {T.draftNoteRestMobile}
@@ -339,6 +332,7 @@ export function StatusCard({ state, dispatch, mobile }: CardProps) {
         <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
         <span>{STATUSES[state.status].help}</span>
       </p>
+      <PaidDateField state={state} dispatch={dispatch} payment={payment} mobile={false} />
       <p className="text-xs leading-[19px] text-text-3">
         <b>{T.draftNoteBold}</b>
         {T.draftNoteRest}

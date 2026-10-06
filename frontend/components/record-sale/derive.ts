@@ -12,7 +12,7 @@ import type { Catalog } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
 import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
 import { CHANNELS, T } from "./copy"
-import { channelPrice, moneyBlocked, type FormState, type Kit, type Line, type Product, type ResolvedMethod } from "./state"
+import { channelPrice, defaultShipping, moneyBlocked, orderTotal, type FormState, type Kit, type Line, type Product, type ResolvedMethod } from "./state"
 import type { FeePreview } from "./use-fee-preview"
 
 export type RecipeState =
@@ -102,23 +102,8 @@ export function resolveKit(state: FormState, catalog: Catalog): Kit | null {
   return id == null ? null : catalog.kits.find((k) => k.id === id) ?? null
 }
 
-export function defaultShipping(state: FormState, catalog: Catalog): number {
-  const ch = catalog.settings.channels[state.channel]
-  return ch?.applies_shipping_charge ? catalog.settings.default_shipping_charge : 0
-}
-
-/**
- * The order's customer total — items after discount + shipping (the backend's
- * customer_total, section 7 revenue). The fee preview is asked for exactly
- * this amount, and the summary's total is the same figure.
- */
-export function orderTotal(state: FormState, catalog: Catalog): number {
-  const itemsNet = state.lines.reduce(
-    (sum, l) => sum + l.qty * l.unitPrice - (l.discountOpen ? l.discount : 0),
-    0
-  )
-  return itemsNet + (state.shipping ?? defaultShipping(state, catalog))
-}
+// Kept in state.ts (no imports) so lib tests and the verification script use the same code.
+export { defaultShipping, orderTotal } from "./state"
 
 /** What the screen knows about the order's payment method and its fee. */
 export type PaymentView = { resolved: ResolvedMethod; preview: FeePreview }
@@ -324,7 +309,8 @@ export function derive(
   const postageOn = !!ch?.applies_postage
   const postage = postageOn ? catalog.postage_estimate : 0
   const itemsNet = itemsGross - discount
-  const total = itemsNet + shipping
+  // The same function the fee preview is asked with (and that the backend's customer_total matches).
+  const total = orderTotal(state, catalog)
   const feeSource: Summary["feeSource"] =
     resolved.kind !== "method" ? "none" : state.feeMode === "manual" ? "manual" : "auto"
   const fee =

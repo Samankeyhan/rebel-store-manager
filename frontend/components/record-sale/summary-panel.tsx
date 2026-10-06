@@ -82,7 +82,10 @@ function InternalRows({ s, window, mobile }: { s: Summary; window: number; mobil
         }
         value={neg(s.postage)}
       />
-      <Row label={T.fee} value={neg(s.fee)} />
+      <Row
+        label={s.feeSource === "auto" ? T.feeAuto : s.feeSource === "manual" ? T.feeManual : T.fee}
+        value={s.fee == null ? T.feeComputing : neg(s.fee)}
+      />
       {!mobile && sep}
       <div
         className={cn(

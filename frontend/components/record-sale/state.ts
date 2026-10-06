@@ -137,6 +137,25 @@ export function initialState(firstLineKey: number): FormState {
   }
 }
 
+/** The channel's default shipping charge (0 when the channel doesn't charge shipping). */
+export function defaultShipping(state: FormState, catalog: Catalog): number {
+  const ch = catalog.settings.channels[state.channel]
+  return ch?.applies_shipping_charge ? catalog.settings.default_shipping_charge : 0
+}
+
+/**
+ * The order's customer total — items after discount + shipping (the backend's
+ * customer_total, section 7 revenue). The fee preview is asked for exactly
+ * this amount, and the summary's total is the same figure.
+ */
+export function orderTotal(state: FormState, catalog: Catalog): number {
+  const itemsNet = state.lines.reduce(
+    (sum, l) => sum + l.qty * l.unitPrice - (l.discountOpen ? l.discount : 0),
+    0
+  )
+  return itemsNet + (state.shipping ?? defaultShipping(state, catalog))
+}
+
 /** WHOLESALE sells at wholesale_price; every other channel at retail_price. */
 export function channelPrice(product: Product, channel: Channel): number {
   return channel === "WHOLESALE" ? product.wholesale_price : product.retail_price
@@ -303,7 +322,7 @@ export function resolveMethod(
   return { kind: "method", method }
 }
 
-/** The order's own local day: its order date, or today. */
+/** The order's own local day: its order date, or today (the store's day, see buildOrderBody). */
 export const orderDay = (state: FormState, today: string): string => state.orderDate ?? today
 
 /** The payment day the form shows and the server will store: the picked day, else the order's day. */
@@ -323,8 +342,10 @@ export function paidDateForBody(state: FormState, today: string): string | undef
 
 /**
  * The POST /orders body. `resolved` is resolveMethod's answer (only "none"
- * or "method" can be submitted); `today` is the browser's local day
- * (YYYY-MM-DD). Notes are omitted.
+ * or "method" can be submitted). `today` is the STORE's calendar day
+ * ("YYYY-MM-DD" in settings.timezone, lib/store-day.ts storeToday — the zone
+ * the backend's today_local uses), read at submit time, never the browser's
+ * local day. Notes are omitted.
  */
 export function buildOrderBody(state: FormState, resolved: ResolvedMethod, today: string): OrderCreate {
   // derive() already disables saving; this is the last line of defence.

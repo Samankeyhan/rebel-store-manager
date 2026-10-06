@@ -198,6 +198,31 @@ export const T = {
   postageHint: (window: number) => `جمع پرداختی ÷ جمع سفارش‌ها در ${fa(window)} پرداخت اخیر`,
   postageHintShort: "جمع پرداختی ÷ جمع سفارش‌ها",
   feeLabel: "کارمزد تراکنش",
+  methodLabel: "روش پرداخت", // NEW
+  methodAria: "روش پرداخت سفارش", // NEW
+  methodNone: "بدون روش", // NEW
+  methodDefaultInactive: (name: string) => `${name} (پیش‌فرض کانال، غیرفعال)`, // NEW
+  methodsFailed: "فهرست روش‌های پرداخت بارگذاری نشد.", // NEW
+  methodsRetry: "تلاش دوباره", // NEW
+  noMethods: "هنوز روش پرداختی تعریف نشده؛ کارمزد را دستی وارد کنید.", // NEW
+  noMethodsLink: "تعریف روش پرداخت در تنظیمات", // NEW
+  feeAuto: "کارمزد درگاه (خودکار)", // NEW
+  feeManual: "کارمزد درگاه (دستی)", // NEW
+  feeEdit: "ویرایش دستی", // NEW
+  feeBackAuto: "بازگشت به خودکار", // NEW
+  feeComputing: "در حال محاسبه…", // NEW
+  feeFailed: "کارمزد محاسبه نشد.", // NEW
+  feeInvalid: "کارمزد واردشده معتبر نیست.", // NEW
+  feeAutoHelp: "سرور با کارمزد این روش، روی مبلغ قابل پرداخت حساب می‌کند و همان روی سفارش ثبت می‌شود.", // NEW
+  feeManualHelp: "این مبلغ به‌جای کارمزد خودکار روی سفارش ثبت می‌شود.", // NEW
+  referenceLabel: "شماره پیگیری / رسید", // NEW
+  referencePlaceholder: "مثلاً شماره پیگیری تراکنش", // NEW
+  paidDateLabel: "تاریخ پرداخت", // NEW
+  paidDateHelp: "روزی که مشتری پول را پرداخت کرد؛ تاریخ آینده مجاز نیست.", // NEW
+  today: "امروز", // NEW
+  successMethod: (name: string) => `روش پرداخت: ${name}`, // NEW
+  successFee: (fee: string) => `کارمزد ثبت‌شده: ${fee}`, // NEW
+  successRef: (ref: string) => `پیگیری: ${ref}`, // NEW
   feeHelp: "کارمزد درگاه پرداخت یا کارت‌خوان، اگر دارد.",
 
   // status

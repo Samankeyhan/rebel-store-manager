@@ -109,6 +109,7 @@ export function ServerAlert({
       </Alert>
     )
   }
+  if (issue.kind === "payment") return <Alert tone="err">{issue.message}</Alert>
   if (issue.kind === "generic") {
     return (
       <Alert tone="err" title={T.saveFailedTitle}>
@@ -147,6 +148,15 @@ export function SuccessView({
   const profit = draft ? null : result.profit
   const profitCls = profit == null ? "text-text-3" : profit < 0 ? "text-loss" : "text-profit"
   const profitText = profit == null ? "—" : formatMoney(profit)
+  // Internal (this screen is the owner's, never the invoice): the method and the fee the
+  // server STORED on the order — not the preview this form showed.
+  const paymentLine = [
+    T.successMethod(order.payment_method_name ?? T.methodNone),
+    T.successFee(formatMoney(order.transaction_fee)),
+    order.payment_reference ? T.successRef(order.payment_reference) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 
   const disc = (
     <div className="flex size-16 items-center justify-center rounded-full bg-profit-soft text-profit">
@@ -191,6 +201,9 @@ export function SuccessView({
             <b className={cn("tabular-nums", profitCls)}>{profit == null ? "—" : formatMoney(profit)}</b>
           </div>
           <div className="text-start text-xs text-text-3">{note}</div>
+          <div className="text-start text-xs text-text-2" dir="auto">
+            {paymentLine}
+          </div>
         </div>
         <div className="mt-3 flex w-full flex-col gap-2">
           <Btn variant="primary" size="lg" className="w-full" onClick={onNewSale}>
@@ -232,6 +245,9 @@ export function SuccessView({
           </div>
         </div>
         <p className="text-[13px] text-text-3">{note}</p>
+        <p className="text-[13px] text-text-2" dir="auto">
+          {paymentLine}
+        </p>
         <div className="mt-1.5 flex flex-wrap justify-center gap-2">
           {print(btnClass("outline"))}
           {view(btnClass("outline"))}

@@ -5,24 +5,20 @@
  * it; anything else is a custom range.
  *
  * "Today" is the store's calendar day (settings.timezone), not the
- * browser's: lib/jalali's utcToLocal does the zone conversion with Intl.
+ * browser's: lib/store-day's storeToday does the zone conversion with Intl.
  */
 
-import { isoToDate, presetRange, utcToLocal, type IsoRange } from "@/lib/jalali"
+import { isoToDate, presetRange, type IsoRange } from "@/lib/jalali"
 import { readUrlRange, writeUrlRange } from "@/lib/url-range"
 
-export const DEFAULT_TZ = "Asia/Tehran"
+// The store's day helper lives in lib/store-day.ts (Record Sale uses it too).
+export { DEFAULT_TZ, storeToday } from "@/lib/store-day"
 
 export const PRESET_KINDS = ["today", "last7", "thisMonth", "lastMonth"] as const
 export type PresetKind = (typeof PRESET_KINDS)[number]
 export type PeriodKind = PresetKind | "custom"
 export type Period = { kind: PeriodKind; range: IsoRange }
 
-/** The store's calendar day for `now`, as "YYYY-MM-DD". */
-export function storeToday(now: Date, timeZone: string): string {
-  const stamp = now.toISOString().slice(0, 19).replace("T", " ")
-  return (utcToLocal(stamp, timeZone) ?? utcToLocal(stamp, DEFAULT_TZ))!.iso
-}
 
 /**
  * Preset ranges relative to the store's today: «امروز» = today only,
