@@ -13,6 +13,8 @@ class MaterialOut(BaseModel):
     current_stock: float | None
     # Quantity in the material's unit; null = no minimum (SERVICE: always null).
     min_stock: float | None
+    # 1 = low stock (db/materials.py: active STOCK at stock <= 0 or <= min_stock).
+    is_low_stock: int
     unit_cost: Rial
     is_active: int
     category_id: int | None
