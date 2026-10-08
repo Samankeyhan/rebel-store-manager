@@ -81,7 +81,8 @@ class WasteReportOut(BaseModel):
     item_name: str
     total_wasted: float
     waste_event_count: int
-    cost: float | None
+    # Integer Rial, rounded half-even per item; the P&L waste_cost is their sum.
+    cost: Rial | None
     unknown_cost_count: int
 
 

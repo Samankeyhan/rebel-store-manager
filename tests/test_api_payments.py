@@ -102,6 +102,7 @@ def test_create_and_read_payment_method(api):
         "name": "Zarinpal",
         "fee_bps": 150,
         "fee_fixed": 500,
+        "fee_cap": None,
         "settlement_rule": "DAYS_AFTER",
         "settlement_days": 1,
         "is_active": 1,
@@ -115,7 +116,9 @@ def test_payment_method_defaults(api):
     created = _call(
         client, "post", "/payment-methods", 201, json={"name": "Card", "settlement_rule": "IMMEDIATE"}
     )
-    assert (created["fee_bps"], created["fee_fixed"], created["settlement_days"]) == (0, 0, None)
+    assert (created["fee_bps"], created["fee_fixed"], created["fee_cap"], created["settlement_days"]) == (
+        0, 0, None, None
+    )
 
 
 def test_list_payment_methods_and_inactive(api, shop):
@@ -220,6 +223,16 @@ def test_patch_payment_method_bad_body_is_422(api, shop, body):
     _call(client, "patch", f"/payment-methods/{shop['card']}", 422, json=body)
 
 
+@pytest.mark.parametrize("field", ["fee_bps", "fee_fixed"])
+def test_patch_fee_field_to_null_is_422_with_field(api, shop, field):
+    client, _ = api
+    error = _error(_call(client, "patch", f"/payment-methods/{shop['zarinpal']}", 422, json={field: None}))
+    assert error["field"] == field
+    assert error["type"] == "ValidationError"
+    method = _call(client, "get", f"/payment-methods/{shop['zarinpal']}", 200)
+    assert (method["fee_bps"], method["fee_fixed"]) == (150, 500)
+
+
 def test_patch_missing_payment_method_is_404(api):
     client, _ = api
     _call(client, "patch", "/payment-methods/999", 404, json={"fee_bps": 1})
@@ -255,6 +268,146 @@ def test_fee_preview_errors(api, shop):
         _call(client, "get", path, 422, params={"amount": bad})
     _call(client, "get", path, 422)
     _call(client, "get", "/payment-methods/999/fee-preview", 404, params={"amount": 1})
+
+
+# ---------------------------------------------------------------- fee cap
+
+MAX_SAFE = 9_007_199_254_740_991
+
+
+def _zarinpal_capped(client, name="Zarinpal capped"):
+    return _method(client, name, "DAYS_AFTER", 1, fee_bps=50, fee_cap=160_000, fee_fixed=5_000)
+
+
+def test_create_and_read_method_with_cap(api):
+    client, _ = api
+    created = _zarinpal_capped(client)
+    assert (created["fee_bps"], created["fee_cap"], created["fee_fixed"]) == (50, 160_000, 5_000)
+    assert _call(client, "get", f"/payment-methods/{created['id']}", 200)["fee_cap"] == 160_000
+    listed = {m["id"]: m for m in _call(client, "get", "/payment-methods", 200)}
+    assert listed[created["id"]]["fee_cap"] == 160_000
+    explicit_null = _method(client, "No cap", "IMMEDIATE", fee_bps=150, fee_cap=None)
+    assert explicit_null["fee_cap"] is None
+
+
+def test_patch_cap_set_omit_and_clear(api, shop):
+    client, _ = api
+    path = f"/payment-methods/{shop['zarinpal']}"
+    assert _call(client, "patch", path, 200, json={"fee_cap": 1_000})["fee_cap"] == 1_000
+    assert _call(client, "patch", path, 200, json={"name": "Zarinpal 2"})["fee_cap"] == 1_000  # omitted
+    assert _call(client, "patch", path, 200, json={"fee_fixed": 700})["fee_cap"] == 1_000
+    assert _call(client, "patch", path, 200, json={"fee_cap": None})["fee_cap"] is None  # null clears
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"fee_bps": 50, "fee_cap": 0},
+        {"fee_bps": 50, "fee_cap": -1},
+        {"fee_cap": 160_000},  # fee_bps defaults to 0: a cap needs a percentage
+        {"fee_bps": 0, "fee_fixed": 5_000, "fee_cap": 1},
+    ],
+)
+def test_create_bad_cap_is_422_with_field(api, extra):
+    client, conn = api
+    body = {"name": "X", "settlement_rule": "IMMEDIATE", **extra}
+    assert _error(_call(client, "post", "/payment-methods", 422, json=body))["field"] == "fee_cap"
+    assert _count(conn, "payment_methods") == 0
+
+
+@pytest.mark.parametrize("bad", [1.5, 160_000.0, "160000", True])
+def test_create_cap_strict_types(api, bad):
+    client, conn = api
+    body = {"name": "X", "settlement_rule": "IMMEDIATE", "fee_bps": 50, "fee_cap": bad}
+    assert "fee_cap" in _pydantic_fields(_call(client, "post", "/payment-methods", 422, json=body))
+    assert _count(conn, "payment_methods") == 0
+
+
+@pytest.mark.parametrize("body", [{"fee_cap": 0}, {"fee_cap": -3}, {"fee_bps": 0}])
+def test_patch_bad_cap_is_422_with_field(api, body):
+    client, _ = api
+    method_id = _zarinpal_capped(client)["id"]
+    error = _error(_call(client, "patch", f"/payment-methods/{method_id}", 422, json=body))
+    assert error["field"] == "fee_cap"
+    method = _call(client, "get", f"/payment-methods/{method_id}", 200)
+    assert (method["fee_bps"], method["fee_cap"]) == (50, 160_000)
+
+
+@pytest.mark.parametrize("bad", [2.5, "1000", False])
+def test_patch_cap_strict_types(api, bad):
+    client, _ = api
+    method_id = _zarinpal_capped(client)["id"]
+    response = _call(client, "patch", f"/payment-methods/{method_id}", 422, json={"fee_cap": bad})
+    assert "fee_cap" in _pydantic_fields(response)
+
+
+def test_patch_fee_bps_zero_with_cap_cleared_together(api):
+    client, _ = api
+    method_id = _zarinpal_capped(client)["id"]
+    patched = _call(
+        client, "patch", f"/payment-methods/{method_id}", 200, json={"fee_bps": 0, "fee_cap": None}
+    )
+    assert (patched["fee_bps"], patched["fee_cap"], patched["fee_fixed"]) == (0, None, 5_000)
+
+
+def test_patch_cap_on_method_without_percentage_is_422(api, shop):
+    client, _ = api
+    error = _error(_call(client, "patch", f"/payment-methods/{shop['card']}", 422, json={"fee_cap": 100}))
+    assert error["field"] == "fee_cap"
+
+
+@pytest.mark.parametrize(
+    "amount, fee",
+    [
+        (94_900_000, 165_000),
+        (18_300_000, 96_500),
+        (32_000_000, 165_000),
+        (31_999_800, 164_999),
+        (31_999_700, 164_998),
+        (31_999_900, 165_000),
+        (32_000_300, 165_000),
+        (0, 5_000),
+    ],
+)
+def test_fee_preview_with_cap(api, amount, fee):
+    client, _ = api
+    method_id = _zarinpal_capped(client)["id"]
+    path = f"/payment-methods/{method_id}/fee-preview"
+    assert _call(client, "get", path, 200, params={"amount": amount}) == {
+        "payment_method_id": method_id,
+        "amount": amount,
+        "transaction_fee": fee,
+        "expected_amount": amount - fee,
+    }
+
+
+def test_fee_preview_exact_at_the_largest_safe_amount(api):
+    client, _ = api
+    capped = _zarinpal_capped(client)["id"]
+    uncapped = _method(client, "Percent", "IMMEDIATE", fee_bps=50, fee_fixed=5_000)["id"]
+    big = _call(client, "get", f"/payment-methods/{capped}/fee-preview", 200, params={"amount": MAX_SAFE})
+    assert big["transaction_fee"] == 165_000
+    assert big["expected_amount"] == MAX_SAFE - 165_000
+    # 9,007,199,254,740,991 x 50 / 10,000 = 45,035,996,273,704.955 -> 45,035,996,273,705, + 5,000.
+    big = _call(client, "get", f"/payment-methods/{uncapped}/fee-preview", 200, params={"amount": MAX_SAFE})
+    assert big["transaction_fee"] == 45_035_996_278_705
+    assert big["expected_amount"] == MAX_SAFE - 45_035_996_278_705
+
+
+def test_order_fee_equals_preview_and_survives_cap_edits(api, shop):
+    client, _ = api
+    method_id = _zarinpal_capped(client)["id"]
+    preview = _call(
+        client, "get", f"/payment-methods/{method_id}/fee-preview", 200, params={"amount": 94_900_000}
+    )
+    order = _order(
+        client, shop, payment_method_id=method_id,
+        items=[{"product_id": shop["product_id"], "quantity": 1, "unit_price": 94_900_000}],
+    )
+    assert order["order"]["transaction_fee"] == preview["transaction_fee"] == 165_000
+    _call(client, "patch", f"/payment-methods/{method_id}", 200, json={"fee_cap": None})
+    again = _call(client, "get", f"/orders/{order['order']['id']}", 200)
+    assert again["order"]["transaction_fee"] == 165_000
 
 
 # ================================================================ orders

@@ -86,13 +86,13 @@ def test_weighted_average_in_rial_is_finer_than_old_toman_times_ten():
 
 def test_payment_method_fee_on_an_odd_rial_total(test_db, fixed_today):
     method_id = add_payment_method(test_db, "Gateway", "IMMEDIATE", fee_bps=150, fee_fixed=5_005)
-    method = {"fee_bps": 150, "fee_fixed": 5_005}
+    method = {"fee_bps": 150, "fee_fixed": 5_005, "fee_cap": None}
     # 1,234,567 x 150 / 10,000 = 18,518.505 -> 18,519 (above half), + 5,005
     assert compute_fee(1_234_567, method) == 23_524
     assert preview_fee(test_db, method_id, 1_234_567)["expected_amount"] == 1_211_043
     # Exact halves go to the even neighbour, to the Rial: 7 x 5,000 / 10,000 = 3.5 -> 4; 5 -> 2.5 -> 2.
-    assert compute_fee(7, {"fee_bps": 5_000, "fee_fixed": 0}) == 4
-    assert compute_fee(5, {"fee_bps": 5_000, "fee_fixed": 0}) == 2
+    assert compute_fee(7, {"fee_bps": 5_000, "fee_fixed": 0, "fee_cap": None}) == 4
+    assert compute_fee(5, {"fee_bps": 5_000, "fee_fixed": 0, "fee_cap": None}) == 2
 
     product_id = stocked_product(test_db, unit_cost=1)
     order_id = record_order(

@@ -150,7 +150,7 @@ export function PaymentMethodsCard({
             <ActiveBadge active={m.is_active === 1} />
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-text-2">
-            <span>{feeText(m.fee_bps, m.fee_fixed)}</span>
+            <span>{feeText(m.fee_bps, m.fee_fixed, m.fee_cap)}</span>
             <span>{PM.settleLine(m.settlement_rule, m.settlement_days)}</span>
             {m.pending_order_count > 0 && <PendingCount n={m.pending_order_count} />}
           </div>
@@ -191,7 +191,7 @@ export function PaymentMethodsCard({
                   )}
                 </span>
               </td>
-              <td>{feeText(m.fee_bps, m.fee_fixed)}</td>
+              <td>{feeText(m.fee_bps, m.fee_fixed, m.fee_cap)}</td>
               <td>{ruleText(m.settlement_rule, m.settlement_days)}</td>
               <td>
                 <PendingCount n={m.pending_order_count} />

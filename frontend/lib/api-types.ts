@@ -1400,8 +1400,9 @@ export interface paths {
         /**
          * Read Fee Preview
          * @description The fee the method would charge on a customer_total of `amount`
-         *     (half-even on amount × fee_bps / 10000, plus fee_fixed), and the amount
-         *     it would then pay out. A negative amount is a 422 (field "amount").
+         *     (half-even on amount × fee_bps / 10000, capped at fee_cap if set, plus
+         *     fee_fixed), and the amount it would then pay out. A negative amount is a
+         *     422 (field "amount").
          */
         get: operations["read_fee_preview_payment_methods__payment_method_id__fee_preview_get"];
         put?: never;
@@ -2346,6 +2347,8 @@ export interface components {
              * @default 0
              */
             fee_fixed?: number;
+            /** Fee Cap */
+            fee_cap?: number | null;
         };
         /** PaymentMethodOut */
         PaymentMethodOut: {
@@ -2360,6 +2363,8 @@ export interface components {
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
             fee_fixed: number;
+            /** Fee Cap */
+            fee_cap: number | null;
             /** Settlement Rule */
             settlement_rule: string;
             /** Settlement Days */
@@ -2427,7 +2432,9 @@ export interface components {
         /**
          * PaymentMethodUpdate
          * @description Only the fields present in the body change; settlement_days may be null
-         *     (required when switching to IMMEDIATE).
+         *     (required when switching to IMMEDIATE). fee_cap: omitted = unchanged,
+         *     null = no cap. fee_bps 0 with a cap still set is a 422 (field "fee_cap")
+         *     unless the same body sends fee_cap null.
          */
         PaymentMethodUpdate: {
             /** Name */
@@ -2440,6 +2447,8 @@ export interface components {
             fee_bps?: number | null;
             /** Fee Fixed */
             fee_fixed?: number | null;
+            /** Fee Cap */
+            fee_cap?: number | null;
         };
         /**
          * PendingDateGroupOut

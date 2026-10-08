@@ -888,3 +888,69 @@ def test_get_purchases_summary_is_not_in_profit_and_loss(test_db, purchase_items
     pnl = get_profit_and_loss(test_db, "2026-03-01", "2026-03-31")
     assert pnl["operating_expenses"] == 0
     assert pnl["net_profit"] == 0
+
+
+# ---------------------------------------------------------------- waste cost rounding
+
+
+def _waste(conn, item_type, item_id, quantity, unit_cost, day="2026-03-05"):
+    conn.execute(
+        """
+        INSERT INTO stock_movements
+            (item_type, item_id, quantity_change, reason, movement_date, unit_cost_at_time)
+        VALUES (?, ?, ?, 'WASTE', ?, ?)
+        """,
+        (item_type, item_id, -quantity, f"{day} 08:00:00", unit_cost),
+    )
+
+
+@pytest.fixture
+def fractional_waste(test_db):
+    """Fractional material waste across several items (accounting rules section 8)."""
+    ids = {
+        name: add_material(test_db, name, "STOCK", 1, initial_stock=100)
+        for name in ("Glue", "Tape", "Ink", "Foil", "Film", "Never known")
+    }
+    _waste(test_db, "MATERIAL", ids["Glue"], 2.5, 333)          # 832.5 -> 832 (tie, even)
+    _waste(test_db, "MATERIAL", ids["Tape"], 0.5, 7)            # 3.5 + 3.5 = 7 -> 7, rounded once per
+    _waste(test_db, "MATERIAL", ids["Tape"], 0.5, 7)            #   item, not per movement (4 + 4 = 8)
+    _waste(test_db, "MATERIAL", ids["Ink"], 2.4, 3)             # 7.2 + 0.3 = 7.5 -> 8 (floats give
+    _waste(test_db, "MATERIAL", ids["Ink"], 0.1, 3)             #   7.4999... -> 7)
+    _waste(test_db, "MATERIAL", ids["Foil"], 3.2, 3)            # 9.6 + 0.9 = 10.5 -> 10 (floats give
+    _waste(test_db, "MATERIAL", ids["Foil"], 0.3, 3)            #   10.5000...02 -> 11)
+    _waste(test_db, "MATERIAL", ids["Film"], 0.5, 1)            # 0.5 -> 0
+    _waste(test_db, "MATERIAL", ids["Film"], 1, None)           # unknown cost: excluded
+    _waste(test_db, "MATERIAL", ids["Never known"], 1.5, None)  # every cost unknown: None
+    product_id = add_product(test_db, "Waste LP", cat(test_db, "OTHER"), 1000, 800)
+    _waste(test_db, "PRODUCT", product_id, 1, 100_001, day="2026-03-20")
+    test_db.commit()
+    return ids
+
+
+def test_waste_report_cost_is_integer_rial_rounded_once_per_item(fractional_waste, test_db):
+    costs = {row["item_name"]: row["cost"] for row in get_waste_report(test_db)}
+    assert costs == {
+        "Glue": 832, "Tape": 7, "Ink": 8, "Foil": 10, "Film": 0, "Never known": None, "Waste LP": 100_001,
+    }
+    assert all(isinstance(c, int) for c in costs.values() if c is not None)
+
+
+@pytest.mark.parametrize(
+    "start, end",
+    [(None, None), ("2026-03-01", "2026-03-10"), ("2026-03-15", "2026-03-31"), ("2026-04-01", None)],
+)
+def test_pnl_waste_cost_is_the_sum_of_the_waste_report(fractional_waste, test_db, start, end):
+    report_total = sum(
+        row["cost"] for row in get_waste_report(test_db, start, end) if row["cost"] is not None
+    )
+    pnl = get_profit_and_loss(test_db, start, end)
+    assert pnl["waste_cost"] == report_total
+    assert isinstance(pnl["waste_cost"], int)
+    assert isinstance(pnl["net_profit"], int)
+
+
+def test_pnl_waste_cost_values(fractional_waste, test_db):
+    # 832 + 7 + 8 + 10 + 0 + 100,001. The exact grand total (858 + 100,001 =
+    # 100,859) would differ; the sum of the per-item rounded costs is the rule.
+    assert get_profit_and_loss(test_db)["waste_cost"] == 100_858
+    assert get_profit_and_loss(test_db, "2026-03-01", "2026-03-10")["waste_cost"] == 857

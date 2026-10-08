@@ -2,6 +2,8 @@
 Never query `partners`, `profit_distributions` or `distribution_shares`: distributions are owner payouts, not expenses."""
 
 import sqlite3
+from decimal import Decimal
+from fractions import Fraction
 
 from db.expenses import get_total_expenses, list_expenses
 from db.orders import (
@@ -205,19 +207,44 @@ def _refund_losses(
 def _waste_cost(
     conn: sqlite3.Connection, start_date: str | None, end_date: str | None
 ) -> int:
-    date_clause, date_params = _date_range_clause(
-        conn, "movement_date", start_date, end_date
+    """The P&L waste figure: the sum of the waste report's per-item costs (each
+    already rounded half-even), so the two always agree exactly."""
+    return sum(
+        row["cost"]
+        for row in get_waste_report(conn, start_date, end_date)
+        if row["cost"] is not None
     )
-    row = conn.execute(
+
+
+def _exact_quantity(quantity: float | int) -> Fraction:
+    """A stored REAL quantity as the decimal it was entered as (2.5, 0.1), exactly."""
+    return Fraction(Decimal(repr(quantity)))
+
+
+def _waste_costs_by_item(
+    conn: sqlite3.Connection, date_clause: str, date_params: list
+) -> dict[tuple[str, int], int]:
+    """{(item_type, item_id): cost} over WASTE movements with a known
+    unit_cost_at_time: sum(|quantity_change| × unit_cost_at_time) per item,
+    in exact arithmetic, rounded once, half-even, to the Rial. Items whose
+    every movement has an unknown cost are absent."""
+    totals: dict[tuple[str, int], Fraction] = {}
+    rows = conn.execute(
         f"""
-        SELECT COALESCE(SUM(ABS(quantity_change) * unit_cost_at_time), 0) AS total
+        SELECT item_type, item_id, quantity_change, unit_cost_at_time
         FROM stock_movements
         WHERE reason = 'WASTE'
-        {date_clause}
+          AND unit_cost_at_time IS NOT NULL
+          {date_clause}
         """,
         date_params,
-    ).fetchone()
-    return row["total"]
+    ).fetchall()
+    for row in rows:
+        key = (row["item_type"], row["item_id"])
+        value = abs(_exact_quantity(row["quantity_change"])) * row["unit_cost_at_time"]
+        totals[key] = totals.get(key, Fraction(0)) + value
+    # round() on a Fraction is exact half-even.
+    return {key: round(total) for key, total in totals.items()}
 
 
 def get_product_performance(
@@ -333,20 +360,23 @@ def get_waste_report(
     total_wasted/waste_event_count, but is excluded from the cost sum and
     counted separately in unknown_cost_count; if every movement for an item
     is unknown, cost is reported as None.
+
+    cost is integer Rial: the item's exact sum(|quantity| × unit_cost_at_time),
+    rounded once, half-even. The P&L waste_cost is the sum of these costs.
     """
     date_clause, date_params = _date_range_clause(
         conn, "stock_movements.movement_date", start_date, end_date
     )
+    costs = _waste_costs_by_item(conn, date_clause, date_params)
 
     material_rows = conn.execute(
         f"""
         SELECT
             'MATERIAL' AS item_type,
+            materials.id AS item_id,
             materials.name AS item_name,
             SUM(ABS(stock_movements.quantity_change)) AS total_wasted,
             COUNT(*) AS waste_event_count,
-            SUM(ABS(stock_movements.quantity_change) * stock_movements.unit_cost_at_time)
-                AS cost,
             SUM(CASE WHEN stock_movements.unit_cost_at_time IS NULL THEN 1 ELSE 0 END)
                 AS unknown_cost_count
         FROM stock_movements
@@ -363,11 +393,10 @@ def get_waste_report(
         f"""
         SELECT
             'PRODUCT' AS item_type,
+            products.id AS item_id,
             products.name AS item_name,
             SUM(ABS(stock_movements.quantity_change)) AS total_wasted,
             COUNT(*) AS waste_event_count,
-            SUM(ABS(stock_movements.quantity_change) * stock_movements.unit_cost_at_time)
-                AS cost,
             SUM(CASE WHEN stock_movements.unit_cost_at_time IS NULL THEN 1 ELSE 0 END)
                 AS unknown_cost_count
         FROM stock_movements
@@ -386,7 +415,7 @@ def get_waste_report(
             "item_name": row["item_name"],
             "total_wasted": row["total_wasted"],
             "waste_event_count": row["waste_event_count"],
-            "cost": row["cost"],
+            "cost": costs.get((row["item_type"], row["item_id"])),
             "unknown_cost_count": row["unknown_cost_count"],
         }
         for row in material_rows + product_rows

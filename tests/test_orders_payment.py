@@ -531,3 +531,55 @@ def test_deactivating_a_channel_default_is_allowed_but_new_orders_refuse_it(test
     assert exc_info.value.field == "payment_method_id"
     # Clearing the default (None) is always allowed.
     update_channel_settings(test_db, "WEBSITE", default_payment_method_id=None)
+
+
+# ---------------------------------------------------------------- fee cap
+
+
+def _zarinpal_capped(conn):
+    """0.5% up to 160,000 Rial, plus 5,000 Rial fixed."""
+    return add_payment_method(
+        conn, "Zarinpal capped", "DAYS_AFTER", 1, fee_bps=50, fee_cap=160_000, fee_fixed=5_000
+    )
+
+
+def test_capped_fee_frozen_on_the_order(test_db, setup):
+    method_id = _zarinpal_capped(test_db)
+    # customer_total = 2 x 47,452,345 - 4,690 + 0 = 94,900,000: 474,500 -> capped 160,000 + 5,000.
+    big = _order(test_db, setup, method_id, items=[
+        {"product_id": setup["product_id"], "quantity": 2, "unit_price": 47_452_345, "discount_amount": 4_690}])
+    # customer_total = 18,250,000 + 50,000 shipping = 18,300,000: 91,500 + 5,000.
+    small = _order(test_db, setup, method_id, shipping_charge=50_000, items=[
+        {"product_id": setup["product_id"], "quantity": 1, "unit_price": 18_250_000}])
+    assert get_order(test_db, big)["customer_total"] == 94_900_000
+    assert _row(test_db, big)["transaction_fee"] == 165_000
+    assert get_order(test_db, small)["customer_total"] == 18_300_000
+    assert _row(test_db, small)["transaction_fee"] == 96_500
+
+
+def test_manual_fee_still_wins_over_a_capped_method(test_db, setup):
+    method_id = _zarinpal_capped(test_db)
+    order_id = _order(test_db, setup, method_id, transaction_fee=999_999, items=[
+        {"product_id": setup["product_id"], "quantity": 1, "unit_price": 94_900_000}])
+    assert _row(test_db, order_id)["transaction_fee"] == 999_999
+    zero = _order(test_db, setup, method_id, transaction_fee=0, items=[
+        {"product_id": setup["product_id"], "quantity": 1, "unit_price": 94_900_000}])
+    assert _row(test_db, zero)["transaction_fee"] == 0
+
+
+def test_editing_the_cap_later_never_changes_old_orders(test_db, setup):
+    from db.payment_methods import update_payment_method
+
+    method_id = _zarinpal_capped(test_db)
+    items = [{"product_id": setup["product_id"], "quantity": 1, "unit_price": 94_900_000}]
+    old = _order(test_db, setup, method_id, items=items)
+    assert _row(test_db, old)["transaction_fee"] == 165_000
+
+    update_payment_method(test_db, method_id, fee_cap=100_000)
+    lowered = _order(test_db, setup, method_id, items=items)
+    update_payment_method(test_db, method_id, fee_cap=None)
+    uncapped = _order(test_db, setup, method_id, items=items)
+
+    assert _row(test_db, old)["transaction_fee"] == 165_000
+    assert _row(test_db, lowered)["transaction_fee"] == 105_000
+    assert _row(test_db, uncapped)["transaction_fee"] == 479_500
