@@ -256,7 +256,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Patch Material */
+        patch: operations["patch_material_materials__material_id__patch"];
         trace?: never;
     };
     "/materials/{material_id}/deactivate": {
@@ -1927,6 +1928,8 @@ export interface components {
             initial_stock?: number | null;
             /** Category Id */
             category_id?: number | null;
+            /** Min Stock */
+            min_stock?: number | null;
         };
         /** MaterialOut */
         MaterialOut: {
@@ -1940,6 +1943,10 @@ export interface components {
             unit: string;
             /** Current Stock */
             current_stock: number | null;
+            /** Min Stock */
+            min_stock: number | null;
+            /** Is Low Stock */
+            is_low_stock: number;
             /**
              * Unit Cost
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
@@ -2008,6 +2015,15 @@ export interface components {
             material_name: string;
             /** Supplier Name */
             supplier_name: string | null;
+        };
+        /**
+         * MaterialUpdate
+         * @description Only min_stock is editable: omitted = unchanged, null = clear.
+         *     Negative, non-number or a minimum on a SERVICE material: 422 (field "min_stock").
+         */
+        MaterialUpdate: {
+            /** Min Stock */
+            min_stock?: number | null;
         };
         /** OrderCreate */
         OrderCreate: {
@@ -3864,8 +3880,8 @@ export interface operations {
     };
     read_low_stock_materials_materials_low_stock_get: {
         parameters: {
-            query: {
-                threshold: number;
+            query?: {
+                threshold?: number | null;
             };
             header?: never;
             path?: never;
@@ -3903,6 +3919,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_material_materials__material_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterialUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

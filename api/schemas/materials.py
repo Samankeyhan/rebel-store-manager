@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import Money, Rial
+from api.schemas.common import Money, Quantity, Rial
 
 
 class MaterialOut(BaseModel):
@@ -34,3 +34,15 @@ class MaterialCreate(BaseModel):
     unit: str = "piece"
     initial_stock: float | None = None
     category_id: int | None = None
+    # Optional minimum stock in the material's unit; null/omitted = none.
+    # STOCK only: a SERVICE material with a minimum is a 422 (field "min_stock").
+    min_stock: Quantity | None = None
+
+
+class MaterialUpdate(BaseModel):
+    """Only min_stock is editable: omitted = unchanged, null = clear.
+    Negative, non-number or a minimum on a SERVICE material: 422 (field "min_stock")."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    min_stock: Quantity | None = None
