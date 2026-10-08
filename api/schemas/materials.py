@@ -11,6 +11,8 @@ class MaterialOut(BaseModel):
     type: str
     unit: str
     current_stock: float | None
+    # Quantity in the material's unit; null = no minimum (SERVICE: always null).
+    min_stock: float | None
     unit_cost: Rial
     is_active: int
     category_id: int | None
