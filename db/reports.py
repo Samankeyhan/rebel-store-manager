@@ -1,3 +1,6 @@
+"""Read-only aggregates: product performance, channel breakdown, low stock, waste, expenses, profit & loss (revenue − COGS/fees − expenses), payment-method report (reconciled with the P&L's transaction_fees and refund_losses).
+Never query `partners`, `profit_distributions` or `distribution_shares`: distributions are owner payouts, not expenses."""
+
 import sqlite3
 
 from db.expenses import get_total_expenses, list_expenses

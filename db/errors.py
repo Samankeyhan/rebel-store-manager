@@ -1,3 +1,6 @@
+"""Error hierarchy for db/, mapped to HTTP statuses by api/main.py.
+`AppError` (base, subclasses ValueError), `NotFoundError`, `ValidationError` (optional `field`), `InsufficientStockError` (`item_name`, `needed`, `available`), `ConflictError`."""
+
 class AppError(ValueError):
     """Base class for all application errors raised by db/."""
 

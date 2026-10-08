@@ -1,3 +1,5 @@
+"""Product → material bill of materials: add/update/remove recipe items, compute recipe cost."""
+
 import sqlite3
 
 from db.connection import transaction

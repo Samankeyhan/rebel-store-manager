@@ -1,13 +1,5 @@
-"""Jalali (Solar Hijri) calendar arithmetic.
-
-A port of the jalaali-js algorithm (Borkowski's break years), the same
-arithmetic the frontend's date-fns-jalali uses, so a Jalali month computed
-here always matches the month the UI shows. Valid for Jalali years
--60..3177 (the range the break table covers).
-
-Pure functions on datetime.date: no I/O and no timezone. Callers turn a
-moment into a local calendar day first (db/timeutil.py).
-"""
+"""Jalali calendar arithmetic, a port of jalaali-js (matches the frontend's date-fns-jalali). Pure functions on `date`:
+`to_jalali`, `to_gregorian`, `month_length`, `month_range`, `next_month`, `is_leap`."""
 
 from datetime import date, timedelta
 

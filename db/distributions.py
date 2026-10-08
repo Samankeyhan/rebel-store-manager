@@ -1,3 +1,7 @@
+"""Profit payouts to partners, split by ownership percentage at distribution time and snapshotted per share so later changes don't rewrite history.
+May read `get_profit_and_loss` as a reference; never writes `orders`, `order_items` or `expenses`.
+`_compute_share_amounts` is the pattern for integer rounding with leftover reconciliation."""
+
 import sqlite3
 
 from db.connection import transaction

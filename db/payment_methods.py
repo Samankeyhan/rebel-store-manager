@@ -1,9 +1,6 @@
-"""Payment methods: the fee a method charges and when it settles.
-
-A method's fee is computed here and frozen on each order (orders.transaction_fee);
-its settlement rule fixes each paid order's expected_settlement_date and,
-for DAY_OF_NEXT_MONTH, the Jalali month the order is settled in.
-"""
+"""Payment methods: CRUD, deactivate/reactivate. Fee = `fee_bps` + `fee_fixed`; settlement rule IMMEDIATE / DAYS_AFTER / DAY_OF_NEXT_MONTH.
+`compute_fee` (integer only, half-even), `compute_expected_settlement_date`, `preview_fee`, `count_pending_orders`.
+A settlement-rule change is refused while the method has pending orders."""
 
 import sqlite3
 from datetime import date, timedelta

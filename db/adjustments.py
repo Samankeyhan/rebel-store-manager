@@ -1,3 +1,5 @@
+"""Manual stock corrections and waste write-offs (WASTE / ADJUSTMENT) for materials or products."""
+
 import sqlite3
 
 from db.connection import transaction

@@ -200,7 +200,7 @@ Implementation note: no Gregorian dates are shown anywhere; convert at the data 
 ## 6. Formatting rules
 
 ### Money
-- Toman, **integer only**, never decimals; round at the edge of the calculation.
+- Stored and computed as integer Rial; round at the edge of the calculation. Shown in the owner's display currency: Rial, or Toman (Rial ÷ 10, one decimal digit only when the Rial amount is not a multiple of 10).
 - Persian digits, thousands separator `٬` (U+066C).
 - Inline: «۱۸۰٬۰۰۰ تومان». In tables: number only, unit in the column header. In inputs: number only, «تومان» as a static suffix.
 - Profit: green, no plus sign needed. Loss: red, always with a minus: «−۱۱۵٬۰۰۰».

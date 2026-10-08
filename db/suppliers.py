@@ -1,3 +1,5 @@
+"""Supplier CRUD."""
+
 import sqlite3
 
 from db.connection import transaction

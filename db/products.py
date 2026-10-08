@@ -1,3 +1,6 @@
+"""Finished goods: add/list/get (with `category_name`, `parent_category_name` joined in), update prices, move category, deactivate/reactivate.
+Every product has `category_id`. `products.category` is a legacy column (NULL after migration 005); don't read it — it will be dropped."""
+
 import sqlite3
 
 from db.categories import validate_assignable

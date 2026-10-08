@@ -1,3 +1,8 @@
+"""Sales orders and line items: record, decrement product stock, order total/profit, revenue summary; valid channels and statuses.
+Payment side: method (explicit, none, or channel default via `USE_CHANNEL_DEFAULT`); `transaction_fee=None` means computed from the method, any int overrides.
+`shipping_charge`/`postage_cost` None = channel default, 0 = real zero.
+`paid_date` freezes `expected_settlement_date` and `paid_jalali_year/month`; `set_paid_date`; closed-month guard; filters `payment_method_id`, `settlement_state`."""
+
 import sqlite3
 from datetime import date
 

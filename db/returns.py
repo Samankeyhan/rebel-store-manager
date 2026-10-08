@@ -1,3 +1,5 @@
+"""Cancels/refunds an order (CANCELLED/REFUNDED), restores product stock, records RETURN stock movements."""
+
 import sqlite3
 
 from db.connection import transaction
