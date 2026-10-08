@@ -90,6 +90,7 @@ def read_fee_preview(
     conn: sqlite3.Connection = Depends(get_db),
 ) -> FeePreviewOut:
     """The fee the method would charge on a customer_total of `amount`
-    (half-even on amount × fee_bps / 10000, plus fee_fixed), and the amount
-    it would then pay out. A negative amount is a 422 (field "amount")."""
+    (half-even on amount × fee_bps / 10000, capped at fee_cap if set, plus
+    fee_fixed), and the amount it would then pay out. A negative amount is a
+    422 (field "amount")."""
     return FeePreviewOut.model_validate(preview_fee(conn, payment_method_id, amount))

@@ -33,11 +33,16 @@ class PaymentMethodCreate(BaseModel):
     # Basis points of customer_total (150 = 1.5%), 0..10000.
     fee_bps: StrictInt = 0
     fee_fixed: Money = 0
+    # Cap on the percentage part only (fee_fixed is added on top); null/omitted
+    # = no cap. An integer >= 1 Rial, and only with fee_bps > 0 (422 field "fee_cap").
+    fee_cap: Money | None = None
 
 
 class PaymentMethodUpdate(BaseModel):
     """Only the fields present in the body change; settlement_days may be null
-    (required when switching to IMMEDIATE)."""
+    (required when switching to IMMEDIATE). fee_cap: omitted = unchanged,
+    null = no cap. fee_bps 0 with a cap still set is a 422 (field "fee_cap")
+    unless the same body sends fee_cap null."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -46,6 +51,7 @@ class PaymentMethodUpdate(BaseModel):
     settlement_days: StrictInt | None = None
     fee_bps: StrictInt | None = None
     fee_fixed: Money | None = None
+    fee_cap: Money | None = None
 
 
 class FeePreviewOut(BaseModel):
