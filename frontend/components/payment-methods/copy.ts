@@ -16,10 +16,16 @@ export function ruleText(rule: SettlementRule | string, days: number | null): st
   return "همان روز" // NEW
 }
 
-/** «۱٫۵٪ + ۵۰۰ تومان», «۱٫۵٪», «۵۰۰ تومان», or «بدون کارمزد». */
-export function feeText(feeBps: number, feeFixed: number): string {
+/**
+ * «۱٫۵٪ + ۵۰۰ تومان», «۱٫۵٪», «۵۰۰ تومان», or «بدون کارمزد»; with a cap on the
+ * percentage part, «۰٫۵٪ تا سقف ۱۶٬۰۰۰ تومان + ۵۰۰ تومان». feeCap null = no cap.
+ */
+export function feeText(feeBps: number, feeFixed: number, feeCap: number | null): string {
   const parts: string[] = []
-  if (feeBps > 0) parts.push(`${formatPercent(feeBps)}٪`)
+  if (feeBps > 0) {
+    const cap = feeCap != null ? ` تا سقف ${formatMoney(feeCap)}` : "" // NEW
+    parts.push(`${formatPercent(feeBps)}٪${cap}`)
+  }
   if (feeFixed > 0) parts.push(formatMoney(feeFixed))
   return parts.length ? parts.join(" + ") : PM.noFee
 }

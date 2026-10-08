@@ -1,9 +1,9 @@
 // Run with `npm test` (node --test; Node 22 strips the .ts types itself).
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { BPS_MAX, classifyPaymentError, formatPercent, parsePercent } from "./payment-methods.ts"
+import { BPS_MAX, capError, capForSave, classifyPaymentError, formatPercent, parsePercent } from "./payment-methods.ts"
 import { feeText, paymentErrorText, ruleText } from "../components/payment-methods/copy.ts"
-import { formatMoney, setCurrency } from "./money.ts"
+import { formatMoney, parseMoneyInput, setCurrency } from "./money.ts"
 
 const ok = (bps) => ({ ok: true, bps })
 
@@ -70,17 +70,72 @@ test("ruleText", () => {
 test("feeText", () => {
   // fee_fixed is integer Rial.
   setCurrency("TOMAN")
-  assert.equal(feeText(150, 5_000), `۱٫۵٪ + ${formatMoney(5_000)}`)
+  assert.equal(feeText(150, 5_000, null), `۱٫۵٪ + ${formatMoney(5_000)}`)
   assert.match(formatMoney(5_000), /^۵۰۰\s+تومان$/u)
-  assert.match(feeText(0, 5_005), /^۵۰۰٫۵\s+تومان$/u)
-  assert.equal(feeText(150, 0), "۱٫۵٪")
-  assert.equal(feeText(0, 5_000), formatMoney(5_000))
-  assert.equal(feeText(0, 0), "بدون کارمزد")
+  assert.match(feeText(0, 5_005, null), /^۵۰۰٫۵\s+تومان$/u)
+  assert.equal(feeText(150, 0, null), "۱٫۵٪")
+  assert.equal(feeText(0, 5_000, null), formatMoney(5_000))
+  assert.equal(feeText(0, 0, null), "بدون کارمزد")
   setCurrency("RIAL")
-  assert.equal(feeText(0, 5_000), formatMoney(5_000))
-  assert.match(feeText(0, 5_000), /^۵٬۰۰۰\s+ریال$/u)
-  assert.match(feeText(0, 5_005), /^۵٬۰۰۵\s+ریال$/u)
+  assert.equal(feeText(0, 5_000, null), formatMoney(5_000))
+  assert.match(feeText(0, 5_000, null), /^۵٬۰۰۰\s+ریال$/u)
+  assert.match(feeText(0, 5_005, null), /^۵٬۰۰۵\s+ریال$/u)
   setCurrency("TOMAN")
+})
+
+test("feeText with a cap on the percentage part", () => {
+  setCurrency("TOMAN")
+  // Zarinpal: 0.5% up to 16,000 Toman (160,000 Rial) + 500 Toman (5,000 Rial).
+  assert.match(feeText(50, 5_000, 160_000), /^۰٫۵٪ تا سقف ۱۶٬۰۰۰\s+تومان \+ ۵۰۰\s+تومان$/u)
+  assert.match(feeText(50, 0, 160_000), /^۰٫۵٪ تا سقف ۱۶٬۰۰۰\s+تومان$/u)
+  assert.match(feeText(50, 0, 160_005), /^۰٫۵٪ تا سقف ۱۶٬۰۰۰٫۵\s+تومان$/u)
+  assert.equal(feeText(50, 5_000, null), `۰٫۵٪ + ${formatMoney(5_000)}`)
+  // A cap never shows without a percentage (the backend refuses one anyway).
+  assert.equal(feeText(0, 5_000, 160_000), formatMoney(5_000))
+  assert.equal(feeText(0, 0, 160_000), "بدون کارمزد")
+  setCurrency("RIAL")
+  assert.match(feeText(50, 5_000, 160_000), /^۰٫۵٪ تا سقف ۱۶۰٬۰۰۰\s+ریال \+ ۵٬۰۰۰\s+ریال$/u)
+  assert.match(feeText(50, 0, 1), /^۰٫۵٪ تا سقف ۱\s+ریال$/u)
+  setCurrency("TOMAN")
+})
+
+test("capError: empty = no cap, inexact blocks, 0 is refused; ignored without a percentage", () => {
+  assert.equal(capError(50, undefined), null)
+  assert.equal(capError(50, 160_000), null)
+  assert.equal(capError(50, 1), null)
+  assert.equal(capError(50, 9_007_199_254_740_991), null)
+  assert.equal(capError(50, null), "inexact")
+  assert.equal(capError(50, 0), "min")
+  assert.equal(capError(50, -1), "min")
+  assert.equal(capError(50, 1.5), "min")
+  assert.equal(capError(50, 9_007_199_254_740_992), "min")
+  // The field is off while the percentage is 0, empty or invalid.
+  for (const bps of [0, null]) {
+    for (const cap of [undefined, null, 0, 160_000]) assert.equal(capError(bps, cap), null, `${bps} ${cap}`)
+  }
+})
+
+test("capForSave: the fee_cap the drawer sends", () => {
+  assert.equal(capForSave(50, 160_000), 160_000)
+  assert.equal(capForSave(50, undefined), null) // empty = no cap
+  assert.equal(capForSave(0, 160_000), null) // percentage emptied: the cap is cleared with it
+  assert.equal(capForSave(null, 160_000), null)
+  assert.equal(capForSave(10_000, 9_007_199_254_740_991), 9_007_199_254_740_991)
+})
+
+test("the cap field's typed text → Rial (MoneyInput with allowEmpty)", () => {
+  const cap = (text, c) => parseMoneyInput(text, c, true).rial
+  assert.equal(cap("16000", "TOMAN"), 160_000)
+  assert.equal(cap("۱۶٬۰۰۰", "TOMAN"), 160_000)
+  assert.equal(cap("16000.5", "TOMAN"), 160_005)
+  assert.equal(cap("16000.55", "TOMAN"), null) // two Toman decimals: not exact
+  assert.equal(cap("160000", "RIAL"), 160_000)
+  assert.equal(cap("1.5", "RIAL"), null)
+  assert.equal(cap("", "TOMAN"), undefined) // empty = no cap
+  assert.equal(cap("", "RIAL"), undefined)
+  assert.equal(capError(50, cap("0", "TOMAN")), "min")
+  assert.equal(capError(50, cap("16000.55", "TOMAN")), "inexact")
+  assert.equal(capForSave(50, cap("", "TOMAN")), null)
 })
 
 // The exact texts db/ raises (db/orders.py, db/payment_methods.py).

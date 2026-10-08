@@ -18,6 +18,8 @@ import {
 import {
   DAYS_BOUNDS,
   SETTLEMENT_RULES,
+  capError,
+  capForSave,
   classifyPaymentError,
   formatPercent,
   parsePercent,
@@ -25,7 +27,7 @@ import {
 } from "@/lib/payment-methods"
 import { S } from "./copy"
 
-type Field = "name" | "fee_bps" | "fee_fixed" | "settlement_rule" | "settlement_days"
+type Field = "name" | "fee_bps" | "fee_fixed" | "fee_cap" | "settlement_rule" | "settlement_days"
 
 type Form = {
   name: string
@@ -34,6 +36,10 @@ type Form = {
   fixed: number | null
   /** MoneyInput's reason while `fixed` is null. */
   fixedError: MoneyInputError | null
+  /** Cap on the percentage part, integer Rial; undefined = empty = no cap; null = not exact (blocks save). */
+  cap: number | null | undefined
+  /** MoneyInput's reason while `cap` is null. */
+  capError: MoneyInputError | null
   rule: SettlementRule
   days: number
 }
@@ -42,9 +48,20 @@ type Form = {
 const DEFAULT_DAYS: Record<SettlementRule, number> = { IMMEDIATE: 0, DAYS_AFTER: 1, DAY_OF_NEXT_MONTH: 7 }
 
 function formOf(m: PaymentMethod | null): Form {
-  if (!m) return { name: "", percent: "", fixed: 0, fixedError: null, rule: "IMMEDIATE", days: 0 }
+  if (!m) {
+    return { name: "", percent: "", fixed: 0, fixedError: null, cap: undefined, capError: null, rule: "IMMEDIATE", days: 0 }
+  }
   const rule = m.settlement_rule as SettlementRule
-  return { name: m.name, percent: formatPercent(m.fee_bps), fixed: m.fee_fixed, fixedError: null, rule, days: m.settlement_days ?? 0 }
+  return {
+    name: m.name,
+    percent: formatPercent(m.fee_bps),
+    fixed: m.fee_fixed,
+    fixedError: null,
+    cap: m.fee_cap ?? undefined,
+    capError: null,
+    rule,
+    days: m.settlement_days ?? 0,
+  }
 }
 
 const percentMessage = { format: S.fPercentFormat, decimals: S.fPercentDecimals, range: S.fPercentRange } as const
@@ -57,6 +74,9 @@ function clientErrors(f: Form): Partial<Record<Field, string>> {
   if (!pct.ok) errors.fee_bps = percentMessage[pct.error]
   if (f.fixed === null) errors.fee_fixed = f.fixedError ? moneyInputMessage(f.fixedError) : M.reenter
   else if (!Number.isSafeInteger(f.fixed) || f.fixed < 0) errors.fee_fixed = S.fFixedError
+  const cap = capError(pct.ok ? pct.bps : null, f.cap)
+  if (cap === "inexact") errors.fee_cap = f.capError ? moneyInputMessage(f.capError) : M.reenter
+  else if (cap === "min") errors.fee_cap = S.fCapMin
   const bounds = DAYS_BOUNDS[f.rule]
   if (bounds && (f.days < bounds.min || f.days > bounds.max)) errors.settlement_days = S.fDaysError(bounds.min, bounds.max)
   return errors
@@ -72,6 +92,10 @@ function fieldMessage(field: string, f: Form): string | null {
       return S.fPercentRange
     case "fee_fixed":
       return S.fFixedError
+    case "fee_cap": {
+      const pct = parsePercent(f.percent)
+      return pct.ok && pct.bps > 0 ? S.fCapMin : S.fCapNeedsPercent
+    }
     case "settlement_rule":
       return S.fRuleError
     case "settlement_days":
@@ -137,6 +161,9 @@ export function PaymentMethodDrawer({
   const pct = parsePercent(form.percent)
   const bps = pct.ok ? pct.bps : null
   const days = bounds ? form.days : null
+  /** The cap needs a percentage fee: off (and sent as null) while the percentage is empty, 0 or invalid. */
+  const capEnabled = !!bps
+  const cap = capForSave(bps, form.cap)
 
   /** Only what changed (PATCH); every field for a new method (POST). */
   const patch: PaymentMethodUpdate = {}
@@ -144,6 +171,8 @@ export function PaymentMethodDrawer({
     if (form.name.trim() !== method.name) patch.name = form.name.trim()
     if (bps !== null && bps !== method.fee_bps) patch.fee_bps = bps
     if (form.fixed !== null && form.fixed !== method.fee_fixed) patch.fee_fixed = form.fixed
+    // Emptying the percentage clears the cap in the same PATCH (the backend refuses fee_bps 0 with a cap).
+    if (bps !== null && (!capEnabled || form.cap !== null) && cap !== method.fee_cap) patch.fee_cap = cap
     if (!ruleLocked && (form.rule !== method.settlement_rule || days !== method.settlement_days)) {
       patch.settlement_rule = form.rule
       patch.settlement_days = days
@@ -165,6 +194,7 @@ export function PaymentMethodDrawer({
             name: form.name.trim(),
             fee_bps: bps,
             fee_fixed: form.fixed,
+            fee_cap: cap,
             settlement_rule: form.rule,
             settlement_days: days,
           })
@@ -276,6 +306,30 @@ export function PaymentMethodDrawer({
           />
           {form.fixed !== null && errorFor("fee_fixed") ? <FieldError>{errorFor("fee_fixed")}</FieldError> : <Help>{S.fFixedHelp}</Help>}
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="pm-cap" optional>
+          {S.fCap}
+        </Label>
+        <MoneyInput
+          id="pm-cap"
+          allowEmpty
+          disabled={!capEnabled}
+          // Off without a percentage: shown empty, the typed cap comes back with the percentage.
+          value={capEnabled ? form.cap : undefined}
+          onValue={(v, error) => set({ cap: v, capError: error }, "fee_cap")}
+          tone={errorFor("fee_cap") && form.cap !== null ? "error" : null}
+          className={mobile ? "h-11" : undefined}
+          wrapperClassName="sm:max-w-[calc(50%-0.5rem)]"
+        />
+        {!capEnabled ? (
+          <Help>{S.fCapNeedsPercent}</Help>
+        ) : form.cap !== null && errorFor("fee_cap") ? (
+          <FieldError>{errorFor("fee_cap")}</FieldError>
+        ) : (
+          <Help>{S.fCapHelp}</Help>
+        )}
       </div>
 
       <div className="flex flex-col gap-1.5">

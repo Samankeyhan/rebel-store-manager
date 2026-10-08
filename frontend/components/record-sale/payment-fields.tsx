@@ -132,7 +132,7 @@ export function PaymentMethodField({ state, dispatch, payment, mobile }: Props) 
               <DropdownMenuRadioItem key={m.id} value={String(m.id)}>
                 <span className="flex min-w-0 grow items-center justify-between gap-3">
                   <span className="truncate">{m.name}</span>
-                  <span className="shrink-0 text-xs text-text-3">{feeText(m.fee_bps, m.fee_fixed)}</span>
+                  <span className="shrink-0 text-xs text-text-3">{feeText(m.fee_bps, m.fee_fixed, m.fee_cap)}</span>
                 </span>
               </DropdownMenuRadioItem>
             ))}

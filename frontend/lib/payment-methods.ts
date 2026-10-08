@@ -56,6 +56,27 @@ export function formatPercent(bps: number): string {
   return toPersianDigits(frac ? `${whole}٫${frac}` : String(whole))
 }
 
+/**
+ * The fee cap typed by the owner (MoneyInput with allowEmpty): undefined =
+ * empty = no cap, null = text that gives no exact amount, else integer Rial.
+ * A cap only applies with a percentage fee (db/payment_methods.py); while the
+ * percentage is empty, 0 or invalid (`bps` 0 or null) the field is off and
+ * ignored, so it has no error then.
+ */
+export type CapError = "inexact" | "min"
+
+export function capError(bps: number | null, cap: number | null | undefined): CapError | null {
+  if (!bps || cap === undefined) return null
+  if (cap === null) return "inexact"
+  if (!Number.isSafeInteger(cap) || cap < 1) return "min"
+  return null
+}
+
+/** The fee_cap to send: null (no cap) without a percentage fee or when empty. */
+export function capForSave(bps: number | null, cap: number | null | undefined): number | null {
+  return bps ? (cap ?? null) : null
+}
+
 /** What a failed payment-related call means for the UI. */
 export type PaymentError =
   | { kind: "closedMonth"; year: number; month: number }
