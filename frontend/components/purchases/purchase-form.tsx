@@ -52,7 +52,7 @@ export const PurchaseForm = React.forwardRef<
   const [supplierId, setSupplierId] = React.useState(NO_SUPPLIER)
   const [qtyText, setQtyText] = React.useState("")
   const [productQty, setProductQty] = React.useState(0)
-  /** Integer Toman; null while MoneyInput holds an amount that isn't exact — blocks submit. */
+  /** Integer Rial; null while MoneyInput holds text that gives no exact amount — blocks submit. */
   const [total, setTotal] = React.useState<number | null>(0)
   const [date, setDate] = React.useState(today)
   const [note, setNote] = React.useState("")

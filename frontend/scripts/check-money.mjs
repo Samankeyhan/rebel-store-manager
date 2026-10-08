@@ -3,7 +3,7 @@
 //     «ریال» is matched only when not part of «متریال»),
 //  2. formatNumber(...) (or its `fa` alias in copy files) on what looks like money (use formatMoney / <Money>;
 //     a true quantity that trips the name heuristic gets a `// qty` (or `{/* qty */}`) comment),
-//  3. a money field still built on IntInput (suffix={X.toman}; use MoneyInput),
+//  3. a money field still built on IntInput (suffix={X.unit}; use MoneyInput),
 //  4. money multiplied or divided by 10, or RIAL_PER_TOMAN, anywhere but
 //     lib/money.ts: amounts are integer Rial end to end and only lib/money.ts
 //     converts for display. Scans app/, components/ and lib/ (the lib tests
@@ -20,7 +20,7 @@ const UNIT = /تومان|(?<!ت)ریال/
 const MONEY_WORDS =
   /\b\w*(price|cost|total|amount|fee|paid|profit|revenue|charge|estimate|net|gross|discount|loss|delta|value|rate|avg|sum|kit_cost|shipping|postage|packaging)\w*\b/i
 const FORMAT_NUMBER = /(?:formatNumber|\bfa)\(([^()]*(?:\([^()]*\))?[^()]*)\)/g
-const INT_MONEY = /suffix=\{\s*\w+\.toman\s*\}/
+const INT_MONEY = /suffix=\{\s*\w+\.(unit|toman)\s*\}/
 // `* 10`, `/ 10`, `*= 10`, `/= 10`, `/ (10)`, `10 *` — not 100, 1.5, 10.5 or `**`.
 const BY_TEN = /(?<![*/])[*/]=?\s*\(?\s*10(?![\d.])|(?<![\w.])10\s*\*(?![*=])/
 const SCALE_DIRS = ["app", "components", "lib"]

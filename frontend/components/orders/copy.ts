@@ -62,7 +62,7 @@ export const L = {
   pageCountStatus: (n: number, status: string) => `${fa(n)} سفارش «${status}» در این صفحه`,
   salesTotal: "جمع فروش:",
   profitTotal: "جمع سود:",
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
 

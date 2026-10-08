@@ -294,7 +294,7 @@ export function derive(
 
   // V5
   if (state.lines.length === 0) errors.push(T.v5)
-  // A typed amount that isn't exact Toman (MoneyInput shows why on the field).
+  // A typed amount that gives no exact Rial value (MoneyInput shows why on the field).
   if (moneyBlocked(state)) errors.push(T.vMoney)
   // A payment method the API would refuse, or one we couldn't load: never sent as "no method".
   const resolved = payment.resolved

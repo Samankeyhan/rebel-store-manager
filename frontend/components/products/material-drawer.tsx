@@ -36,7 +36,7 @@ export function MaterialDrawer({
   const [name, setName] = React.useState("")
   const [type, setType] = React.useState<"STOCK" | "SERVICE">("STOCK")
   const [unit, setUnit] = React.useState<string>(UNITS[0])
-  /** Integer Toman; null while MoneyInput holds an amount that isn't exact — blocks save. */
+  /** Integer Rial; null while MoneyInput holds text that gives no exact amount — blocks save. */
   const [unitCost, setUnitCost] = React.useState<number | null>(0)
   const [stockText, setStockText] = React.useState("")
   const [category, setCategory] = React.useState<number | null>(null)

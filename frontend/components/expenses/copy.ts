@@ -66,7 +66,7 @@ export const E = {
   noCategoriesYet: "هنوز دسته‌ای نیست؛ اول یک دسته بسازید.", // NEW
   fieldDescription: "شرح",
   fieldAmount: "مبلغ",
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
   amountHelp: "در ردیف «هزینه‌های عملیاتی» سود و زیان همان ماه حساب می‌شود.",

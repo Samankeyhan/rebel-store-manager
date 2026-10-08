@@ -1,6 +1,7 @@
 "use client"
 
 import { Help, InlineMessage, Label, MoneyInput, Stepper, cardClass } from "@/components/record-sale/primitives"
+import type { MoneyInputError } from "@/lib/money"
 import { sums, windowOf } from "@/components/postage/figures"
 import type { PostageBatch, PostageEstimate, Settings } from "@/lib/api"
 import { roundHalfEven } from "@/lib/costing"
@@ -51,7 +52,7 @@ type Props = {
   windowError: string | null
   defaultError: string | null
   onWindow: (n: number) => void
-  onDefault: (n: number | null) => void
+  onDefault: (n: number | null, error: MoneyInputError | null) => void
   mobile: boolean
 }
 
@@ -90,7 +91,7 @@ export function PostageCard({ draft, hero, windowError, defaultError, onWindow, 
       <MoneyInput
         id="st-default-post"
         value={draft.default_postage_estimate}
-        onValue={(v) => onDefault(v ?? null)}
+        onValue={(v, error) => onDefault(v ?? null, error)}
         tone={defaultError ? "error" : null}
         className={mobile ? "h-12 text-base" : undefined}
         aria-invalid={defaultError ? true : undefined}

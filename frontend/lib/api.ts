@@ -203,7 +203,7 @@ export function updateSetting(key: GlobalSettingKey, value: number): Promise<Set
 
 /**
  * PUT /settings/display_currency: "TOMAN" or "RIAL" (422, field "value", for
- * anything else). Display only — every amount stays integer Toman on the wire.
+ * anything else). Display only — every amount stays integer Rial on the wire.
  */
 export function updateDisplayCurrency(value: Settings["display_currency"]): Promise<Settings> {
   return apiFetch<Settings>("/settings/display_currency", { method: "PUT", body: JSON.stringify({ value }) })
@@ -675,7 +675,7 @@ export function reactivatePaymentMethod(id: number): Promise<PaymentMethod> {
   return apiFetch<PaymentMethod>(`/payment-methods/${id}/reactivate`, { method: "POST" })
 }
 
-/** The fee the method charges on a customer_total of `amount` (Toman), computed by the backend. */
+/** The fee the method charges on a customer_total of `amount` (integer Rial), computed by the backend. */
 export function getFeePreview(id: number, amount: number, signal?: AbortSignal): Promise<FeePreview> {
   return apiFetch<FeePreview>(`/payment-methods/${id}/fee-preview?amount=${amount}`, { signal })
 }

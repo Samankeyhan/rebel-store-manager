@@ -43,11 +43,11 @@ export const A = {
       ? "خالی بماند = بهای واحد ثبت‌نشده می‌ماند. اگر وارد شود، بهای واحد این کالا می‌شود." // NEW
       : `خالی بماند = بهای فعلی (${formatMoney(cost)}). اگر وارد شود، میانگین موزون به‌روز می‌شود.`,
   costZero: "صفر یعنی این موجودی رایگان به دست آمده و میانگین بهای واحد را پایین می‌آورد.", // NEW
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
   /** A signed value: «+۱۲٬۰۰۰ تومان». The signed number is LTR-isolated so «+»/«−» stay on its left; the unit follows in the RTL text. */
-  signedValue: (toman: number) => `⁦${toman > 0 ? "+" : ""}${formatMoneyNumber(toman)}⁩ ${currencyLabel()}`, // NEW
+  signedValue: (rial: number) => `⁦${rial > 0 ? "+" : ""}${formatMoneyNumber(rial)}⁩ ${currencyLabel()}`, // NEW
   fieldDate: "تاریخ تعدیل", // NEW
   today: "امروز",
   fieldReason: "دلیل",

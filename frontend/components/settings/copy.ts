@@ -23,7 +23,7 @@ export const S = {
   shipCaption: "این مقادیر فقط پیش‌فرض فرم ثبت فروش هستند و روی سفارش‌های ثبت‌شده اثری ندارند.",
   shippingLabel: "هزینه ارسال پیش‌فرض",
   shippingHelp: "برای کانال‌هایی که «هزینه ارسال» آن‌ها روشن است؛ در هر سفارش قابل تغییر است.",
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
   colChannel: "کانال",
@@ -80,7 +80,12 @@ export const S = {
     ["TOMAN", currencyLabel("TOMAN")],
     ["RIAL", currencyLabel("RIAL")],
   ] as const, // NEW
-  currencyNote: "فقط نحوه نمایش تغییر می‌کند؛ داده‌ها و گزارش‌ها تغییری نمی‌کنند.", // NEW
+  // Amounts are stored, computed and sent as integer Rial; this only changes how they are shown and typed.
+  get currencyNote() {
+    const rial = currencyLabel("RIAL")
+    const toman = currencyLabel("TOMAN")
+    return `مبالغ همیشه به ${rial} ذخیره و محاسبه می‌شوند و این گزینه فقط واحد نمایش و ورود مبالغ را عوض می‌کند؛ داده‌ها و گزارش‌ها تغییری نمی‌کنند. هر ${toman} ۱۰ ${rial} است: مبلغی که مضرب ۱۰ ${rial} نباشد در ${toman} با یک رقم اعشار نمایش داده می‌شود (مثلاً ۱۸۰٬۰۰۰٫۵) و هنگام ورود به ${toman} هم یک رقم اعشار مجاز است.` // NEW
+  },
   currencySaved: (label: string) => `واحد پول به ${label} تغییر کرد`, // NEW
   currencyFailed: (msg: string) => `واحد پول ذخیره نشد: ${msg}`, // NEW
   tzHelp:

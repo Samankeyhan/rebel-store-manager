@@ -52,7 +52,7 @@ export function ExpenseDialog({
   const [date, setDate] = React.useState(today)
   const [categoryId, setCategoryId] = React.useState<number | null>(null)
   const [description, setDescription] = React.useState("")
-  /** Integer Toman; null while the typed amount isn't exact (MoneyInput). */
+  /** Integer Rial; null while MoneyInput holds text that gives no exact amount (MoneyInput says why). */
   const [amount, setAmount] = React.useState<number | null>(0)
   const [touched, setTouched] = React.useState(false)
   const [busy, setBusy] = React.useState(false)

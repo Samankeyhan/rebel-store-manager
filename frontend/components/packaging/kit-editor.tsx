@@ -290,7 +290,7 @@ export function KitEditor({
           <div className="flex flex-col gap-1 rounded-[10px] bg-surface-2 p-3">
             <span className="text-xs font-bold text-text-3">{K.tileCost}</span>
             <span className="tabular-nums">
-              <b className="text-[22px]">{formatMoneyNumber(kit.kit_cost)}</b> <span className="text-xs">{K.toman}</span>
+              <b className="text-[22px]">{formatMoneyNumber(kit.kit_cost)}</b> <span className="text-xs">{K.unit}</span>
             </span>
             <span className="text-xs text-text-3">{K.tileCostNote}</span>
           </div>

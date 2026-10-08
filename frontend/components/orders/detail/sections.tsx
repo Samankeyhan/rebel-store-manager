@@ -368,7 +368,7 @@ export function ItemsCard({
 
 // ── [3] internal cost and profit (never on the invoice) ────────────────
 
-/** `value` is integer Toman, or null for «—». */
+/** `value` is integer Rial, or null for «—». */
 function ProfitBand({ label, value, tone }: { label: string; value: number | null; tone: "pos" | "neg" | "nil" }) {
   return (
     <div

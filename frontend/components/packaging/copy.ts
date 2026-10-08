@@ -52,7 +52,7 @@ export const K = {
   tileAvail: "کیت قابل آماده‌سازی",
   limiting: (name: string, q: number, unit: string) => `محدودکننده: «${name}» (${formatQuantity(q)} ${unit})`,
   noLimit: "بدون محدودیت",
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
   editKit: "ویرایش کیت",

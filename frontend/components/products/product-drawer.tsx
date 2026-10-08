@@ -75,7 +75,7 @@ export function ProductDrawer({
   const [name, setName] = React.useState("")
   const [category, setCategory] = React.useState<number | null>(null)
   const [categoryError, setCategoryError] = React.useState<string | null>(null)
-  /** Integer Toman; null while MoneyInput holds an amount that isn't exact — blocks save. */
+  /** Integer Rial; null while MoneyInput holds text that gives no exact amount — blocks save. */
   const [retail, setRetail] = React.useState<number | null>(0)
   const [wholesale, setWholesale] = React.useState<number | null>(0)
   const [madeToOrder, setMto] = React.useState(false)

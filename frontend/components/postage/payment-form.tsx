@@ -36,7 +36,7 @@ export const PaymentForm = React.forwardRef<
     onSaved: () => Promise<void>
   }
 >(function PaymentForm({ batches, windowSize, currentEstimate, timeZone, mobile, onBusyChange, onSaved }, ref) {
-  /** Integer Toman; null while the typed amount isn't exact (MoneyInput) — blocks submit. */
+  /** Integer Rial; null while MoneyInput holds text that gives no exact amount — blocks submit. */
   const [total, setTotal] = React.useState<number | null>(0)
   const [orders, setOrders] = React.useState(0)
   const [note, setNote] = React.useState("")

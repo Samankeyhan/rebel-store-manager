@@ -61,8 +61,9 @@ export type ServerIssue =
   | { kind: "payment"; field: "paid_date" | "payment_method_id" | "transaction_fee"; message: string }
 
 /**
- * A money field whose typed amount isn't exact Toman (MoneyInput reported
- * null: in Rial, not a multiple of 10). Its last exact value stays in the
+ * A money field whose typed text gives no exact Rial amount (MoneyInput
+ * reported null and shows why: two Toman decimals, a Rial decimal, a minus
+ * sign, too large). Its last exact value stays in the
  * form; the field id is listed here, and while any is, nothing is submitted.
  */
 export type MoneyField = `price:${number}` | `discount:${number}` | "shipping" | "fee"
@@ -196,7 +197,7 @@ function withoutFields(invalid: MoneyField[], drop: (f: MoneyField) => boolean):
   return kept.length === invalid.length ? invalid : kept
 }
 
-/** True while a money field holds an amount that isn't exact Toman: the order can't be submitted. */
+/** True while a money field holds text that gives no exact Rial amount: the order can't be submitted. */
 export function moneyBlocked(state: FormState): boolean {
   return state.invalidMoney.length > 0
 }
@@ -349,7 +350,7 @@ export function paidDateForBody(state: FormState, today: string): string | undef
  */
 export function buildOrderBody(state: FormState, resolved: ResolvedMethod, today: string): OrderCreate {
   // derive() already disables saving; this is the last line of defence.
-  if (moneyBlocked(state)) throw new Error("An amount isn't exact Toman; the order can't be submitted.")
+  if (moneyBlocked(state)) throw new Error("An amount isn't exact; the order can't be submitted.")
   if (resolved.kind !== "none" && resolved.kind !== "method") {
     throw new Error("The payment method can't be used; the order can't be submitted.")
   }

@@ -6,7 +6,8 @@ import { DrawerShell, FieldError, SaveError, textInputClass } from "@/components
 import { Segment } from "@/components/common/segment"
 import { PM, ruleText } from "@/components/payment-methods/copy"
 import { Alert, Btn, Help, IntInput, Label, MoneyInput } from "@/components/record-sale/primitives"
-import { M } from "@/components/common/copy"
+import { M, moneyInputMessage } from "@/components/common/copy"
+import type { MoneyInputError } from "@/lib/money"
 import {
   ApiError,
   createPaymentMethod,
@@ -29,8 +30,10 @@ type Field = "name" | "fee_bps" | "fee_fixed" | "settlement_rule" | "settlement_
 type Form = {
   name: string
   percent: string
-  /** null while MoneyInput holds an amount that isn't exact Toman (blocks save). */
+  /** Integer Rial; null while MoneyInput holds text that gives no exact amount (blocks save). */
   fixed: number | null
+  /** MoneyInput's reason while `fixed` is null. */
+  fixedError: MoneyInputError | null
   rule: SettlementRule
   days: number
 }
@@ -39,9 +42,9 @@ type Form = {
 const DEFAULT_DAYS: Record<SettlementRule, number> = { IMMEDIATE: 0, DAYS_AFTER: 1, DAY_OF_NEXT_MONTH: 7 }
 
 function formOf(m: PaymentMethod | null): Form {
-  if (!m) return { name: "", percent: "", fixed: 0, rule: "IMMEDIATE", days: 0 }
+  if (!m) return { name: "", percent: "", fixed: 0, fixedError: null, rule: "IMMEDIATE", days: 0 }
   const rule = m.settlement_rule as SettlementRule
-  return { name: m.name, percent: formatPercent(m.fee_bps), fixed: m.fee_fixed, rule, days: m.settlement_days ?? 0 }
+  return { name: m.name, percent: formatPercent(m.fee_bps), fixed: m.fee_fixed, fixedError: null, rule, days: m.settlement_days ?? 0 }
 }
 
 const percentMessage = { format: S.fPercentFormat, decimals: S.fPercentDecimals, range: S.fPercentRange } as const
@@ -52,7 +55,7 @@ function clientErrors(f: Form): Partial<Record<Field, string>> {
   if (!f.name.trim()) errors.name = S.fNameError
   const pct = parsePercent(f.percent)
   if (!pct.ok) errors.fee_bps = percentMessage[pct.error]
-  if (f.fixed === null) errors.fee_fixed = M.reenter
+  if (f.fixed === null) errors.fee_fixed = f.fixedError ? moneyInputMessage(f.fixedError) : M.reenter
   else if (!Number.isSafeInteger(f.fixed) || f.fixed < 0) errors.fee_fixed = S.fFixedError
   const bounds = DAYS_BOUNDS[f.rule]
   if (bounds && (f.days < bounds.min || f.days > bounds.max)) errors.settlement_days = S.fDaysError(bounds.min, bounds.max)
@@ -267,7 +270,7 @@ export function PaymentMethodDrawer({
           <MoneyInput
             id="pm-fixed"
             value={form.fixed}
-            onValue={(v) => set({ fixed: v ?? null }, "fee_fixed")}
+            onValue={(v, error) => set({ fixed: v ?? null, fixedError: error }, "fee_fixed")}
             tone={errorFor("fee_fixed") && form.fixed !== null ? "error" : null}
             className={mobile ? "h-11" : undefined}
           />

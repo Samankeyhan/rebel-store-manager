@@ -151,7 +151,8 @@ const fieldOf = (value: number | null | undefined, currency: Currency): MoneyFie
  * can't be exact (two Toman decimals, a Rial decimal, a minus sign, beyond
  * the safe range) reports onValue(null) and the field says why. A caller
  * stores `number | null` and must treat null as a blocking error (don't
- * submit). With `allowEmpty`, an empty field reports undefined.
+ * submit); the second argument says why, for a form that repeats the reason
+ * in its own validation. With `allowEmpty`, an empty field reports undefined.
  */
 export function MoneyInput({
   value,
@@ -164,7 +165,7 @@ export function MoneyInput({
   ...props
 }: Omit<React.ComponentProps<"input">, "value" | "onChange"> & {
   value: number | null | undefined
-  onValue: (rial: number | null | undefined) => void
+  onValue: (rial: number | null | undefined, error: MoneyInputError | null) => void
   allowEmpty?: boolean
   tone?: "error" | "warn" | null
   wrapperClassName?: string
@@ -197,7 +198,7 @@ export function MoneyInput({
           onChange={(e) => {
             const { text, rial, error } = parseMoneyInput(e.target.value, currency, allowEmpty)
             setField({ value: rial, currency, text, error })
-            onValue(rial)
+            onValue(rial, error)
           }}
           onFocus={(e) => e.currentTarget.select()}
           className={inputClass(invalid ? "error" : tone, cn("pe-14 tabular-nums", className))}
