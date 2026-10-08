@@ -109,7 +109,7 @@ export function validate(draft: Draft): Partial<Record<GlobalSettingKey, string>
   const errors: Partial<Record<GlobalSettingKey, string>> = {}
   for (const key of ["default_shipping_charge", "default_postage_estimate"] as const) {
     const v = draft[key]
-    if (v === null) errors[key] = M.notMultipleOf10
+    if (v === null) errors[key] = M.reenter
     else if (!Number.isSafeInteger(v) || v < 0) errors[key] = S.amountError
   }
   const n = draft.postage_estimate_window
@@ -149,7 +149,7 @@ export async function saveDraft(baseline: Settings, draft: Draft): Promise<SaveR
     const value = draft[key]
     if (value === current[key]) continue
     // validate() refuses a null amount, so save() never gets here with one.
-    if (value === null) return fail({ label: GLOBAL_LABELS[key], error: new Error(M.notMultipleOf10), key, kitChanged: false, methodChanged: false })
+    if (value === null) return fail({ label: GLOBAL_LABELS[key], error: new Error(M.reenter), key, kitChanged: false, methodChanged: false })
     try {
       current = await updateSetting(key, value)
       saved.push(GLOBAL_LABELS[key])

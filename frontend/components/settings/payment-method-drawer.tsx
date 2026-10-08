@@ -52,7 +52,7 @@ function clientErrors(f: Form): Partial<Record<Field, string>> {
   if (!f.name.trim()) errors.name = S.fNameError
   const pct = parsePercent(f.percent)
   if (!pct.ok) errors.fee_bps = percentMessage[pct.error]
-  if (f.fixed === null) errors.fee_fixed = M.notMultipleOf10
+  if (f.fixed === null) errors.fee_fixed = M.reenter
   else if (!Number.isSafeInteger(f.fixed) || f.fixed < 0) errors.fee_fixed = S.fFixedError
   const bounds = DAYS_BOUNDS[f.rule]
   if (bounds && (f.days < bounds.min || f.days > bounds.max)) errors.settlement_days = S.fDaysError(bounds.min, bounds.max)

@@ -15,7 +15,7 @@ const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
 /** U+066C ARABIC THOUSANDS SEPARATOR */
 const THOUSANDS_SEPARATOR = "٬"
 /** U+2212 MINUS SIGN; U+200E LRM keeps it on the visual left in RTL text. */
-const MINUS = "‎−"
+export const MINUS = "‎−"
 
 /** Replaces ASCII digits 0-9 in the input with Persian digits ۰-۹. */
 export function toPersianDigits(value: number | string): string {
@@ -41,14 +41,19 @@ function toInteger(n: number, fn: string): number {
   return n
 }
 
+/**
+ * A string of Latin digits (no sign) grouped with ٬ in Persian digits:
+ * "180000" → "۱۸۰٬۰۰۰". Works on the text itself, so it never loses a digit
+ * however long the string is.
+ */
+export function formatDigitString(digits: string): string {
+  return toPersianDigits(digits.replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS_SEPARATOR))
+}
+
 /** Integer with Persian digits and ٬ thousands separators: 180000 → "۱۸۰٬۰۰۰". */
 export function formatNumber(n: number): string {
   const int = toInteger(n, "formatNumber")
-  const grouped = String(Math.abs(int)).replace(
-    /\B(?=(\d{3})+(?!\d))/g,
-    THOUSANDS_SEPARATOR
-  )
-  return (int < 0 ? MINUS : "") + toPersianDigits(grouped)
+  return (int < 0 ? MINUS : "") + formatDigitString(String(Math.abs(int)))
 }
 
 /** U+066B ARABIC DECIMAL SEPARATOR */

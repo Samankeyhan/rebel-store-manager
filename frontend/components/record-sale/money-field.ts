@@ -2,7 +2,7 @@ import type { Action, FormState, MoneyField } from "./state"
 
 /**
  * MoneyInput props for a record-sale amount: shows null (and so the field's
- * own error) while the typed amount isn't exact Toman, and flags/unflags the
+ * own error) while the typed amount gives no exact Rial value, and flags/unflags the
  * field in the reducer so the order can't be saved meanwhile.
  */
 export function moneyProps(
@@ -10,7 +10,7 @@ export function moneyProps(
   dispatch: React.Dispatch<Action>,
   field: MoneyField,
   value: number,
-  onExact: (toman: number) => void
+  onExact: (rial: number) => void
 ) {
   return {
     value: state.invalidMoney.includes(field) ? null : value,

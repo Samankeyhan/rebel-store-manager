@@ -26,7 +26,7 @@ import {
   subMonths,
 } from "date-fns-jalali"
 
-import { toLatinDigits, toPersianDigits } from "@/lib/persian-numbers"
+import { toLatinDigits, toPersianDigits } from "./persian-numbers.ts"
 
 export type JalaliDate = { year: number; month: number; day: number }
 
