@@ -297,3 +297,39 @@ def test_invoice_with_odd_rial_amounts(test_db, tmp_path, currency):
     for hidden in (3_333, 4_567):
         assert _shown(hidden, "TOMAN") not in text
         assert _shown(hidden, "RIAL") not in text
+
+
+# The widest realistic amount, 999,999,995 Rial (99,999,999.5 Toman), in both
+# display currencies, measured as drawn: line items use 10pt Vazir and
+# _draw_amount_right right-aligns the reshaped text at the column edge.
+WIDEST_REALISTIC_RIAL = 999_999_995
+AMOUNT_FONT = "Vazir"
+AMOUNT_SIZE = 10
+MIN_GAP_UNIT_PRICE_TO_LINE_TOTAL = 9
+
+
+def _drawn_amount_width(rial: int, currency: str) -> float:
+    from reportlab.pdfbase import pdfmetrics
+
+    invoice_module._register_fonts()
+    text = invoice_module.prepare_persian(invoice_module.format_amount(rial, currency))
+    return pdfmetrics.stringWidth(text, AMOUNT_FONT, AMOUNT_SIZE)
+
+
+@pytest.mark.parametrize(
+    "currency, expected",
+    [("TOMAN", "۹۹,۹۹۹,۹۹۹٫۵ تومان"), ("RIAL", "۹۹۹,۹۹۹,۹۹۵ ریال")],
+)
+def test_widest_amount_fits_the_amount_columns(currency, expected):
+    assert invoice_module.format_amount(WIDEST_REALISTIC_RIAL, currency) == expected
+    width = _drawn_amount_width(WIDEST_REALISTIC_RIAL, currency)
+
+    # The line total ends at COL_LINE_TOTAL and must start inside the page margin.
+    line_total_left = invoice_module.COL_LINE_TOTAL - width
+    assert line_total_left >= invoice_module.PAGE_MARGIN, (currency, width)
+
+    # The unit price ends at COL_UNIT_PRICE and must keep the gap before the
+    # line-total column's right edge.
+    unit_price_left = invoice_module.COL_UNIT_PRICE - width
+    gap = unit_price_left - invoice_module.COL_LINE_TOTAL
+    assert gap >= MIN_GAP_UNIT_PRICE_TO_LINE_TOTAL, (currency, width, gap)
