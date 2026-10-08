@@ -1,3 +1,6 @@
+"""Production batches: consume recipe materials (STOCK only), increase product stock, freeze a per-batch unit cost.
+Stores `total_cost` and `created_at` (when recorded, distinct from a possibly backdated `production_date`); both are NULL for batches before migration 006."""
+
 import sqlite3
 
 from db.connection import transaction

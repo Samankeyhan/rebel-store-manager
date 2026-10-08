@@ -261,7 +261,7 @@ Formulas live in `../logic/formulas.md` — § 2 for the postage estimate and §
 
 | setting | type | default in the artboard | consumed by |
 |---|---|---|---|
-| `هزینه ارسال پیش‌فرض` | integer Toman | `180000` | Record sale (`02`): seeds `shippingCharge` for any channel whose shipping switch is on; the field there stays editable per order. Flows into `customerTotal` — `formulas.md` § 1 — and into the invoice's «هزینه ارسال» row (`16`). |
+| `هزینه ارسال پیش‌فرض` | integer Rial | `1800000` | Record sale (`02`): seeds `shippingCharge` for any channel whose shipping switch is on; the field there stays editable per order. Flows into `customerTotal` — `formulas.md` § 1 — and into the invoice's «هزینه ارسال» row (`16`). |
 | per-channel `دریافت هزینه ارسال از مشتری` | boolean × 5 | web `true`, insta `true`, wholesale `false`, inperson `false`, other `false` | Record sale: `CHANNEL_DEFAULTS[ch].ship` is the default amount when on, `0` when off. Matches `../data/sample-data.md` § Channel defaults. |
 | per-channel `هزینه پست` | boolean × 5 | web `true`, insta `true`, wholesale `true`, inperson `false`, other `false` | Record sale: `postage = post ? POSTAGE_EST : 0`. **Boolean only** — see 5.3. |
 | per-channel `کیت بسته‌بندی پیش‌فرض` | kit reference × 5 | web/insta/wholesale = `جعبه استاندارد` (`k1`, 95,000), inperson/other = `بدون بسته‌بندی` (`k0`, 0) | Record sale: preselects the kit tile and so `kitCost` in `formulas.md` § 1; the kit's own cost is derived from materials in `formulas.md` § 5, **not** entered here. |

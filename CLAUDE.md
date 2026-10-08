@@ -1,89 +1,32 @@
 # Rebel Store Manager
 
-## What this is
+Single-user accounting + inventory app for a music merch shop: products, materials, production, multi-channel orders, payments/settlements, returns, purchases, expenses, partners, Persian invoice PDFs, reports.
+Stack: `db/` (Python, SQLite) → `api/` (FastAPI) → `frontend/` (Next.js static export). Multi-user comes later: keep `db/` free of single-process assumptions, but don't add auth speculatively.
 
-A single-user accounting and inventory manager for Rebel Store, a music merch shop (vinyl, cassettes, posters, T-shirts, etc.). It tracks products, raw materials, production batches, sales orders (multi-channel: Instagram, website, wholesale, in-person), returns/refunds, purchases, stock adjustments/waste, expenses, suppliers, partner profit distributions, and generates Persian (RTL) invoice PDFs. Reports cover product performance, channel breakdown, low stock, waste, expenses, and profit & loss.
+More rules load per folder: `db/CLAUDE.md`, `api/CLAUDE.md`, `frontend/CLAUDE.md`. Each `db/` module's docstring says what it does and its rules; read it before changing the module.
+`docs/accounting-rules.md` overrides the code. Old tests that contradict it are wrong; update them.
 
-Currently a Python CLI (`cli/main.py`) over SQLite (`data/shop.db`). It is being turned into a **local web app** — FastAPI backend + Next.js static-export frontend — and later into a **multi-user online app**. Design decisions in `db/` should keep that trajectory in mind (e.g. business logic must not assume a single global CLI process), but no multi-user/auth work exists yet — don't add it speculatively.
+## Workflow
+1. Non-trivial change → written plan, then wait for approval.
+2. Branch from latest `origin/main`, one feature per branch, name from the prompt.
+3. Backend changes only when asked. Backend gaps found during frontend work go in the report, not fixed.
+4. Commit and push before finishing.
+5. Nothing outside the repo; no browser extensions.
 
-All money is stored as **INTEGER** in the smallest currency unit, the **Rial** (since migration 009; it was Toman before). Toman is display only (Rial ÷ 10). See Architecture rules below.
+## Final report
+It gets pasted into the planning chat, so keep it to short bullets, no prose or recap of the plan:
+- Branch, full commit hash, `git status` clean
+- Changed: files/areas, one line each
+- Verified / not verified (e.g. visual check left to the owner)
+- Choices made on open questions
+- Backend gaps
 
-## Working agreement
-
-1. **Plan first.** Anything beyond a trivial change gets a written plan; then stop and wait for explicit approval before writing code.
-2. **Branch from the latest `origin/main`**, one feature per branch, using the branch name given in the prompt.
-3. **Never write to `data/shop.db`.** API startup applies migrations, so tests and manual runs use a scratchpad copy of the database via `REBEL_DB`. Reading `data/shop.db` read-only to establish facts is fine.
-4. **Commit and push before finishing.** The final message must include the branch, the full commit hash, and confirmation that `git status` is clean. Never leave work uncommitted.
-5. **Money:** `db/` owns every formula. Money is an integer in Rial. The frontend displays API numbers; any preview it computes mirrors the backend exactly (the existing `lib/costing.ts` pattern) and is labelled as a preview. No money arithmetic in routers.
-6. **Don't silently fix backend gaps** found during frontend work; list them in the report. Backend changes only when the prompt asks for them.
-7. **Schema changes only through a new numbered migration**; never edit an existing one; a backfill must not touch `updated_at` (the 005 lesson). Every `db/` change gets tests, and the full suite stays green.
-8. **Persian UI:** «متریال», never «ماده» or «مواد» (nav item and page title: «محصولات و متریال»; products page tabs: «محصولات»، «متریال»، «دسته‌ها»). Persian digits through `lib/persian-numbers`; dates through `lib/jalali`; logical CSS properties; RTL; desktop and mobile; loading, error and empty states; copy lives in `copy.ts` with new strings marked `// NEW`.
-9. **The final report lists:** what was verified, what could NOT be verified (e.g. no browser tools, so the visual check is left to the owner), choices made on open questions, and backend gaps.
-10. **Don't install browser extensions or change anything outside the repo.**
-11. **Money display and input.** Money is stored, computed and sent as integer Rial — the display currency (Settings → «واحد پول», Rial = the stored integer, or Toman = Rial ÷ 10 with one decimal digit only when needed) never reaches the database or the API. Every displayed amount goes through `formatMoney` (`frontend/lib/money.ts`) or the shared `<Money>` component; every money input is `MoneyInput`; never hard-code a currency unit (use `currencyLabel()`). `npm run check:money` must pass. On the backend, `db/currency.py` is the only place that converts (the invoice uses it).
-
-## Module map
-
-- `db/connection.py` — opens the SQLite connection and runs migrations (`init_db`); tracks applied migrations in `schema_migrations` with a content hash, refuses to run if an applied migration file was edited.
-- `db/errors.py` — exception hierarchy for db/: `AppError` (base, subclasses `ValueError`), `NotFoundError`, `ValidationError` (optional `field`), `InsufficientStockError` (`item_name`/`needed`/`available`), `ConflictError`.
-- `db/currency.py` — display currency (`DISPLAY_CURRENCIES` TOMAN/RIAL, `get_display_currency`, `to_display_parts` / `format_display_number`: Rial = the stored integer, Toman = Rial ÷ 10 by integer `divmod`, one decimal digit only when the Rial amount is not a multiple of 10, `currency_label`). Display only — the backend's one place that converts (guarded by `tests/test_no_money_scaling.py`); money stays integer Rial everywhere else.
-- `db/categories.py` — user-editable categories: two separate trees (`kind` PRODUCT / MATERIAL), two levels (top-level, optional subcategory of the same kind). Create/rename/list/tree, deactivate (refused while any product or material uses it or it has active subcategories) and reactivate (refused under an inactive parent). `validate_assignable` is the rule for putting an item in a category: right kind, active, and no active subcategories (once a category is split, new items go in a subcategory).
-- `db/products.py` — finished-goods CRUD: add/list/get product (with `category_name` / `parent_category_name` joined in), update prices, move category, deactivate/reactivate. Every product has a `category_id`; the old `products.category` code column is legacy (NULL for products created after migration 005) and will be dropped once nothing reads it.
-- `db/materials.py` — raw material CRUD (STOCK or SERVICE type), optional category, low-stock query, move category, deactivate/reactivate.
-- `db/recipes.py` — product → material BOM (bill of materials): add/update/remove recipe items, compute recipe cost.
-- `db/production.py` — runs a production batch: consumes recipe materials (STOCK only), increases product stock, freezes a per-batch unit cost and stores the batch total (`total_cost`) and when it was recorded (`created_at`, distinct from a possibly backdated `production_date`). Both are NULL for batches recorded before migration 006.
-- `db/orders.py` — records sales orders and line items, decrements product stock, computes order total/profit, revenue summary; defines valid channels/statuses. Also the payment side of an order: its payment method (explicit, none, or the channel default), the fee (computed from the method unless overridden; `transaction_fee=None` means computed), `paid_date` and the fields it freezes (`expected_settlement_date`, `paid_jalali_year/month`), `set_paid_date`, the closed-month guard, and the `payment_method_id` / `settlement_state` list filters.
-- `db/timeutil.py` — every timezone conversion: UTC storage of moments, local date-range filters, `parse_calendar_date`, and `today_local(conn)`, the only source of "today" for business rules (never `date.today()` / `datetime.now()`; tests monkeypatch the `today_local` name in the module under test).
-- `db/jalali.py` — Jalali calendar arithmetic (a port of jalaali-js, the same as the frontend's date-fns-jalali): `to_jalali`, `to_gregorian`, `month_length`, `month_range`, `next_month`, `is_leap`. Pure functions on `date`.
-- `db/payment_methods.py` — payment method CRUD (fee_bps / fee_fixed, settlement rule IMMEDIATE / DAYS_AFTER / DAY_OF_NEXT_MONTH), deactivate/reactivate, `compute_fee` (half-even, integer only), `compute_expected_settlement_date`, `preview_fee`, `count_pending_orders`; a rule change is refused while orders are pending.
-- `db/settlements.py` — pending settlement items (`get_pending`, grouped by expected date or by Jalali month), `record_settlement` (chosen orders, or a whole ended Jalali month for DAY_OF_NEXT_MONTH), `get_settlement`, `list_settlements`, `update_settlement` (amount_received, settled_date, note only).
-- `db/returns.py` — marks an order CANCELLED/REFUNDED, restores product stock, records RETURN stock movements.
-- `db/purchases.py` — records material/product purchases from suppliers, increases stock, computes unit cost, logs PURCHASE stock movements.
-- `db/adjustments.py` — manual stock corrections and waste write-offs (WASTE/ADJUSTMENT reasons) for materials or products.
-- `db/expenses.py` — expense categories and expense entries (business overhead, not COGS).
-- `db/suppliers.py` — supplier CRUD.
-- `db/reports.py` — read-only aggregate queries: product performance, channel breakdown, low-stock, waste report, expense breakdown, profit & loss (revenue − COGS/fees − expenses), and the payment-method report (`get_payment_method_report`, reconciled with the P&L's transaction_fees and refund_losses).
-- `db/partners.py` — business owners/investors: name, ownership percentage (must sum to ~100% across active partners), soft-deactivate.
-- `db/distributions.py` — records profit payouts to partners, split by ownership percentage at time of distribution, snapshotted per share so later percentage changes don't rewrite history.
-- `pdf/invoice.py` — renders a Persian RTL A4 invoice PDF for a completed order (customer-facing; see rules below).
-- `config/store_info.py` — store display constants (name, address, phone, logo/footer paths) used on invoices.
-- `scripts/partner_walkthrough.py` — manual/dev walkthrough exercising the partners + distributions flow end-to-end against a throwaway temp-file DB; not part of the app, not tested by pytest, useful as living documentation of the intended flow.
-- `api/main.py` — the FastAPI app: a startup lifespan that runs `init_db` on the served database (applying pending migrations, or refusing to start if they can't be applied), CORS, centralized `db/errors.py` → HTTP status exception handlers, `/health`, and router registration.
-- `api/deps.py` — `db_path()` (the `REBEL_DB` env var, default `data/shop.db`) and `get_db()`, a FastAPI dependency that opens one `db.connection.get_connection` connection per request on that path and closes it after.
-- `api/schemas/` — Pydantic response/request models, one module per domain, field names matching the `db/` dict keys exactly. Request models are named `<Thing>Create` / `<Thing>Update`, use `extra="forbid"`, and type every money field as `Money` (`api/schemas/common.py`, a strict `int`), so a float, a numeric string or a bool is a 422 instead of being coerced.
-- `api/routers/` — one module per domain, both read (GET) and write endpoints; each endpoint calls a `db/` function and shapes the result into a schema — see the no-business-logic rule below. Writes return the resource re-fetched through the same getter the GET endpoint uses: creates are 201, updates/actions (including deactivate/reactivate) are 200, and DELETE of a recipe or kit item deliberately returns 200 with the updated recipe/kit so the UI can redraw without a second request. `GET /orders/{id}/invoice.pdf` renders into a temp directory and streams the bytes back.
-
-### API write conventions (don't reinvent these)
-
-- **`POST /orders` `packaging_kit_id`** is `int | "default" | null`, defaulting to `"default"`. The router translates `"default"` → `db.orders.USE_CHANNEL_DEFAULT` (the channel's default kit, if any), `null` → `None` (no packaging), and an int → that kit.
-- **`shipping_charge` and `postage_cost` on `POST /orders`: `null` (or omitted) means "use the channel default", not zero.** Sending `0` is a real zero override. The same null-means-default rule is what `record_order` implements; keep the two in step.
-- **Partial updates** (`PATCH /suppliers/{id}`, `PATCH /settings/channels/{channel}`) pass only the fields present in the body (`model_dump(exclude_unset=True)`), so an omitted field is unchanged while an explicit `null` clears it where the column allows (e.g. a channel's `default_packaging_kit_id`).
-- **Categories** (`/categories`, `/categories/tree`, both requiring `kind`): `POST /products` takes `category_id` (required); `POST /materials` takes an optional one. An item moves with `PATCH /products/{id}/category` or `PATCH /materials/{id}/category`. Product and material responses carry `category_name` and `parent_category_name`, so the UI never looks a category up per row.
-- **`POST /orders` `payment_method_id`** follows the `packaging_kit_id` pattern: `"default"` (or omitted) = the channel's default method, `null` = no method, an int = that method (strict int: a bool, float or numeric string is a 422). **`transaction_fee`: `null` (or omitted) = computed from the method**, an int (including 0) overrides it. `paid_date` (calendar day) only for a PAID/COMPLETED order; `POST /orders/{id}/status` takes `paid_date` when the order becomes paid; `PATCH /orders/{id}/paid-date` moves it.
-- **Settlements**: `GET /settlements/pending` (groups are a union: date groups for IMMEDIATE/DAYS_AFTER, month groups for DAY_OF_NEXT_MONTH), `POST /settlements` (`order_ids` for IMMEDIATE/DAYS_AFTER; `jalali_year` + `jalali_month` for DAY_OF_NEXT_MONTH, where `order_ids` is a 422), `GET /settlements`, `GET/PATCH /settlements/{id}`. `difference` is computed by `db/`, never in a router. Payment methods: `/payment-methods` CRUD, deactivate/reactivate, `GET /payment-methods/{id}/fee-preview?amount=`. `PATCH /settings/channels/{channel}` takes `default_payment_method_id` (null clears it).
-- **`PUT /settings/{key}`** accepts only `db.settings.VALID_SETTING_KEYS`; any other key is a 422 with field `"key"` (enforced in `set_setting`, not the router).
-
-## Architecture rules (do not break)
-
-- **`db/` owns all business logic and SQL.** No module under `db/` may call `print()` or `input()` — those are interface concerns.
-- **Interface layers never write SQL directly.** `cli/main.py`, `pdf/`, and `api/` only call functions exported from `db/`. If a screen/endpoint needs a new query, add a function to the relevant `db/` module — don't inline `conn.execute(...)` outside `db/`.
-- **Routers never contain business logic.** A function in `api/routers/` never writes SQL and never computes money — it calls a `db/` function and shapes the returned dict(s) into a response model. If an endpoint needs a computation `db/` doesn't already provide, add it to `db/`, don't compute it in the router (composing several existing `db/` calls, e.g. `/settings` or `/catalog`, is fine — that's shaping, not new logic).
-- **Boolean-ish columns (`is_active`, `made_to_order`, `applies_shipping_charge`, `applies_postage`, `stock_committed`) are `INTEGER` 0/1 in the database and stay `int` 0/1 in every `api/` response — never converted to `bool`.** Don't "fix" this later; it's intentional so the wire format matches the column type exactly.
-- **A material's low-stock `threshold` is always caller-supplied, in both `db/materials.py::get_low_stock_materials` and the `/materials/low-stock` endpoint — there is no per-material minimum-stock column in the schema.** Adding one (and a default-less-obvious threshold) is a later task, not assumed here.
-- **All money is `INTEGER` in the smallest currency unit (Rial).** All rounding of money is half-even to the Rial. Never use `float` for money — not for prices, costs, totals, discounts, or distribution amounts. (Quantities of STOCK materials/products *can* be `REAL` where the schema already allows fractional units — that's a separate concern from money.) Python's `round()` is banker's rounding (round-half-to-even); when a formula must round money to an integer, be deliberate about that and reconcile any leftover so totals still sum exactly (see `db/distributions.py::_compute_share_amounts` for the existing pattern).
-- **Schema changes go in a new migration file** in `migrations/`, numbered one past the highest existing number (currently `009_rial_storage.sql`; next would be `010_...`). **Never edit a migration file that already exists in the repo** — `init_db` hashes each applied migration's content and refuses to run if an applied file's hash no longer matches, and the file may already be applied on someone else's `data/shop.db`.
-- **Accounting behaviour is specified in `docs/accounting-rules.md` and overrides any older behaviour in the code.** Existing tests that assert old formulas or numbers are WRONG and must be updated to the rules — never bend the rules or the code to keep an old test passing.
-- **Every multi-step write happens inside a transaction that rolls back on failure.** Every write goes through `with transaction(conn):` from db/connection.py. Never call conn.commit(), conn.rollback() or execute('BEGIN') directly. transaction() nests safely: an inner call uses a savepoint, so if it fails only its own work is undone.
-- **Partner profit distributions are owner payouts, not business expenses.** They must never reduce revenue, profit, or expenses in any report — `db/reports.py` and `db/distributions.py` must stay decoupled (distributions may *read* `get_profit_and_loss` as a reference figure, but must never write back to `orders`, `order_items`, or `expenses`, and no report function may query `partners`/`profit_distributions`/`distribution_shares`).
-- **Customer-facing documents show only what the customer pays.** It shows only what the customer is charged: item prices, per-line discounts, the shipping charge, and the final amount the customer pays (items after discount + shipping charge). It never shows postage paid, packaging cost, transaction or gateway fees, product unit_cost, or COGS — not as costs, not as deductions, not in any form.
-- **The repository is public.** Never commit secrets (API keys, credentials, tokens), generated invoice PDFs (`invoices/*.pdf` is gitignored — keep it that way), or real customer/partner personal data (real names paired with phone/email/address, etc.). Use fictional data in tests and scripts, as the existing tests already do.
-
-## Testing rules
-
-- Every change to `db/` or `pdf/` must include or update tests in `tests/`.
-- Run the full suite with `python -m pytest -v` inside `.venv` before finishing any task.
-- **Never run `init_db` or any write against `data/shop.db`.** Tests use temporary databases only — see `tests/conftest.py`'s `test_db` fixture, which creates a fresh temp-file DB via `init_db(temp_path)` per test and deletes it afterward. Follow that pattern for any new test; don't point a test or script at the real `data/shop.db` path. Starting the API (a `with TestClient(app)` block) runs `init_db` on `$REBEL_DB`; an autouse fixture in `tests/conftest.py` points that at a temp file for every test, so keep it.
-
-## Do not touch `cli/main.py` casually
-
-`cli/main.py` will be **deleted** once the web UI (FastAPI + Next.js) exists — it's a stopgap, not a long-term interface. Do not refactor it, restyle it, or add tests for it. Only change it when a `db/` change breaks it (e.g. a function signature changes), and keep that change minimal.
+## Hard rules
+- **Never write to `data/shop.db`** (read-only is fine). API startup runs migrations, so manual runs use a scratch copy via `REBEL_DB`; tests use the temp-DB fixtures in `tests/conftest.py`.
+- **Never start uvicorn or the frontend dev server without `REBEL_DB` set to a scratchpad copy of the database.**
+- **Money = integer Rial, never float** (since migration 009; it was Toman before). Every formula lives in `db/`; all money rounding is half-even to the Rial. Toman is a display unit only: Rial ÷ 10, at most one decimal digit (shown only when the Rial amount is not a multiple of 10); Toman input takes one decimal. Amounts are integer Rial on the wire and in frontend state; the display currency (Settings → «واحد پول») never reaches the database or the API. The only conversion points are `db/currency.py` (backend, used by the invoice) and `frontend/lib/money.ts` (frontend; `npm run check:money` must pass).
+- **Schema changes:** new `migrations/NNN_*.sql` numbered after the highest. Never edit an existing one (hash-checked). Backfills must not touch `updated_at`.
+- **Tests:** every `db/` or `pdf/` change has tests; `python -m pytest -v` in `.venv` passes before finishing.
+- **Invoice** (`pdf/invoice.py`) shows only what the customer pays: item prices, line discounts, shipping charge, total. Never postage, packaging, fees, unit cost or COGS.
+- **Persian terms, everywhere (UI, invoice, copy):** «متریال», never «ماده» or «مواد». Products area: «محصولات و متریال»; tabs «محصولات»، «متریال»، «دسته‌ها».
+- **Public repo:** no secrets, no invoice PDFs, no real personal data; fictional test data only.

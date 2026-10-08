@@ -1,3 +1,7 @@
+"""SQLite connection, migrations (`init_db`) and `transaction()`.
+Applied migrations are tracked in `schema_migrations` with a content hash; `init_db` refuses to run if an applied migration file was edited.
+`transaction(conn)` nests via savepoints: an inner failure undoes only its own work."""
+
 import contextlib
 import hashlib
 import itertools

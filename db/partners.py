@@ -1,3 +1,5 @@
+"""Partners (owners/investors): name, ownership percentage (active partners must sum to ~100%), soft-deactivate."""
+
 import sqlite3
 
 from db.connection import transaction

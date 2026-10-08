@@ -1,6 +1,6 @@
 # Calculations
 
-Every formula the UI depends on, with the worked numbers that appear in the sample screens. Money is integer Toman; round only when displaying, except where noted.
+Every formula the UI depends on, with the worked numbers that appear in the sample screens. Money is integer Rial (the design's sample numbers are Toman; Toman is display only, Rial ÷ 10); round only when displaying, except where noted.
 
 ## 1. Order profit (record sale, order detail, orders list, reports)
 

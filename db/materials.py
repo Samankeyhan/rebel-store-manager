@@ -1,3 +1,6 @@
+"""Raw materials (STOCK or SERVICE): CRUD, optional category, move category, deactivate/reactivate.
+Low-stock `threshold` is always caller-supplied; there is no per-material minimum column yet. A minimum-stock column is a planned task; ask first."""
+
 import sqlite3
 
 from db.categories import validate_assignable

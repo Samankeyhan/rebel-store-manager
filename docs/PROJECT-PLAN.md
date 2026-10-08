@@ -4,7 +4,7 @@
 Merged to main (head 4ff7d46 at the time of writing):
 - Backend accounting engine, API, frontend shell.
 - Screens: Record Sale, Orders, Products and Materials, Categories (plus Manage Categories tab), Production (costs and recipes inside closed collapsibles), Purchases, Packaging, Postage, Stock Adjustments, Expenses, Suppliers, Settings, Dashboard (periods: today, last 7 days, this month, last month, custom).
-- Display currency: Toman or Rial switch (display only; storage is integer Toman). Working agreement in CLAUDE.md. Label cleanup (use the word متریال, never ماده or مواد).
+- Display currency: Toman or Rial switch (display only; storage is integer Rial since migration 009, integer Toman before). Working agreement in CLAUDE.md. Label cleanup (use the word متریال, never ماده or مواد).
 - Shipping figures now count only shipped orders (channels with applies_postage = 1); estimate-based result plus postage gap.
 - Step A (payment methods BACKEND) is fully done and merged to main (cd803c4): payment-methods backend, settlements, payment-method report, API; 846 tests.
 - Step B (payment methods FRONTEND) is built on branch frontend-payment-methods and is awaiting the owner's testing.
@@ -18,13 +18,13 @@ E. Partners [frontend-partners]: owner sets partners and percentages (live total
 F. Backend hardening [backend-hardening]: audit_log table and helper; structured error details for refusals; PATCH product name and material name and unit; cost-seeding endpoint for products that have stock but no cost; name normalization (Persian and Arabic letters, ZWNJ) through a stored name_key with unique indexes; server-side validation (no future dates, expense amount above zero, postage total above zero and order count at least 1, reject inactive expense category); server-side guard when deactivating a kit that a channel uses as default; orders pagination (limit and offset); review payment-method and settlement validation.
 G. Corrections [backend-corrections]: edit and delete for expenses and postage payments (audit logged); rename, deactivate and reactivate expense categories. Purchases, production batches and stock adjustments are NOT editable; mistakes there are fixed with an opposite entry (usually a stock adjustment). Document the correction recipes.
 H. Integrity check [tools-integrity-check]: read-only tool (python -m tools.integrity_check) plus docs/real-use-test.md with daily and weekly routines and a bug log. Include invariants for settlements and fees.
-I. Packaging for daily use [release-daily-use]: one process serving the built frontend and the API (API under /api, bound to 127.0.0.1), start.bat, setup.bat, update.bat, desktop shortcut with the logo icon, daily backup at startup using SQLite's backup API (keep the newest 30, optional second folder, warn but never crash), rotating log file, a Settings card for backups, delete cli/ and the two old scripts import_catalog_v2.py and setup_shipping.py (and decide on scripts/partner_walkthrough.py), docs/RUNNING.md.
+I. Packaging for daily use [release-daily-use]: one process serving the built frontend and the API (API under /api, bound to 127.0.0.1), start.bat, setup.bat, update.bat, desktop shortcut with the logo icon, daily backup at startup using SQLite's backup API (keep the newest 30, optional second folder, warn but never crash), rotating log file, a Settings card for backups, delete the two old scripts (cli/ is already deleted) import_catalog_v2.py and setup_shipping.py (and decide on scripts/partner_walkthrough.py), docs/RUNNING.md.
 J. Go-live reset (prompt not written yet): needs two owner answers. (1) Clear test data before the real-use week? Recommended: yes; keep catalogue, recipes, kits, categories, suppliers, partners, payment methods and settings; clear orders, purchases, production, adjustments, expenses, postage payments, settlements, distributions, invoice counter; take a full backup first. (2) How to enter real opening stock: a small stocktake screen, or keep current numbers and correct with stock adjustments.
 K. One-week real-use test on a single laptop with the bug log, then decide about the later online and multi-user phase.
 
 ## Parked decisions
 - Minimum-stock levels and low-stock warnings on the dashboard: decide at the end.
-- Exact odd-Rial storage (store money in Rial, Toman as display): parked. If wanted, do it BEFORE the real-use week, because it needs a migration multiplying every money column by 10. Today stored money is whole Toman, so Rial input must be a multiple of 10.
+- Exact odd-Rial storage (store money in Rial, Toman as display): DONE, migration 009 multiplied every money column by 10. Money is stored as integer Rial; Toman is display only (Rial ÷ 10, at most one decimal).
 - PDF and print for reports: after the real-use week.
 - Invoice "amount in words": removed from scope.
 - Online, multi-user, logins: decide after the real-use week.

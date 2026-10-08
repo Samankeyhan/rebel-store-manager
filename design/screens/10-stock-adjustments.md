@@ -411,7 +411,7 @@ showAvg: plus && q > 0, newAvgT: fa(newAvg) + ' تومان',
 ```
 
 - `sign` is `+1` only for a correction **+**; waste and correction **−** both decrement.
-- Quantities are formatted with `faQ()` (Persian digits, `٬` for thousands, `٫` for the decimal, up to 3 decimal places, trailing zeros stripped) and money with `fa()` (integer Toman, `٬`, no decimals) — never mix the two helpers.
+- Quantities are formatted with `faQ()` (Persian digits, `٬` for thousands, `٫` for the decimal, up to 3 decimal places, trailing zeros stripped) and money with `fa()` (integer money, `٬`; money is integer Rial, Toman display has at most one decimal) — never mix the two helpers.
 - The valuation uses **the entered unit cost** for an increase (`q * uc`) and **the current average** otherwise (`q * it.cost`). So a correction + is valued at what the found stock actually cost, which is also what feeds the new average.
 - Weighted average, only for a correction +: the §3 formula, `newAverage = (stockOnHand × currentAverage + incomingQty × incomingUnitCost) ÷ (stockOnHand + incomingQty)`. When the unit-cost field is left empty, `uc` falls back to `it.cost`, which makes `newAvg === it.cost` — the average is unchanged, exactly as the help text promises.
 - The average is **never** recomputed for a decrease (waste or correction −): removing units at the current average leaves the average untouched.

@@ -1,3 +1,6 @@
+"""Customer-facing Persian RTL A4 invoice for an order (rendered for any status). Shows only what the customer pays: item prices, line discounts, shipping charge, total.
+Never postage, packaging, fees, unit cost or COGS. Amounts are integer Rial, converted for display only via `db/currency.py`."""
+
 import sqlite3
 from pathlib import Path
 

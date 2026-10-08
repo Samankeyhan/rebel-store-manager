@@ -1,15 +1,5 @@
-"""Settlements: the owner confirming that a payment method paid out money.
-
-Every paid order with a payment method is pending until the owner records a
-settlement that includes it; nothing is settled automatically, whatever the
-method's rule. IMMEDIATE and DAYS_AFTER methods settle any chosen set of
-pending orders; a DAY_OF_NEXT_MONTH method pays one amount per Jalali month,
-so it settles a whole month at once.
-
-An order's expected amount is customer_total - transaction_fee (it may be
-negative). expected_amount is frozen on the settlement when it is recorded;
-the difference to amount_received is computed on read, never stored.
-"""
+"""Settlements: `get_pending` (grouped by expected date for IMMEDIATE/DAYS_AFTER, by Jalali month for DAY_OF_NEXT_MONTH), `record_settlement` (chosen orders, or a whole ended Jalali month for DAY_OF_NEXT_MONTH), `get_settlement`, `list_settlements`.
+`update_settlement` changes only `amount_received`, `settled_date`, `note`. `difference` is computed here, never in a router."""
 
 import sqlite3
 from datetime import date

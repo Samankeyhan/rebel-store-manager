@@ -538,7 +538,7 @@ function faT(n) { return fa(n) + ' تومان'; }
 function faD(s) { /* Latin→Persian digits only, no grouping — used for dates and times */ }
 ```
 
-- Money is integer Toman, no decimals, Persian tabular digits, `٬` thousands separator; the unit sits in the table header, in the `.kpi-u` span or in the `.sl .v` value, never inside the number.
+- Money is integer Rial (shown in Rial or Toman; Toman has at most one decimal), Persian tabular digits, `٬` thousands separator; the unit sits in the table header, in the `.kpi-u` span or in the `.sl .v` value, never inside the number.
 - Losses always carry `−` (U+2212) **and** a word (`زیان`, `کسری`, `زیان‌ده`); never colour alone.
 - Dates are Jalali only — `faD('1405/06/31')` → `۱۴۰۵/۰۶/۳۱`, with time as `۱۴۰۵/۰۶/۳۱ · ۱۳:۴۲`, long form `سه‌شنبه، ۳۱ شهریور ۱۴۰۵`. No Gregorian date appears anywhere; convert at the data layer.
 - Percentages use the Persian decimal `٫` and a trailing `٪` (`۲۲٫۶٪`); this screen rounds to a whole number (`۲۳٪`, `۱۲٪`, `۳٪`).

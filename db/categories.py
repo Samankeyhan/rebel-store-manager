@@ -1,11 +1,6 @@
-"""User-editable categories: two separate trees (PRODUCT, MATERIAL), two levels.
-
-A top-level category has parent_id NULL; a subcategory's parent is a
-top-level category of the same kind. A product or material points to exactly
-one category, and may only be assigned to one with no active subcategories
-(a "leaf"): once a category is split into subcategories, new items go into a
-subcategory. Items already on a parent stay there until moved.
-"""
+"""User-editable categories: two trees by `kind` (PRODUCT / MATERIAL), two levels (top-level and an optional subcategory of the same kind).
+Deactivate is refused while any product/material uses the category or it has active subcategories. Reactivate is refused under an inactive parent.
+`validate_assignable`: an item's category must be the right kind, active, and have no active subcategories (once split, new items go in a subcategory)."""
 
 import sqlite3
 

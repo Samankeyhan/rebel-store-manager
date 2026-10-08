@@ -438,7 +438,7 @@ batchCost = Σ (need × material.unitCost)        // need already includes the p
 unitCost  = batchCost / q                       // «بهای هر عدد در این تولید»
 ```
 
-The tile spells the division out in words — `هزینه کل ÷ ۳۰` — and the number is rounded only at display time (`fa()` does `Math.round`), so `40,000,000 ÷ 30` shows as `۱٬۳۳۳٬۳۳۳` while the stored batch value stays exact. Keep the money integer in Toman and never persist the rounded per-unit figure as the product's cost; derive it from the batch.
+The tile spells the division out in words — `هزینه کل ÷ ۳۰` — and the number is rounded only at display time (`fa()` does `Math.round`), so `40,000,000 ÷ 30` shows as `۱٬۳۳۳٬۳۳۳` while the stored batch value stays exact. Keep the money integer in Rial and never persist the rounded per-unit figure as the product's cost; derive it from the batch.
 
 ### What a production run does
 

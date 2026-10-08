@@ -1,3 +1,5 @@
+"""Material/product purchases from suppliers: increase stock, compute unit cost, log PURCHASE stock movements."""
+
 import sqlite3
 
 from db.connection import next_counter, transaction

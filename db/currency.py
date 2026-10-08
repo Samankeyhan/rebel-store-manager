@@ -1,10 +1,6 @@
-"""Display currency. Money is stored, computed and sent as integer RIAL, the
-smallest real unit. The owner chooses whether to SEE it in Rial (the stored
-integer) or in Toman (Rial / 10, with one decimal digit only when the Rial
-amount is not a multiple of 10). This module is the backend's one place that
-knows the conversion (the frontend's twin is frontend/lib/money.ts). It only
-converts for display, with integer arithmetic; it never changes a stored or
-reported figure."""
+"""Display currency (TOMAN/RIAL). Money is stored, computed and sent as integer Rial; this is the backend's only conversion point, display only (the frontend's twin is frontend/lib/money.ts).
+RIAL shows the stored integer; TOMAN shows Rial ÷ 10 by integer `divmod`, with one decimal digit only when the Rial amount is not a multiple of 10. Never changes a stored or reported figure.
+`DISPLAY_CURRENCIES`, `get_display_currency`, `to_display_parts`, `format_display_number`, `currency_label`. Money stays integer Rial everywhere else."""
 
 import sqlite3
 

@@ -1,3 +1,5 @@
+"""`db_path()` reads `REBEL_DB` (default `data/shop.db`); `get_db()` opens one connection per request and closes it after."""
+
 import os
 from typing import Iterator
 

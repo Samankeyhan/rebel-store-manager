@@ -320,7 +320,7 @@ var EXP = [
 ];
 ```
 
-One expense = `{ date, category, description, amount }`. There is no id, no attachment, no supplier link, no order link, no VAT/tax field, and no currency field (everything is integer Toman).
+One expense = `{ date, category, description, amount }`. There is no id, no attachment, no supplier link, no order link, no VAT/tax field, and no currency field (everything is integer Rial; Toman is display only).
 
 ### Row rendering
 

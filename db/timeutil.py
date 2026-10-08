@@ -1,3 +1,6 @@
+"""All timezone handling: moments stored in UTC, local date-range filters, `parse_calendar_date`.
+`today_local(conn)` is the only source of "today" for business rules — never `date.today()`/`datetime.now()`. Tests monkeypatch `today_local` in the module under test."""
+
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo

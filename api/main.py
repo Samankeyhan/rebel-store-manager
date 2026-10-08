@@ -1,3 +1,5 @@
+"""FastAPI app: lifespan runs `init_db` on the served DB (refuses to start if migrations can't apply), CORS, `db/errors.py` → HTTP handlers, `/health`, routers."""
+
 import sqlite3
 from contextlib import asynccontextmanager
 

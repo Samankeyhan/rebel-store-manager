@@ -1,3 +1,5 @@
+"""Expense categories and entries: business overhead, not COGS."""
+
 import sqlite3
 
 from db.connection import transaction
