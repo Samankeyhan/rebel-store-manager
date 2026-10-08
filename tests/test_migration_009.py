@@ -8,6 +8,12 @@ BEFORE_009 = tuple(
     name for name in sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")) if name < "009"
 )
 
+# This file is about 009 alone: later migrations change the schema it compares,
+# so the 009 tests apply migrations only up to 009.
+UP_TO_009 = tuple(
+    name for name in sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")) if name < "010"
+)
+
 # Every money column in the schema after 008, by table. Anything not listed
 # here must come through the migration byte-identical.
 MONEY = {
@@ -28,6 +34,11 @@ MONEY = {
     "settlements": ("expected_amount", "amount_received"),
 }
 MONEY_SETTINGS = ("default_shipping_charge", "default_postage_estimate")
+
+# Money columns added after 009, stored in Rial from the start (009 never scaled them).
+MONEY_SINCE_RIAL = {
+    "payment_methods": ("fee_cap",),  # 010
+}
 
 OLD_STAMP = "2025-01-02 03:04:05"
 
@@ -190,7 +201,7 @@ def test_009_multiplies_every_money_column_and_nothing_else(tmp_path):
         for column in columns:
             assert any(row[column] for row in before[table]), (table, column)
 
-    init_db(str(db_path))
+    init_db(str(db_path), migrations_dir=str(_migrations_dir(tmp_path, "up_to_009", UP_TO_009)))
 
     conn = get_connection(str(db_path))
     try:
@@ -240,7 +251,7 @@ def test_009_multiplies_every_money_column_and_nothing_else(tmp_path):
 
 def test_009_triggers_still_fire_after_the_migration(tmp_path):
     db_path = _at_008_with_data(tmp_path)
-    init_db(str(db_path))
+    init_db(str(db_path), migrations_dir=str(_migrations_dir(tmp_path, "up_to_009", UP_TO_009)))
 
     conn = get_connection(str(db_path))
     try:
@@ -259,7 +270,7 @@ def test_009_triggers_still_fire_after_the_migration(tmp_path):
 
 def test_009_checks_still_hold_and_null_money_stays_null(tmp_path):
     db_path = _at_008_with_data(tmp_path)
-    init_db(str(db_path))
+    init_db(str(db_path), migrations_dir=str(_migrations_dir(tmp_path, "up_to_009", UP_TO_009)))
 
     conn = get_connection(str(db_path))
     try:
@@ -283,8 +294,9 @@ def test_009_checks_still_hold_and_null_money_stays_null(tmp_path):
 
 
 def test_every_numeric_column_is_classified(tmp_path):
-    """A new numeric column must be added to MONEY (and to a later migration)
-    or to this list of non-money columns — never silently left out."""
+    """A new numeric column must be added to MONEY (and to a later migration),
+    to MONEY_SINCE_RIAL (money added already in Rial), or to this list of
+    non-money columns — never silently left out."""
     non_money = {
         "id", "name", "current_stock", "is_active", "made_to_order", "category_id", "parent_id",
         "quantity_bought", "quantity_needed", "quantity_produced", "quantity_used", "quantity",
@@ -307,7 +319,7 @@ def test_every_numeric_column_is_classified(tmp_path):
         for table in tables:
             for col in conn.execute(f"PRAGMA table_info({table})"):
                 if col["type"] in ("INTEGER", "REAL") and col["name"] not in non_money:
-                    if col["name"] not in MONEY.get(table, ()):
+                    if col["name"] not in MONEY.get(table, ()) + MONEY_SINCE_RIAL.get(table, ()):
                         unclassified.append(f"{table}.{col['name']}")
     finally:
         conn.close()

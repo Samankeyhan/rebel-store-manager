@@ -160,8 +160,16 @@ Payment methods are owner-entered data (none are seeded). Each has a fee and a s
 
 ### Fee
 - customer_total = sum(items_net) + shipping_charge (= section 7 revenue).
-- fee = half_even(customer_total × fee_bps / 10000) + fee_fixed, in integer Rial. fee_bps is basis points (150 = 1.5%), 0..10000; fee_fixed >= 0. Half-even means an exact .5 goes to the even neighbour: 1000 at 5 bps (0.5) → 0, 3000 at 5 bps (1.5) → 2. Computed with integer arithmetic only.
-- The fee is computed once, when the order is recorded, and frozen in orders.transaction_fee; later fee edits on the method never change an existing order. A caller may override it with any integer >= 0 (0 is a real zero). With no override and no method, the fee is 0.
+- Real example (Zarinpal: 0.5% up to 16,000 Toman, plus 500 Toman per transaction = fee_bps 50, fee_cap 160,000, fee_fixed 5,000 Rial): an order of 94,900,000 Rial pays 474,500 → capped 160,000 + 5,000 = 165,000 Rial; an order of 18,300,000 Rial pays 91,500 + 5,000 = 96,500 Rial. Both match the fees Zarinpal actually charged.
+- The fee, in integer Rial, computed with integer arithmetic only:
+
+      percentage_part = half_even(customer_total × fee_bps / 10000)
+      if fee_cap is set: percentage_part = min(percentage_part, fee_cap)
+      fee = percentage_part + fee_fixed
+
+- fee_bps is basis points (150 = 1.5%), 0..10000; fee_fixed >= 0. Half-even means an exact .5 goes to the even neighbour: 1000 at 5 bps (0.5) → 0, 3000 at 5 bps (1.5) → 2. The cap applies after rounding.
+- fee_cap is optional, per method, owner-entered (nothing is seeded): empty (NULL) = no cap; otherwise an integer >= 1 Rial. It caps the percentage part only; fee_fixed is never capped. A cap needs a percentage fee: a method with fee_bps 0 cannot have one, and setting fee_bps to 0 while a cap is set is refused unless the same change clears the cap.
+- The fee is computed once, when the order is recorded, and frozen in orders.transaction_fee; later fee edits on the method (fee_bps, fee_fixed or fee_cap) never change an existing order. A caller may override it with any integer >= 0 (0 is a real zero). With no override and no method, the fee is 0.
 - An order's method: an explicit method, no method, or the channel's default method (channel_settings.default_payment_method_id; none if unset). A new order, and a channel default, require an active method.
 
 ### paid_date
