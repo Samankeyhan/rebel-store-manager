@@ -16,9 +16,11 @@ import {
   getPurchasesSummary,
   getSettings,
   getShippingSummary,
+  listLowStockMaterials,
   listOrders,
   type Catalog,
   type ChannelBreakdown,
+  type Material,
   type OrderListItem,
   type PostageEstimate,
   type ProfitAndLoss,
@@ -106,6 +108,8 @@ export function useDashboardData(range: IsoRange | null) {
   // (order_date DESC, id DESC). Backend gap: a ?limit= parameter.
   const orders = useLoad<OrderListItem[]>("ORDERS", "all", () => listOrders())
   const catalog = useLoad<Catalog>("CATALOG", "all", () => getCatalog())
+  // Low-stock materials, most urgent first (the rule and the order are db/'s).
+  const lowStock = useLoad<Material[]>("MATERIALS", "all", () => listLowStockMaterials())
 
-  return { pnl, channels, purchases, shipping, orders, catalog }
+  return { pnl, channels, purchases, shipping, orders, catalog, lowStock }
 }

@@ -3,8 +3,8 @@
  * verbatim where the design has the string. Strings marked NEW are not in the
  * design: they cover the period selector, states the design didn't draw
  * (profitable / break-even shipping, a per-card error), and replace design
- * copy that would be untrue against the live backend (no minimum stock, no
- * month-over-month deltas).
+ * copy that would be untrue against the live backend (no month-over-month
+ * deltas; products have no minimum stock, only materials do).
  */
 
 import { currencyLabel } from "@/lib/money"
@@ -108,18 +108,21 @@ export const D = {
   shipEmptyPeriodBody: "در این بازه سفارشی از کانال‌هایی که هزینه پست دارند ثبت نشده است.", // NEW
   shipErrorTitle: "اقتصاد ارسال بارگذاری نشد", // NEW
 
-  // ── out of stock (the design's low-stock card; there is no minimum stock) ──
-  stockTitle: "ناموجود", // NEW (design: «هشدار کمبود موجودی»)
+  // ── stock warnings: out-of-stock products; low-stock materials (db/materials.py rule) ──
+  stockTitle: "هشدار کمبود موجودی",
   stockBadge: (n: number) => `${fa(n)} مورد`,
   stockTabProducts: "محصولات",
   stockTabMaterials: "متریال",
   stockTabsAria: "نوع کالا", // NEW
   stockOut: "ناموجود",
+  stockLow: "کم‌موجودی", // NEW
+  /** Both arguments are formatQuantity strings; unit is the material's unit. */
+  stockOfMin: (stock: string, min: string, unit: string) => `موجودی ${stock} از حداقل ${min} ${unit}`,
   stockMore: (n: number) => `و ${fa(n)} مورد دیگر`, // NEW
   stockAll: "مشاهده همه در محصولات و متریال",
   stockEmptyTitle: "کمبودی وجود ندارد",
-  stockEmptyBody: "موجودی هیچ کالای فعالی صفر نیست.", // NEW (the design's sentence promised a minimum that doesn't exist)
-  stockEmptyTab: { products: "هیچ محصول فعالی ناموجود نیست.", materials: "هیچ متریال فعالی ناموجود نیست." }, // NEW
+  stockEmptyBody: "هیچ محصول فعالی ناموجود نیست و هیچ متریالی کم‌موجود یا ناموجود نیست.", // NEW
+  stockEmptyTab: { products: "هیچ محصول فعالی ناموجود نیست.", materials: "هیچ متریالی کم‌موجود یا ناموجود نیست." }, // NEW
   stockErrorTitle: "موجودی بارگذاری نشد", // NEW
 
   // ── recent orders ──

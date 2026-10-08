@@ -139,6 +139,15 @@ export const P = {
   fieldInitialStock: "موجودی اولیه", // NEW
   initialStockHelp: "می‌تواند اعشاری باشد (۱٫۵). خالی یعنی صفر.", // NEW
   invalidQuantity: "مقدار معتبر وارد کنید.", // NEW
+  editMaterialTitle: "ویرایش متریال", // NEW
+  fieldMinStock: "حداقل موجودی", // NEW
+  minStockPlaceholder: "اختیاری", // NEW
+  minStockHelp:
+    "اگر موجودی به این مقدار یا کمتر برسد، هشدار کم‌موجودی نمایش داده می‌شود. وقتی موجودی صفر شود، همیشه هشدار «ناموجود» نمایش داده می‌شود.", // NEW
+  matReadOnlyNote: "فقط حداقل موجودی قابل ویرایش است؛ نام، نوع، واحد و بهای واحد پس از ثبت تغییر نمی‌کنند.", // NEW (the API edits only min_stock)
+  serviceNoMinStock: "متریال خدماتی موجودی ندارد و حداقل موجودی برایش تعریف نمی‌شود.", // NEW
+  matStockHelp: "فقط از خرید، تولید، بسته‌بندی، فروش و تعدیل تغییر می‌کند.", // NEW
+  lowStock: "کم‌موجودی", // NEW
 
   // deactivate dialog
   deactivateTitle: (name: string) => `غیرفعال کردن «${name}»؟`,

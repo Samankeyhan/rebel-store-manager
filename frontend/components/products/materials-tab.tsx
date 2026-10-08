@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Ban, MoreHorizontal, RotateCcw } from "lucide-react"
+import { Ban, MoreHorizontal, Pencil, RotateCcw } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,17 +18,18 @@ import { ActiveBadge, Chip, TypeBadge } from "./badges"
 import { P } from "./copy"
 import { inventoryValue, unitLabel } from "./figures"
 
+const pillClass = "inline-flex h-[22px] items-center rounded-md px-2 text-[11.5px] font-semibold whitespace-nowrap tabular-nums"
+
+/** Stock, plus «کم‌موجودی» when the API flags it (is_low_stock: db/materials.py owns the rule). */
 function StockCell({ m }: { m: Material }) {
   if (m.type === "SERVICE" || m.current_stock == null) return <Chip>{P.noStock}</Chip>
-  const out = m.current_stock === 0
+  if (m.current_stock <= 0) return <span className={cn(pillClass, "bg-loss-soft text-loss")}>{P.outOfStock}</span>
+  const qty = `${formatQuantity(m.current_stock)} ${unitLabel(m.unit)}`
+  if (m.is_low_stock !== 1) return <span className={cn(pillClass, "bg-surface-2 text-text-2")}>{qty}</span>
   return (
-    <span
-      className={cn(
-        "inline-flex h-[22px] items-center rounded-md px-2 text-[11.5px] font-semibold whitespace-nowrap tabular-nums",
-        out ? "bg-loss-soft text-loss" : "bg-surface-2 text-text-2"
-      )}
-    >
-      {out ? P.outOfStock : `${formatQuantity(m.current_stock)} ${unitLabel(m.unit)}`}
+    <span className="inline-flex items-center gap-1">
+      <span className={cn(pillClass, "bg-warn-soft text-warn")}>{qty}</span>
+      <span className={cn(pillClass, "bg-warn-soft text-warn")}>{P.lowStock}</span>
     </span>
   )
 }
@@ -36,11 +37,14 @@ function StockCell({ m }: { m: Material }) {
 export function MaterialsTab({
   rows,
   mobile,
+  onEdit,
   onDeactivate,
   onReactivate,
 }: {
   rows: Material[]
   mobile: boolean
+  /** Opens the drawer, where the minimum stock is set. */
+  onEdit: (m: Material) => void
   onDeactivate: (m: Material) => void
   onReactivate: (m: Material) => void
 }) {
@@ -62,6 +66,10 @@ export function MaterialsTab({
                         </Btn>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => onEdit(m)}>
+                          <Pencil />
+                          {P.edit}
+                        </DropdownMenuItem>
                         {active ? (
                           <DropdownMenuItem onSelect={() => onDeactivate(m)} className="text-loss">
                             <Ban />
@@ -112,7 +120,7 @@ export function MaterialsTab({
                 <th scope="col">{P.colUnitCost}</th>
                 <th scope="col">{P.colValue}</th>
                 <th scope="col">{P.colStatus}</th>
-                <th scope="col" className="w-14">
+                <th scope="col" className="w-24">
                   <span className="sr-only">{P.colActions}</span>
                 </th>
               </tr>
@@ -146,6 +154,10 @@ export function MaterialsTab({
                       <ActiveBadge active={active} />
                     </td>
                     <td>
+                      <span className="flex gap-1">
+                      <Btn variant="ghost" size="sm" className="size-8 px-0" aria-label={P.edit} onClick={() => onEdit(m)}>
+                        <Pencil className="size-4" />
+                      </Btn>
                       {active ? (
                         <Btn
                           variant="ghost"
@@ -167,6 +179,7 @@ export function MaterialsTab({
                           <RotateCcw className="size-4" />
                         </Btn>
                       )}
+                      </span>
                     </td>
                   </tr>
                 )
