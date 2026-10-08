@@ -13,6 +13,7 @@ import db.settlements
 from api.deps import get_db
 from api.main import app
 from db.connection import get_connection, init_db
+from db.currency import format_display_number
 from pdf import invoice as invoice_module
 from tests.helpers import stocked_product
 
@@ -787,11 +788,17 @@ def test_invoice_pdf_never_shows_computed_fee(api, shop):
     with pdfplumber.open(io.BytesIO(response.content)) as pdf:
         text = "\n".join(page.extract_text() or "" for page in pdf.pages)
 
-    def fa(amount):
-        return f"{amount:,}".translate(invoice_module.PERSIAN_DIGIT_MAP)
+    def shown(rial, currency="TOMAN"):
+        # The invoice prints stored Rial in the display currency (Toman by default).
+        return format_display_number(
+            rial, currency, decimal_mark=invoice_module.PERSIAN_DECIMAL_MARK
+        ).translate(invoice_module.PERSIAN_DIGIT_MAP)
 
-    assert fa(45000) in text
-    assert fa(created["customer_total"]) in text
-    for hidden in (fa(7777), "7,777", "7777", fa(created["customer_total"] - 7777)):
+    assert shown(45000) in text
+    assert shown(created["customer_total"]) in text
+    for hidden in (
+        shown(7777), shown(7777, "RIAL"), "7,777", "7777",
+        shown(created["customer_total"] - 7777), shown(created["customer_total"] - 7777, "RIAL"),
+    ):
         assert hidden not in text
     assert "Odd fee" not in text

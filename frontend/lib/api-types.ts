@@ -1012,7 +1012,7 @@ export interface paths {
          * Put Setting
          * @description Set one of: default_shipping_charge, postage_estimate_window,
          *     default_postage_estimate, timezone, display_currency ("TOMAN" or "RIAL";
-         *     display only, money stays Toman everywhere). Any other key is a 422
+         *     display only, money stays integer Rial everywhere). Any other key is a 422
          *     (field "key"); a bad value is a 422 (field "value").
          */
         put: operations["put_setting_settings__key__put"];
@@ -1541,7 +1541,10 @@ export interface components {
             /** Kits */
             kits: components["schemas"]["KitDetailOut"][];
             settings: components["schemas"]["SettingsOut"];
-            /** Postage Estimate */
+            /**
+             * Postage Estimate
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_estimate: number;
         };
         /**
@@ -1617,9 +1620,15 @@ export interface components {
             channel: string;
             /** Order Count */
             order_count: number;
-            /** Total Revenue */
+            /**
+             * Total Revenue
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_revenue: number;
-            /** Total Profit */
+            /**
+             * Total Profit
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_profit: number;
         };
         /** ChannelSettingsOut */
@@ -1656,7 +1665,10 @@ export interface components {
             period_start: string;
             /** Period End */
             period_end: string;
-            /** Total Amount Distributed */
+            /**
+             * Total Amount Distributed
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_amount_distributed: number;
             /** Distribution Date */
             distribution_date?: string | null;
@@ -1678,9 +1690,15 @@ export interface components {
             period_start: string;
             /** Period End */
             period_end: string;
-            /** Total Profit Available */
+            /**
+             * Total Profit Available
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_profit_available: number;
-            /** Total Amount Distributed */
+            /**
+             * Total Amount Distributed
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_amount_distributed: number;
             /** Notes */
             notes: string | null;
@@ -1697,9 +1715,15 @@ export interface components {
             period_start: string;
             /** Period End */
             period_end: string;
-            /** Total Profit Available */
+            /**
+             * Total Profit Available
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_profit_available: number;
-            /** Total Amount Distributed */
+            /**
+             * Total Amount Distributed
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_amount_distributed: number;
             /** Notes */
             notes: string | null;
@@ -1714,7 +1738,10 @@ export interface components {
             partner_id: number;
             /** Percentage At Time */
             percentage_at_time: number;
-            /** Amount */
+            /**
+             * Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             amount: number;
             /** Partner Name */
             partner_name: string;
@@ -1723,7 +1750,10 @@ export interface components {
         ExpenseBreakdownOut: {
             /** Category Name */
             category_name: string;
-            /** Total Amount */
+            /**
+             * Total Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_amount: number;
             /** Expense Count */
             expense_count: number;
@@ -1750,7 +1780,10 @@ export interface components {
         ExpenseCreate: {
             /** Expense Category Id */
             expense_category_id: number;
-            /** Amount */
+            /**
+             * Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             amount: number;
             /** Expense Date */
             expense_date?: string | null;
@@ -1765,7 +1798,10 @@ export interface components {
             expense_category_id: number;
             /** Expense Date */
             expense_date: string;
-            /** Amount */
+            /**
+             * Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             amount: number;
             /** Description */
             description: string | null;
@@ -1776,11 +1812,20 @@ export interface components {
         FeePreviewOut: {
             /** Payment Method Id */
             payment_method_id: number;
-            /** Amount */
+            /**
+             * Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             amount: number;
-            /** Transaction Fee */
+            /**
+             * Transaction Fee
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             transaction_fee: number;
-            /** Expected Amount */
+            /**
+             * Expected Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             expected_amount: number;
         };
         /** HTTPValidationError */
@@ -1807,7 +1852,10 @@ export interface components {
             updated_at: string | null;
             /** Items */
             items: components["schemas"]["KitItemOut"][];
-            /** Kit Cost */
+            /**
+             * Kit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             kit_cost: number;
         };
         /** KitItemCreate */
@@ -1829,7 +1877,10 @@ export interface components {
             quantity: number;
             /** Material Name */
             material_name: string;
-            /** Material Unit Cost */
+            /**
+             * Material Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             material_unit_cost: number;
         };
         /** KitItemUpdate */
@@ -1861,7 +1912,10 @@ export interface components {
             name: string;
             /** Type */
             type: string;
-            /** Unit Cost */
+            /**
+             * Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost: number;
             /**
              * Unit
@@ -1885,7 +1939,10 @@ export interface components {
             unit: string;
             /** Current Stock */
             current_stock: number | null;
-            /** Unit Cost */
+            /**
+             * Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost: number;
             /** Is Active */
             is_active: number;
@@ -1908,7 +1965,10 @@ export interface components {
             material_id: number;
             /** Quantity Bought */
             quantity_bought: number;
-            /** Total Paid */
+            /**
+             * Total Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_paid: number;
             /** Supplier Id */
             supplier_id?: number | null;
@@ -1931,9 +1991,15 @@ export interface components {
             purchase_date: string;
             /** Quantity Bought */
             quantity_bought: number;
-            /** Total Paid */
+            /**
+             * Total Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_paid: number;
-            /** Unit Cost */
+            /**
+             * Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost: number;
             /** Notes */
             notes: string | null;
@@ -1985,9 +2051,15 @@ export interface components {
             order: components["schemas"]["OrderOut"];
             /** Items */
             items: components["schemas"]["OrderItemOut"][];
-            /** Customer Total */
+            /**
+             * Customer Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             customer_total: number;
-            /** Profit */
+            /**
+             * Profit
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             profit: number;
         };
         /** OrderItemCreate */
@@ -1996,10 +2068,14 @@ export interface components {
             product_id: number;
             /** Quantity */
             quantity: number;
-            /** Unit Price */
+            /**
+             * Unit Price
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_price: number;
             /**
              * Discount Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              * @default 0
              */
             discount_amount?: number;
@@ -2016,15 +2092,27 @@ export interface components {
             product_id: number;
             /** Quantity */
             quantity: number;
-            /** List Price */
+            /**
+             * List Price
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             list_price: number;
-            /** Discount Amount */
+            /**
+             * Discount Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             discount_amount: number;
             /** Discount Reason */
             discount_reason: string | null;
-            /** Unit Price */
+            /**
+             * Unit Price
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_price: number;
-            /** Unit Cost At Time */
+            /**
+             * Unit Cost At Time
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost_at_time: number;
             /** Product Name */
             product_name: string;
@@ -2043,17 +2131,29 @@ export interface components {
             channel: string;
             /** Customer Name */
             customer_name: string | null;
-            /** Shipping Charge */
+            /**
+             * Shipping Charge
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             shipping_charge: number;
-            /** Postage Cost */
+            /**
+             * Postage Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_cost: number;
-            /** Transaction Fee */
+            /**
+             * Transaction Fee
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             transaction_fee: number;
             /** Notes */
             notes: string | null;
             /** Packaging Kit Id */
             packaging_kit_id: number | null;
-            /** Packaging Cost */
+            /**
+             * Packaging Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             packaging_cost: number;
             /** Stock Committed */
             stock_committed: number;
@@ -2073,7 +2173,10 @@ export interface components {
             settlement_id: number | null;
             /** Payment Method Name */
             payment_method_name: string | null;
-            /** Customer Total */
+            /**
+             * Customer Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             customer_total: number;
             /** Profit */
             profit: number | null;
@@ -2092,17 +2195,29 @@ export interface components {
             channel: string;
             /** Customer Name */
             customer_name: string | null;
-            /** Shipping Charge */
+            /**
+             * Shipping Charge
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             shipping_charge: number;
-            /** Postage Cost */
+            /**
+             * Postage Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_cost: number;
-            /** Transaction Fee */
+            /**
+             * Transaction Fee
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             transaction_fee: number;
             /** Notes */
             notes: string | null;
             /** Packaging Kit Id */
             packaging_kit_id: number | null;
-            /** Packaging Cost */
+            /**
+             * Packaging Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             packaging_cost: number;
             /** Stock Committed */
             stock_committed: number;
@@ -2183,7 +2298,10 @@ export interface components {
         PartnerPayoutOut: {
             /** Percentage At Time */
             percentage_at_time: number;
-            /** Amount */
+            /**
+             * Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             amount: number;
             /** Period Start */
             period_start: string;
@@ -2201,7 +2319,10 @@ export interface components {
         PartnerTotalOut: {
             /** Partner Name */
             partner_name: string;
-            /** Total Received */
+            /**
+             * Total Received
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_received: number;
             /** Distribution Count */
             distribution_count: number;
@@ -2221,6 +2342,7 @@ export interface components {
             fee_bps?: number;
             /**
              * Fee Fixed
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              * @default 0
              */
             fee_fixed?: number;
@@ -2233,7 +2355,10 @@ export interface components {
             name: string;
             /** Fee Bps */
             fee_bps: number;
-            /** Fee Fixed */
+            /**
+             * Fee Fixed
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             fee_fixed: number;
             /** Settlement Rule */
             settlement_rule: string;
@@ -2263,19 +2388,40 @@ export interface components {
             is_active: number | null;
             /** Order Count */
             order_count: number;
-            /** Customer Total */
+            /**
+             * Customer Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             customer_total: number;
-            /** Transaction Fees */
+            /**
+             * Transaction Fees
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             transaction_fees: number;
-            /** Fees Lost On Returns */
+            /**
+             * Fees Lost On Returns
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             fees_lost_on_returns: number;
-            /** Pending Expected */
+            /**
+             * Pending Expected
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             pending_expected: number;
-            /** Settled Expected */
+            /**
+             * Settled Expected
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             settled_expected: number;
-            /** Settled Received */
+            /**
+             * Settled Received
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             settled_received: number;
-            /** Settlement Difference */
+            /**
+             * Settlement Difference
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             settlement_difference: number;
         };
         /**
@@ -2308,11 +2454,20 @@ export interface components {
             overdue: boolean;
             /** Order Count */
             order_count: number;
-            /** Customer Total Sum */
+            /**
+             * Customer Total Sum
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             customer_total_sum: number;
-            /** Fee Sum */
+            /**
+             * Fee Sum
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             fee_sum: number;
-            /** Expected Amount */
+            /**
+             * Expected Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             expected_amount: number;
             /** Orders */
             orders: components["schemas"]["PendingOrderOut"][];
@@ -2329,7 +2484,10 @@ export interface components {
             settlement_days: number | null;
             /** Is Active */
             is_active: number;
-            /** Total Expected */
+            /**
+             * Total Expected
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_expected: number;
             /** Groups */
             groups: (components["schemas"]["PendingDateGroupOut"] | components["schemas"]["PendingMonthGroupOut"])[];
@@ -2359,11 +2517,20 @@ export interface components {
             overdue: boolean;
             /** Order Count */
             order_count: number;
-            /** Customer Total Sum */
+            /**
+             * Customer Total Sum
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             customer_total_sum: number;
-            /** Fee Sum */
+            /**
+             * Fee Sum
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             fee_sum: number;
-            /** Expected Amount */
+            /**
+             * Expected Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             expected_amount: number;
             /** Orders */
             orders: components["schemas"]["PendingOrderOut"][];
@@ -2382,18 +2549,30 @@ export interface components {
             customer_name: string | null;
             /** Channel */
             channel: string;
-            /** Customer Total */
+            /**
+             * Customer Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             customer_total: number;
-            /** Transaction Fee */
+            /**
+             * Transaction Fee
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             transaction_fee: number;
-            /** Expected Amount */
+            /**
+             * Expected Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             expected_amount: number;
             /** Expected Settlement Date */
             expected_settlement_date: string;
         };
         /** PostageBatchCreate */
         PostageBatchCreate: {
-            /** Total Paid */
+            /**
+             * Total Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_paid: number;
             /** Order Count */
             order_count: number;
@@ -2408,7 +2587,10 @@ export interface components {
             id: number;
             /** Paid Date */
             paid_date: string;
-            /** Total Paid */
+            /**
+             * Total Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_paid: number;
             /** Order Count */
             order_count: number;
@@ -2419,7 +2601,10 @@ export interface components {
         };
         /** PostageEstimateOut */
         PostageEstimateOut: {
-            /** Estimate */
+            /**
+             * Estimate
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             estimate: number;
             /** Window */
             window: number;
@@ -2430,9 +2615,15 @@ export interface components {
             name: string;
             /** Category Id */
             category_id: number;
-            /** Retail Price */
+            /**
+             * Retail Price
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             retail_price: number;
-            /** Wholesale Price */
+            /**
+             * Wholesale Price
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             wholesale_price: number;
             /**
              * Made To Order
@@ -2456,9 +2647,15 @@ export interface components {
             parent_category_id: number | null;
             /** Parent Category Name */
             parent_category_name: string | null;
-            /** Retail Price */
+            /**
+             * Retail Price
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             retail_price: number;
-            /** Wholesale Price */
+            /**
+             * Wholesale Price
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             wholesale_price: number;
             /** Current Stock */
             current_stock: number;
@@ -2481,11 +2678,20 @@ export interface components {
             product_name: string;
             /** Units Sold */
             units_sold: number;
-            /** Total Revenue */
+            /**
+             * Total Revenue
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_revenue: number;
-            /** Total Cost */
+            /**
+             * Total Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_cost: number;
-            /** Total Profit */
+            /**
+             * Total Profit
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_profit: number;
         };
         /** ProductPricesUpdate */
@@ -2501,7 +2707,10 @@ export interface components {
             product_id: number;
             /** Quantity Bought */
             quantity_bought: number;
-            /** Total Paid */
+            /**
+             * Total Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_paid: number;
             /** Supplier Id */
             supplier_id?: number | null;
@@ -2524,9 +2733,15 @@ export interface components {
             purchase_date: string;
             /** Quantity Bought */
             quantity_bought: number;
-            /** Total Paid */
+            /**
+             * Total Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_paid: number;
-            /** Unit Cost */
+            /**
+             * Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost: number;
             /** Notes */
             notes: string | null;
@@ -2549,7 +2764,10 @@ export interface components {
             product_id: number;
             /** Quantity Produced */
             quantity_produced: number;
-            /** Unit Cost */
+            /**
+             * Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost: number;
             /** Total Cost */
             total_cost: number | null;
@@ -2572,7 +2790,10 @@ export interface components {
             material_id: number;
             /** Quantity Used */
             quantity_used: number;
-            /** Unit Cost At Time */
+            /**
+             * Unit Cost At Time
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost_at_time: number;
             /** Material Name */
             material_name: string;
@@ -2587,7 +2808,10 @@ export interface components {
             product_id: number;
             /** Quantity Produced */
             quantity_produced: number;
-            /** Unit Cost */
+            /**
+             * Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost: number;
             /** Total Cost */
             total_cost: number | null;
@@ -2611,44 +2835,92 @@ export interface components {
         };
         /** ProfitAndLossOut */
         ProfitAndLossOut: {
-            /** Items Revenue */
+            /**
+             * Items Revenue
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             items_revenue: number;
-            /** Shipping Revenue */
+            /**
+             * Shipping Revenue
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             shipping_revenue: number;
-            /** Total Revenue */
+            /**
+             * Total Revenue
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_revenue: number;
-            /** Cogs */
+            /**
+             * Cogs
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             cogs: number;
-            /** Packaging Cost */
+            /**
+             * Packaging Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             packaging_cost: number;
-            /** Postage Estimated */
+            /**
+             * Postage Estimated
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_estimated: number;
-            /** Transaction Fees */
+            /**
+             * Transaction Fees
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             transaction_fees: number;
-            /** Gross Profit */
+            /**
+             * Gross Profit
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             gross_profit: number;
-            /** Postage Actual */
+            /**
+             * Postage Actual
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_actual: number;
-            /** Postage Variance */
+            /**
+             * Postage Variance
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_variance: number;
-            /** Refund Losses */
+            /**
+             * Refund Losses
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             refund_losses: number;
-            /** Waste Cost */
+            /**
+             * Waste Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             waste_cost: number;
-            /** Operating Expenses */
+            /**
+             * Operating Expenses
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             operating_expenses: number;
-            /** Net Profit */
+            /**
+             * Net Profit
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             net_profit: number;
             /** Order Count */
             order_count: number;
         };
         /** PurchasesSummaryOut */
         PurchasesSummaryOut: {
-            /** Material Purchases Total */
+            /**
+             * Material Purchases Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             material_purchases_total: number;
             /** Material Purchases Count */
             material_purchases_count: number;
-            /** Product Purchases Total */
+            /**
+             * Product Purchases Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             product_purchases_total: number;
             /** Product Purchases Count */
             product_purchases_count: number;
@@ -2683,7 +2955,10 @@ export interface components {
             material_type: string;
             /** Material Unit */
             material_unit: string;
-            /** Material Unit Cost */
+            /**
+             * Material Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             material_unit_cost: number;
         };
         /** RecipeItemUpdate */
@@ -2697,18 +2972,30 @@ export interface components {
         RecipeOut: {
             /** Items */
             items: components["schemas"]["RecipeItemOut"][];
-            /** Unit Cost At Qty 1 */
+            /**
+             * Unit Cost At Qty 1
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost_at_qty_1: number;
-            /** Unit Cost At Batch Qty */
+            /**
+             * Unit Cost At Batch Qty
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             unit_cost_at_batch_qty: number;
         };
         /** RevenueSummaryOut */
         RevenueSummaryOut: {
             /** Order Count */
             order_count: number;
-            /** Total Revenue */
+            /**
+             * Total Revenue
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_revenue: number;
-            /** Total Profit */
+            /**
+             * Total Profit
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             total_profit: number;
         };
         /** SettingUpdate */
@@ -2718,11 +3005,17 @@ export interface components {
         };
         /** SettingsOut */
         SettingsOut: {
-            /** Default Shipping Charge */
+            /**
+             * Default Shipping Charge
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             default_shipping_charge: number;
             /** Postage Estimate Window */
             postage_estimate_window: number;
-            /** Default Postage Estimate */
+            /**
+             * Default Postage Estimate
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             default_postage_estimate: number;
             /** Timezone */
             timezone: string;
@@ -2747,7 +3040,10 @@ export interface components {
             payment_method_id: number;
             /** Settled Date */
             settled_date: string;
-            /** Amount Received */
+            /**
+             * Amount Received
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             amount_received: number;
             /** Note */
             note?: string | null;
@@ -2774,11 +3070,20 @@ export interface components {
             jalali_year: number | null;
             /** Jalali Month */
             jalali_month: number | null;
-            /** Expected Amount */
+            /**
+             * Expected Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             expected_amount: number;
-            /** Amount Received */
+            /**
+             * Amount Received
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             amount_received: number;
-            /** Difference */
+            /**
+             * Difference
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             difference: number;
             /** Note */
             note: string | null;
@@ -2803,11 +3108,20 @@ export interface components {
             channel: string;
             /** Status */
             status: string;
-            /** Customer Total */
+            /**
+             * Customer Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             customer_total: number;
-            /** Transaction Fee */
+            /**
+             * Transaction Fee
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             transaction_fee: number;
-            /** Expected Amount */
+            /**
+             * Expected Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             expected_amount: number;
         };
         /** SettlementOut */
@@ -2826,11 +3140,20 @@ export interface components {
             jalali_year: number | null;
             /** Jalali Month */
             jalali_month: number | null;
-            /** Expected Amount */
+            /**
+             * Expected Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             expected_amount: number;
-            /** Amount Received */
+            /**
+             * Amount Received
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             amount_received: number;
-            /** Difference */
+            /**
+             * Difference
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             difference: number;
             /** Note */
             note: string | null;
@@ -2858,46 +3181,97 @@ export interface components {
             channel: string;
             /** Shipped Order Count */
             shipped_order_count: number;
-            /** Shipping Revenue */
+            /**
+             * Shipping Revenue
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             shipping_revenue: number;
-            /** Packaging Cost */
+            /**
+             * Packaging Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             packaging_cost: number;
-            /** Postage Estimated */
+            /**
+             * Postage Estimated
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_estimated: number;
-            /** Net */
+            /**
+             * Net
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             net: number;
-            /** Net Per Order */
+            /**
+             * Net Per Order
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             net_per_order: number;
         };
         /** ShippingSummaryOut */
         ShippingSummaryOut: {
-            /** Shipping Revenue */
+            /**
+             * Shipping Revenue
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             shipping_revenue: number;
-            /** Packaging Cost */
+            /**
+             * Packaging Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             packaging_cost: number;
-            /** Postage Estimated */
+            /**
+             * Postage Estimated
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_estimated: number;
-            /** Postage Actual */
+            /**
+             * Postage Actual
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_actual: number;
-            /** Net Shipping Result */
+            /**
+             * Net Shipping Result
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             net_shipping_result: number;
             /** Order Count */
             order_count: number;
             /** Shipped Order Count */
             shipped_order_count: number;
-            /** Avg Shipping Revenue */
+            /**
+             * Avg Shipping Revenue
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             avg_shipping_revenue: number;
-            /** Avg Packaging Cost */
+            /**
+             * Avg Packaging Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             avg_packaging_cost: number;
-            /** Avg Postage Actual */
+            /**
+             * Avg Postage Actual
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             avg_postage_actual: number;
-            /** Avg Net Shipping Result */
+            /**
+             * Avg Net Shipping Result
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             avg_net_shipping_result: number;
-            /** Net Shipping Result Estimated */
+            /**
+             * Net Shipping Result Estimated
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             net_shipping_result_estimated: number;
-            /** Avg Net Shipping Result Estimated */
+            /**
+             * Avg Net Shipping Result Estimated
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             avg_net_shipping_result_estimated: number;
-            /** Postage Gap */
+            /**
+             * Postage Gap
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             postage_gap: number;
         };
         /** SupplierCreate */
@@ -2950,7 +3324,10 @@ export interface components {
         };
         /** UndistributedProfitOut */
         UndistributedProfitOut: {
-            /** Undistributed Profit */
+            /**
+             * Undistributed Profit
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
             undistributed_profit: number;
             /** As Of */
             as_of: string;
@@ -5970,7 +6347,7 @@ export interface operations {
     read_fee_preview_payment_methods__payment_method_id__fee_preview_get: {
         parameters: {
             query: {
-                /** @description customer_total in Toman */
+                /** @description customer_total in integer Rial */
                 amount: number;
             };
             header?: never;

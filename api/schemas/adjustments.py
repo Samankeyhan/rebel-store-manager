@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr, Money
+from api.schemas.common import DateStr, Money, Rial
 
 
 class AdjustmentOut(BaseModel):
@@ -15,7 +15,7 @@ class AdjustmentOut(BaseModel):
     reference_production_batch_id: int | None
     movement_date: str
     notes: str | None
-    unit_cost_at_time: int | None
+    unit_cost_at_time: Rial | None
     item_name: str | None
 
 

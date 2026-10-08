@@ -195,7 +195,7 @@ def reactivate_payment_method(conn: sqlite3.Connection, payment_method_id: int) 
 
 
 def compute_fee(customer_total: int, method: dict) -> int:
-    """half_even(customer_total × fee_bps / 10000) + fee_fixed, in integer Toman.
+    """half_even(customer_total × fee_bps / 10000) + fee_fixed, in integer Rial.
 
     Integer arithmetic only: divmod gives the exact remainder, and an exact
     half rounds to the even neighbour (never float, never round()).

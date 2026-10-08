@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr
+from api.schemas.common import DateStr, Rial
 
 
 class ProductionBatchListOut(BaseModel):
@@ -9,9 +9,9 @@ class ProductionBatchListOut(BaseModel):
     id: int
     product_id: int
     quantity_produced: int
-    unit_cost: int
+    unit_cost: Rial
     # Batch total cost at run time; None for batches recorded before migration 006.
-    total_cost: int | None
+    total_cost: Rial | None
     production_date: str
     # When the batch was recorded (production_date may be backdated);
     # None for batches recorded before migration 006.
@@ -26,9 +26,9 @@ class ProductionBatchOut(BaseModel):
     id: int
     product_id: int
     quantity_produced: int
-    unit_cost: int
+    unit_cost: Rial
     # Batch total cost at run time; None for batches recorded before migration 006.
-    total_cost: int | None
+    total_cost: Rial | None
     production_date: str
     # When the batch was recorded (production_date may be backdated);
     # None for batches recorded before migration 006.
@@ -43,7 +43,7 @@ class ProductionBatchMaterialOut(BaseModel):
     production_batch_id: int
     material_id: int
     quantity_used: float
-    unit_cost_at_time: int
+    unit_cost_at_time: Rial
     material_name: str
     material_type: str
 

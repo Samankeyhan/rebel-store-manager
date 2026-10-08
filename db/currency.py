@@ -1,8 +1,10 @@
-"""Display currency. Money is stored, computed and sent as integer Toman; the
-owner can choose to SEE it in Rial (Toman x 10, always exact). This module is
-the backend's one place that knows the conversion (the frontend's twin is
-frontend/lib/money.ts). It only converts for display; it never changes a
-stored or reported figure."""
+"""Display currency. Money is stored, computed and sent as integer RIAL, the
+smallest real unit. The owner chooses whether to SEE it in Rial (the stored
+integer) or in Toman (Rial / 10, with one decimal digit only when the Rial
+amount is not a multiple of 10). This module is the backend's one place that
+knows the conversion (the frontend's twin is frontend/lib/money.ts). It only
+converts for display, with integer arithmetic; it never changes a stored or
+reported figure."""
 
 import sqlite3
 
@@ -24,6 +26,12 @@ def _check_currency(currency: str) -> None:
         )
 
 
+def _check_rial(rial: int) -> None:
+    # bool is an int subclass; a float would mean a money slip upstream.
+    if not isinstance(rial, int) or isinstance(rial, bool):
+        raise TypeError(f"Money must be an int count of Rial, got {rial!r}")
+
+
 def get_display_currency(conn: sqlite3.Connection) -> str:
     """The saved display currency; TOMAN if the row is missing or unknown."""
     row = conn.execute(
@@ -33,13 +41,31 @@ def get_display_currency(conn: sqlite3.Connection) -> str:
     return value if value in DISPLAY_CURRENCIES else DEFAULT_DISPLAY_CURRENCY
 
 
-def to_display_amount(toman: int, currency: str) -> int:
-    """An integer Toman amount in the display currency: exact, never rounded."""
-    # bool is an int subclass; a float would mean a money slip upstream.
-    if not isinstance(toman, int) or isinstance(toman, bool):
-        raise TypeError(f"Money must be an int count of Toman, got {toman!r}")
+def to_display_parts(rial: int, currency: str) -> tuple[bool, int, int | None]:
+    """An integer Rial amount in the display currency, as (negative, whole, tenth).
+
+    RIAL: whole = |rial|, tenth None. TOMAN: whole = |rial| // 10 and tenth =
+    the last Rial digit, or None when it is 0 (a whole Toman). Exact: integer
+    divmod only, never a float, never rounded.
+    """
+    _check_rial(rial)
     _check_currency(currency)
-    return toman * RIAL_PER_TOMAN if currency == "RIAL" else toman
+    negative = rial < 0
+    magnitude = -rial if negative else rial
+    if currency == "RIAL":
+        return negative, magnitude, None
+    whole, tenth = divmod(magnitude, RIAL_PER_TOMAN)
+    return negative, whole, tenth or None
+
+
+def format_display_number(rial: int, currency: str, decimal_mark: str = ".") -> str:
+    """The display number in Latin digits with "," grouping and no unit:
+    (1800005, "TOMAN") -> "180,000.5", (1800005, "RIAL") -> "1,800,005"."""
+    negative, whole, tenth = to_display_parts(rial, currency)
+    text = f"{whole:,}"
+    if tenth is not None:
+        text += f"{decimal_mark}{tenth}"
+    return f"-{text}" if negative else text
 
 
 def currency_label(currency: str) -> str:

@@ -17,7 +17,7 @@ from config.store_info import (
     STORE_NAME,
     STORE_PHONE,
 )
-from db.currency import currency_label, get_display_currency, to_display_amount
+from db.currency import currency_label, format_display_number, get_display_currency
 from db.orders import get_order
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -40,6 +40,8 @@ THANK_YOU_HEART_GAP = 5
 THANK_YOU_HEART_COLOR = colors.HexColor("#E53935")
 
 PERSIAN_DIGIT_MAP = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+# U+066B ARABIC DECIMAL SEPARATOR, the Persian decimal mark.
+PERSIAN_DECIMAL_MARK = "٫"
 
 CHANNEL_LABELS = {
     "INSTAGRAM": "اینستاگرام",
@@ -51,8 +53,12 @@ CHANNEL_LABELS = {
 
 # Column right edges (points from left origin).
 # Physical left-to-right on page: جمع | قیمت واحد | تعداد | نام محصول
-COL_LINE_TOTAL = 112
-COL_UNIT_PRICE = 205
+# The two amount columns were moved right for the Toman decimal («٫۵»): at
+# 10pt Vazir the widest realistic amount, «۹۹,۹۹۹,۹۹۹٫۵ تومان», is 77.5pt, so a
+# line total starting at 128 stays inside the 50pt page margin and a unit
+# price ending at 215 keeps a gap of >= 9pt from the line-total column.
+COL_LINE_TOTAL = 128
+COL_UNIT_PRICE = 215
 COL_QUANTITY = 268
 COL_PRODUCT = 545
 PRODUCT_NAME_GAP = 55
@@ -79,10 +85,12 @@ def prepare_persian(text: str) -> str:
     return get_display(reshaped)
 
 
-def format_amount(toman: int, currency: str) -> str:
-    """An integer Toman amount in the display currency, Persian digits and unit:
-    (180000, "TOMAN") -> "۱۸۰,۰۰۰ تومان", (180000, "RIAL") -> "۱,۸۰۰,۰۰۰ ریال"."""
-    formatted = f"{to_display_amount(toman, currency):,}"
+def format_amount(rial: int, currency: str) -> str:
+    """An integer Rial amount in the display currency, Persian digits and unit;
+    Toman shows one decimal digit (after «٫») only when the Rial amount is not
+    a multiple of 10: (1800000, "TOMAN") -> "۱۸۰,۰۰۰ تومان",
+    (1800005, "TOMAN") -> "۱۸۰,۰۰۰٫۵ تومان", (1800005, "RIAL") -> "۱,۸۰۰,۰۰۵ ریال"."""
+    formatted = format_display_number(rial, currency, decimal_mark=PERSIAN_DECIMAL_MARK)
     return formatted.translate(PERSIAN_DIGIT_MAP) + " " + currency_label(currency)
 
 

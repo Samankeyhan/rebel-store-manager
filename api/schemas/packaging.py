@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.common import Rial
+
 
 class KitOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -19,7 +21,7 @@ class KitItemOut(BaseModel):
     material_id: int
     quantity: float
     material_name: str
-    material_unit_cost: int
+    material_unit_cost: Rial
 
 
 class KitDetailOut(BaseModel):
@@ -31,7 +33,7 @@ class KitDetailOut(BaseModel):
     created_at: str
     updated_at: str | None
     items: list[KitItemOut]
-    kit_cost: int
+    kit_cost: Rial
 
 
 class KitCreate(BaseModel):

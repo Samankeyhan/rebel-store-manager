@@ -11,7 +11,8 @@ LATEST = ALL_MIGRATIONS[-1]
 
 
 def _db_missing_latest_migration(tmp_path):
-    """A DB at every migration but the newest, holding one product and one batch.
+    """A DB at every migration but the newest, holding one product and one batch
+    (and the seeded settings, so the newest migration's effect on them shows).
 
     Seeded with whatever columns that schema has, so the test keeps working as
     new migrations ship.
@@ -56,13 +57,11 @@ def _applied(db_path):
         conn.close()
 
 
-def _has_table(db_path, name):
+def _setting(db_path, key):
     conn = get_connection(str(db_path))
     try:
-        row = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)
-        ).fetchone()
-        return row is not None
+        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
     finally:
         conn.close()
 
@@ -81,11 +80,11 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
     assert LATEST not in _applied(db_path)
 
     # Without the startup event (no `with`), nothing applies the newest
-    # migration. (008 adds the payment_methods and settlements tables and new
-    # orders columns; earlier ones added the columns /products and /production
-    # need, and reads 500'd without them.)
-    assert not _has_table(db_path, "payment_methods")
-    assert not _has_table(db_path, "settlements")
+    # migration: it is not recorded, and the seeded shipping charge is still
+    # the pre-009 Toman value. (Earlier migrations added the columns /products
+    # and /production need, and reads 500'd without them.)
+    assert _applied(db_path) == ALL_MIGRATIONS[:-1]
+    assert _setting(db_path, "default_shipping_charge") == "180000"
 
     with TestClient(app) as client:
         response = client.get("/products")
@@ -101,9 +100,11 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
         assert batches.json()[0]["created_at"] is None
         assert batches.json()[0]["total_cost"] is None
 
+    # Startup applied and recorded the newest migration; money is integer
+    # Rial since 009, so the seeded shipping charge is 180000 x 10.
     assert _applied(db_path) == ALL_MIGRATIONS
-    assert _has_table(db_path, "payment_methods")
-    assert _has_table(db_path, "settlements")
+    assert LATEST in _applied(db_path)
+    assert _setting(db_path, "default_shipping_charge") == "1800000"
 
 
 def test_startup_on_current_db_is_a_no_op(tmp_path, monkeypatch):

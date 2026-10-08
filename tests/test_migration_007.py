@@ -6,6 +6,12 @@ BEFORE_007 = tuple(
     name for name in sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")) if name < "007"
 )
 
+# This test is about 007 alone: later migrations (e.g. 009, money x 10 in Rial)
+# would change the rows it compares, so it applies migrations only up to 007.
+UP_TO_007 = tuple(
+    name for name in sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")) if name < "008"
+)
+
 
 def _migrations_dir(tmp_path: Path, name: str, filenames) -> Path:
     dest = tmp_path / name
@@ -32,7 +38,7 @@ def test_007_seeds_display_currency_and_touches_nothing_else(tmp_path):
         conn.close()
     assert "display_currency" not in settings_before
 
-    init_db(str(db_path))
+    init_db(str(db_path), migrations_dir=str(_migrations_dir(tmp_path, "up_to_007", UP_TO_007)))
 
     conn = get_connection(str(db_path))
     try:

@@ -10,7 +10,8 @@ from db.settings import (
 
 
 def test_get_setting_returns_seeded_defaults(test_db):
-    assert get_setting(test_db, "default_shipping_charge") == "180000"
+    # Money settings are integer Rial: the 003 seed (180000 Toman) x 10 by migration 009.
+    assert get_setting(test_db, "default_shipping_charge") == "1800000"
     assert get_setting(test_db, "postage_estimate_window") == "3"
     assert get_setting(test_db, "default_postage_estimate") == "0"
     assert get_setting(test_db, "timezone") == "Asia/Tehran"
@@ -33,7 +34,7 @@ def test_set_setting_rejects_unknown_key(test_db):
     assert exc_info.value.field == "key"
 
     assert get_setting(test_db, "default_shiping_charge") is None
-    assert get_setting(test_db, "default_shipping_charge") == "180000"
+    assert get_setting(test_db, "default_shipping_charge") == "1800000"  # seed x 10 (migration 009)
 
 
 def test_set_setting_rejects_negative_money(test_db):
@@ -77,7 +78,7 @@ def test_set_setting_rejects_unknown_display_currency(test_db, bad):
 
 def test_display_currency_does_not_change_money_settings(test_db):
     set_setting(test_db, "display_currency", "RIAL")
-    assert get_setting(test_db, "default_shipping_charge") == "180000"
+    assert get_setting(test_db, "default_shipping_charge") == "1800000"  # seed x 10 (migration 009)
     assert get_setting(test_db, "default_postage_estimate") == "0"
 
 

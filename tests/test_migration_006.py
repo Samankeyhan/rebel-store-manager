@@ -8,6 +8,12 @@ BEFORE_006 = tuple(
     name for name in sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")) if name < "006"
 )
 
+# This test is about 006 alone: later migrations (e.g. 009, money x 10 in Rial)
+# would change the rows it compares, so it applies migrations only up to 006.
+UP_TO_006 = tuple(
+    name for name in sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")) if name < "007"
+)
+
 
 def _migrations_dir(tmp_path: Path, name: str, filenames) -> Path:
     dest = tmp_path / name
@@ -59,7 +65,7 @@ def test_006_adds_nullable_created_at_and_total_cost(tmp_path):
     finally:
         conn.close()
 
-    init_db(str(db_path))
+    init_db(str(db_path), migrations_dir=str(_migrations_dir(tmp_path, "up_to_006", UP_TO_006)))
 
     conn = get_connection(str(db_path))
     try:

@@ -1,6 +1,8 @@
 # Accounting rules — Rebel Store Manager
 
-Currency: Toman, stored as INTEGER. Store timezone: Asia/Tehran.
+Currency: Rial, stored as INTEGER; Toman is display only (Toman = Rial ÷ 10, shown with one decimal digit only when the Rial amount is not a multiple of 10). All rounding of money is half-even to the Rial. Store timezone: Asia/Tehran.
+
+Money was stored in integer Toman before migration 009, which multiplied every money column and the two money settings by 10 (nothing else changed).
 
 ## 1. Dates
 - Moments in time (order_date, expense_date, purchase_date, production_date, movement_date, paid_date, distribution_date, created_at) are stored as UTC text "YYYY-MM-DD HH:MM:SS".
@@ -37,11 +39,11 @@ Rounding: Python round(), applied once at the end of a calculation — never per
 
 ## 4. Settings
 settings (key/value):
-- default_shipping_charge = 180000
+- default_shipping_charge = 1800000 (Rial; seeded as 180000 Toman by 003, × 10 by 009)
 - postage_estimate_window = 3
 - default_postage_estimate = 0
 - timezone = Asia/Tehran
-- display_currency = TOMAN (TOMAN or RIAL). Display only: how amounts are shown in the UI and on the customer invoice. Every stored, computed, sent and reported amount stays integer Toman; Rial = Toman × 10, exact, applied only when displaying.
+- display_currency = TOMAN (TOMAN or RIAL). Display only: how amounts are shown in the UI and on the customer invoice. Every stored, computed, sent and reported amount stays integer Rial; RIAL shows the stored integer, TOMAN shows Rial ÷ 10 (exact, integer arithmetic; one decimal digit only when needed, e.g. 1,800,005 Rial = 180,000.5 Toman).
 
 channel_settings:
 | channel   | applies_shipping_charge | applies_postage | default_packaging_kit_id |
@@ -158,7 +160,7 @@ Payment methods are owner-entered data (none are seeded). Each has a fee and a s
 
 ### Fee
 - customer_total = sum(items_net) + shipping_charge (= section 7 revenue).
-- fee = half_even(customer_total × fee_bps / 10000) + fee_fixed, in integer Toman. fee_bps is basis points (150 = 1.5%), 0..10000; fee_fixed >= 0. Half-even means an exact .5 goes to the even neighbour: 1000 at 5 bps (0.5) → 0, 3000 at 5 bps (1.5) → 2. Computed with integer arithmetic only.
+- fee = half_even(customer_total × fee_bps / 10000) + fee_fixed, in integer Rial. fee_bps is basis points (150 = 1.5%), 0..10000; fee_fixed >= 0. Half-even means an exact .5 goes to the even neighbour: 1000 at 5 bps (0.5) → 0, 3000 at 5 bps (1.5) → 2. Computed with integer arithmetic only.
 - The fee is computed once, when the order is recorded, and frozen in orders.transaction_fee; later fee edits on the method never change an existing order. A caller may override it with any integer >= 0 (0 is a real zero). With no override and no method, the fee is 0.
 - An order's method: an explicit method, no method, or the channel's default method (channel_settings.default_payment_method_id; none if unset). A new order, and a channel default, require an active method.
 

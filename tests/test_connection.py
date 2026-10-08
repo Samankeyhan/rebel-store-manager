@@ -282,20 +282,22 @@ def test_upgrade_from_only_001_applies_002_and_003_in_one_run(tmp_path):
             "SELECT * FROM order_items WHERE order_id = ?", (order_id,)
         ).fetchone()
         assert order_item["quantity"] == 2
-        assert order_item["unit_cost_at_time"] == 500
+        # The full set includes 009, which stores money in Rial: x 10.
+        assert order_item["unit_cost_at_time"] == 5000
 
         purchase = conn.execute(
             "SELECT * FROM material_purchases WHERE id = ?", (purchase_id,)
         ).fetchone()
         assert purchase["purchase_date"] == "2026-03-04 20:30:00"
-        assert purchase["total_paid"] == 2000
+        assert purchase["total_paid"] == 20000  # x 10 by 009 (Rial)
 
         movement = conn.execute(
             "SELECT * FROM stock_movements WHERE id = ?", (movement_id,)
         ).fetchone()
         assert movement["movement_date"] == "2026-03-05 20:30:00"
         assert movement["quantity_change"] == -3
-        assert movement["unit_cost_at_time"] == 200  # backfilled from materials.unit_cost
+        # backfilled from materials.unit_cost by 003, then x 10 by 009 (Rial)
+        assert movement["unit_cost_at_time"] == 2000
 
         counters = {
             row["name"]: row["value"] for row in conn.execute("SELECT * FROM counters")

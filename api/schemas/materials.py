@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import Money
+from api.schemas.common import Money, Rial
 
 
 class MaterialOut(BaseModel):
@@ -11,7 +11,7 @@ class MaterialOut(BaseModel):
     type: str
     unit: str
     current_stock: float | None
-    unit_cost: int
+    unit_cost: Rial
     is_active: int
     category_id: int | None
     category_name: str | None

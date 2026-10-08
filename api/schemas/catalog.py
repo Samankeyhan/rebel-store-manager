@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.common import Rial
+
 from api.schemas.materials import MaterialOut
 from api.schemas.packaging import KitDetailOut
 from api.schemas.products import ProductOut
@@ -13,4 +15,4 @@ class CatalogOut(BaseModel):
     materials: list[MaterialOut]
     kits: list[KitDetailOut]
     settings: SettingsOut
-    postage_estimate: int
+    postage_estimate: Rial

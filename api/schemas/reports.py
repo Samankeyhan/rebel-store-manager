@@ -1,23 +1,25 @@
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.common import Rial
+
 
 class ProfitAndLossOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    items_revenue: int
-    shipping_revenue: int
-    total_revenue: int
-    cogs: int
-    packaging_cost: int
-    postage_estimated: int
-    transaction_fees: int
-    gross_profit: int
-    postage_actual: int
-    postage_variance: int
-    refund_losses: int
-    waste_cost: int
-    operating_expenses: int
-    net_profit: int
+    items_revenue: Rial
+    shipping_revenue: Rial
+    total_revenue: Rial
+    cogs: Rial
+    packaging_cost: Rial
+    postage_estimated: Rial
+    transaction_fees: Rial
+    gross_profit: Rial
+    postage_actual: Rial
+    postage_variance: Rial
+    refund_losses: Rial
+    waste_cost: Rial
+    operating_expenses: Rial
+    net_profit: Rial
     order_count: int
 
 
@@ -27,9 +29,9 @@ class ProductPerformanceOut(BaseModel):
     product_id: int
     product_name: str
     units_sold: int
-    total_revenue: int
-    total_cost: int
-    total_profit: int
+    total_revenue: Rial
+    total_cost: Rial
+    total_profit: Rial
 
 
 class ChannelBreakdownOut(BaseModel):
@@ -37,27 +39,27 @@ class ChannelBreakdownOut(BaseModel):
 
     channel: str
     order_count: int
-    total_revenue: int
-    total_profit: int
+    total_revenue: Rial
+    total_profit: Rial
 
 
 class ShippingSummaryOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    shipping_revenue: int
-    packaging_cost: int
-    postage_estimated: int
-    postage_actual: int
-    net_shipping_result: int
+    shipping_revenue: Rial
+    packaging_cost: Rial
+    postage_estimated: Rial
+    postage_actual: Rial
+    net_shipping_result: Rial
     order_count: int
     shipped_order_count: int
-    avg_shipping_revenue: int
-    avg_packaging_cost: int
-    avg_postage_actual: int
-    avg_net_shipping_result: int
-    net_shipping_result_estimated: int
-    avg_net_shipping_result_estimated: int
-    postage_gap: int
+    avg_shipping_revenue: Rial
+    avg_packaging_cost: Rial
+    avg_postage_actual: Rial
+    avg_net_shipping_result: Rial
+    net_shipping_result_estimated: Rial
+    avg_net_shipping_result_estimated: Rial
+    postage_gap: Rial
 
 
 class ShippingByChannelOut(BaseModel):
@@ -65,11 +67,11 @@ class ShippingByChannelOut(BaseModel):
 
     channel: str
     shipped_order_count: int
-    shipping_revenue: int
-    packaging_cost: int
-    postage_estimated: int
-    net: int
-    net_per_order: int
+    shipping_revenue: Rial
+    packaging_cost: Rial
+    postage_estimated: Rial
+    net: Rial
+    net_per_order: Rial
 
 
 class WasteReportOut(BaseModel):
@@ -87,7 +89,7 @@ class ExpenseBreakdownOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     category_name: str
-    total_amount: int
+    total_amount: Rial
     expense_count: int
 
 
@@ -95,16 +97,16 @@ class RevenueSummaryOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     order_count: int
-    total_revenue: int
-    total_profit: int
+    total_revenue: Rial
+    total_profit: Rial
 
 
 class PurchasesSummaryOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    material_purchases_total: int
+    material_purchases_total: Rial
     material_purchases_count: int
-    product_purchases_total: int
+    product_purchases_total: Rial
     product_purchases_count: int
 
 
@@ -118,10 +120,10 @@ class PaymentMethodReportRowOut(BaseModel):
     settlement_rule: str | None
     is_active: int | None
     order_count: int
-    customer_total: int
-    transaction_fees: int
-    fees_lost_on_returns: int
-    pending_expected: int
-    settled_expected: int
-    settled_received: int
-    settlement_difference: int
+    customer_total: Rial
+    transaction_fees: Rial
+    fees_lost_on_returns: Rial
+    pending_expected: Rial
+    settled_expected: Rial
+    settled_received: Rial
+    settlement_difference: Rial

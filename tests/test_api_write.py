@@ -281,7 +281,7 @@ def test_website_order_with_defaults_freezes_costs(api, shop):
     client, _ = api
     order = _order(client, "WEBSITE", shop["product_id"])["order"]
 
-    assert order["shipping_charge"] == 180_000
+    assert order["shipping_charge"] == 1_800_000  # seeded default, Rial (180,000 x 10, migration 009)
     assert order["packaging_kit_id"] == shop["standard_id"]
     assert order["packaging_cost"] == 7_000
     assert order["postage_cost"] == 10_000
@@ -516,7 +516,7 @@ def test_unknown_setting_key_is_422(api):
     response = client.put("/settings/default_shiping_charge", json={"value": 200_000})
     assert response.status_code == 422
     assert _error(response)["field"] == "key"
-    assert client.get("/settings").json()["default_shipping_charge"] == 180_000
+    assert client.get("/settings").json()["default_shipping_charge"] == 1_800_000  # seed x 10 (migration 009)
 
 
 def test_put_setting_updates_value(api):
@@ -532,8 +532,9 @@ def test_put_display_currency_accepts_a_string(api):
     assert response.status_code == 200
     body = response.json()
     assert body["display_currency"] == "RIAL"
-    # Display only: every money setting is still the same Toman integer.
-    assert body["default_shipping_charge"] == 180_000
+    # Display only: every money setting is still the same Rial integer
+    # (the seed x 10 by migration 009).
+    assert body["default_shipping_charge"] == 1_800_000
     response = client.put("/settings/display_currency", json={"value": "TOMAN"})
     assert response.json()["display_currency"] == "TOMAN"
 
@@ -557,7 +558,7 @@ def test_put_money_setting_still_rejects_a_word(api):
     response = client.put("/settings/default_shipping_charge", json={"value": "RIAL"})
     assert response.status_code == 422
     assert _error(response)["field"] == "value"
-    assert client.get("/settings").json()["default_shipping_charge"] == 180_000
+    assert client.get("/settings").json()["default_shipping_charge"] == 1_800_000  # seed x 10 (migration 009)
 
 
 # ------------------------------------------------------------------ misc writes

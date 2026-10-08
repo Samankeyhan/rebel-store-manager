@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, StrictInt
 
-from api.schemas.common import Money
+from api.schemas.common import Money, Rial
 
 
 class PaymentMethodOut(BaseModel):
@@ -9,7 +9,7 @@ class PaymentMethodOut(BaseModel):
     id: int
     name: str
     fee_bps: int
-    fee_fixed: int
+    fee_fixed: Rial
     settlement_rule: str
     settlement_days: int | None
     is_active: int
@@ -50,6 +50,6 @@ class FeePreviewOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     payment_method_id: int
-    amount: int
-    transaction_fee: int
-    expected_amount: int
+    amount: Rial
+    transaction_fee: Rial
+    expected_amount: Rial

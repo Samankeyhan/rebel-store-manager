@@ -174,10 +174,11 @@ def test_get_channel_breakdown(report_setup, test_db):
     # profit = 6100 - cogs(1000) - packaging(0) - postage(50) - fee(20) = 5030
     #
     # WEBSITE order: no overrides given, so it picks up WEBSITE's channel
-    # defaults — shipping_charge = default_shipping_charge (180,000), postage
-    # estimate = 0 (no postage batches recorded in this fixture).
-    # revenue = items_net(1500) + shipping(180,000) = 181,500
-    # profit = 181,500 - cogs(300) - packaging(0) - postage(0) - fee(0) = 181,200
+    # defaults — shipping_charge = default_shipping_charge (1,800,000 Rial: the
+    # 180,000 seed x 10 by migration 009), postage estimate = 0 (no postage
+    # batches recorded in this fixture).
+    # revenue = items_net(1500) + shipping(1,800,000) = 1,801,500
+    # profit = 1,801,500 - cogs(300) - packaging(0) - postage(0) - fee(0) = 1,801,200
     rows = get_channel_breakdown(test_db)
     assert len(rows) == 2
 
@@ -187,8 +188,8 @@ def test_get_channel_breakdown(report_setup, test_db):
     assert by_channel["INSTAGRAM"]["total_profit"] == 5030
 
     assert by_channel["WEBSITE"]["order_count"] == 1
-    assert by_channel["WEBSITE"]["total_revenue"] == 181_500
-    assert by_channel["WEBSITE"]["total_profit"] == 181_200
+    assert by_channel["WEBSITE"]["total_revenue"] == 1_801_500
+    assert by_channel["WEBSITE"]["total_profit"] == 1_801_200
 
     # Sorted by total_revenue desc — WEBSITE's default shipping charge now
     # puts it ahead of INSTAGRAM.
@@ -306,16 +307,17 @@ def test_get_expense_breakdown_date_filter_and_empty(report_setup, test_db):
 def test_get_profit_and_loss_hand_calculated(report_setup, test_db):
     # Order A (INSTAGRAM): items_revenue 6000, shipping 100, cogs 1000,
     #   packaging 0, postage_estimated 50, fee 20.
-    # Order B (WEBSITE, no overrides): items_revenue 1500, shipping 180,000
-    #   (channel default), cogs 300, packaging 0, postage_estimated 0.
+    # Order B (WEBSITE, no overrides): items_revenue 1500, shipping 1,800,000
+    #   (channel default: the 180,000 seed x 10 by migration 009), cogs 300,
+    #   packaging 0, postage_estimated 0.
     # (Cancelled order excluded from all of the above — not eligible.)
     #
     # items_revenue = 6000 + 1500 = 7500
-    # shipping_revenue = 100 + 180,000 = 180,100
-    # total_revenue = 187,600
+    # shipping_revenue = 100 + 1,800,000 = 1,800,100
+    # total_revenue = 1,807,600
     # cogs = 1000 + 300 = 1300; packaging_cost = 0
     # postage_estimated = 50 + 0 = 50; transaction_fees = 20 + 0 = 20
-    # gross_profit = 187,600 - 1300 - 0 - 50 - 20 = 186,230
+    # gross_profit = 1,807,600 - 1300 - 0 - 50 - 20 = 1,806,230
     #
     # postage_actual = 0 (no postage batches in this fixture)
     # postage committed on shipped (eligible+REFUNDED) orders = 50 (order A) + 0
@@ -325,24 +327,24 @@ def test_get_profit_and_loss_hand_calculated(report_setup, test_db):
     # waste_cost = material 5*200 + product 1*500 = 1000 + 500 = 1500
     # operating_expenses = 500 + 200 = 700
     #
-    # net_profit = 186,230 - (-50) - 0 - 1500 - 700 = 184,080
+    # net_profit = 1,806,230 - (-50) - 0 - 1500 - 700 = 1,804,080
     pnl = get_profit_and_loss(test_db)
 
     assert pnl["order_count"] == 2
     assert pnl["items_revenue"] == 7500
-    assert pnl["shipping_revenue"] == 180_100
-    assert pnl["total_revenue"] == 187_600
+    assert pnl["shipping_revenue"] == 1_800_100
+    assert pnl["total_revenue"] == 1_807_600
     assert pnl["cogs"] == 1300
     assert pnl["packaging_cost"] == 0
     assert pnl["postage_estimated"] == 50
     assert pnl["transaction_fees"] == 20
-    assert pnl["gross_profit"] == 186_230
+    assert pnl["gross_profit"] == 1_806_230
     assert pnl["postage_actual"] == 0
     assert pnl["postage_variance"] == -50
     assert pnl["refund_losses"] == 0
     assert pnl["waste_cost"] == 1500
     assert pnl["operating_expenses"] == 700
-    assert pnl["net_profit"] == 184_080
+    assert pnl["net_profit"] == 1_804_080
 
 
 def test_get_profit_and_loss_date_filter(report_setup, test_db):
@@ -416,11 +418,12 @@ def test_get_shipping_summary_shipped_order_count(test_db):
     assert shipping["shipped_order_count"] == 1
     # shipping_revenue = WEBSITE's default shipping charge only (IN_PERSON
     # doesn't apply one); dividing by shipped_order_count (1), not
-    # order_count (2), the average equals the total.
-    assert shipping["shipping_revenue"] == 180_000
-    assert shipping["avg_shipping_revenue"] == 180_000
-    assert shipping["net_shipping_result"] == 180_000
-    assert shipping["avg_net_shipping_result"] == 180_000
+    # order_count (2), the average equals the total. The default is the
+    # seeded 1,800,000 Rial (180,000 x 10, migration 009).
+    assert shipping["shipping_revenue"] == 1_800_000
+    assert shipping["avg_shipping_revenue"] == 1_800_000
+    assert shipping["net_shipping_result"] == 1_800_000
+    assert shipping["avg_net_shipping_result"] == 1_800_000
 
 
 def test_get_shipping_summary_excludes_non_shipping_channel_costs(test_db):
@@ -451,15 +454,16 @@ def test_get_shipping_summary_excludes_non_shipping_channel_costs(test_db):
     shipping = get_shipping_summary(test_db)
     assert shipping["order_count"] == 3
     assert shipping["shipped_order_count"] == 2
-    assert shipping["shipping_revenue"] == 360_000  # 2 × 180,000; not the 50,000 in-person charge
+    # 2 × the seeded 1,800,000 Rial (180,000 x 10, migration 009); not the 50,000 in-person charge.
+    assert shipping["shipping_revenue"] == 3_600_000
     assert shipping["packaging_cost"] == 120_000  # 2 × 60,000; not 180,000
     assert shipping["postage_estimated"] == 400_000  # not the 30,000 in-person override
     assert shipping["postage_actual"] == 200_000
-    assert shipping["net_shipping_result"] == 360_000 - 120_000 - 200_000
-    assert shipping["avg_shipping_revenue"] == 180_000
+    assert shipping["net_shipping_result"] == 3_600_000 - 120_000 - 200_000
+    assert shipping["avg_shipping_revenue"] == 1_800_000
     assert shipping["avg_packaging_cost"] == 60_000
     assert shipping["avg_postage_actual"] == 100_000
-    assert shipping["avg_net_shipping_result"] == 20_000
+    assert shipping["avg_net_shipping_result"] == 1_640_000  # (3,600,000 − 120,000 − 200,000) / 2
 
     # The summary is the per-channel report, totalled.
     by_channel = get_shipping_by_channel(test_db)
@@ -473,7 +477,7 @@ def test_get_shipping_summary_excludes_non_shipping_channel_costs(test_db):
     # The P&L still counts every eligible order's packaging and shipping.
     pnl = get_profit_and_loss(test_db)
     assert pnl["packaging_cost"] == 180_000
-    assert pnl["shipping_revenue"] == 410_000
+    assert pnl["shipping_revenue"] == 3_650_000  # 2 × 1,800,000 + the 50,000 in-person override
     assert pnl["order_count"] == 3
 
 
@@ -502,15 +506,16 @@ def test_get_shipping_summary_estimated_fields_exclude_non_shipping_channel(test
     postage.record_postage_batch(test_db, total_paid=150_000, order_count=1)
 
     shipping = get_shipping_summary(test_db)
-    # Shipped-only totals: 2 WEBSITE orders.
-    assert shipping["shipping_revenue"] == 360_000
+    # Shipped-only totals: 2 WEBSITE orders at the seeded 1,800,000 Rial (migration 009).
+    assert shipping["shipping_revenue"] == 3_600_000
     assert shipping["packaging_cost"] == 120_000
     assert shipping["postage_estimated"] == 400_000
     assert shipping["net_shipping_result_estimated"] == (
         shipping["shipping_revenue"] - shipping["packaging_cost"] - shipping["postage_estimated"]
     )
-    assert shipping["net_shipping_result_estimated"] == -160_000  # not 410,000 − 180,000 − 430,000
-    assert shipping["avg_net_shipping_result_estimated"] == -80_000
+    # 3,600,000 − 120,000 − 400,000; not 3,650,000 − 180,000 − 430,000 (the P&L figures).
+    assert shipping["net_shipping_result_estimated"] == 3_080_000
+    assert shipping["avg_net_shipping_result_estimated"] == 1_540_000
     assert shipping["postage_gap"] == 400_000 - 150_000
     assert shipping["net_shipping_result_estimated"] == sum(
         r["net"] for r in get_shipping_by_channel(test_db)
@@ -622,11 +627,12 @@ def test_get_shipping_by_channel(test_db):
 
     website = by_channel["WEBSITE"]
     assert website["shipped_order_count"] == 1
-    assert website["shipping_revenue"] == 180_000
+    # The seeded default shipping charge: 1,800,000 Rial (180,000 x 10, migration 009).
+    assert website["shipping_revenue"] == 1_800_000
     assert website["packaging_cost"] == 0
     assert website["postage_estimated"] == 0
-    assert website["net"] == 180_000
-    assert website["net_per_order"] == 180_000
+    assert website["net"] == 1_800_000
+    assert website["net_per_order"] == 1_800_000
 
     wholesale = by_channel["WHOLESALE"]
     assert wholesale["shipped_order_count"] == 1
@@ -715,19 +721,20 @@ def test_full_scenario_profit_and_loss(full_scenario_setup, test_db):
     pnl = get_profit_and_loss(test_db, "2026-03-05", "2026-03-31")
 
     assert pnl["items_revenue"] == 5_000_000
-    assert pnl["shipping_revenue"] == 180_000
-    assert pnl["total_revenue"] == 5_180_000
+    # Order A takes the seeded shipping charge: 1,800,000 Rial (180,000 x 10, migration 009).
+    assert pnl["shipping_revenue"] == 1_800_000
+    assert pnl["total_revenue"] == 6_800_000
     assert pnl["cogs"] == 2_400_000
     assert pnl["packaging_cost"] == 45_000
     assert pnl["postage_estimated"] == 250_000
     assert pnl["transaction_fees"] == 50_000
-    assert pnl["gross_profit"] == 2_435_000
+    assert pnl["gross_profit"] == 4_055_000
     assert pnl["postage_actual"] == 600_000
     assert pnl["postage_variance"] == 100_000
     assert pnl["refund_losses"] == 325_000
     assert pnl["waste_cost"] == 1_200_000
     assert pnl["operating_expenses"] == 500_000
-    assert pnl["net_profit"] == 310_000
+    assert pnl["net_profit"] == 1_930_000
     assert pnl["order_count"] == 1
 
 
@@ -746,12 +753,13 @@ def test_full_scenario_stock_and_reconciliation(full_scenario_setup, test_db):
     assert vinyl_performance["total_cost"] == 2_400_000
 
     shipping = get_shipping_summary(test_db, "2026-03-05", "2026-03-31")
-    assert shipping["shipping_revenue"] == 180_000
+    # Seeded shipping charge: 1,800,000 Rial (180,000 x 10, migration 009).
+    assert shipping["shipping_revenue"] == 1_800_000
     assert shipping["packaging_cost"] == 45_000
     assert shipping["postage_actual"] == 600_000
-    assert shipping["net_shipping_result"] == -465_000
+    assert shipping["net_shipping_result"] == 1_155_000  # 1,800,000 − 45,000 − 600,000
     assert shipping["net_shipping_result_estimated"] == (
-        180_000 - 45_000 - shipping["postage_estimated"]
+        1_800_000 - 45_000 - shipping["postage_estimated"]
     )
     assert shipping["postage_gap"] == shipping["postage_estimated"] - 600_000
 

@@ -63,7 +63,7 @@ def put_setting(
 ) -> SettingsOut:
     """Set one of: default_shipping_charge, postage_estimate_window,
     default_postage_estimate, timezone, display_currency ("TOMAN" or "RIAL";
-    display only, money stays Toman everywhere). Any other key is a 422
+    display only, money stays integer Rial everywhere). Any other key is a 422
     (field "key"); a bad value is a 422 (field "value")."""
     set_setting(conn, key, body.value)
     return build_settings(conn)
