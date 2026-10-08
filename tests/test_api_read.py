@@ -443,3 +443,23 @@ def test_catalog_concurrent_requests_never_500(seeded):
 
     assert 500 not in statuses
     assert statuses == [200] * len(statuses)
+
+
+def test_waste_costs_are_integer_rial_and_match_the_pnl(api):
+    client, conn = api
+    glue = add_material(conn, "Glue", "STOCK", 333, initial_stock=10)
+    ink = add_material(conn, "Ink", "STOCK", 3, initial_stock=10)
+    record_stock_adjustment(conn, "MATERIAL", glue, -2.5, "WASTE")   # 832.5 -> 832
+    record_stock_adjustment(conn, "MATERIAL", ink, -2.4, "WASTE")    # 7.2 + 0.3 = 7.5 -> 8
+    record_stock_adjustment(conn, "MATERIAL", ink, -0.1, "WASTE")
+
+    waste = client.get("/reports/waste")
+    assert waste.status_code == 200, waste.text
+    costs = {row["item_name"]: row["cost"] for row in waste.json()}
+    assert costs == {"Glue": 832, "Ink": 8}
+    assert all(type(c) is int for c in costs.values())
+    assert '"cost":832,' in waste.text  # not 832.0
+
+    pnl = client.get("/reports/profit-and-loss")
+    assert pnl.status_code == 200, pnl.text
+    assert pnl.json()["waste_cost"] == 840

@@ -93,7 +93,9 @@ Selling a product whose unit_cost is NULL is refused with ValidationError (field
 - WASTE quantity_change must be negative.
 - No movement may take stock below zero: InsufficientStockError, nothing written.
 - Every WASTE and ADJUSTMENT movement stores unit_cost_at_time = the item's unit_cost at that moment (NULL if unknown).
-- WASTE reaches the P&L as waste_cost = |quantity_change| × unit_cost_at_time. ADJUSTMENT movements are corrections and do not reach the P&L.
+- WASTE reaches the P&L as waste_cost. ADJUSTMENT movements are corrections and do not reach the P&L.
+- Waste cost per item (the waste report's cost): sum(|quantity_change| × unit_cost_at_time) over that item's WASTE movements in the range, computed exactly (a REAL quantity counts as the decimal it was entered as) and rounded once, half-even, to the Rial. Movements with unknown unit_cost_at_time are left out; an item whose every movement is unknown has no cost (NULL).
+- waste_cost (P&L) = the sum of those per-item rounded costs, so the waste report's total and the P&L always agree exactly, fractional quantities included. Example: 2.5 × 333 = 832.5 → 832 and 0.5 × 1 = 0.5 → 0 give waste_cost 832, not round(833).
 
 ## 9. Reports
 Revenue-eligible statuses: PENDING, PAID, COMPLETED. Orders are dated by order_date.
@@ -107,7 +109,7 @@ Profit & loss for a date range:
 - postage_actual = sum(total_paid) of postage batches with paid_date in range
 - postage_variance = postage_actual − (sum of postage_cost over eligible AND refunded orders in range)
 - refund_losses = sum(packaging_cost + postage_cost + transaction_fee) over REFUNDED orders in range + sum(transaction_fee) over CANCELLED orders in range whose stock_committed = 1
-- waste_cost = section 8, WASTE movements in range
+- waste_cost = section 8: the sum of the per-item rounded waste costs, WASTE movements in range
 - operating_expenses = sum(expenses) in range
 - net_profit = gross_profit − postage_variance − refund_losses − waste_cost − operating_expenses
 - order_count = number of eligible orders
