@@ -1,3 +1,6 @@
+"""Store settings and per-channel settings. `set_setting` accepts only `VALID_SETTING_KEYS` (anything else is a ValidationError on field `key`) and validates each value; `get_setting`.
+`get_channel_settings` / `update_channel_settings`: omitted fields unchanged, None clears a default kit or payment method; a new default must be active."""
+
 import sqlite3
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 

@@ -29,4 +29,4 @@ It gets pasted into the planning chat, so keep it to short bullets, no prose or 
 - **Tests:** every `db/` or `pdf/` change has tests; `python -m pytest -v` in `.venv` passes before finishing.
 - **Invoice** (`pdf/invoice.py`) shows only what the customer pays: item prices, line discounts, shipping charge, total. Never postage, packaging, fees, unit cost or COGS.
 - **Persian terms, everywhere (UI, invoice, copy):** «متریال», never «ماده» or «مواد». Products area: «محصولات و متریال»; tabs «محصولات»، «متریال»، «دسته‌ها».
-- **Public repo:** no secrets, no invoice PDFs, no real personal data; fictional test data only.
+- **Public repo:** no secrets, no invoice PDFs (`invoices/*.pdf` is gitignored; keep it that way), no real personal data; fictional test data only.

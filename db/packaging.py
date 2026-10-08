@@ -1,3 +1,6 @@
+"""Packaging kits: create/list/get, add/update/remove kit items, deactivate/reactivate.
+Items must be active STOCK materials, one row per material (a duplicate is a ConflictError). `calculate_kit_cost` = Σ quantity × material unit_cost, rounded half-even to the Rial."""
+
 import sqlite3
 
 from db.connection import transaction

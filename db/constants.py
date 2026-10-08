@@ -1,3 +1,5 @@
+"""Fixed code lists shared by db/: `VALID_CHANNELS`, `VALID_STATUSES`, and `LEGACY_PRODUCT_CATEGORIES` (the pre-005 category codes; documentation and tests only, nothing validates against it)."""
+
 # The fixed product category codes used before migration 005, mapped to the
 # name each was seeded under in the categories table. Nothing validates
 # against this any more (categories are user-editable rows); it documents the

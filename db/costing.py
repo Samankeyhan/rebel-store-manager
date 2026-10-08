@@ -1,3 +1,5 @@
+"""`blend_unit_cost`: weighted-average unit cost when stock comes in (accounting rules section 2), rounded half-even by `round()`; with no prior stock or cost, the incoming value ÷ quantity."""
+
 def blend_unit_cost(
     stock_before: float | None,
     cost_before: int | None,

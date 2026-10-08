@@ -1,3 +1,6 @@
+"""Postage payments in batches: `record_postage_batch` (total_paid >= 0, order_count > 0), `get_postage_batch`, `list_postage_batches`.
+`get_current_postage_estimate`: total_paid ÷ order_count over the newest `postage_estimate_window` batches, rounded half-even; `default_postage_estimate` when there are none."""
+
 import sqlite3
 
 from db.connection import transaction
