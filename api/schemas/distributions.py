@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr, Money
+from api.schemas.common import DateStr, Money, Rial
 
 
 class DistributionListOut(BaseModel):
@@ -10,8 +10,8 @@ class DistributionListOut(BaseModel):
     distribution_date: str
     period_start: str
     period_end: str
-    total_profit_available: int
-    total_amount_distributed: int
+    total_profit_available: Rial
+    total_amount_distributed: Rial
     notes: str | None
 
 
@@ -22,7 +22,7 @@ class DistributionShareOut(BaseModel):
     distribution_id: int
     partner_id: int
     percentage_at_time: float
-    amount: int
+    amount: Rial
     partner_name: str
 
 
@@ -33,8 +33,8 @@ class DistributionDetailOut(BaseModel):
     distribution_date: str
     period_start: str
     period_end: str
-    total_profit_available: int
-    total_amount_distributed: int
+    total_profit_available: Rial
+    total_amount_distributed: Rial
     notes: str | None
     shares: list[DistributionShareOut]
 
@@ -42,7 +42,7 @@ class DistributionDetailOut(BaseModel):
 class UndistributedProfitOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    undistributed_profit: int
+    undistributed_profit: Rial
     as_of: str
 
 

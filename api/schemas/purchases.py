@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr, Money
+from api.schemas.common import DateStr, Money, Rial
 
 
 class MaterialPurchaseOut(BaseModel):
@@ -12,8 +12,8 @@ class MaterialPurchaseOut(BaseModel):
     invoice_number: str | None
     purchase_date: str
     quantity_bought: float
-    total_paid: int
-    unit_cost: int
+    total_paid: Rial
+    unit_cost: Rial
     notes: str | None
     material_name: str
     supplier_name: str | None
@@ -28,8 +28,8 @@ class ProductPurchaseOut(BaseModel):
     invoice_number: str | None
     purchase_date: str
     quantity_bought: int
-    total_paid: int
-    unit_cost: int
+    total_paid: Rial
+    unit_cost: Rial
     notes: str | None
     product_name: str
     supplier_name: str | None

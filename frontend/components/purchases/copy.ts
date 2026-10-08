@@ -60,7 +60,7 @@ export const U = {
   supplierGone: "این تأمین‌کننده دیگر در دسترس نیست — لطفاً دوباره انتخاب کنید",
   fieldQty: "مقدار",
   fieldTotal: "مبلغ کل پرداختی",
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
   fieldDate: "تاریخ خرید",

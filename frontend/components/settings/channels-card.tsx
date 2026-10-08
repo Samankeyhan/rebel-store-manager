@@ -1,6 +1,7 @@
 "use client"
 
 import { Switch } from "@/components/products/drawer-shell"
+import type { MoneyInputError } from "@/lib/money"
 import { CHANNEL_IDS, CHANNELS, type Channel } from "@/components/record-sale/copy"
 import { Alert, ChannelBadge, Help, InlineMessage, Label, MoneyInput, cardClass } from "@/components/record-sale/primitives"
 import type { KitDetail, PaymentMethod } from "@/lib/api"
@@ -17,7 +18,7 @@ type Props = {
   /** The estimate the hero shows (echoed on channels whose postage is on). */
   estimate: number
   shippingError: string | null
-  onShipping: (n: number | null) => void
+  onShipping: (n: number | null, error: MoneyInputError | null) => void
   onChannel: (channel: Channel, patch: Partial<ChannelDraft>) => void
   mobile: boolean
 }
@@ -70,7 +71,7 @@ export function ChannelsCard({ draft, kits, methods, estimate, shippingError, on
       <MoneyInput
         id="st-shipping"
         value={draft.default_shipping_charge}
-        onValue={(v) => onShipping(v ?? null)}
+        onValue={(v, error) => onShipping(v ?? null, error)}
         tone={shippingError ? "error" : null}
         className={mobile ? "h-12 text-base" : undefined}
         aria-invalid={shippingError ? true : undefined}

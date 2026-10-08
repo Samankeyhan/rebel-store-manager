@@ -36,7 +36,7 @@ function Kpi({
   label: string
   icon: React.ComponentType<{ className?: string }>
   value: number | null
-  /** The value is integer Toman: shown in the display currency. */
+  /** The value is integer Rial: shown in the display currency. */
   money?: boolean
   unit: string
   tone?: Tone
@@ -154,12 +154,12 @@ export function KpiCards({
         icon={Wallet}
         value={p ? p.total_revenue : null}
         money
-        unit={mobile ? "" : D.toman}
+        unit={mobile ? "" : D.unit}
         caption={
           !p || empty
             ? D.nil
             : mobile
-              ? D.toman
+              ? D.unit
               : D.revenueCaption(formatMoney(p.items_revenue), formatMoney(p.shipping_revenue))
         }
         load={pnl}
@@ -170,7 +170,7 @@ export function KpiCards({
         icon={ChartNoAxesColumn}
         value={p ? p.net_profit : null}
         money
-        unit={mobile ? "" : D.toman}
+        unit={mobile ? "" : D.unit}
         tone={netTone}
         caption={margin == null ? D.nil : D.margin(`${formatNumber(margin)}٪`)}
         load={pnl}

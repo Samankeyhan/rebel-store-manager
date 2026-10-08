@@ -6,6 +6,7 @@ import pdfplumber
 import pytest
 from PIL import Image
 
+from db.currency import format_display_number
 from db.orders import get_order, record_order
 from db.products import add_product
 from tests.helpers import cat
@@ -160,19 +161,13 @@ def test_invoice_shows_shipping_and_total_not_postage_or_fee(invoice_order_setup
 
     # Match just the Persian-digit number (not the " تومان" suffix): RTL/bidi
     # reshaping can reorder the number relative to surrounding Persian words
-    # in extracted text, but the digit run itself stays contiguous.
-    def _persian_number(amount: int) -> str:
-        return f"{amount:,}".translate(invoice_module.PERSIAN_DIGIT_MAP)
-
-    shipping_text = _persian_number(order["shipping_charge"])
-    total_text = _persian_number(detail["customer_total"])
-    postage_text = _persian_number(order["postage_cost"])
-    fee_text = _persian_number(order["transaction_fee"])
-
-    assert shipping_text in text
-    assert total_text in text
-    assert postage_text not in text
-    assert fee_text not in text
+    # in extracted text, but the digit run itself stays contiguous. Amounts are
+    # stored in Rial and shown in the display currency (Toman by default).
+    assert _shown(order["shipping_charge"]) in text
+    assert _shown(detail["customer_total"]) in text
+    for hidden in (order["postage_cost"], order["transaction_fee"]):
+        assert _shown(hidden) not in text
+        assert _shown(hidden, "RIAL") not in text
 
 
 def _invoice_text(test_db, order_id, output_dir) -> str:
@@ -181,8 +176,13 @@ def _invoice_text(test_db, order_id, output_dir) -> str:
         return "\n".join(page.extract_text() or "" for page in pdf.pages)
 
 
-def _fa(amount: int) -> str:
-    return f"{amount:,}".translate(invoice_module.PERSIAN_DIGIT_MAP)
+def _shown(rial: int, currency: str = "TOMAN") -> str:
+    """The number the invoice prints for a stored Rial amount (no unit), via
+    the same exact conversion the invoice uses: Toman = Rial / 10 with «٫» and
+    one digit only when needed, Rial = the stored integer."""
+    return format_display_number(
+        rial, currency, decimal_mark=invoice_module.PERSIAN_DECIMAL_MARK
+    ).translate(invoice_module.PERSIAN_DIGIT_MAP)
 
 
 def _discounted_order(test_db, product_id):
@@ -198,12 +198,12 @@ def _discounted_order(test_db, product_id):
     )
 
 
-@pytest.mark.parametrize("currency, factor, unit, other_unit", [
-    ("TOMAN", 1, "تومان", "ریال"),
-    ("RIAL", 10, "ریال", "تومان"),
+@pytest.mark.parametrize("currency, unit, other_unit", [
+    ("TOMAN", "تومان", "ریال"),
+    ("RIAL", "ریال", "تومان"),
 ])
 def test_invoice_amounts_follow_display_currency(
-    invoice_order_setup, test_db, currency, factor, unit, other_unit
+    invoice_order_setup, test_db, currency, unit, other_unit
 ):
     from db.settings import set_setting
 
@@ -215,35 +215,121 @@ def test_invoice_amounts_follow_display_currency(
 
     text = _invoice_text(test_db, order_id, invoice_order_setup["output_dir"])
 
-    for toman in (
+    for rial in (
         item["unit_price"],
         item["list_price"] - item["discount_amount"],
         item["discount_amount"],
         order["shipping_charge"],
         detail["customer_total"],
     ):
-        assert _fa(toman * factor) in text, toman
+        assert _shown(rial, currency) in text, rial
     # pdfplumber returns RTL words as visual glyph runs; check the reshaped unit.
     assert invoice_module.prepare_persian(unit) in text
     assert invoice_module.prepare_persian(other_unit) not in text
     # Still customer amounts only, in either currency.
     for hidden in (order["postage_cost"], order["transaction_fee"]):
-        assert _fa(hidden) not in text
-        assert _fa(hidden * 10) not in text
+        assert _shown(hidden, "TOMAN") not in text
+        assert _shown(hidden, "RIAL") not in text
 
 
-def test_rial_invoice_values_are_exactly_ten_times_toman(invoice_order_setup, test_db):
+def test_invoice_rial_shows_the_stored_integer_and_toman_a_tenth(invoice_order_setup, test_db):
     from db.settings import set_setting
 
     order_id = invoice_order_setup["order_id"]
-    total = get_order(test_db, order_id)["customer_total"]
+    total = get_order(test_db, order_id)["customer_total"]  # 176,000 Rial
     out = invoice_order_setup["output_dir"]
 
     toman_text = _invoice_text(test_db, order_id, out)
     set_setting(test_db, "display_currency", "RIAL")
     rial_text = _invoice_text(test_db, order_id, out)
 
-    assert _fa(total) in toman_text
-    assert _fa(total * 10) in rial_text
-    assert invoice_module.format_amount(total, "RIAL") == _fa(total * 10) + " ریال"
-    assert invoice_module.format_amount(total, "TOMAN") == _fa(total) + " تومان"
+    assert total == 176_000
+    assert "۱۷,۶۰۰" in toman_text  # whole Toman: no decimal shown
+    assert "۱۷۶,۰۰۰" in rial_text
+    assert invoice_module.format_amount(total, "RIAL") == "۱۷۶,۰۰۰ ریال"
+    assert invoice_module.format_amount(total, "TOMAN") == "۱۷,۶۰۰ تومان"
+
+
+@pytest.mark.parametrize(
+    "rial, toman, rial_text",
+    [
+        (1_800_005, "۱۸۰,۰۰۰٫۵ تومان", "۱,۸۰۰,۰۰۵ ریال"),
+        (1_800_000, "۱۸۰,۰۰۰ تومان", "۱,۸۰۰,۰۰۰ ریال"),
+        (7, "۰٫۷ تومان", "۷ ریال"),
+        (12_345_671, "۱,۲۳۴,۵۶۷٫۱ تومان", "۱۲,۳۴۵,۶۷۱ ریال"),
+    ],
+)
+def test_format_amount_toman_decimal_only_when_needed(rial, toman, rial_text):
+    assert invoice_module.format_amount(rial, "TOMAN") == toman
+    assert invoice_module.format_amount(rial, "RIAL") == rial_text
+
+
+@pytest.mark.parametrize("currency", ["TOMAN", "RIAL"])
+def test_invoice_with_odd_rial_amounts(test_db, tmp_path, currency):
+    """Odd Rial amounts (not whole Toman) print exactly in both currencies."""
+    from db.settings import set_setting
+
+    product_id = add_product(test_db, "Odd Rial LP", cat(test_db, "VINYL"), 12_345, 10_001)
+    test_db.execute("UPDATE products SET current_stock = 10, unit_cost = 5003 WHERE id = ?", (product_id,))
+    test_db.commit()
+    set_setting(test_db, "display_currency", currency)
+    order_id = record_order(
+        test_db,
+        "INSTAGRAM",
+        [{"product_id": product_id, "quantity": 3, "unit_price": 12_345, "discount_amount": 7}],
+        customer_name="Test Customer",
+        shipping_charge=1_800_005,
+        postage_cost=3_333,
+        transaction_fee=4_567,
+    )
+    detail = get_order(test_db, order_id)
+    item = detail["items"][0]
+    assert item["list_price"] == 37_035
+    assert detail["customer_total"] == 37_035 - 7 + 1_800_005 == 1_837_033
+
+    text = _invoice_text(test_db, order_id, str(tmp_path / "invoices"))
+    for rial in (37_035 - 7, 7, 1_800_005, 1_837_033):
+        assert _shown(rial, currency) in text, (rial, _shown(rial, currency))
+    if currency == "TOMAN":
+        assert "۱۸۳,۷۰۳٫۳" in text and "۱۸۰,۰۰۰٫۵" in text and "۰٫۷" in text
+    else:
+        assert "۱,۸۳۷,۰۳۳" in text and "۱,۸۰۰,۰۰۵" in text
+    for hidden in (3_333, 4_567):
+        assert _shown(hidden, "TOMAN") not in text
+        assert _shown(hidden, "RIAL") not in text
+
+
+# The widest realistic amount, 999,999,995 Rial (99,999,999.5 Toman), in both
+# display currencies, measured as drawn: line items use 10pt Vazir and
+# _draw_amount_right right-aligns the reshaped text at the column edge.
+WIDEST_REALISTIC_RIAL = 999_999_995
+AMOUNT_FONT = "Vazir"
+AMOUNT_SIZE = 10
+MIN_GAP_UNIT_PRICE_TO_LINE_TOTAL = 9
+
+
+def _drawn_amount_width(rial: int, currency: str) -> float:
+    from reportlab.pdfbase import pdfmetrics
+
+    invoice_module._register_fonts()
+    text = invoice_module.prepare_persian(invoice_module.format_amount(rial, currency))
+    return pdfmetrics.stringWidth(text, AMOUNT_FONT, AMOUNT_SIZE)
+
+
+@pytest.mark.parametrize(
+    "currency, expected",
+    [("TOMAN", "۹۹,۹۹۹,۹۹۹٫۵ تومان"), ("RIAL", "۹۹۹,۹۹۹,۹۹۵ ریال")],
+)
+def test_widest_amount_fits_the_amount_columns(currency, expected):
+    assert invoice_module.format_amount(WIDEST_REALISTIC_RIAL, currency) == expected
+    width = _drawn_amount_width(WIDEST_REALISTIC_RIAL, currency)
+
+    # The line total ends at COL_LINE_TOTAL and must start inside the page margin.
+    line_total_left = invoice_module.COL_LINE_TOTAL - width
+    assert line_total_left >= invoice_module.PAGE_MARGIN, (currency, width)
+
+    # The unit price ends at COL_UNIT_PRICE and must keep the gap before the
+    # line-total column's right edge.
+    unit_price_left = invoice_module.COL_UNIT_PRICE - width
+    gap = unit_price_left - invoice_module.COL_LINE_TOTAL
+    assert gap >= MIN_GAP_UNIT_PRICE_TO_LINE_TOTAL, (currency, width, gap)

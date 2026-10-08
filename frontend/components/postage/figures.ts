@@ -7,8 +7,9 @@
  */
 
 import type { PostageBatch } from "@/lib/api"
-import { roundHalfEven } from "@/lib/costing"
-import { utcToLocal } from "@/lib/jalali"
+// Relative .ts imports so `npm test` (node --test) can load this module.
+import { roundHalfEven } from "../../lib/costing.ts"
+import { utcToLocal } from "../../lib/jalali.ts"
 
 export type Sums = { total: number; orders: number }
 

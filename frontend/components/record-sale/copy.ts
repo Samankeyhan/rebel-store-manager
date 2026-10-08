@@ -142,7 +142,7 @@ export const T = {
   addProductMobile: "افزودن محصول",
   itemsNetFooter: "جمع اقلام پس از تخفیف:",
   rowTotalMobile: "جمع:",
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
   increase: "افزایش",
@@ -297,7 +297,7 @@ export const T = {
     `تخفیف (${formatMoney(discount)}) از جمع این ردیف (${formatMoney(gross)}) بیشتر است. حداکثر تخفیف ${formatMoney(gross)} است.`,
   v4Summary: (name: string) => `تخفیف «${name}» از جمع ردیف بیشتر است.`,
   v5: "حداقل یک قلم به سفارش اضافه کنید.",
-  vMoney: "مبلغی که وارد شده دقیق نیست؛ آن را اصلاح کنید.", // NEW (MoneyInput null: Rial amount not a multiple of 10)
+  vMoney: "مبلغی که وارد شده دقیق نیست؛ آن را اصلاح کنید.", // NEW (MoneyInput null: no exact amount; the field says why)
   vMethodInactive: (name: string) => `روش پرداخت «${name}» غیرفعال است؛ روش دیگری یا «بدون روش» انتخاب کنید.`, // NEW
   vMethodUnavailable: "فهرست روش‌های پرداخت بارگذاری نشد و این کانال روش پیش‌فرض دارد؛ دوباره تلاش کنید.", // NEW
   v6: "تعداد باید حداقل ۱ باشد.",

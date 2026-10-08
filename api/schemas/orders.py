@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, StrictInt
 
-from api.schemas.common import DateStr, Money
+from api.schemas.common import DateStr, Money, Rial
 
 
 class OrderListItemOut(BaseModel):
@@ -14,12 +14,12 @@ class OrderListItemOut(BaseModel):
     status: str
     channel: str
     customer_name: str | None
-    shipping_charge: int
-    postage_cost: int
-    transaction_fee: int
+    shipping_charge: Rial
+    postage_cost: Rial
+    transaction_fee: Rial
     notes: str | None
     packaging_kit_id: int | None
-    packaging_cost: int
+    packaging_cost: Rial
     stock_committed: int
     # Migration 008: payment method and settlement state. NULL on orders
     # recorded before it; paid/expected dates are local calendar days.
@@ -31,8 +31,8 @@ class OrderListItemOut(BaseModel):
     paid_jalali_month: int | None
     settlement_id: int | None
     payment_method_name: str | None
-    customer_total: int
-    profit: int | None
+    customer_total: Rial
+    profit: Rial | None
 
 
 class OrderOut(BaseModel):
@@ -44,12 +44,12 @@ class OrderOut(BaseModel):
     status: str
     channel: str
     customer_name: str | None
-    shipping_charge: int
-    postage_cost: int
-    transaction_fee: int
+    shipping_charge: Rial
+    postage_cost: Rial
+    transaction_fee: Rial
     notes: str | None
     packaging_kit_id: int | None
-    packaging_cost: int
+    packaging_cost: Rial
     stock_committed: int
     # Migration 008: payment method and settlement state. NULL on orders
     # recorded before it; paid/expected dates are local calendar days.
@@ -70,11 +70,11 @@ class OrderItemOut(BaseModel):
     order_id: int
     product_id: int
     quantity: int
-    list_price: int
-    discount_amount: int
+    list_price: Rial
+    discount_amount: Rial
     discount_reason: str | None
-    unit_price: int
-    unit_cost_at_time: int
+    unit_price: Rial
+    unit_cost_at_time: Rial
     product_name: str
 
 
@@ -83,8 +83,8 @@ class OrderDetailOut(BaseModel):
 
     order: OrderOut
     items: list[OrderItemOut]
-    customer_total: int
-    profit: int
+    customer_total: Rial
+    profit: Rial
 
 
 class OrderItemCreate(BaseModel):

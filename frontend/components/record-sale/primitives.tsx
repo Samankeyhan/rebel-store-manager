@@ -11,8 +11,8 @@ import * as React from "react"
 import { CircleAlert, Info, Lock, Minus, Plus, TriangleAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatNumber, parseInteger } from "@/lib/persian-numbers"
-import { M } from "@/components/common/copy"
-import { currencyLabel, parseMoneyInput, toDisplayAmount, type Currency } from "@/lib/money"
+import { moneyInputMessage, M } from "@/components/common/copy"
+import { currencyLabel, moneyInputDisplay, moneyInputTextOf, parseMoneyInput, type Currency, type MoneyInputError } from "@/lib/money"
 import { useCurrency } from "@/lib/use-currency"
 import { T } from "./copy"
 
@@ -134,16 +134,25 @@ export function IntInput({
   )
 }
 
-const moneyDigits = (v: number | null | undefined, currency: Currency) =>
-  v == null ? "" : String(toDisplayAmount(v, currency))
+type MoneyFieldState = { value: number | null | undefined; currency: Currency; text: string; error: MoneyInputError | null }
+
+const fieldOf = (value: number | null | undefined, currency: Currency): MoneyFieldState => ({
+  value,
+  currency,
+  text: moneyInputTextOf(value, currency),
+  error: null,
+})
 
 /**
- * THE money input. `value` and `onValue` are integer Toman; the user types in
- * the display currency (lib/money.ts) and the unit is the suffix inside the
- * field. In Rial an amount that isn't a multiple of 10 can't be exact Toman:
- * it is never rounded — onValue(null) is reported and the field shows why.
- * A caller stores `number | null` and must treat null as a blocking error
- * (don't submit). With `allowEmpty`, an empty field reports undefined.
+ * THE money input. `value` and `onValue` are integer Rial; the user types in
+ * the display currency (lib/money.ts parseMoneyInput) and the unit sits
+ * inside the field. Toman takes one decimal digit (۱۸۰٬۰۰۰٫۵ = 1,800,005
+ * Rial); Rial is a whole number. Nothing is ever rounded: an amount that
+ * can't be exact (two Toman decimals, a Rial decimal, a minus sign, beyond
+ * the safe range) reports onValue(null) and the field says why. A caller
+ * stores `number | null` and must treat null as a blocking error (don't
+ * submit); the second argument says why, for a form that repeats the reason
+ * in its own validation. With `allowEmpty`, an empty field reports undefined.
  */
 export function MoneyInput({
   value,
@@ -156,33 +165,40 @@ export function MoneyInput({
   ...props
 }: Omit<React.ComponentProps<"input">, "value" | "onChange"> & {
   value: number | null | undefined
-  onValue: (toman: number | null | undefined) => void
+  onValue: (rial: number | null | undefined, error: MoneyInputError | null) => void
   allowEmpty?: boolean
   tone?: "error" | "warn" | null
   wrapperClassName?: string
 }) {
   const currency = useCurrency()
-  // The typed digits, so a half-typed Rial amount (e.g. 15) isn't lost. Re-derived
-  // when the value changes from outside (revert, reset) or the currency switches.
-  const [sync, setSync] = React.useState(() => ({ value, currency, digits: moneyDigits(value, currency) }))
-  if (sync.value !== value || sync.currency !== currency) {
-    setSync({ value, currency, digits: value === null ? sync.digits : moneyDigits(value, currency) })
+  // The typed text (digits and one decimal mark), so a half-typed amount isn't
+  // lost or reformatted away. Re-derived when the value changes from outside
+  // (load, revert, reset) or the currency switches; while the value is null
+  // (not exact) the text stays and only its message follows the currency.
+  const [field, setField] = React.useState(() => fieldOf(value, currency))
+  if (field.value !== value || field.currency !== currency) {
+    setField(
+      value === null
+        ? { value, currency, text: field.text, error: parseMoneyInput(field.text, currency, allowEmpty).error }
+        : fieldOf(value, currency)
+    )
   }
   const invalid = value === null
-  const message = invalid ? (currency === "RIAL" ? M.notMultipleOf10 : M.reenter) : null
-  const shown = sync.digits === "" ? (allowEmpty ? "" : formatNumber(0)) : formatNumber(Number(sync.digits))
+  const message = invalid ? (field.error ? moneyInputMessage(field.error) : M.reenter) : null
+  const shown = field.text === "" && !allowEmpty ? moneyInputDisplay("0") : moneyInputDisplay(field.text)
 
   return (
     <div className={cn("flex w-full min-w-0 flex-col gap-1.5", wrapperClassName)}>
       <div className="relative flex w-full items-center">
         <input
-          inputMode="numeric"
+          // Toman needs the decimal key on a phone keyboard; Rial is whole.
+          inputMode={currency === "TOMAN" ? "decimal" : "numeric"}
           autoComplete="off"
           value={shown}
           onChange={(e) => {
-            const { digits, toman: next } = parseMoneyInput(e.target.value, currency, allowEmpty)
-            setSync({ value: next, currency, digits })
-            onValue(next)
+            const { text, rial, error } = parseMoneyInput(e.target.value, currency, allowEmpty)
+            setField({ value: rial, currency, text, error })
+            onValue(rial, error)
           }}
           onFocus={(e) => e.currentTarget.select()}
           className={inputClass(invalid ? "error" : tone, cn("pe-14 tabular-nums", className))}

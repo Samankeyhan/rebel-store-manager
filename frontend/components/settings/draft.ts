@@ -16,7 +16,8 @@ import {
   type Settings,
 } from "@/lib/api"
 import { CHANNEL_IDS, CHANNELS, type Channel } from "@/components/record-sale/copy"
-import { M } from "@/components/common/copy"
+import { M, moneyInputMessage } from "@/components/common/copy"
+import type { MoneyInputError } from "@/lib/money"
 import { S } from "./copy"
 
 /** The kit picker's value for "no packaging" (same sentinel as Packaging's deactivate dialog). */
@@ -33,12 +34,25 @@ export const methodIdOf = (choice: string): number | null => (choice === NONE ? 
 
 export type ChannelDraft = { applies_shipping_charge: number; applies_postage: number; kit: string; method: string }
 
-/** The money keys are integer Toman, or null while MoneyInput holds an amount that isn't exact (blocks save). */
+export type MoneyKey = "default_shipping_charge" | "default_postage_estimate"
+
+/**
+ * The money keys are integer Rial, or null while MoneyInput holds text that
+ * gives no exact amount (blocks save); `moneyErrors` keeps MoneyInput's reason
+ * for each null one, so validation reports the field's own message.
+ */
 export type Draft = {
   default_shipping_charge: number | null
   postage_estimate_window: number
   default_postage_estimate: number | null
   channels: Record<Channel, ChannelDraft>
+  moneyErrors: Partial<Record<MoneyKey, MoneyInputError>>
+}
+
+/** The message for a money key that holds no exact amount: MoneyInput's own reason. */
+const notExact = (draft: Draft, key: MoneyKey) => {
+  const error = draft.moneyErrors[key]
+  return error ? moneyInputMessage(error) : M.reenter
 }
 
 const GLOBAL_KEYS: GlobalSettingKey[] = ["default_shipping_charge", "postage_estimate_window", "default_postage_estimate"]
@@ -66,6 +80,7 @@ export function fromSettings(s: Settings): Draft {
     postage_estimate_window: s.postage_estimate_window,
     default_postage_estimate: s.default_postage_estimate,
     channels: Object.fromEntries(CHANNEL_IDS.map((c) => [c, channelDraft(s.channels[c])])) as Record<Channel, ChannelDraft>,
+    moneyErrors: {},
   }
 }
 
@@ -109,7 +124,7 @@ export function validate(draft: Draft): Partial<Record<GlobalSettingKey, string>
   const errors: Partial<Record<GlobalSettingKey, string>> = {}
   for (const key of ["default_shipping_charge", "default_postage_estimate"] as const) {
     const v = draft[key]
-    if (v === null) errors[key] = M.notMultipleOf10
+    if (v === null) errors[key] = notExact(draft, key)
     else if (!Number.isSafeInteger(v) || v < 0) errors[key] = S.amountError
   }
   const n = draft.postage_estimate_window
@@ -149,7 +164,10 @@ export async function saveDraft(baseline: Settings, draft: Draft): Promise<SaveR
     const value = draft[key]
     if (value === current[key]) continue
     // validate() refuses a null amount, so save() never gets here with one.
-    if (value === null) return fail({ label: GLOBAL_LABELS[key], error: new Error(M.notMultipleOf10), key, kitChanged: false, methodChanged: false })
+    if (value === null) {
+      const message = key === "postage_estimate_window" ? M.reenter : notExact(draft, key)
+      return fail({ label: GLOBAL_LABELS[key], error: new Error(message), key, kitChanged: false, methodChanged: false })
+    }
     try {
       current = await updateSetting(key, value)
       saved.push(GLOBAL_LABELS[key])

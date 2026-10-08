@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils"
 
 /**
  * A money VALUE: the amount in the display currency with its unit, kept on
- * one line. `value` is integer Toman (straight from the API). The number is
+ * one line. `value` is integer Rial (straight from the API); Toman shows one
+ * decimal digit only when needed (lib/money.ts). The number is
  * bidi-isolated so a minus (LRM + U+2212) stays on the digits' left whatever
  * text surrounds it. The unit is small and muted by default (dense tables);
  * `plainUnit` makes it inherit the text's own size/weight/colour; pass

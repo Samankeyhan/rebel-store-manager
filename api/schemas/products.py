@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import Money
+from api.schemas.common import Money, Rial
 
 
 class ProductOut(BaseModel):
@@ -15,10 +15,10 @@ class ProductOut(BaseModel):
     category_name: str
     parent_category_id: int | None
     parent_category_name: str | None
-    retail_price: int
-    wholesale_price: int
+    retail_price: Rial
+    wholesale_price: Rial
     current_stock: int
-    unit_cost: int | None
+    unit_cost: Rial | None
     is_active: int
     made_to_order: int
     created_at: str

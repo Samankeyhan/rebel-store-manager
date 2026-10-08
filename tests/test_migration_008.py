@@ -9,6 +9,12 @@ BEFORE_008 = tuple(
     name for name in sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")) if name < "008"
 )
 
+# This test is about 008 alone: later migrations (e.g. 009, money x 10 in Rial)
+# would change the rows it compares, so it applies migrations only up to 008.
+UP_TO_008 = tuple(
+    name for name in sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")) if name < "009"
+)
+
 NEW_ORDER_COLUMNS = {
     "payment_method_id",
     "payment_reference",
@@ -65,7 +71,7 @@ def test_008_adds_columns_and_touches_no_existing_row(tmp_path):
     finally:
         conn.close()
 
-    init_db(str(db_path))
+    init_db(str(db_path), migrations_dir=str(_migrations_dir(tmp_path, "up_to_008", UP_TO_008)))
 
     conn = get_connection(str(db_path))
     try:

@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils"
 import { PM } from "@/components/payment-methods/copy"
 import { ChannelsCard } from "./channels-card"
 import { S, joinList } from "./copy"
-import { changes, fromSettings, saveDraft, validate, type ChannelDraft, type Draft } from "./draft"
+import { changes, fromSettings, saveDraft, validate, type ChannelDraft, type Draft, type MoneyKey } from "./draft"
+import type { MoneyInputError } from "@/lib/money"
 import { GeneralCard } from "./general-card"
 import { PaymentMethodsCard } from "./payment-methods-card"
 import { PostageCard, heroFigure } from "./postage-card"
@@ -91,13 +92,18 @@ export function SettingsPage() {
     setDraft((d) => d && { ...d, [key]: value })
     if (serverError?.key === key) setServerError(null)
   }
+  /** A money key also keeps MoneyInput's reason while it holds no exact amount. */
+  const setMoney = (key: MoneyKey) => (value: number | null, error: MoneyInputError | null) => {
+    setDraft((d) => d && { ...d, [key]: value, moneyErrors: { ...d.moneyErrors, [key]: error ?? undefined } })
+    if (serverError?.key === key) setServerError(null)
+  }
   const setChannel = (channel: Channel, patch: Partial<ChannelDraft>) =>
     setDraft((d) => d && { ...d, channels: { ...d.channels, [channel]: { ...d.channels[channel], ...patch } } })
 
   /**
    * «واحد پول» saves on its own, immediately — it isn't part of the draft:
    * it changes no data, only how every amount (draft amounts included, which
-   * are kept in Toman) is shown. Optimistic; reverted if the PUT fails.
+   * are kept in integer Rial) is shown and typed. Optimistic; reverted if the PUT fails.
    */
   const changeCurrency = async (next: Currency) => {
     if (currencyBusy || next === currency) return
@@ -197,7 +203,7 @@ export function SettingsPage() {
         methods={methods}
         estimate={hero.estimate}
         shippingError={errorFor("default_shipping_charge")}
-        onShipping={setGlobal("default_shipping_charge")}
+        onShipping={setMoney("default_shipping_charge")}
         onChannel={setChannel}
         mobile={mobile}
       />
@@ -215,7 +221,7 @@ export function SettingsPage() {
         windowError={errorFor("postage_estimate_window")}
         defaultError={errorFor("default_postage_estimate")}
         onWindow={setGlobal("postage_estimate_window")}
-        onDefault={setGlobal("default_postage_estimate")}
+        onDefault={setMoney("default_postage_estimate")}
         mobile={mobile}
       />
       <GeneralCard

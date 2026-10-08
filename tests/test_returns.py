@@ -238,14 +238,15 @@ def test_get_revenue_summary_excludes_cancelled_and_refunded(test_db, return_set
     )
     test_db.commit()
 
-    # active_order: INSTAGRAM applies the default shipping charge (180,000)
-    # since none was given: revenue = items_net(3000) + shipping(180,000) =
-    # 183,000; profit = revenue - cogs(500) = 182,500 (no packaging/postage
-    # batches recorded here, so postage estimate is the 0 default).
+    # active_order: INSTAGRAM applies the default shipping charge (1,800,000
+    # Rial, the 180,000 seed x 10 by migration 009) since none was given:
+    # revenue = items_net(3000) + shipping(1,800,000) = 1,803,000; profit =
+    # revenue - cogs(500) = 1,802,500 (no packaging/postage batches recorded
+    # here, so postage estimate is the 0 default).
     summary = get_revenue_summary(test_db)
     assert summary["order_count"] == 1
-    assert summary["total_revenue"] == 183_000
-    assert summary["total_profit"] == 182_500
+    assert summary["total_revenue"] == 1_803_000
+    assert summary["total_profit"] == 1_802_500
 
     assert active_order == 1
 

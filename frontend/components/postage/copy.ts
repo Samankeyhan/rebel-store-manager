@@ -15,7 +15,7 @@ export const T = {
   get perOrder() {
     return `${currencyLabel()} / سفارش`
   },
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
   heroCaption: (n: number, channels: string) =>

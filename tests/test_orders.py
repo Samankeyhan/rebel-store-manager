@@ -358,12 +358,13 @@ def test_list_orders_filters_by_channel_and_status(test_db, order_setup):
         status="PENDING",
     )
 
-    # INSTAGRAM applies the default shipping charge (180,000) since none was
-    # given: customer_total = items_net (3000) + shipping (180,000).
+    # INSTAGRAM applies the default shipping charge (1,800,000 Rial, the
+    # 180,000 seed x 10 by migration 009) since none was given:
+    # customer_total = items_net (3000) + shipping (1,800,000).
     instagram_orders = list_orders(test_db, channel="INSTAGRAM")
     assert len(instagram_orders) == 1
     assert instagram_orders[0]["channel"] == "INSTAGRAM"
-    assert instagram_orders[0]["customer_total"] == 183_000
+    assert instagram_orders[0]["customer_total"] == 1_803_000
 
     # WHOLESALE does not apply a shipping charge by default.
     pending_orders = list_orders(test_db, status="PENDING")
@@ -385,8 +386,9 @@ def test_list_orders_includes_profit(test_db, canonical_setup):
     rows = list_orders(test_db, channel="WEBSITE")
     assert len(rows) == 1
     row = rows[0]
-    assert row["customer_total"] == 5_180_000
-    assert row["profit"] == 2_435_000
+    # 5,000,000 items + the seeded shipping charge (1,800,000 Rial since migration 009).
+    assert row["customer_total"] == 6_800_000
+    assert row["profit"] == 4_055_000
 
     detail = get_order(test_db, order_id)
     assert row["customer_total"] == detail["customer_total"]
@@ -603,11 +605,12 @@ def test_canonical_website_order(test_db, canonical_setup):
     detail = get_order(test_db, order_id)
     order = detail["order"]
 
-    assert order["shipping_charge"] == 180_000
+    # The seeded shipping charge is 1,800,000 Rial (180,000 x 10, migration 009).
+    assert order["shipping_charge"] == 1_800_000
     assert order["packaging_cost"] == 45_000
     assert order["postage_cost"] == 250_000
-    assert detail["customer_total"] == 5_180_000
-    assert detail["profit"] == 2_435_000
+    assert detail["customer_total"] == 6_800_000
+    assert detail["profit"] == 4_055_000
     assert "total" not in detail
 
     assert detail["items"][0]["unit_cost_at_time"] == 1_200_000
@@ -783,8 +786,9 @@ def test_changing_default_shipping_charge_does_not_affect_existing_order(
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
     )
-    assert get_order(test_db, order_id)["order"]["shipping_charge"] == 180_000
+    # The seeded default: 1,800,000 Rial (180,000 x 10, migration 009).
+    assert get_order(test_db, order_id)["order"]["shipping_charge"] == 1_800_000
 
     set_setting(test_db, "default_shipping_charge", 999_999)
 
-    assert get_order(test_db, order_id)["order"]["shipping_charge"] == 180_000
+    assert get_order(test_db, order_id)["order"]["shipping_charge"] == 1_800_000

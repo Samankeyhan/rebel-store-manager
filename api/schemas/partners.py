@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.common import Rial
+
 
 class PartnerOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -19,7 +21,7 @@ class PartnerPayoutOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     percentage_at_time: float
-    amount: int
+    amount: Rial
     period_start: str
     period_end: str
     distribution_date: str
@@ -29,7 +31,7 @@ class PartnerTotalOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     partner_name: str
-    total_received: int
+    total_received: Rial
     distribution_count: int
 
 

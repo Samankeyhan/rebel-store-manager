@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, StrictInt
 
-from api.schemas.common import DateStr, Money
+from api.schemas.common import DateStr, Money, Rial
 
 
 class PendingOrderOut(BaseModel):
@@ -12,9 +12,9 @@ class PendingOrderOut(BaseModel):
     paid_date: str
     customer_name: str | None
     channel: str
-    customer_total: int
-    transaction_fee: int
-    expected_amount: int
+    customer_total: Rial
+    transaction_fee: Rial
+    expected_amount: Rial
     expected_settlement_date: str
 
 
@@ -27,9 +27,9 @@ class PendingDateGroupOut(BaseModel):
     due: bool
     overdue: bool
     order_count: int
-    customer_total_sum: int
-    fee_sum: int
-    expected_amount: int
+    customer_total_sum: Rial
+    fee_sum: Rial
+    expected_amount: Rial
     orders: list[PendingOrderOut]
 
 
@@ -48,9 +48,9 @@ class PendingMonthGroupOut(BaseModel):
     due: bool
     overdue: bool
     order_count: int
-    customer_total_sum: int
-    fee_sum: int
-    expected_amount: int
+    customer_total_sum: Rial
+    fee_sum: Rial
+    expected_amount: Rial
     orders: list[PendingOrderOut]
 
 
@@ -62,7 +62,7 @@ class PendingMethodOut(BaseModel):
     settlement_rule: str
     settlement_days: int | None
     is_active: int
-    total_expected: int
+    total_expected: Rial
     groups: list[PendingDateGroupOut | PendingMonthGroupOut]
 
 
@@ -76,9 +76,9 @@ class SettlementOrderOut(BaseModel):
     customer_name: str | None
     channel: str
     status: str
-    customer_total: int
-    transaction_fee: int
-    expected_amount: int
+    customer_total: Rial
+    transaction_fee: Rial
+    expected_amount: Rial
 
 
 class SettlementListItemOut(BaseModel):
@@ -91,10 +91,10 @@ class SettlementListItemOut(BaseModel):
     settled_date: str
     jalali_year: int | None
     jalali_month: int | None
-    expected_amount: int
-    amount_received: int
+    expected_amount: Rial
+    amount_received: Rial
     # amount_received - expected_amount, computed in db/ on read.
-    difference: int
+    difference: Rial
     note: str | None
     created_at: str
     order_count: int
@@ -110,9 +110,9 @@ class SettlementOut(BaseModel):
     settled_date: str
     jalali_year: int | None
     jalali_month: int | None
-    expected_amount: int
-    amount_received: int
-    difference: int
+    expected_amount: Rial
+    amount_received: Rial
+    difference: Rial
     note: str | None
     created_at: str
     orders: list[SettlementOrderOut]

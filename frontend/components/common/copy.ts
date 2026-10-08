@@ -2,12 +2,21 @@
  * Copy for shared components (components/common, MoneyInput). // NEW file
  */
 
-import { currencyLabel } from "@/lib/money"
+import { currencyLabel, type MoneyInputError } from "../../lib/money.ts"
 
 export const M = {
-  // Only shown in Rial mode (a Toman amount is always exact).
-  get notMultipleOf10() {
-    return `مبلغ به ${currencyLabel("RIAL")} باید مضرب ۱۰ باشد (رقم آخر صفر).` // NEW
+  negative: "مبلغ منفی مجاز نیست", // NEW
+  get tomanDecimals() {
+    return `در ${currencyLabel("TOMAN")} حداکثر یک رقم اعشار مجاز است` // NEW
   },
+  get rialDecimal() {
+    return `${currencyLabel("RIAL")} عدد صحیح است و اعشار ندارد` // NEW
+  },
+  tooLarge: "این مبلغ بیش از حد بزرگ است", // NEW
   reenter: "این مبلغ را دوباره وارد کنید.", // NEW
+}
+
+/** The message under a MoneyInput whose text gives no exact Rial amount. */
+export function moneyInputMessage(error: MoneyInputError): string {
+  return M[error]
 }

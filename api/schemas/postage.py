@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr, Money
+from api.schemas.common import DateStr, Money, Rial
 
 
 class PostageBatchOut(BaseModel):
@@ -8,7 +8,7 @@ class PostageBatchOut(BaseModel):
 
     id: int
     paid_date: str
-    total_paid: int
+    total_paid: Rial
     order_count: int
     notes: str | None
     created_at: str
@@ -17,7 +17,7 @@ class PostageBatchOut(BaseModel):
 class PostageEstimateOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    estimate: int
+    estimate: Rial
     window: int
 
 

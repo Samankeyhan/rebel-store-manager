@@ -68,15 +68,18 @@ test("ruleText", () => {
 })
 
 test("feeText", () => {
+  // fee_fixed is integer Rial.
   setCurrency("TOMAN")
-  assert.equal(feeText(150, 500), `۱٫۵٪ + ${formatMoney(500)}`)
-  assert.match(formatMoney(500), /^۵۰۰\s+تومان$/u)
+  assert.equal(feeText(150, 5_000), `۱٫۵٪ + ${formatMoney(5_000)}`)
+  assert.match(formatMoney(5_000), /^۵۰۰\s+تومان$/u)
+  assert.match(feeText(0, 5_005), /^۵۰۰٫۵\s+تومان$/u)
   assert.equal(feeText(150, 0), "۱٫۵٪")
-  assert.equal(feeText(0, 500), formatMoney(500))
+  assert.equal(feeText(0, 5_000), formatMoney(5_000))
   assert.equal(feeText(0, 0), "بدون کارمزد")
   setCurrency("RIAL")
-  assert.equal(feeText(0, 500), formatMoney(500))
-  assert.match(feeText(0, 500), /^۵٬۰۰۰\s+ریال$/u)
+  assert.equal(feeText(0, 5_000), formatMoney(5_000))
+  assert.match(feeText(0, 5_000), /^۵٬۰۰۰\s+ریال$/u)
+  assert.match(feeText(0, 5_005), /^۵٬۰۰۵\s+ریال$/u)
   setCurrency("TOMAN")
 })
 

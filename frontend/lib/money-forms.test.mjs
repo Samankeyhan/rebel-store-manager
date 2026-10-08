@@ -1,6 +1,7 @@
-// Run with `npm test`. The scripted check that a Rial amount which isn't a
-// multiple of 10 never reaches the API: it goes through the same parse step
-// MoneyInput uses (parseMoneyInput) and then each form's own submit gate.
+// Run with `npm test`. The scripted check that an amount which can't be exact
+// Rial (two Toman decimals, a Rial decimal, a minus sign) never reaches the
+// API: it goes through the same parse step MoneyInput uses (parseMoneyInput)
+// and then each form's own submit gate.
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { parseMoneyInput, setCurrency } from "./money.ts"
@@ -16,12 +17,12 @@ import { expenseSubmittable } from "../components/expenses/guard.ts"
 
 /** Types `text` into a record-sale money field, as moneyProps() dispatches it. */
 function typeInto(state, field, onExact, text, currency) {
-  const { toman } = parseMoneyInput(text, currency)
-  if (toman == null) return reducer(state, { type: "moneyInvalid", field, invalid: true })
-  return reducer(reducer(state, onExact(toman)), { type: "moneyInvalid", field, invalid: false })
+  const { rial } = parseMoneyInput(text, currency)
+  if (rial == null) return reducer(state, { type: "moneyInvalid", field, invalid: true })
+  return reducer(reducer(state, onExact(rial)), { type: "moneyInvalid", field, invalid: false })
 }
 
-const product = { id: 7, retail_price: 1_000, wholesale_price: 800 }
+const product = { id: 7, retail_price: 10_000, wholesale_price: 8_000 }
 
 const TODAY = "2026-10-06"
 const NO_METHOD = { kind: "none" }
@@ -36,60 +37,74 @@ function saleWithOneLine() {
   return s
 }
 
-test("MoneyInput parse: typing 15 in Rial is not exact; 150 is 15 Toman", () => {
-  assert.equal(parseMoneyInput("15", "RIAL").toman, null)
-  assert.equal(parseMoneyInput("۱۵", "RIAL").toman, null)
-  assert.equal(parseMoneyInput("150", "RIAL").toman, 15)
-  assert.equal(parseMoneyInput("۱٬۸۰۰٬۰۰۰", "RIAL").toman, 180_000)
-  assert.equal(parseMoneyInput("15", "TOMAN").toman, 15)
-  assert.equal(parseMoneyInput("", "RIAL").toman, 0)
-  assert.equal(parseMoneyInput("", "RIAL", true).toman, undefined)
+test("MoneyInput parse: Toman takes one decimal, Rial any integer; both report Rial", () => {
+  assert.equal(parseMoneyInput("1.5", "TOMAN").rial, 15)
+  assert.equal(parseMoneyInput("۱٫۵", "TOMAN").rial, 15)
+  assert.equal(parseMoneyInput("1.25", "TOMAN").rial, null)
+  assert.equal(parseMoneyInput("15", "RIAL").rial, 15)
+  assert.equal(parseMoneyInput("۱۵", "RIAL").rial, 15)
+  assert.equal(parseMoneyInput("1.5", "RIAL").rial, null)
+  assert.equal(parseMoneyInput("-15", "RIAL").rial, null)
+  assert.equal(parseMoneyInput("۱٬۸۰۰٬۰۰۰", "RIAL").rial, 1_800_000)
+  assert.equal(parseMoneyInput("180000", "TOMAN").rial, 1_800_000)
+  assert.equal(parseMoneyInput("", "RIAL").rial, 0)
+  assert.equal(parseMoneyInput("", "RIAL", true).rial, undefined)
 })
 
-for (const [label, field, onExact] of [
+const FIELDS = [
   ["unit price", priceField(1), (n) => ({ type: "price", key: 1, value: n })],
   ["discount", `discount:1`, (n) => ({ type: "line", key: 1, patch: { discount: n } })],
   ["shipping", "shipping", (n) => ({ type: "shipping", value: n })],
   ["fee", "fee", (n) => ({ type: "fee", value: n })],
-]) {
-  test(`record sale: 15 Rial in ${label} blocks the order; nothing is built to submit`, () => {
-    let s = saleWithOneLine()
-    const before = buildOrderBody(s)
-    s = typeInto(s, field, onExact, "15", "RIAL")
-    assert.equal(moneyBlocked(s), true)
-    assert.throws(() => buildOrderBody(s))
-    // The last exact values are untouched — nothing was rounded into the form.
-    assert.deepEqual({ ...s, invalidMoney: [], serverIssue: null }, { ...saleWithOneLine(), invalidMoney: [], serverIssue: null })
-    // Fixing it (150 Rial = 15 Toman) unblocks it, and the body carries Toman.
-    s = typeInto(s, field, onExact, "150", "RIAL")
-    assert.equal(moneyBlocked(s), false)
-    const body = buildOrderBody(s)
-    assert.notDeepEqual(body, before)
-  })
+]
+
+for (const [label, field, onExact] of FIELDS) {
+  for (const [text, currency] of [["1.25", "TOMAN"], ["1.5", "RIAL"], ["-15", "RIAL"], ["-1.5", "TOMAN"]]) {
+    test(`record sale: ${text} ${currency} in ${label} blocks the order; nothing is built to submit`, () => {
+      let s = saleWithOneLine()
+      const before = buildOrderBody(s)
+      s = typeInto(s, field, onExact, text, currency)
+      assert.equal(moneyBlocked(s), true)
+      assert.throws(() => buildOrderBody(s))
+      // The last exact values are untouched — nothing was rounded into the form.
+      assert.deepEqual({ ...s, invalidMoney: [], serverIssue: null }, { ...saleWithOneLine(), invalidMoney: [], serverIssue: null })
+      // Fixing it (1.5 Toman = 15 Rial) unblocks it, and the body carries Rial.
+      s = typeInto(s, field, onExact, "1.5", "TOMAN")
+      assert.equal(moneyBlocked(s), false)
+      assert.notDeepEqual(buildOrderBody(s), before)
+    })
+  }
 }
 
-test("record sale: 150 Rial unit price is sent as 15 Toman", () => {
+test("record sale: 1.5 Toman unit price is sent as 15 Rial; 15 Rial as 15", () => {
   let s = saleWithOneLine()
-  s = typeInto(s, priceField(1), (n) => ({ type: "price", key: 1, value: n }), "150", "RIAL")
+  s = typeInto(s, priceField(1), (n) => ({ type: "price", key: 1, value: n }), "1.5", "TOMAN")
   assert.equal(buildOrderBody(s).items[0].unit_price, 15)
+  s = typeInto(s, priceField(1), (n) => ({ type: "price", key: 1, value: n }), "15", "RIAL")
+  assert.equal(buildOrderBody(s).items[0].unit_price, 15)
+  s = typeInto(s, "shipping", (n) => ({ type: "shipping", value: n }), "180000.5", "TOMAN")
+  assert.equal(buildOrderBody(s).shipping_charge, 1_800_005)
 })
 
 test("record sale: removing the line, re-picking or a channel change clears its flag", () => {
-  let s = typeInto(saleWithOneLine(), priceField(1), (n) => ({ type: "price", key: 1, value: n }), "15", "RIAL")
+  let s = typeInto(saleWithOneLine(), priceField(1), (n) => ({ type: "price", key: 1, value: n }), "1.25", "TOMAN")
   assert.equal(moneyBlocked(reducer(s, { type: "removeLine", key: 1 })), false)
   assert.equal(moneyBlocked(reducer(s, { type: "pickProduct", key: 1, product })), false)
   const products = new Map([[product.id, product]])
   assert.equal(moneyBlocked(reducer(s, { type: "channel", channel: "WHOLESALE", products })), false)
-  const shipping = typeInto(saleWithOneLine(), "shipping", (n) => ({ type: "shipping", value: n }), "15", "RIAL")
+  const shipping = typeInto(saleWithOneLine(), "shipping", (n) => ({ type: "shipping", value: n }), "1.5", "RIAL")
   assert.equal(moneyBlocked(reducer(shipping, { type: "channel", channel: "WHOLESALE", products })), false)
 })
 
-test("expense: 15 Rial is never submittable; 150 Rial is (as 15 Toman)", () => {
-  const amount15 = parseMoneyInput("15", "RIAL").toman
-  assert.equal(expenseSubmittable({ categoryId: 3, amount: amount15 ?? null, busy: false }), false)
-  const amount150 = parseMoneyInput("150", "RIAL").toman
-  assert.equal(amount150, 15)
-  assert.equal(expenseSubmittable({ categoryId: 3, amount: amount150 ?? null, busy: false }), true)
+test("expense: an inexact amount is never submittable; 0.5 Toman is (as 5 Rial)", () => {
+  for (const [text, currency] of [["1.25", "TOMAN"], ["1.5", "RIAL"], ["-5", "TOMAN"]]) {
+    const amount = parseMoneyInput(text, currency).rial
+    assert.equal(expenseSubmittable({ categoryId: 3, amount: amount ?? null, busy: false }), false, text)
+  }
+  const half = parseMoneyInput("0.5", "TOMAN").rial
+  assert.equal(half, 5)
+  assert.equal(expenseSubmittable({ categoryId: 3, amount: half ?? null, busy: false }), true)
+  assert.equal(expenseSubmittable({ categoryId: 3, amount: parseMoneyInput("15", "RIAL").rial ?? null, busy: false }), true)
   assert.equal(expenseSubmittable({ categoryId: 3, amount: 0, busy: false }), false)
   assert.equal(expenseSubmittable({ categoryId: null, amount: 15, busy: false }), false)
 })
@@ -97,11 +112,11 @@ test("expense: 15 Rial is never submittable; 150 Rial is (as 15 Toman)", () => {
 test("the module default currency drives parseMoneyInput when none is passed", () => {
   setCurrency("RIAL")
   try {
-    assert.equal(parseMoneyInput("15").toman, null)
+    assert.equal(parseMoneyInput("1.5").rial, null)
   } finally {
     setCurrency("TOMAN")
   }
-  assert.equal(parseMoneyInput("15").toman, 15)
+  assert.equal(parseMoneyInput("1.5").rial, 15)
 })
 
 

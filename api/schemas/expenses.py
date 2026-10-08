@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr, Money
+from api.schemas.common import DateStr, Money, Rial
 
 
 class ExpenseOut(BaseModel):
@@ -9,7 +9,7 @@ class ExpenseOut(BaseModel):
     id: int
     expense_category_id: int
     expense_date: str
-    amount: int
+    amount: Rial
     description: str | None
     category_name: str
 

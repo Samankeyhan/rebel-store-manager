@@ -99,7 +99,7 @@ export const P = {
   colMatCategory: "دسته", // NEW
   fieldRetail: "قیمت خرده",
   fieldWholesale: "قیمت عمده",
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
   fieldCost: "بهای تمام‌شده",

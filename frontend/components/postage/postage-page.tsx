@@ -93,7 +93,7 @@ export function PostagePage() {
           <b className={cn("tabular-nums", mobile ? "text-[30px] leading-[42px]" : "text-4xl leading-[48px]")}>
             <Money value={estimate.estimate} unit={false} />
           </b>
-          <span className={cn("font-medium", mobile ? "text-[13px]" : "text-sm")}>{mobile ? T.toman : T.perOrder}</span>
+          <span className={cn("font-medium", mobile ? "text-[13px]" : "text-sm")}>{mobile ? T.unit : T.perOrder}</span>
         </span>
         {inWindow.length === 0 ? (
           <span className="text-[13px] text-text-3">{T.heroDefault}</span>

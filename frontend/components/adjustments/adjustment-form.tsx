@@ -69,7 +69,7 @@ export const AdjustmentForm = React.forwardRef<
   const [itemKind, setItemKind] = React.useState<ItemKind>("product")
   const [itemId, setItemId] = React.useState<number | null>(null)
   const [qtyText, setQtyText] = React.useState("")
-  /** Integer Toman; undefined = left empty (keep the current cost); null = typed but not exact (Rial, not a multiple of 10) — blocks submit. */
+  /** Integer Rial; undefined = left empty (keep the current cost); null = typed but not exact (MoneyInput says why) — blocks submit. */
   const [costInput, setCostInput] = React.useState<number | null | undefined>(undefined)
   const [note, setNote] = React.useState("")
   // null = today, resolved at submission (a session can cross midnight).

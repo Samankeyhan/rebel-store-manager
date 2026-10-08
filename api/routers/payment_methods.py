@@ -86,7 +86,7 @@ def reactivate(payment_method_id: int, conn: sqlite3.Connection = Depends(get_db
 @router.get("/payment-methods/{payment_method_id}/fee-preview", response_model=FeePreviewOut)
 def read_fee_preview(
     payment_method_id: int,
-    amount: int = Query(..., description="customer_total in Toman"),
+    amount: int = Query(..., description="customer_total in integer Rial"),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> FeePreviewOut:
     """The fee the method would charge on a customer_total of `amount`

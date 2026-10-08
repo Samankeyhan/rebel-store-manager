@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.common import Rial
+
 
 class RecipeItemOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -12,15 +14,15 @@ class RecipeItemOut(BaseModel):
     material_name: str
     material_type: str
     material_unit: str
-    material_unit_cost: int
+    material_unit_cost: Rial
 
 
 class RecipeOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[RecipeItemOut]
-    unit_cost_at_qty_1: int
-    unit_cost_at_batch_qty: int
+    unit_cost_at_qty_1: Rial
+    unit_cost_at_batch_qty: Rial
 
 
 class RecipeItemCreate(BaseModel):

@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
 
+from api.schemas.common import Rial
+
 
 class ChannelSettingsOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -16,9 +18,9 @@ class ChannelSettingsOut(BaseModel):
 class SettingsOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    default_shipping_charge: int
+    default_shipping_charge: Rial
     postage_estimate_window: int
-    default_postage_estimate: int
+    default_postage_estimate: Rial
     timezone: str
     display_currency: Literal["TOMAN", "RIAL"]
     channels: dict[str, ChannelSettingsOut]

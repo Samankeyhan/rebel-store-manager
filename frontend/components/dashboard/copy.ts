@@ -40,7 +40,7 @@ export const D = {
   kpiRevenue: (period: string) => `درآمد ${period}`,
   kpiNet: (period: string) => `سود خالص ${period}`,
   kpiOrders: (period: string) => `سفارش‌های ${period}`,
-  get toman() {
+  get unit() {
     return currencyLabel()
   },
   orderUnit: "سفارش",
