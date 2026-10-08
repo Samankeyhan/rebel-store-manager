@@ -1,5 +1,6 @@
-"""Payment methods: CRUD, deactivate/reactivate. Fee = `fee_bps` + `fee_fixed`; settlement rule IMMEDIATE / DAYS_AFTER / DAY_OF_NEXT_MONTH.
+"""Payment methods: CRUD, deactivate/reactivate. Fee = `fee_bps` (optionally capped by `fee_cap`) + `fee_fixed`; settlement rule IMMEDIATE / DAYS_AFTER / DAY_OF_NEXT_MONTH.
 `compute_fee` (integer only, half-even), `compute_expected_settlement_date`, `preview_fee`, `count_pending_orders`.
+`fee_cap` caps the percentage part only (None = no cap) and needs fee_bps > 0.
 A settlement-rule change is refused while the method has pending orders."""
 
 import sqlite3
@@ -16,7 +17,10 @@ SETTLEMENT_RULES = ("IMMEDIATE", "DAYS_AFTER", "DAY_OF_NEXT_MONTH")
 # a payment method and no settlement_id.
 PAID_STATUSES = ("PAID", "COMPLETED")
 
-UPDATABLE_FIELDS = ("name", "fee_bps", "fee_fixed", "settlement_rule", "settlement_days")
+UPDATABLE_FIELDS = ("name", "fee_bps", "fee_fixed", "fee_cap", "settlement_rule", "settlement_days")
+
+# Fee fields an update may not set to None (fee_cap may: None = no cap).
+_NOT_NULL_FIELDS = ("fee_bps", "fee_fixed")
 
 _BPS_DENOMINATOR = 10000
 _DAYS_RANGE = {"DAYS_AFTER": (1, 365), "DAY_OF_NEXT_MONTH": (1, 31)}
@@ -37,6 +41,28 @@ def _validate_fee(fee_bps: int, fee_fixed: int) -> None:
         )
     if fee_fixed < 0:
         raise ValidationError(f"fee_fixed must be >= 0, got {fee_fixed}", field="fee_fixed")
+
+
+def _validate_fee_cap(fee_cap: int | None, fee_bps: int) -> None:
+    """None = no cap. Otherwise an integer >= 1 Rial, on a method with a percentage fee."""
+    if fee_cap is None:
+        return
+    if isinstance(fee_cap, bool) or not isinstance(fee_cap, int):
+        raise ValidationError(
+            f"fee_cap must be an integer number of Rial, or empty for no cap, got {fee_cap!r}",
+            field="fee_cap",
+        )
+    if fee_cap < 1:
+        raise ValidationError(
+            f"fee_cap must be >= 1 Rial; leave it empty for no cap, got {fee_cap}",
+            field="fee_cap",
+        )
+    if fee_bps == 0:
+        raise ValidationError(
+            "fee_cap needs a percentage fee (fee_bps > 0); clear fee_cap for a method "
+            "without a percentage fee",
+            field="fee_cap",
+        )
 
 
 def _validate_rule(settlement_rule: str, settlement_days: int | None) -> None:
@@ -88,9 +114,11 @@ def add_payment_method(
     settlement_days: int | None = None,
     fee_bps: int = 0,
     fee_fixed: int = 0,
+    fee_cap: int | None = None,
 ) -> int:
     validated_name = _validate_name(name)
     _validate_fee(fee_bps, fee_fixed)
+    _validate_fee_cap(fee_cap, fee_bps)
     _validate_rule(settlement_rule, settlement_days)
 
     try:
@@ -98,10 +126,10 @@ def add_payment_method(
             cursor = conn.execute(
                 """
                 INSERT INTO payment_methods
-                    (name, fee_bps, fee_fixed, settlement_rule, settlement_days)
-                VALUES (?, ?, ?, ?, ?)
+                    (name, fee_bps, fee_fixed, fee_cap, settlement_rule, settlement_days)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (validated_name, fee_bps, fee_fixed, settlement_rule, settlement_days),
+                (validated_name, fee_bps, fee_fixed, fee_cap, settlement_rule, settlement_days),
             )
     except sqlite3.IntegrityError:
         raise _name_conflict(validated_name) from None
@@ -130,7 +158,10 @@ def get_payment_method(conn: sqlite3.Connection, payment_method_id: int) -> dict
 def update_payment_method(conn: sqlite3.Connection, payment_method_id: int, **fields) -> None:
     """Partial update. Fee changes are always allowed (the fee is frozen per
     order); a rule change is refused while paid orders are pending settlement,
-    because their frozen expected dates and month groups follow the old rule."""
+    because their frozen expected dates and month groups follow the old rule.
+
+    fee_cap=None clears the cap. Setting fee_bps to 0 while a cap is set is
+    refused unless the same update clears it (fee_cap=None)."""
     current = get_payment_method(conn, payment_method_id)
 
     for field_name in fields:
@@ -138,12 +169,16 @@ def update_payment_method(conn: sqlite3.Connection, payment_method_id: int, **fi
             raise ValidationError(f"Unknown field '{field_name}'", field=field_name)
     if not fields:
         return
+    for field_name in _NOT_NULL_FIELDS:
+        if field_name in fields and fields[field_name] is None:
+            raise ValidationError(f"{field_name} cannot be empty", field=field_name)
 
     if "name" in fields:
         fields["name"] = _validate_name(fields["name"])
 
     merged = {**current, **fields}
     _validate_fee(merged["fee_bps"], merged["fee_fixed"])
+    _validate_fee_cap(merged["fee_cap"], merged["fee_bps"])
     _validate_rule(merged["settlement_rule"], merged["settlement_days"])
 
     rule_changed = (
@@ -192,15 +227,19 @@ def reactivate_payment_method(conn: sqlite3.Connection, payment_method_id: int) 
 
 
 def compute_fee(customer_total: int, method: dict) -> int:
-    """half_even(customer_total × fee_bps / 10000) + fee_fixed, in integer Rial.
+    """min(half_even(customer_total × fee_bps / 10000), fee_cap) + fee_fixed, in integer Rial.
 
     Integer arithmetic only: divmod gives the exact remainder, and an exact
-    half rounds to the even neighbour (never float, never round()).
+    half rounds to the even neighbour (never float, never round()). The cap
+    (None = no cap) applies to the rounded percentage part only; fee_fixed is
+    never capped.
     """
     quotient, remainder = divmod(customer_total * method["fee_bps"], _BPS_DENOMINATOR)
     twice = 2 * remainder
     if twice > _BPS_DENOMINATOR or (twice == _BPS_DENOMINATOR and quotient % 2 == 1):
         quotient += 1
+    if method["fee_cap"] is not None:
+        quotient = min(quotient, method["fee_cap"])
     return quotient + method["fee_fixed"]
 
 

@@ -824,3 +824,32 @@ def test_deactivated_method_still_lists_settles_and_updates(test_db, setup, set_
     assert get_settlement(test_db, card_settlement)["difference"] == -1000
     assert get_settlement(test_db, month_settlement)["note"] == "corrected"
     assert get_pending(test_db) == []
+
+
+# ---------------------------------------------------------------- fee cap
+
+
+def test_settlement_over_orders_before_and_after_a_cap_change(test_db, setup):
+    method_id = add_payment_method(
+        test_db, "Zarinpal capped", "DAYS_AFTER", 1, fee_bps=50, fee_cap=160_000, fee_fixed=5_000
+    )
+    old_big = _order(test_db, setup, method_id, "2026-10-01", price=94_900_000)      # fee 165,000
+    old_small = _order(test_db, setup, method_id, "2026-10-01", price=18_300_000)    # fee 96,500
+    update_payment_method(test_db, method_id, fee_cap=100_000)
+    new_big = _order(test_db, setup, method_id, "2026-10-02", price=94_900_000)      # fee 105,000
+    new_tie = _order(test_db, setup, method_id, "2026-10-02", price=19_999_900)      # 99,999.5 -> 100,000 = cap
+
+    fees = {
+        oid: get_order(test_db, oid)["order"]["transaction_fee"]
+        for oid in (old_big, old_small, new_big, new_tie)
+    }
+    assert fees == {old_big: 165_000, old_small: 96_500, new_big: 105_000, new_tie: 105_000}
+
+    customer_total = 94_900_000 + 18_300_000 + 94_900_000 + 19_999_900
+    expected = customer_total - sum(fees.values())
+    settlement_id = record_settlement(
+        test_db, method_id, "2026-10-03", expected, order_ids=[old_big, old_small, new_big, new_tie]
+    )
+    settlement = get_settlement(test_db, settlement_id)
+    assert settlement["expected_amount"] == expected
+    assert settlement["difference"] == 0

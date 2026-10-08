@@ -218,3 +218,24 @@ def test_customer_total_reconciles_with_revenue(test_db, report_data, start_date
     total = sum(r["customer_total"] for r in rows)
     assert total == get_profit_and_loss(test_db, start_date, end_date)["total_revenue"]
     assert total == get_revenue_summary(test_db, start_date, end_date)["total_revenue"]
+
+
+def test_capped_fees_reconcile_with_the_profit_and_loss(test_db, fixed_today):
+    from db.payment_methods import update_payment_method
+
+    product_id = stocked_product(test_db, stock=100)
+    capped = add_payment_method(
+        test_db, "Zarinpal capped", "DAYS_AFTER", 1, fee_bps=50, fee_cap=160_000, fee_fixed=5_000
+    )
+    plain = add_payment_method(test_db, "Percent", "IMMEDIATE", fee_bps=150)
+    for price in (94_900_000, 18_300_000, 31_999_900, 32_000_300):
+        _order(test_db, product_id, capped, "2026-10-02", price=price, status="COMPLETED")
+    update_payment_method(test_db, capped, fee_cap=None)
+    _order(test_db, product_id, capped, "2026-10-02", price=94_900_000, status="COMPLETED")
+    _order(test_db, product_id, plain, "2026-10-02", price=94_900_000, status="COMPLETED")
+
+    rows = {r["payment_method_id"]: r for r in get_payment_method_report(test_db)}
+    # 165,000 + 96,500 + 165,000 + 165,000, then uncapped 479,500.
+    assert rows[capped]["transaction_fees"] == 165_000 + 96_500 + 165_000 + 165_000 + 479_500
+    assert rows[plain]["transaction_fees"] == 1_423_500
+    assert sum(r["transaction_fees"] for r in rows.values()) == get_profit_and_loss(test_db)["transaction_fees"]

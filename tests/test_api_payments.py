@@ -102,6 +102,7 @@ def test_create_and_read_payment_method(api):
         "name": "Zarinpal",
         "fee_bps": 150,
         "fee_fixed": 500,
+        "fee_cap": None,
         "settlement_rule": "DAYS_AFTER",
         "settlement_days": 1,
         "is_active": 1,
@@ -115,7 +116,9 @@ def test_payment_method_defaults(api):
     created = _call(
         client, "post", "/payment-methods", 201, json={"name": "Card", "settlement_rule": "IMMEDIATE"}
     )
-    assert (created["fee_bps"], created["fee_fixed"], created["settlement_days"]) == (0, 0, None)
+    assert (created["fee_bps"], created["fee_fixed"], created["fee_cap"], created["settlement_days"]) == (
+        0, 0, None, None
+    )
 
 
 def test_list_payment_methods_and_inactive(api, shop):
@@ -218,6 +221,16 @@ def test_patch_payment_method_rule_while_pending_is_409(api, shop):
 def test_patch_payment_method_bad_body_is_422(api, shop, body):
     client, _ = api
     _call(client, "patch", f"/payment-methods/{shop['card']}", 422, json=body)
+
+
+@pytest.mark.parametrize("field", ["fee_bps", "fee_fixed"])
+def test_patch_fee_field_to_null_is_422_with_field(api, shop, field):
+    client, _ = api
+    error = _error(_call(client, "patch", f"/payment-methods/{shop['zarinpal']}", 422, json={field: None}))
+    assert error["field"] == field
+    assert error["type"] == "ValidationError"
+    method = _call(client, "get", f"/payment-methods/{shop['zarinpal']}", 200)
+    assert (method["fee_bps"], method["fee_fixed"]) == (150, 500)
 
 
 def test_patch_missing_payment_method_is_404(api):

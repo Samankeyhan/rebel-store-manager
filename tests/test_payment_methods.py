@@ -1,4 +1,5 @@
 from datetime import date
+from fractions import Fraction
 
 import pytest
 
@@ -43,8 +44,14 @@ def _paid_order(conn, product_id, method_id, order_date="2026-10-01", status="CO
     )
 
 
-def _method(fee_bps=0, fee_fixed=0, rule="IMMEDIATE", days=None):
-    return {"fee_bps": fee_bps, "fee_fixed": fee_fixed, "settlement_rule": rule, "settlement_days": days}
+def _method(fee_bps=0, fee_fixed=0, rule="IMMEDIATE", days=None, fee_cap=None):
+    return {
+        "fee_bps": fee_bps, "fee_fixed": fee_fixed, "fee_cap": fee_cap,
+        "settlement_rule": rule, "settlement_days": days,
+    }
+
+
+MAX_SAFE = 9_007_199_254_740_991  # the largest amount the frontend can send exactly
 
 
 # ---------------------------------------------------------------- CRUD
@@ -302,6 +309,182 @@ def test_compute_fee(total, fee_bps, fee_fixed, expected):
 
 def test_compute_fee_returns_int():
     assert isinstance(compute_fee(3000, _method(5)), int)
+    assert isinstance(compute_fee(3000, _method(5, fee_cap=1)), int)
+
+
+# ---------------------------------------------------------------- compute_fee with a cap
+
+# Zarinpal-like: 0.5% up to 160,000 Rial (16,000 Toman), plus 5,000 Rial fixed.
+ZARINPAL = {"fee_bps": 50, "fee_cap": 160_000, "fee_fixed": 5_000}
+
+FEE_CAP_CASES = [
+    # (total, fee_bps, fee_cap, fee_fixed, expected)
+    (94_900_000, 50, 160_000, 5_000, 165_000),   # real Zarinpal fee: 474,500 capped
+    (18_300_000, 50, 160_000, 5_000, 96_500),    # real Zarinpal fee: 91,500 under the cap
+    (32_000_000, 50, 160_000, 5_000, 165_000),   # percentage part exactly the cap
+    (31_999_800, 50, 160_000, 5_000, 164_999),   # one Rial under the cap
+    (32_000_200, 50, 160_000, 5_000, 165_000),   # one Rial over the cap -> capped
+    (31_999_700, 50, 160_000, 5_000, 164_998),   # tie 159,998.5 -> 159,998 (even), under the cap
+    (31_999_900, 50, 160_000, 5_000, 165_000),   # tie 159,999.5 -> 160,000 (even) = the cap
+    (32_000_100, 50, 160_000, 5_000, 165_000),   # tie 160,000.5 -> 160,000 (even) = the cap
+    (32_000_300, 50, 160_000, 5_000, 165_000),   # tie 160,001.5 -> 160,002, capped to 160,000
+    (31_999_700, 50, 159_999, 0, 159_998),       # odd cap: the tie rounds down, stays under it
+    (31_999_900, 50, 159_999, 0, 159_999),       # odd cap: the tie rounds up past it -> capped
+    (94_900_000, 50, 160_000, 0, 160_000),       # cap with no fixed fee
+    (0, 50, 160_000, 5_000, 5_000),              # amount 0 pays the fixed fee only
+    (0, 50, 160_000, 0, 0),
+    (1_000, 50, 1, 0, 1),                        # smallest cap: 5 -> 1
+    (100, 50, 1, 0, 0),                          # tie 0.5 -> 0, under the cap of 1
+    (MAX_SAFE, 50, 160_000, 5_000, 165_000),
+    (MAX_SAFE, 50, None, 5_000, 45_035_996_278_705),  # 45,035,996,273,704.955 -> ...705
+    (MAX_SAFE, 10_000, None, 0, MAX_SAFE),
+    (MAX_SAFE, 10_000, 160_000, 7, 160_007),
+    (94_900_000, 50, None, 5_000, 479_500),      # no cap: today's behaviour
+    (100_000, 0, None, 2_500, 2_500),            # fixed only
+    (100_000, 150, 1_000, 0, 1_000),             # percentage only, capped
+    (100_000, 150, 1_500, 0, 1_500),             # percentage only, exactly the cap
+    (100_000, 150, 1_501, 0, 1_500),             # percentage only, under the cap
+]
+
+
+@pytest.mark.parametrize("total, fee_bps, fee_cap, fee_fixed, expected", FEE_CAP_CASES)
+def test_compute_fee_with_cap(total, fee_bps, fee_cap, fee_fixed, expected):
+    assert compute_fee(total, _method(fee_bps, fee_fixed, fee_cap=fee_cap)) == expected
+
+
+@pytest.mark.parametrize("total, fee_bps, fee_cap, fee_fixed, expected", FEE_CAP_CASES)
+def test_preview_fee_with_cap(test_db, total, fee_bps, fee_cap, fee_fixed, expected):
+    method_id = add_payment_method(
+        test_db, "Gateway", "IMMEDIATE", fee_bps=fee_bps, fee_fixed=fee_fixed, fee_cap=fee_cap
+    )
+    preview = preview_fee(test_db, method_id, total)
+    assert preview["transaction_fee"] == expected
+    assert preview["expected_amount"] == total - expected
+
+
+def test_compute_fee_with_cap_matches_an_exact_reference():
+    """min(half_even(total x bps / 10000), cap) + fixed, checked against Fraction
+    arithmetic around the Zarinpal cap boundary (every tie included)."""
+
+    def reference(total, bps, cap, fixed):
+        pct = round(Fraction(total * bps, 10_000))  # round() on a Fraction is exact half-even
+        return (pct if cap is None else min(pct, cap)) + fixed
+
+    for total in range(31_998_000, 32_002_001, 50):
+        for cap in (None, 159_999, 160_000):
+            expected = reference(total, 50, cap, 5_000)
+            assert compute_fee(total, _method(50, 5_000, fee_cap=cap)) == expected, (total, cap)
+
+
+# ---------------------------------------------------------------- fee_cap: add / update / validation
+
+
+def test_add_method_with_and_without_cap(test_db):
+    capped = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1, **ZARINPAL)
+    plain = add_payment_method(test_db, "Digipay", "DAY_OF_NEXT_MONTH", 7, fee_bps=300)
+    assert get_payment_method(test_db, capped)["fee_cap"] == 160_000
+    assert get_payment_method(test_db, plain)["fee_cap"] is None
+
+
+@pytest.mark.parametrize(
+    "kwargs, message",
+    [
+        ({"fee_bps": 50, "fee_cap": 0}, "fee_cap must be >= 1 Rial; leave it empty for no cap, got 0"),
+        ({"fee_bps": 50, "fee_cap": -1}, "fee_cap must be >= 1 Rial; leave it empty for no cap, got -1"),
+        ({"fee_bps": 50, "fee_cap": True}, "fee_cap must be an integer number of Rial"),
+        ({"fee_bps": 50, "fee_cap": 1.5}, "fee_cap must be an integer number of Rial"),
+        ({"fee_bps": 50, "fee_cap": 160000.0}, "fee_cap must be an integer number of Rial"),
+        ({"fee_bps": 50, "fee_cap": "160000"}, "fee_cap must be an integer number of Rial"),
+        ({"fee_bps": 0, "fee_cap": 160000}, r"fee_cap needs a percentage fee \(fee_bps > 0\)"),
+        ({"fee_fixed": 5000, "fee_cap": 1}, r"fee_cap needs a percentage fee \(fee_bps > 0\)"),
+    ],
+)
+def test_add_method_fee_cap_validation(test_db, kwargs, message):
+    with pytest.raises(ValidationError, match=message) as exc_info:
+        add_payment_method(test_db, "Bad", "IMMEDIATE", **kwargs)
+    assert exc_info.value.field == "fee_cap"
+    assert list_payment_methods(test_db, include_inactive=True) == []
+
+
+def test_add_method_smallest_cap_is_one_rial(test_db):
+    method_id = add_payment_method(test_db, "Tiny cap", "IMMEDIATE", fee_bps=50, fee_cap=1)
+    assert get_payment_method(test_db, method_id)["fee_cap"] == 1
+
+
+def test_update_sets_changes_clears_and_omits_the_cap(test_db):
+    method_id = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1, fee_bps=50, fee_fixed=5000)
+    update_payment_method(test_db, method_id, fee_cap=160_000)
+    assert get_payment_method(test_db, method_id)["fee_cap"] == 160_000
+    update_payment_method(test_db, method_id, name="Zarinpal 2")  # omitted = unchanged
+    assert get_payment_method(test_db, method_id)["fee_cap"] == 160_000
+    update_payment_method(test_db, method_id, fee_cap=150_000)
+    assert get_payment_method(test_db, method_id)["fee_cap"] == 150_000
+    update_payment_method(test_db, method_id, fee_cap=None)  # None = clear
+    assert get_payment_method(test_db, method_id)["fee_cap"] is None
+
+
+def test_update_cap_changes_updated_at(test_db):
+    method_id = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1, fee_bps=50)
+    test_db.execute(
+        "UPDATE payment_methods SET updated_at = '2025-01-01 00:00:00' WHERE id = ?", (method_id,)
+    )
+    update_payment_method(test_db, method_id, fee_cap=160_000)
+    assert get_payment_method(test_db, method_id)["updated_at"] != "2025-01-01 00:00:00"
+
+
+@pytest.mark.parametrize("bad", [0, -5, True, 2.5])
+def test_update_cap_validation(test_db, bad):
+    method_id = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1, **ZARINPAL)
+    with pytest.raises(ValidationError) as exc_info:
+        update_payment_method(test_db, method_id, fee_cap=bad)
+    assert exc_info.value.field == "fee_cap"
+    assert get_payment_method(test_db, method_id)["fee_cap"] == 160_000
+
+
+def test_update_cap_on_method_without_percentage_is_refused(test_db):
+    method_id = add_payment_method(test_db, "Fixed", "IMMEDIATE", fee_fixed=5000)
+    with pytest.raises(ValidationError, match="fee_cap needs a percentage fee") as exc_info:
+        update_payment_method(test_db, method_id, fee_cap=1000)
+    assert exc_info.value.field == "fee_cap"
+
+
+def test_update_fee_bps_to_zero_while_capped_is_refused(test_db):
+    method_id = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1, **ZARINPAL)
+    with pytest.raises(ValidationError, match="fee_cap needs a percentage fee") as exc_info:
+        update_payment_method(test_db, method_id, fee_bps=0)
+    assert exc_info.value.field == "fee_cap"
+    method = get_payment_method(test_db, method_id)
+    assert (method["fee_bps"], method["fee_cap"]) == (50, 160_000)
+
+
+def test_update_fee_bps_to_zero_with_the_cap_cleared_in_the_same_update(test_db):
+    method_id = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1, **ZARINPAL)
+    update_payment_method(test_db, method_id, fee_bps=0, fee_cap=None)
+    method = get_payment_method(test_db, method_id)
+    assert (method["fee_bps"], method["fee_cap"], method["fee_fixed"]) == (0, None, 5000)
+
+
+@pytest.mark.parametrize("field", ["fee_bps", "fee_fixed"])
+def test_update_fee_field_to_none_is_validation_error(test_db, field):
+    method_id = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1, fee_bps=150, fee_fixed=500)
+    with pytest.raises(ValidationError, match=f"{field} cannot be empty") as exc_info:
+        update_payment_method(test_db, method_id, **{field: None})
+    assert exc_info.value.field == field
+    method = get_payment_method(test_db, method_id)
+    assert (method["fee_bps"], method["fee_fixed"]) == (150, 500)
+
+
+def test_cap_edits_allowed_while_pending_and_old_orders_keep_their_fee(test_db, fixed_today):
+    product_id = stocked_product(test_db)
+    method_id = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1, fee_bps=10_000)
+    order_id = _paid_order(test_db, product_id, method_id)
+    fee_sql = "SELECT transaction_fee FROM orders WHERE id = ?"
+    fee_before = test_db.execute(fee_sql, (order_id,)).fetchone()[0]
+    assert fee_before > 1
+
+    update_payment_method(test_db, method_id, fee_cap=1)
+    assert get_payment_method(test_db, method_id)["fee_cap"] == 1
+    assert test_db.execute(fee_sql, (order_id,)).fetchone()[0] == fee_before
 
 
 # ---------------------------------------------------------------- expected settlement date

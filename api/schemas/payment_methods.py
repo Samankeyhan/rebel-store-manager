@@ -10,6 +10,8 @@ class PaymentMethodOut(BaseModel):
     name: str
     fee_bps: int
     fee_fixed: Rial
+    # Cap on the percentage part of the fee (integer Rial); null = no cap.
+    fee_cap: Rial | None
     settlement_rule: str
     settlement_days: int | None
     is_active: int

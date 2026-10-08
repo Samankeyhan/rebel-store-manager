@@ -57,6 +57,14 @@ def _applied(db_path):
         conn.close()
 
 
+def _columns(db_path, table):
+    conn = get_connection(str(db_path))
+    try:
+        return {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+    finally:
+        conn.close()
+
+
 def _setting(db_path, key):
     conn = get_connection(str(db_path))
     try:
@@ -80,11 +88,12 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
     assert LATEST not in _applied(db_path)
 
     # Without the startup event (no `with`), nothing applies the newest
-    # migration: it is not recorded, and the seeded shipping charge is still
-    # the pre-009 Toman value. (Earlier migrations added the columns /products
-    # and /production need, and reads 500'd without them.)
+    # migration: it is not recorded, and payment_methods has no fee_cap yet
+    # (010). (Earlier migrations added the columns /products and /production
+    # need, and reads 500'd without them.)
     assert _applied(db_path) == ALL_MIGRATIONS[:-1]
-    assert _setting(db_path, "default_shipping_charge") == "180000"
+    assert "fee_cap" not in _columns(db_path, "payment_methods")
+    assert _setting(db_path, "default_shipping_charge") == "1800000"
 
     with TestClient(app) as client:
         response = client.get("/products")
@@ -99,11 +108,17 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
         # The pre-existing batch gets no invented creation time or total.
         assert batches.json()[0]["created_at"] is None
         assert batches.json()[0]["total_cost"] is None
+        created = client.post(
+            "/payment-methods", json={"name": "Card", "settlement_rule": "IMMEDIATE"}
+        )
+        assert created.status_code == 201, created.text
+        assert created.json()["fee_cap"] is None
 
-    # Startup applied and recorded the newest migration; money is integer
-    # Rial since 009, so the seeded shipping charge is 180000 x 10.
+    # Startup applied and recorded the newest migration (010 adds fee_cap and
+    # touches no setting; money has been integer Rial since 009).
     assert _applied(db_path) == ALL_MIGRATIONS
     assert LATEST in _applied(db_path)
+    assert "fee_cap" in _columns(db_path, "payment_methods")
     assert _setting(db_path, "default_shipping_charge") == "1800000"
 
 
