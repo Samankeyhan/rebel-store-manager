@@ -23,7 +23,7 @@ J. Go-live reset (prompt not written yet): needs two owner answers. (1) Clear te
 K. One-week real-use test on a single laptop with the bug log, then decide about the later online and multi-user phase.
 
 ## Parked decisions
-- Minimum-stock levels and low-stock warnings on the dashboard: decide at the end.
+- Minimum-stock levels and low-stock warnings on the dashboard: DONE, migration 011 added an optional materials.min_stock (materials only; products get none). A material is low at stock 0, or at or below its minimum; the dashboard card and the materials list show it.
 - Exact odd-Rial storage (store money in Rial, Toman as display): DONE, migration 009 multiplied every money column by 10. Money is stored as integer Rial; Toman is display only (Rial ÷ 10, at most one decimal).
 - PDF and print for reports: after the real-use week.
 - Invoice "amount in words": removed from scope.
@@ -38,7 +38,7 @@ Back up (copy data\shop.db data\shop.db.backup), fetch, check out the branch, ru
 ## Open items to remember
 - Run the cost check: products with stock but no recorded cost (none expected, never run).
 - The real database still contains test entries (a test sale, test adjustments, changed packaging stock); the go-live reset handles this.
-- Known small gaps: no minimum stock, no status history for orders, backend error messages are English, kit and expense category renaming not yet possible.
+- Known small gaps: no status history for orders, backend error messages are English, kit and expense category renaming not yet possible.
 - Record Sale sends transaction_fee null when the fee is automatic, and an integer for a manual override or when there is no payment method.
 - On the owner's laptop Windows reserves ports 7966-8065, so the API must run on another port such as 8100 (set NEXT_PUBLIC_API_URL in frontend/.env.local); the one-click start script in step I must choose a free port outside the reserved ranges.
 - Run "npx next typegen" before "npx tsc --noEmit".

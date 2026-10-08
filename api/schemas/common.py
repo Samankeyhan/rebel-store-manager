@@ -13,6 +13,10 @@ Money = Annotated[int, Strict(), Field(description=RIAL_DESCRIPTION)]
 # Money in responses: integer Rial.
 Rial = Annotated[int, Field(description=RIAL_DESCRIPTION)]
 
+# A stock quantity in request bodies (REAL, in the item's own unit): a finite
+# number >= 0. Strict, so "5" and true are rejected with 422; JSON integers pass.
+Quantity = Annotated[float, Strict(), Field(ge=0, allow_inf_nan=False)]
+
 
 class ErrorBody(BaseModel):
     model_config = ConfigDict(extra="forbid")

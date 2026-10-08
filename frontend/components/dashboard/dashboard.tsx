@@ -29,7 +29,7 @@ function rangeText(range: IsoRange): string {
 /**
  * خانه (design/screens/01-dashboard.md). Read-only: KPIs from the P&L for the
  * selected period, «فروش امروز» for the store's today, shipping economics,
- * out-of-stock items and the newest orders. Each card loads (and fails)
+ * stock warnings and the newest orders. Each card loads (and fails)
  * on its own. The period lives in the URL (?from=&to=; none = this month).
  */
 export function Dashboard() {
@@ -94,7 +94,7 @@ export function Dashboard() {
       />
 
       <div className={cn("flex flex-col", mobile ? "gap-4" : "gap-5 lg:flex-row lg:items-stretch")}>
-        <StockCard catalog={data.catalog} mobile={mobile} />
+        <StockCard catalog={data.catalog} lowStock={data.lowStock} mobile={mobile} />
         <div className="min-w-0 grow">
           <RecentOrders orders={data.orders} timeZone={timeZone ?? "Asia/Tehran"} mobile={mobile} />
         </div>

@@ -213,6 +213,7 @@ export type Product = Schemas["ProductOut"]
 export type Material = Schemas["MaterialOut"]
 export type ProductCreate = Schemas["ProductCreate"]
 export type MaterialCreate = Schemas["MaterialCreate"]
+export type MaterialUpdate = Schemas["MaterialUpdate"]
 
 /** All products, including inactive ones (/catalog only has active). */
 export function listProducts(activeOnly = false): Promise<Product[]> {
@@ -252,6 +253,22 @@ export function deactivateProduct(productId: number): Promise<Product> {
 
 export function createMaterial(body: MaterialCreate): Promise<Material> {
   return apiFetch<Material>("/materials", { method: "POST", body: JSON.stringify(body) })
+}
+
+/**
+ * Only min_stock is editable: omitted = unchanged, null = no minimum. 422 with
+ * field "min_stock" for a negative value or a minimum on a SERVICE material.
+ */
+export function updateMaterial(materialId: number, body: MaterialUpdate): Promise<Material> {
+  return apiFetch<Material>(`/materials/${materialId}`, { method: "PATCH", body: JSON.stringify(body) })
+}
+
+/**
+ * Low-stock materials (backend rule: active STOCK at stock 0, or at or below
+ * its own min_stock), most urgent first. Empty when nothing is low.
+ */
+export function listLowStockMaterials(): Promise<Material[]> {
+  return apiFetch<Material[]>("/materials/low-stock")
 }
 
 export function deactivateMaterial(materialId: number): Promise<Material> {

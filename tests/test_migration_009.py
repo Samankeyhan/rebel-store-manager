@@ -307,6 +307,7 @@ def test_every_numeric_column_is_classified(tmp_path):
         "stock_committed", "applies_shipping_charge", "applies_postage", "paid_jalali_year",
         "paid_jalali_month", "jalali_year", "jalali_month", "current_percentage",
         "percentage_at_time", "order_count", "value", "fee_bps", "settlement_days", "seq",
+        "min_stock",
     }
     db_path = tmp_path / "shop.db"
     init_db(str(db_path))

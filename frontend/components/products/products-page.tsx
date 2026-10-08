@@ -55,6 +55,12 @@ function isCategoryParam(value: string, tree: CategoryTree[]): boolean {
   return /^\d+$/.test(value) && treeHas(tree, Number(value))
 }
 
+/** The material a ?material=<id> link names, if it is in the loaded list. */
+function materialById(materials: Material[], param: string | null): Material | null {
+  if (!param || !/^\d+$/.test(param)) return null
+  return materials.find((m) => m.id === Number(param)) ?? null
+}
+
 function isTab(value: string | null): value is Tab {
   return TABS.includes(value as Tab)
 }
@@ -91,6 +97,8 @@ export function ProductsPage() {
   const categoryParam = params.get("category") ?? ""
   const matCategoryParam = params.get("matCategory") ?? ""
   const q = params.get("q") ?? ""
+  // ?material=<id> opens that material's drawer (the dashboard's low-stock rows link here).
+  const materialParam = params.get("material")
 
   const setParams = React.useCallback(
     (patch: Record<string, string | null>) => {
@@ -105,6 +113,11 @@ export function ProductsPage() {
     },
     [router, pathname]
   )
+
+  /** Closing a material's drawer drops ?material= so a reload doesn't reopen it. */
+  const clearMaterialParam = React.useCallback(() => {
+    if (new URLSearchParams(window.location.search).has("material")) setParams({ material: null })
+  }, [setParams])
 
   // Search is typed locally and pushed to the URL after a short pause.
   const [search, setSearch] = React.useState(q)
@@ -269,6 +282,7 @@ export function ProductsPage() {
   const missingCost = visibleProducts.filter((p) => p.is_active === 1 && costState(p).kind === "missing")
 
   const editing = panel.kind === "editProduct" ? products.find((p) => p.id === panel.id) ?? null : null
+  const editingMaterial = materialById(materials, materialParam)
 
   // Made-to-order products with no stock: estimate their cost from the recipe
   // (record-sale's lazy, cached fetch). No recipe or a failed call → no
@@ -418,6 +432,7 @@ export function ProductsPage() {
         <MaterialsTab
           rows={visibleMaterials}
           mobile={mobile}
+          onEdit={(m) => setParams({ tab: "materials", material: String(m.id) })}
           onDeactivate={(m) => setDeactivating({ kind: "material", item: m })}
           onReactivate={(m) => reactivate({ kind: "material", item: m })}
         />
@@ -510,14 +525,19 @@ export function ProductsPage() {
         tree={productTree}
       />
       <MaterialDrawer
-        open={panel.kind === "addMaterial"}
+        open={panel.kind === "addMaterial" || editingMaterial != null}
+        material={panel.kind === "addMaterial" ? null : editingMaterial}
         tree={materialTree}
         mobile={mobile}
-        onClose={() => setPanel({ kind: "none" })}
+        onClose={() => {
+          setPanel({ kind: "none" })
+          clearMaterialParam()
+        }}
         onSaved={(m: Material, message: string) => {
           upsertMaterial(m)
           setToast(message)
           setPanel({ kind: "none" })
+          clearMaterialParam()
         }}
       />
       <CategoryDialog

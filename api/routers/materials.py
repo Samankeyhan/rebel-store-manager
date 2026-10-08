@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 
 from api.deps import get_db
 from api.schemas.categories import CategoryAssign
-from api.schemas.materials import MaterialCreate, MaterialOut
+from api.schemas.materials import MaterialCreate, MaterialOut, MaterialUpdate
 from db.errors import NotFoundError
 from db.materials import (
     add_material,
@@ -14,6 +14,7 @@ from db.materials import (
     list_materials,
     reactivate_material,
     set_material_category,
+    update_material,
 )
 
 router = APIRouter(tags=["materials"])
@@ -27,10 +28,11 @@ def read_materials(
 
 
 # Registered before /materials/{material_id} so "low-stock" is never treated
-# as a material_id.
+# as a material_id. Without threshold: each material's own rule (stock <= 0 or
+# <= min_stock), most urgent first. With threshold: the legacy flat cut-off.
 @router.get("/materials/low-stock", response_model=list[MaterialOut])
 def read_low_stock_materials(
-    threshold: float, conn: sqlite3.Connection = Depends(get_db)
+    threshold: float | None = None, conn: sqlite3.Connection = Depends(get_db)
 ) -> list[MaterialOut]:
     return [
         MaterialOut.model_validate(m) for m in get_low_stock_materials(conn, threshold)
@@ -63,7 +65,18 @@ def create_material(
         unit=body.unit,
         initial_stock=body.initial_stock,
         category_id=body.category_id,
+        min_stock=body.min_stock,
     )
+    return build_material(conn, material_id)
+
+
+@router.patch("/materials/{material_id}", response_model=MaterialOut)
+def patch_material(
+    material_id: int,
+    body: MaterialUpdate,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> MaterialOut:
+    update_material(conn, material_id, **body.model_dump(exclude_unset=True))
     return build_material(conn, material_id)
 
 
