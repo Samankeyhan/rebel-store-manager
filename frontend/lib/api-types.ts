@@ -961,6 +961,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/distributions/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Distribution
+         * @description The shares POST /distributions would store for the same body; writes
+         *     nothing. Same errors as create, except that exceeding the undistributed
+         *     profit is returned as exceeds_undistributed (allow_exceeding is ignored).
+         */
+        post: operations["preview_distribution_distributions_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/settings": {
         parameters: {
             query?: never;
@@ -1729,6 +1751,46 @@ export interface components {
             total_amount_distributed: number;
             /** Notes */
             notes: string | null;
+        };
+        /** DistributionPreviewOut */
+        DistributionPreviewOut: {
+            /** Period Start */
+            period_start: string;
+            /** Period End */
+            period_end: string;
+            /**
+             * Total Amount Distributed
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            total_amount_distributed: number;
+            /**
+             * Total Profit Available
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            total_profit_available: number;
+            /**
+             * Undistributed Profit
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            undistributed_profit: number;
+            /** Exceeds Undistributed */
+            exceeds_undistributed: boolean;
+            /** Shares */
+            shares: components["schemas"]["DistributionPreviewShareOut"][];
+        };
+        /** DistributionPreviewShareOut */
+        DistributionPreviewShareOut: {
+            /** Partner Id */
+            partner_id: number;
+            /** Partner Name */
+            partner_name: string;
+            /** Percentage At Time */
+            percentage_at_time: number;
+            /**
+             * Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            amount: number;
         };
         /** DistributionShareOut */
         DistributionShareOut: {
@@ -5543,6 +5605,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DistributionDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_distribution_distributions_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DistributionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DistributionPreviewOut"];
                 };
             };
             /** @description Validation Error */

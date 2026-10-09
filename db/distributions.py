@@ -1,6 +1,7 @@
 """Profit payouts to partners, split by ownership percentage at distribution time and snapshotted per share so later changes don't rewrite history.
 May read `get_profit_and_loss` as a reference; never writes `orders`, `order_items` or `expenses`.
-`_compute_share_amounts` is the pattern for integer rounding with leftover reconciliation."""
+`_compute_share_amounts` is the pattern for integer rounding with leftover reconciliation.
+`preview_profit_distribution` shares `_validate_distribution_request` and `_plan_distribution` with `record_profit_distribution`, so a preview is exactly what recording would store; it never writes."""
 
 import sqlite3
 
@@ -82,15 +83,15 @@ def get_undistributed_profit(conn: sqlite3.Connection, as_of_date: str) -> int:
     return net_profit - row["total"]
 
 
-def record_profit_distribution(
+def _validate_distribution_request(
     conn: sqlite3.Connection,
     period_start: str,
     period_end: str,
     total_amount_distributed: int,
-    distribution_date: str | None = None,
-    notes: str | None = None,
-    allow_exceeding: bool = False,
-) -> int:
+    distribution_date: str | None,
+) -> tuple[str, str, str | None]:
+    """Input checks shared by record and preview; returns the normalized
+    (period_start, period_end, distribution_date)."""
     _validate_non_negative(total_amount_distributed, "total_amount_distributed")
     period_start = validate_calendar_date(period_start)
     period_end = validate_calendar_date(period_end)
@@ -101,36 +102,104 @@ def record_profit_distribution(
         )
     if distribution_date is not None:
         distribution_date = normalize_record_date(distribution_date, conn)
+    return period_start, period_end, distribution_date
+
+
+def _plan_distribution(
+    conn: sqlite3.Connection,
+    period_start: str,
+    period_end: str,
+    total_amount_distributed: int,
+) -> dict:
+    """Read-only checks and figures shared by record and preview: period
+    overlap (ConflictError), active partners summing to 100, the period's
+    net_profit, the undistributed profit as of period_end and the shares."""
+    overlap = conn.execute(
+        """
+        SELECT id, period_start, period_end
+        FROM profit_distributions
+        WHERE period_start <= ? AND period_end >= ?
+        LIMIT 1
+        """,
+        (period_end, period_start),
+    ).fetchone()
+    if overlap is not None:
+        raise ConflictError(
+            f"Period {period_start}..{period_end} overlaps distribution "
+            f"#{overlap['id']} ({overlap['period_start']}..{overlap['period_end']})"
+        )
+
+    active_partners = list_partners(conn, active_only=True)
+    if not active_partners:
+        raise ValidationError(
+            "No active partners found — add partners before distributing"
+        )
+
+    _validate_percentage_sum(active_partners)
+
+    pnl = get_profit_and_loss(conn, period_start, period_end)
+
+    return {
+        "active_partners": active_partners,
+        "total_profit_available": pnl["net_profit"],
+        "undistributed_profit": get_undistributed_profit(conn, period_end),
+        "shares": _compute_share_amounts(active_partners, total_amount_distributed),
+    }
+
+
+def preview_profit_distribution(
+    conn: sqlite3.Connection,
+    period_start: str,
+    period_end: str,
+    total_amount_distributed: int,
+    distribution_date: str | None = None,
+) -> dict:
+    """What record_profit_distribution would store for the same arguments,
+    without writing. Raises the same errors, except that exceeding the
+    undistributed profit is not an error here: it is reported as
+    exceeds_undistributed (allow_exceeding has no role in a preview)."""
+    period_start, period_end, _ = _validate_distribution_request(
+        conn, period_start, period_end, total_amount_distributed, distribution_date
+    )
+    plan = _plan_distribution(conn, period_start, period_end, total_amount_distributed)
+    names = {partner["id"]: partner["name"] for partner in plan["active_partners"]}
+
+    return {
+        "period_start": period_start,
+        "period_end": period_end,
+        "total_amount_distributed": total_amount_distributed,
+        "total_profit_available": plan["total_profit_available"],
+        "undistributed_profit": plan["undistributed_profit"],
+        "exceeds_undistributed": total_amount_distributed > plan["undistributed_profit"],
+        "shares": [
+            {**share, "partner_name": names[share["partner_id"]]}
+            for share in plan["shares"]
+        ],
+    }
+
+
+def record_profit_distribution(
+    conn: sqlite3.Connection,
+    period_start: str,
+    period_end: str,
+    total_amount_distributed: int,
+    distribution_date: str | None = None,
+    notes: str | None = None,
+    allow_exceeding: bool = False,
+) -> int:
+    period_start, period_end, distribution_date = _validate_distribution_request(
+        conn, period_start, period_end, total_amount_distributed, distribution_date
+    )
 
     with transaction(conn):
-        overlap = conn.execute(
-            """
-            SELECT id, period_start, period_end
-            FROM profit_distributions
-            WHERE period_start <= ? AND period_end >= ?
-            LIMIT 1
-            """,
-            (period_end, period_start),
-        ).fetchone()
-        if overlap is not None:
-            raise ConflictError(
-                f"Period {period_start}..{period_end} overlaps distribution "
-                f"#{overlap['id']} ({overlap['period_start']}..{overlap['period_end']})"
-            )
-
-        active_partners = list_partners(conn, active_only=True)
-        if not active_partners:
-            raise ValidationError(
-                "No active partners found — add partners before distributing"
-            )
-
-        _validate_percentage_sum(active_partners)
-
-        pnl = get_profit_and_loss(conn, period_start, period_end)
-        total_profit_available = pnl["net_profit"]
+        plan = _plan_distribution(
+            conn, period_start, period_end, total_amount_distributed
+        )
+        total_profit_available = plan["total_profit_available"]
+        share_amounts = plan["shares"]
 
         if not allow_exceeding:
-            undistributed = get_undistributed_profit(conn, period_end)
+            undistributed = plan["undistributed_profit"]
             if total_amount_distributed > undistributed:
                 raise ValidationError(
                     f"total_amount_distributed ({total_amount_distributed}) exceeds "
@@ -138,10 +207,6 @@ def record_profit_distribution(
                     f"Pass allow_exceeding=True to distribute anyway.",
                     field="total_amount_distributed",
                 )
-
-        share_amounts = _compute_share_amounts(
-            active_partners, total_amount_distributed
-        )
 
         if distribution_date is not None:
             cursor = conn.execute(

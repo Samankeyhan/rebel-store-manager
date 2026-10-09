@@ -749,3 +749,62 @@ export function createSettlement(body: SettlementCreate): Promise<Settlement> {
 export function updateSettlement(settlementId: number, patch: SettlementUpdate): Promise<Settlement> {
   return apiFetch<Settlement>(`/settlements/${settlementId}`, { method: "PATCH", body: JSON.stringify(patch) })
 }
+
+// ------------------------------------------------------------ partners
+
+export type Partner = Schemas["PartnerOut"]
+export type PartnerCreate = Schemas["PartnerCreate"]
+export type PartnerTotal = Schemas["PartnerTotalOut"]
+export type Distribution = Schemas["DistributionDetailOut"]
+export type DistributionListItem = Schemas["DistributionListOut"]
+export type DistributionCreate = Schemas["DistributionCreate"]
+export type DistributionPreview = Schemas["DistributionPreviewOut"]
+
+/** Ordered by name; activeOnly=false includes deactivated partners. */
+export function listPartners(activeOnly = false): Promise<Partner[]> {
+  return apiFetch<Partner[]>(`/partners?active_only=${activeOnly}`)
+}
+
+/** All-time totals received per partner, keyed by name (the backend has no partner_id here). */
+export function listPartnerTotals(): Promise<PartnerTotal[]> {
+  return apiFetch<PartnerTotal[]>("/partners/totals")
+}
+
+export function createPartner(body: PartnerCreate): Promise<Partner> {
+  return apiFetch<Partner>("/partners", { method: "POST", body: JSON.stringify(body) })
+}
+
+/** Active partners only; 0 < percentage ≤ 100. Nothing checks the total here. */
+export function setPartnerPercentage(partnerId: number, percentage: number): Promise<Partner> {
+  return apiFetch<Partner>(`/partners/${partnerId}/percentage`, {
+    method: "PATCH",
+    body: JSON.stringify({ current_percentage: percentage }),
+  })
+}
+
+export function deactivatePartner(partnerId: number): Promise<Partner> {
+  return apiFetch<Partner>(`/partners/${partnerId}/deactivate`, { method: "POST" })
+}
+
+/** Newest first (distribution_date DESC); no shares (getDistribution has them). */
+export function listDistributions(): Promise<DistributionListItem[]> {
+  return apiFetch<DistributionListItem[]>("/distributions")
+}
+
+export function getDistribution(distributionId: number): Promise<Distribution> {
+  return apiFetch<Distribution>(`/distributions/${distributionId}`)
+}
+
+/**
+ * The shares POST /distributions would store for the same body (db/ computes
+ * them); writes nothing. Over the undistributed profit is a flag here
+ * (exceeds_undistributed), not an error. 409 / 422: lib/partners.ts.
+ */
+export function previewDistribution(body: DistributionCreate): Promise<DistributionPreview> {
+  return apiFetch<DistributionPreview>("/distributions/preview", { method: "POST", body: JSON.stringify(body) })
+}
+
+/** 422 field total_amount_distributed when over the undistributed profit, unless allow_exceeding. */
+export function createDistribution(body: DistributionCreate): Promise<Distribution> {
+  return apiFetch<Distribution>("/distributions", { method: "POST", body: JSON.stringify(body) })
+}

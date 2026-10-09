@@ -55,3 +55,24 @@ class DistributionCreate(BaseModel):
     distribution_date: DateStr | None = None
     notes: str | None = None
     allow_exceeding: bool = False
+
+
+class DistributionPreviewShareOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    partner_id: int
+    partner_name: str
+    percentage_at_time: float
+    amount: Rial
+
+
+class DistributionPreviewOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    period_start: str
+    period_end: str
+    total_amount_distributed: Rial
+    total_profit_available: Rial
+    undistributed_profit: Rial
+    exceeds_undistributed: bool
+    shares: list[DistributionPreviewShareOut]
