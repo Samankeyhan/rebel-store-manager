@@ -52,9 +52,12 @@ function matchingPreset(range: IsoRange, today: Date): RangePreset | null {
 export function DateRangePopover({
   value,
   onApply,
+  triggerText,
 }: {
   value: IsoRange
   onApply: (range: IsoRange) => void
+  /** Shown on the button instead of `value` (e.g. «از ابتدا» when no range applies). */
+  triggerText?: string
 }) {
   const [open, setOpen] = React.useState(false)
   const [draft, setDraft] = React.useState<{ from: string; to: string | null }>(value)
@@ -86,7 +89,7 @@ export function DateRangePopover({
         >
           <CalendarDays className="size-4 text-text-3" aria-hidden />
           <span className="text-text-3">{L.dateLabel}</span>
-          <span className="font-bold tabular-nums">{rangeLabel(value)}</span>
+          <span className="font-bold tabular-nums">{triggerText ?? rangeLabel(value)}</span>
           <ChevronDown className="size-3.5 text-text-3" aria-hidden />
         </button>
       </PopoverTrigger>

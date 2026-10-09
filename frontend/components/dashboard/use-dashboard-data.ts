@@ -44,7 +44,7 @@ function errorCode(prefix: string, error: unknown): string {
 }
 
 /** Runs `fetcher` whenever `key` changes (null = wait), with a retry. */
-function useLoad<T>(prefix: string, key: string | null, fetcher: () => Promise<T>): Loader<T> {
+export function useLoad<T>(prefix: string, key: string | null, fetcher: () => Promise<T>): Loader<T> {
   const [attempt, setAttempt] = React.useState(0)
   const [state, setState] = React.useState<{ key: string; load: Load<T> } | null>(null)
   const fetchRef = React.useRef(fetcher)

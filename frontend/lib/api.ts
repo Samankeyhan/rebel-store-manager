@@ -631,36 +631,50 @@ export type RevenueSummary = Schemas["RevenueSummaryOut"]
 export type ChannelBreakdown = Schemas["ChannelBreakdownOut"]
 export type ShippingSummary = Schemas["ShippingSummaryOut"]
 
-/** Whole local days, both ends inclusive (accounting-rules §1). */
-export type DateRangeParams = { from: string; to: string }
+/**
+ * Whole local days, both ends inclusive (accounting-rules §1). A missing end
+ * is not sent, so `{}` means all time (the backend leaves that bound open).
+ */
+export type DateRangeParams = { from?: string | null; to?: string | null }
 
-function rangeQuery(r: DateRangeParams): string {
-  return new URLSearchParams({ start_date: r.from, end_date: r.to }).toString()
+function reportUrl(path: string, r: DateRangeParams): string {
+  const qs = new URLSearchParams()
+  if (r.from) qs.set("start_date", r.from)
+  if (r.to) qs.set("end_date", r.to)
+  const s = qs.toString()
+  return s ? `${path}?${s}` : path
 }
 
 export function getProfitAndLoss(r: DateRangeParams): Promise<ProfitAndLoss> {
-  return apiFetch<ProfitAndLoss>(`/reports/profit-and-loss?${rangeQuery(r)}`)
+  return apiFetch<ProfitAndLoss>(reportUrl("/reports/profit-and-loss", r))
 }
 
 /** PENDING/PAID/COMPLETED orders only: count, Σ revenue, Σ per-order profit. */
 export function getRevenueSummary(r: DateRangeParams): Promise<RevenueSummary> {
-  return apiFetch<RevenueSummary>(`/reports/revenue-summary?${rangeQuery(r)}`)
+  return apiFetch<RevenueSummary>(reportUrl("/reports/revenue-summary", r))
 }
 
 /** Revenue-eligible orders per channel; channels with no orders are omitted. */
 export function getChannelBreakdown(r: DateRangeParams): Promise<ChannelBreakdown[]> {
-  return apiFetch<ChannelBreakdown[]>(`/reports/channels?${rangeQuery(r)}`)
+  return apiFetch<ChannelBreakdown[]>(reportUrl("/reports/channels", r))
+}
+
+export type ProductPerformance = Schemas["ProductPerformanceOut"]
+
+/** Products sold on revenue-eligible orders in range (unsold ones are omitted), profit highest first. */
+export function getProductPerformance(r: DateRangeParams): Promise<ProductPerformance[]> {
+  return apiFetch<ProductPerformance[]>(reportUrl("/reports/products", r))
 }
 
 export function getShippingSummary(r: DateRangeParams): Promise<ShippingSummary> {
-  return apiFetch<ShippingSummary>(`/reports/shipping?${rangeQuery(r)}`)
+  return apiFetch<ShippingSummary>(reportUrl("/reports/shipping", r))
 }
 
 export type PurchasesSummary = Schemas["PurchasesSummaryOut"]
 
 /** Σ total_paid and count of material / product purchases in range; inventory, not P&L. */
 export function getPurchasesSummary(r: DateRangeParams): Promise<PurchasesSummary> {
-  return apiFetch<PurchasesSummary>(`/reports/purchases?${rangeQuery(r)}`)
+  return apiFetch<PurchasesSummary>(reportUrl("/reports/purchases", r))
 }
 
 // ------------------------------------------------------------ payment methods
