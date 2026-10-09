@@ -8,12 +8,14 @@ from api.schemas.distributions import (
     DistributionCreate,
     DistributionDetailOut,
     DistributionListOut,
+    DistributionPreviewOut,
     UndistributedProfitOut,
 )
 from db.distributions import (
     get_profit_distribution,
     get_undistributed_profit,
     list_profit_distributions,
+    preview_profit_distribution,
     record_profit_distribution,
 )
 from db.errors import NotFoundError
@@ -52,6 +54,24 @@ def read_distribution(
     if distribution is None:
         raise NotFoundError(f"Distribution with id {distribution_id} does not exist")
     return DistributionDetailOut.model_validate(distribution)
+
+
+@router.post("/distributions/preview", response_model=DistributionPreviewOut)
+def preview_distribution(
+    body: DistributionCreate, conn: sqlite3.Connection = Depends(get_db)
+) -> DistributionPreviewOut:
+    """The shares POST /distributions would store for the same body; writes
+    nothing. Same errors as create, except that exceeding the undistributed
+    profit is returned as exceeds_undistributed (allow_exceeding is ignored)."""
+    return DistributionPreviewOut.model_validate(
+        preview_profit_distribution(
+            conn,
+            body.period_start,
+            body.period_end,
+            body.total_amount_distributed,
+            distribution_date=body.distribution_date,
+        )
+    )
 
 
 @router.post("/distributions", response_model=DistributionDetailOut, status_code=201)

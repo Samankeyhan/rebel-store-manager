@@ -427,6 +427,58 @@ def test_distribution_exceeding_profit_needs_allow_exceeding(api):
     assert created == client.get(f"/distributions/{created['id']}").json()
 
 
+def _share_rows(shares):
+    return sorted(
+        (s["partner_id"], s["partner_name"], s["percentage_at_time"], s["amount"])
+        for s in shares
+    )
+
+
+def test_distribution_preview_matches_create_and_writes_nothing(api):
+    client, _ = api
+    for name, pct in [("Partner A", 33.33), ("Partner B", 33.33), ("Partner C", 33.34)]:
+        _post(client, "/partners", {"name": name, "current_percentage": pct})
+    body = {
+        "period_start": "2026-01-01",
+        "period_end": "2026-01-31",
+        "total_amount_distributed": 2,
+        "allow_exceeding": False,  # ignored by the preview
+    }
+
+    preview = _post(client, "/distributions/preview", body, expected=200)
+    assert preview["exceeds_undistributed"] is True
+    assert preview["undistributed_profit"] == 0
+    assert client.get("/distributions").json() == []
+
+    created = _post(client, "/distributions", {**body, "allow_exceeding": True})
+    assert _share_rows(preview["shares"]) == _share_rows(created["shares"])
+    assert sorted(s["amount"] for s in preview["shares"]) == [0, 1, 1]
+
+    overlap = client.post("/distributions/preview", json=body)
+    assert overlap.status_code == 409
+
+
+def test_distribution_preview_errors_match_create(api):
+    client, _ = api
+    body = {
+        "period_start": "2026-01-01",
+        "period_end": "2026-01-31",
+        "total_amount_distributed": 100,
+    }
+    no_partners = client.post("/distributions/preview", json=body)
+    assert no_partners.status_code == 422
+    assert _error(no_partners) == _error(client.post("/distributions", json=body))
+
+    _post(client, "/partners", {"name": "Partner A", "current_percentage": 60})
+    bad_sum = client.post("/distributions/preview", json=body)
+    assert bad_sum.status_code == 422
+    assert _error(bad_sum) == _error(client.post("/distributions", json=body))
+
+    assert client.post(
+        "/distributions/preview", json={**body, "total_amount_distributed": 1.5}
+    ).status_code == 422
+
+
 # ------------------------------------------------------------------ recipes
 
 
