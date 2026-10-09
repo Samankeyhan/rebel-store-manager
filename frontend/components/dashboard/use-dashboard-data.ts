@@ -16,12 +16,14 @@ import {
   getPurchasesSummary,
   getSettings,
   getShippingSummary,
+  getPendingSettlements,
   listLowStockMaterials,
   listOrders,
   type Catalog,
   type ChannelBreakdown,
   type Material,
   type OrderListItem,
+  type PendingMethod,
   type PostageEstimate,
   type ProfitAndLoss,
   type PurchasesSummary,
@@ -111,5 +113,9 @@ export function useDashboardData(range: IsoRange | null) {
   // Low-stock materials, most urgent first (the rule and the order are db/'s).
   const lowStock = useLoad<Material[]>("MATERIALS", "all", () => listLowStockMaterials())
 
-  return { pnl, channels, purchases, shipping, orders, catalog, lowStock }
+  // Pending settlements now (not the period): the full pending payload, fine
+  // at this scale. Backend gap: no lightweight per-method summary.
+  const settlements = useLoad<PendingMethod[]>("SETTLEMENTS", "all", () => getPendingSettlements())
+
+  return { pnl, channels, purchases, shipping, orders, catalog, lowStock, settlements }
 }

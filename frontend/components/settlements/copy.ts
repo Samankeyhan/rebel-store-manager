@@ -1,5 +1,5 @@
 /**
- * Settlements screen copy («تسویه‌ها») and the dashboard's pending card. // NEW file
+ * Settlements screen copy («تسویه‌ها»). // NEW file
  * No design exists for this screen: every string is NEW. Relative imports
  * only, so lib/settlements.test.mjs can load it.
  */
@@ -112,14 +112,6 @@ export const S = {
   editHelp: "فقط مبلغ دریافتی، تاریخ و یادداشت قابل ویرایش است؛ سفارش‌های این تسویه و مبلغ مورد انتظارش تغییر نمی‌کند.", // NEW
   save: "ذخیره", // NEW
   toastEdited: "تسویه ویرایش شد", // NEW
-
-  // ── dashboard card ──
-  cardTitle: "در انتظار تسویه", // NEW
-  cardCaption: "وضعیت همین حالا؛ به بازه انتخابی بستگی ندارد", // NEW
-  cardOverdue: (n: number) => `${fa(n)} سفارش معوق`, // NEW
-  cardLink: "مشاهده تسویه‌ها", // NEW
-  cardEmpty: "چیزی در انتظار تسویه نیست", // NEW
-  cardErrorTitle: "تسویه‌ها بارگذاری نشد", // NEW
 
   // ── errors (backend messages are English; these are what the owner reads) ──
   errors: {
