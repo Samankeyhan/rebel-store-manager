@@ -133,7 +133,7 @@ export function ProductsPage() {
   const [deactivateBusy, setDeactivateBusy] = React.useState(false)
   const [pageError, setPageError] = React.useState<string | null>(null)
   const [toast, setToast] = React.useState<string | null>(null)
-  const closeToast = React.useCallback(() => setToast(null), [])
+  const closeToast = React.useCallback(() => setToast(null), [setToast])
 
   const products = React.useMemo(() => (state.status === "ready" ? state.products : []), [state])
   const materials = React.useMemo(() => (state.status === "ready" ? state.materials : []), [state])
@@ -168,7 +168,7 @@ export function ProductsPage() {
   /** Refetch the tree (and, for renames and refusals, the items) without failing the screen. */
   const refreshCategories = React.useCallback(
     (withItems = false) => reloadTree(catKind, withItems).catch((e) => setPageError(errorInfo(e).message)),
-    [reloadTree, catKind]
+    [reloadTree, catKind, setPageError]
   )
 
   // The node being deactivated, as it is in the current tree.
