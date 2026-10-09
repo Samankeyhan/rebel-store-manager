@@ -135,6 +135,15 @@ export const D = {
   ordersEmptyCta: "ثبت اولین فروش",
   ordersErrorTitle: "سفارش‌ها بارگذاری نشد", // NEW
 
+  // ── pending settlements (NEW card: not in the design) ──
+  settleTitle: "در انتظار تسویه", // NEW
+  settleCaption: "وضعیت همین حالا؛ به بازه انتخابی بستگی ندارد", // NEW
+  settleInactive: "غیرفعال", // NEW
+  settleOverdue: (n: number) => `${fa(n)} سفارش معوق`, // NEW
+  settleLink: "مشاهده تسویه‌ها", // NEW
+  settleEmpty: "چیزی در انتظار تسویه نیست", // NEW
+  settleErrorTitle: "تسویه‌ها بارگذاری نشد", // NEW
+
   // ── first run ──
   welcomeTitle: "به مدیریت ربل شاپ خوش آمدید",
   welcomeBody: "برای دیدن گزارش‌ها، ابتدا محصولات و کیت‌های بسته‌بندی را تعریف کنید و سپس اولین فروش را ثبت کنید.",

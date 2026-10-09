@@ -696,3 +696,56 @@ export function reactivatePaymentMethod(id: number): Promise<PaymentMethod> {
 export function getFeePreview(id: number, amount: number, signal?: AbortSignal): Promise<FeePreview> {
   return apiFetch<FeePreview>(`/payment-methods/${id}/fee-preview?amount=${amount}`, { signal })
 }
+
+// ------------------------------------------------------------ settlements
+
+export type PendingMethod = Schemas["PendingMethodOut"]
+export type PendingDateGroup = Schemas["PendingDateGroupOut"]
+export type PendingMonthGroup = Schemas["PendingMonthGroupOut"]
+export type PendingGroup = PendingDateGroup | PendingMonthGroup
+export type PendingOrder = Schemas["PendingOrderOut"]
+export type Settlement = Schemas["SettlementOut"]
+export type SettlementListItem = Schemas["SettlementListItemOut"]
+export type SettlementOrder = Schemas["SettlementOrderOut"]
+export type SettlementCreate = Schemas["SettlementCreate"]
+export type SettlementUpdate = Schemas["SettlementUpdate"]
+
+/**
+ * Paid orders with a payment method not yet in a settlement, one entry per
+ * method (inactive ones included), ordered by name. Date groups for
+ * IMMEDIATE / DAYS_AFTER, Jalali-month groups (with can_settle) for
+ * DAY_OF_NEXT_MONTH. Orders carry no payment_reference (join listOrders).
+ */
+export function getPendingSettlements(paymentMethodId?: number | null): Promise<PendingMethod[]> {
+  return apiFetch<PendingMethod[]>(
+    paymentMethodId == null ? "/settlements/pending" : `/settlements/pending?payment_method_id=${paymentMethodId}`
+  )
+}
+
+/** Newest first (settled_date DESC, id DESC); no orders (getSettlement has them). */
+export function listSettlements(f: { paymentMethodId?: number | null; from?: string | null; to?: string | null } = {}): Promise<SettlementListItem[]> {
+  const qs = new URLSearchParams()
+  if (f.paymentMethodId != null) qs.set("payment_method_id", String(f.paymentMethodId))
+  if (f.from) qs.set("start_date", f.from)
+  if (f.to) qs.set("end_date", f.to)
+  const s = qs.toString()
+  return apiFetch<SettlementListItem[]>(`/settlements${s ? `?${s}` : ""}`)
+}
+
+export function getSettlement(settlementId: number): Promise<Settlement> {
+  return apiFetch<Settlement>(`/settlements/${settlementId}`)
+}
+
+/**
+ * IMMEDIATE / DAYS_AFTER: order_ids; DAY_OF_NEXT_MONTH: jalali_year +
+ * jalali_month of an ended month. difference (received − expected) comes back
+ * computed. 409 / 422 messages: lib/settlements.ts classifySettlementError.
+ */
+export function createSettlement(body: SettlementCreate): Promise<Settlement> {
+  return apiFetch<Settlement>("/settlements", { method: "POST", body: JSON.stringify(body) })
+}
+
+/** Only amount_received, settled_date and note; only the fields present change, note null clears it. */
+export function updateSettlement(settlementId: number, patch: SettlementUpdate): Promise<Settlement> {
+  return apiFetch<Settlement>(`/settlements/${settlementId}`, { method: "PATCH", body: JSON.stringify(patch) })
+}

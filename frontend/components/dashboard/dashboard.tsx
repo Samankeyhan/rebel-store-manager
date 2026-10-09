@@ -14,6 +14,7 @@ import { D } from "./copy"
 import { KpiCards } from "./kpi-cards"
 import { PRESET_KINDS, periodQuery, presets, readPeriod, storeToday, type PeriodKind } from "./period"
 import { RecentOrders } from "./recent-orders"
+import { SettlementsCard } from "./settlements-card"
 import { ShippingCard } from "./shipping-card"
 import { StockCard } from "./stock-card"
 import { useDashboardData, useStoreTimeZone } from "./use-dashboard-data"
@@ -99,6 +100,8 @@ export function Dashboard() {
           <RecentOrders orders={data.orders} timeZone={timeZone ?? "Asia/Tehran"} mobile={mobile} />
         </div>
       </div>
+
+      <SettlementsCard pending={data.settlements} mobile={mobile} />
 
       <ShippingCard
         periodWord={periodWord}
