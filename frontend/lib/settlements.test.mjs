@@ -7,6 +7,7 @@ import {
   differenceKind,
   groupTitle,
   isMonthGroup,
+  jalaliMonthTitle,
   overdueOrderCount,
   previewDifference,
   referenceMap,
@@ -14,6 +15,7 @@ import {
   selectionTotal,
   settlementErrorField,
   settlementErrorRefreshes,
+  settlementPatch,
 } from "./settlements.ts"
 import { differenceText, settlementErrorText, signedMoney } from "../components/settlements/copy.ts"
 import { formatMoney, setCurrency } from "./money.ts"
@@ -264,4 +266,23 @@ test("settlementErrorField and settlementErrorRefreshes", () => {
     assert.equal(settlementErrorRefreshes({ kind }), true, kind)
   for (const kind of ["conflict", "futureDate", "badAmount", "monthNotEnded", "notFound"])
     assert.equal(settlementErrorRefreshes({ kind }), false, kind)
+})
+
+test("jalaliMonthTitle: a stored Jalali month by name", () => {
+  assert.equal(jalaliMonthTitle(1405, 7), "مهر ۱۴۰۵")
+  assert.equal(jalaliMonthTitle(1405, 12), "اسفند ۱۴۰۵")
+  assert.equal(jalaliMonthTitle(1404, 1), "فروردین ۱۴۰۴")
+})
+
+test("settlementPatch: only changed fields; an emptied note clears", () => {
+  const original = { amount_received: 12345, settled_date: "2026-10-01", note: "bank" }
+  assert.deepEqual(settlementPatch(original, { amount: 12345, date: "2026-10-01", note: " bank " }), {})
+  assert.deepEqual(settlementPatch(original, { amount: 12000, date: "2026-10-01", note: "bank" }), { amount_received: 12000 })
+  assert.deepEqual(settlementPatch(original, { amount: 12345, date: "2026-10-02", note: "bank" }), { settled_date: "2026-10-02" })
+  assert.deepEqual(settlementPatch(original, { amount: 12345, date: "2026-10-01", note: "  " }), { note: null })
+  assert.deepEqual(settlementPatch({ ...original, note: null }, { amount: 0, date: "2026-10-01", note: "x" }), {
+    amount_received: 0,
+    note: "x",
+  })
+  assert.deepEqual(settlementPatch({ ...original, note: null }, { amount: 12345, date: "2026-10-01", note: "" }), {})
 })

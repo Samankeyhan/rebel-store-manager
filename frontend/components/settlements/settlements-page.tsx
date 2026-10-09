@@ -11,6 +11,7 @@ import { storeToday } from "@/lib/store-day"
 import { useCurrency } from "@/lib/use-currency"
 import { cn } from "@/lib/utils"
 import { S } from "./copy"
+import { HistoryTab } from "./history-tab"
 import { PendingTab } from "./pending-tab"
 
 const TABS = ["pending", "history"] as const
@@ -34,6 +35,8 @@ export function SettlementsPage() {
 
   const tabParam = params.get("tab")
   const tab: Tab = isTab(tabParam) ? tabParam : "pending"
+  const methodParam = Number(params.get("method"))
+  const methodId = Number.isInteger(methodParam) && methodParam > 0 ? methodParam : null
 
   const timeZone = useStoreTimeZone()
   const [now] = React.useState(() => new Date())
@@ -101,7 +104,18 @@ export function SettlementsPage() {
   return (
     <div className={cn("flex flex-col", mobile ? "gap-3" : "gap-5")}>
       {tabs}
-      {tab === "pending" ? <PendingTab today={today} mobile={mobile} onToast={setToast} /> : null}
+      {tab === "pending" ? (
+        <PendingTab today={today} mobile={mobile} onToast={setToast} />
+      ) : (
+        // Mounted only while shown, so it refetches after a settlement is recorded.
+        <HistoryTab
+          methodId={methodId}
+          onMethodChange={(id) => setParams({ method: id ? String(id) : null })}
+          today={today}
+          mobile={mobile}
+          onToast={setToast}
+        />
+      )}
       {toast && <Toast title={toast} onClose={closeToast} closeLabel={S.close} />}
     </div>
   )

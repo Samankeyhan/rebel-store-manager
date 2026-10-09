@@ -10,7 +10,7 @@
  * amount_received − expected_amount.
  */
 
-import { formatJalali } from "./jalali.ts"
+import { formatJalali, toGregorianISO } from "./jalali.ts"
 
 /** The pending-order fields these helpers read (PendingOrderOut). */
 export type PendingOrderLike = { id: number; expected_amount: number }
@@ -80,6 +80,30 @@ export function overdueOrderCount(groups: readonly GroupLike[]): number {
 /** «مهر ۱۴۰۵» for a month group; the expected date «۱۵ مهر ۱۴۰۵» for a date group. */
 export function groupTitle(g: GroupLike): string {
   return isMonthGroup(g) ? formatJalali(g.month_first_day, "MMMM yyyy") : formatJalali(g.expected_date)
+}
+
+/** «مهر ۱۴۰۵» for a stored Jalali year and month (a monthly settlement's period). */
+export function jalaliMonthTitle(year: number, month: number): string {
+  return formatJalali(toGregorianISO(`${year}/${month}/1`), "MMMM yyyy")
+}
+
+/** The editable fields of a settlement (update_settlement changes only these). */
+export type SettlementEditable = { amount_received: number; settled_date: string; note: string | null }
+
+/**
+ * The PATCH body for an edit: only the fields that changed. The note is
+ * trimmed; an emptied note is sent as null (clears it). {} = nothing changed.
+ */
+export function settlementPatch(
+  original: SettlementEditable,
+  form: { amount: number; date: string; note: string }
+): Partial<SettlementEditable> {
+  const patch: Partial<SettlementEditable> = {}
+  if (form.amount !== original.amount_received) patch.amount_received = form.amount
+  if (form.date !== original.settled_date) patch.settled_date = form.date
+  const note = form.note.trim() || null
+  if (note !== (original.note ?? null)) patch.note = note
+  return patch
 }
 
 /**

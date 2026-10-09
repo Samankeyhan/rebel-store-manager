@@ -73,7 +73,6 @@ export const S = {
   settledDate: "تاریخ تسویه", // NEW
   today: "امروز", // NEW
   note: "یادداشت", // NEW
-  noteLabel: "یادداشت (اختیاری)", // NEW
   difference: "اختلاف", // NEW
   differencePreview: "پیش‌نمایش اختلاف", // NEW
   over: "بیشتر از انتظار دریافت شد", // NEW
@@ -112,7 +111,6 @@ export const S = {
   editTitle: "ویرایش تسویه", // NEW
   editHelp: "فقط مبلغ دریافتی، تاریخ و یادداشت قابل ویرایش است؛ سفارش‌های این تسویه و مبلغ مورد انتظارش تغییر نمی‌کند.", // NEW
   save: "ذخیره", // NEW
-  noChanges: "تغییری داده نشده.", // NEW
   toastEdited: "تسویه ویرایش شد", // NEW
 
   // ── dashboard card ──
