@@ -167,7 +167,7 @@ test("classifyPaymentError recognises every payment error the backend raises", (
 test("classifyPaymentError ignores message text: no code, no classification", () => {
   for (const [error, expected] of CASES) {
     if (!expected || error.status !== 409) continue
-    const { code: _code, details: _details, ...textOnly } = error
+    const textOnly = { status: error.status, field: error.field, message: error.message }
     assert.equal(classifyPaymentError(textOnly), null, error.message)
   }
 })
