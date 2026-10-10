@@ -5,7 +5,8 @@
  *                                    both ends inclusive, accounting-rules §1)
  *   ?period=all                      all time (no date bounds)
  *   (none)                           the current Jalali month
- *   ?tab=products|channels           the report; none = the P&L
+ *   ?tab=products|channels|shipping|payments|waste|expenses
+ *                                    the report; none = the P&L
  * A preset is "selected" when the URL range equals it; any other range is
  * custom. "Today" is the store's day (lib/store-day's storeToday), passed in
  * as "YYYY-MM-DD". Dependency-light so `npm test` can run it.
@@ -14,8 +15,8 @@
 import { isoToDate, presetRange, type IsoRange } from "./jalali.ts"
 import { readUrlRange, writeUrlRange } from "./url-range.ts"
 
-/** Part 2 adds its reports here; the first one is the default. */
-export const REPORT_TAB_IDS = ["pnl", "products", "channels"] as const
+/** The reports, in tab order; the first one is the default. */
+export const REPORT_TAB_IDS = ["pnl", "products", "channels", "shipping", "payments", "waste", "expenses"] as const
 export type ReportTab = (typeof REPORT_TAB_IDS)[number]
 
 export const PERIOD_PRESETS = ["thisMonth", "lastMonth", "thisYear", "last30", "all"] as const

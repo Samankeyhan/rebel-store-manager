@@ -46,8 +46,10 @@ export type PnlFigures = {
   transaction_fees: number
   gross_profit: number
   postage_actual: number
+  postage_committed: number
   postage_variance: number
   refund_losses: number
+  refund_fee_losses: number
   waste_cost: number
   operating_expenses: number
   net_profit: number
@@ -92,8 +94,12 @@ export const STATEMENT: readonly StatementGroup[] = [
   },
 ]
 
-/** Returned figures that are not part of the sum: shown under the statement. */
-export const STATEMENT_INFO: readonly PnlKey[] = ["postage_actual", "order_count"]
+/**
+ * Returned figures that are not part of the sum: shown under the statement.
+ * postage_committed and refund_fee_losses are parts of postage_variance and
+ * refund_losses, shown for explanation only (§9), never deducted again.
+ */
+export const STATEMENT_INFO: readonly PnlKey[] = ["postage_actual", "postage_committed", "refund_fee_losses", "order_count"]
 
 export type LineSign = { glyph: "+" | "−" | "=" | ""; tone: "profit" | "loss" | "plain" }
 
@@ -120,6 +126,7 @@ export function lineAmount(role: LineRole, value: number): number {
 /**
  * The statement adds up: each subtotal equals its group's lines, signed as
  * the statement shows them (the previous subtotal carried into the next group).
+ * The fourth: postage_variance = postage_actual − postage_committed (§9).
  */
 export function statementChecks(p: PnlFigures): Check[] {
   return [
@@ -132,6 +139,7 @@ export function statementChecks(p: PnlFigures): Check[] {
       -p.waste_cost,
       -p.operating_expenses,
     ]),
+    reconcile(p.postage_variance, [p.postage_actual, -p.postage_committed]),
   ]
 }
 
@@ -153,6 +161,165 @@ export function channelChecks(rows: readonly ChannelRow[], p: PnlFigures) {
     revenue: reconcile(p.total_revenue, rows.map((r) => r.total_revenue)),
     profit: reconcile(p.gross_profit, rows.map((r) => r.total_profit)),
   }
+}
+
+// ── part 2: shipping, payment methods, waste, expenses ─────────────────────
+
+/** GET /reports/shipping (ShippingSummaryOut): the figures the checks read. */
+export type ShippingFigures = {
+  shipping_revenue: number
+  packaging_cost: number
+  postage_estimated: number
+  postage_actual: number
+  net_shipping_result: number
+  net_shipping_result_estimated: number
+  postage_gap: number
+  order_count: number
+  shipped_order_count: number
+}
+/** GET /reports/shipping-by-channel row. */
+export type ShippingChannelRow = {
+  channel: string
+  shipped_order_count: number
+  shipping_revenue: number
+  packaging_cost: number
+  postage_estimated: number
+  net: number
+  net_per_order: number
+}
+
+/**
+ * Shipping summary vs its own per-channel rows (§9: these totals equal the
+ * shipping-by-channel totals), and the summary's two results and postage_gap
+ * against the summary figures they are defined from.
+ */
+export function shippingChecks(s: ShippingFigures, rows: readonly ShippingChannelRow[]) {
+  return {
+    shipped: reconcile(s.shipped_order_count, rows.map((r) => r.shipped_order_count)),
+    revenue: reconcile(s.shipping_revenue, rows.map((r) => r.shipping_revenue)),
+    packaging: reconcile(s.packaging_cost, rows.map((r) => r.packaging_cost)),
+    estimated: reconcile(s.postage_estimated, rows.map((r) => r.postage_estimated)),
+    net: reconcile(s.net_shipping_result_estimated, rows.map((r) => r.net)),
+    actualResult: reconcile(s.net_shipping_result, [s.shipping_revenue, -s.packaging_cost, -s.postage_actual]),
+    gap: reconcile(s.postage_gap, [s.postage_estimated, -s.postage_actual]),
+  }
+}
+
+/** Shipping vs P&L: the same eligible order count and the same postage batches (§9). */
+export function shippingPnlChecks(s: ShippingFigures, p: PnlFigures) {
+  return {
+    orders: reconcile(p.order_count, [s.order_count]),
+    postageActual: reconcile(p.postage_actual, [s.postage_actual]),
+  }
+}
+
+/** No shipped order and no postage batch paid in the period. */
+export function shippingIsEmpty(s: ShippingFigures, rows: readonly ShippingChannelRow[]): boolean {
+  return rows.length === 0 && s.shipped_order_count === 0 && s.postage_actual === 0
+}
+
+/** GET /reports/payment-methods row (PaymentMethodReportRowOut). */
+export type PaymentRow = {
+  payment_method_id: number | null
+  order_count: number
+  customer_total: number
+  transaction_fees: number
+  fees_lost_on_returns: number
+  pending_expected: number
+  settled_expected: number
+  settled_received: number
+  settlement_difference: number
+}
+
+const PAYMENT_FIGURES = [
+  "order_count",
+  "customer_total",
+  "transaction_fees",
+  "fees_lost_on_returns",
+  "pending_expected",
+  "settled_expected",
+  "settled_received",
+  "settlement_difference",
+] as const
+
+/** Payment methods vs P&L (§14): order set, customer totals, fees, and fees lost on returns. */
+export function paymentChecks(rows: readonly PaymentRow[], p: PnlFigures) {
+  return {
+    orders: reconcile(p.order_count, rows.map((r) => r.order_count)),
+    revenue: reconcile(p.total_revenue, rows.map((r) => r.customer_total)),
+    fees: reconcile(p.transaction_fees, rows.map((r) => r.transaction_fees)),
+    lostFees: reconcile(p.refund_fee_losses, rows.map((r) => r.fees_lost_on_returns)),
+  }
+}
+
+/** Every figure on every row is 0 (rows are still listed for active methods). */
+export function paymentsIsEmpty(rows: readonly PaymentRow[]): boolean {
+  return rows.every((r) => PAYMENT_FIGURES.every((k) => r[k] === 0))
+}
+
+/** GET /reports/waste row; cost null = every movement's unit cost was unknown. */
+export type WasteRow = { item_type: string; item_id: number; cost: number | null; unknown_cost_count: number }
+
+/**
+ * The waste table's foot: the sum of the known costs (what the P&L sums, §8),
+ * rows with no cost at all, and rows whose cost leaves some movements out.
+ * An unknown cost is never counted as 0.
+ */
+export function wasteTotals(rows: readonly WasteRow[]) {
+  const known = rows.filter((r) => r.cost !== null)
+  return {
+    knownCost: known.reduce((s, r) => s + (r.cost as number), 0),
+    unknownRows: rows.length - known.length,
+    partialRows: known.filter((r) => r.unknown_cost_count > 0).length,
+  }
+}
+
+/** Waste vs P&L (§8): the known per-item costs sum exactly to waste_cost. */
+export function wasteChecks(rows: readonly WasteRow[], p: PnlFigures) {
+  return {
+    cost: reconcile(
+      p.waste_cost,
+      rows.filter((r) => r.cost !== null).map((r) => r.cost as number)
+    ),
+  }
+}
+
+/** GET /reports/expenses row. */
+export type ExpenseRow = { category_id: number; total_amount: number; expense_count: number }
+
+/** Expenses vs P&L: the categories sum to operating_expenses. */
+export function expenseChecks(rows: readonly ExpenseRow[], p: PnlFigures) {
+  return { total: reconcile(p.operating_expenses, rows.map((r) => r.total_amount)) }
+}
+
+export type SignedTone = { glyph: "+" | ""; tone: "profit" | "loss" | "plain" }
+
+/**
+ * A signed figure (a net result, a gap, a difference) from its real sign:
+ * positive gets «+» (a negative already prints its minus); profit/loss
+ * colour, or plain for a figure that is neither (`neutral`, e.g. postage_gap).
+ */
+export function signedTone(value: number, neutral = false): SignedTone {
+  const glyph = value > 0 ? "+" : ""
+  if (neutral) return { glyph, tone: "plain" }
+  return { glyph, tone: value > 0 ? "profit" : value < 0 ? "loss" : "plain" }
+}
+
+/**
+ * A link to another screen filtered to the report's period (?from=&to=).
+ * Those screens have no all-time URL, so all time (range null) gives null:
+ * no link rather than one that silently shows a different period.
+ */
+export function reportLink(
+  path: string,
+  params: Readonly<Record<string, string>>,
+  range: { from: string; to: string } | null
+): string | null {
+  if (!range) return null
+  const qs = new URLSearchParams(params)
+  qs.set("from", range.from)
+  qs.set("to", range.to)
+  return `${path}?${qs.toString()}`
 }
 
 /** No activity at all in the period: every returned figure is 0. */

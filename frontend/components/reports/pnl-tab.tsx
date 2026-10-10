@@ -107,6 +107,7 @@ export function PnlTab({ pnl, periodTitle, mobile }: { pnl: ProfitAndLoss; perio
           { label: R.checkStatement(PNL_EXPLAIN.total_revenue.label), check: checks[0] },
           { label: R.checkStatement(PNL_EXPLAIN.gross_profit.label), check: checks[1] },
           { label: R.checkStatement(PNL_EXPLAIN.net_profit.label), check: checks[2] },
+          { label: R.checkPostageVariance, check: checks[3] },
         ]}
       />
     </section>

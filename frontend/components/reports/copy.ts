@@ -61,6 +61,7 @@ export const R = {
   checkChannelsOrders: "جمع سفارش کانال‌ها = «تعداد سفارش» سود و زیان", // NEW
   checkChannelsRevenue: "جمع درآمد کانال‌ها = «جمع درآمد» سود و زیان", // NEW
   checkChannelsProfit: "جمع سود سفارش‌های کانال‌ها = «سود ناخالص» سود و زیان", // NEW
+  checkPostageVariance: "پرداختی واقعی به پست − پست ثبت‌شده روی سفارش‌های ارسال‌شده = «مغایرت هزینه پست»", // NEW
 
   // ── P&L ──
   statementTitle: (period: string) => `صورت سود و زیان — ${period}`,
@@ -143,7 +144,197 @@ export const R = {
   channelsEmptyTitle: "در این بازه سفارشی ثبت نشده", // NEW
   channelsEmptyBody: "فقط سفارش‌های در انتظار، پرداخت‌شده و تکمیل‌شده به کانال‌ها می‌آیند.", // NEW
   channelsAria: "کانال‌ها", // NEW
+  colAvgOrder: "میانگین سفارش", // NEW
+  avgOrderNote: "میانگین سفارش = جمع درآمد کانال ÷ تعداد سفارش آن، گردشده.", // NEW (rules §9)
+
+  // ── part 2: shell ──
+  tabShipping: "ارسال و پست", // NEW
+  tabShippingShort: "ارسال", // NEW
+  tabPayments: "روش‌های پرداخت", // NEW
+  tabPaymentsShort: "پرداخت", // NEW
+  tabWaste: "ضایعات", // NEW
+  tabExpenses: "هزینه‌ها و خرید", // NEW
+  tabExpensesShort: "هزینه‌ها", // NEW
+  partLoadFailed: "این بخش بارگذاری نشد.", // NEW
+  perOrder: "هر سفارش ارسالی", // NEW
+  openList: "مشاهده فهرست", // NEW
+  openListOf: (what: string) => `مشاهده فهرست «${what}»`, // NEW
+
+  // ── shipping ──
+  shippingTitle: "اقتصاد ارسال", // NEW
+  shippingCaption: (shipped: number, all: number) => `${fa(shipped)} سفارش ارسالی از ${fa(all)} سفارش این بازه`, // NEW
+  shippingScope:
+    `سفارش ارسالی = سفارش‌های ${ELIGIBLE} این بازه در کانال‌هایی که پست دارند (تنظیمات کانال). ` +
+    "همه ارقام این گزارش فقط همین سفارش‌ها را می‌شمارند، پس ممکن است با درآمد هزینه ارسال، بسته‌بندی و پست تخمینی در «سود و زیان» (همه سفارش‌ها) فرق داشته باشند.", // NEW (rules §9)
+  shippingByChannel: "ارسال به تفکیک کانال", // NEW
+  colShipped: "سفارش ارسالی", // NEW
+  get colShippingRevenue() {
+    return `درآمد ارسال (${currencyLabel()})`
+  }, // NEW
+  get colPackaging() {
+    return `بسته‌بندی (${currencyLabel()})`
+  }, // NEW
+  get colPostageEstimated() {
+    return `پست تخمینی (${currencyLabel()})`
+  }, // NEW
+  get colShipNet() {
+    return `نتیجه ارسال (${currencyLabel()})`
+  }, // NEW
+  get colShipNetPerOrder() {
+    return `نتیجه هر سفارش (${currencyLabel()})`
+  }, // NEW
+  shippingChannelNote: "نتیجه ارسال هر کانال با پست تخمینی است؛ جمع آن‌ها همان «نتیجه ارسال (با پست تخمینی)» بالاست.", // NEW
+  shippingEmptyTitle: "در این بازه سفارش ارسالی یا پرداختی به پست نبوده", // NEW
+  shippingEmptyBody: "فقط سفارش‌های کانال‌هایی که پست دارند در این گزارش می‌آیند.", // NEW
+  shippingNoChannels: "در این بازه سفارش ارسالی ثبت نشده؛ فقط پرداخت به پست بوده است.", // NEW
+  checkShipShipped: "جمع سفارش ارسالی کانال‌ها = سفارش ارسالی خلاصه", // NEW
+  checkShipRevenue: "جمع درآمد ارسال کانال‌ها = درآمد هزینه ارسال خلاصه", // NEW
+  checkShipPackaging: "جمع بسته‌بندی کانال‌ها = بسته‌بندی خلاصه", // NEW
+  checkShipEstimated: "جمع پست تخمینی کانال‌ها = پست تخمینی خلاصه", // NEW
+  checkShipNet: "جمع نتیجه کانال‌ها = نتیجه ارسال (با پست تخمینی)", // NEW
+  checkShipActualResult: "درآمد ارسال − بسته‌بندی − پرداختی واقعی = نتیجه ارسال (با پرداختی واقعی)", // NEW
+  checkShipGap: "پست تخمینی − پرداختی واقعی = اختلاف پست", // NEW
+  checkShipOrders: "تعداد سفارش این بازه = «تعداد سفارش» سود و زیان", // NEW
+  checkShipPostageActual: "پرداختی واقعی به پست = «پرداختی واقعی به پست» سود و زیان", // NEW
+
+  // ── payment methods ──
+  paymentsOrdersTitle: "سفارش‌ها و کارمزد", // NEW
+  paymentsSettleTitle: "تسویه", // NEW
+  colMethod: "روش پرداخت", // NEW
+  colRule: "قاعده تسویه", // NEW
+  get colCustomerTotal() {
+    return `مبلغ مشتری (${currencyLabel()})`
+  }, // NEW
+  get colFees() {
+    return `کارمزد (${currencyLabel()})`
+  }, // NEW
+  get colFeesLost() {
+    return `کارمزد از دست‌رفته (${currencyLabel()})`
+  }, // NEW
+  get colPending() {
+    return `در انتظار تسویه (${currencyLabel()})`
+  }, // NEW
+  get colSettledExpected() {
+    return `تسویه‌شده: مورد انتظار (${currencyLabel()})`
+  }, // NEW
+  get colSettledReceived() {
+    return `تسویه‌شده: دریافتی (${currencyLabel()})`
+  }, // NEW
+  get colSettleDiff() {
+    return `اختلاف (${currencyLabel()})`
+  }, // NEW
+  feesLostShort: "کارمزد از دست‌رفته", // NEW
+  pendingShort: "در انتظار تسویه", // NEW
+  settledExpectedShort: "مورد انتظار", // NEW
+  settledReceivedShort: "دریافتی", // NEW
+  customerTotalShort: "مبلغ مشتری", // NEW
+  feesShort: "کارمزد", // NEW
+  settleDiffShort: "اختلاف", // NEW (settlements' word)
+  openSettlements: (name: string) => `تاریخچه تسویه‌های «${name}»`, // NEW
+  paymentsEmptyTitle: "در این بازه پرداخت یا تسویه‌ای ثبت نشده", // NEW
+  paymentsEmptyBody: "سفارش، کارمزد و تسویه‌ای برای هیچ روش پرداختی در این بازه نیست.", // NEW
+  checkPayOrders: "جمع سفارش روش‌ها = «تعداد سفارش» سود و زیان", // NEW
+  checkPayRevenue: "جمع مبلغ مشتری روش‌ها = «جمع درآمد» سود و زیان", // NEW
+  checkPayFees: "جمع کارمزد روش‌ها = «کارمزد تراکنش» سود و زیان", // NEW
+  checkPayLostFees: "جمع کارمزد از دست‌رفته روش‌ها = «کارمزد از دست‌رفته در مرجوعی و لغو» سود و زیان", // NEW
+
+  // ── waste ──
+  wasteAria: "ضایعات", // NEW
+  colItem: "کالا", // NEW
+  colQuantity: "مقدار", // NEW
+  colEvents: "دفعات ثبت", // NEW
+  get colWasteCost() {
+    return `بها (${currencyLabel()})`
+  }, // NEW
+  kindProduct: "محصول", // NEW
+  kindMaterial: "متریال", // NEW
+  unknownCost: "نامعلوم", // NEW
+  unknownCostTitle: "بهای واحد هیچ‌کدام از ثبت‌های این قلم معلوم نبود؛ در جمع ضایعات حساب نشده.", // NEW (rules §8)
+  partialCost: (n: number) => `${fa(n)} ثبت بی‌بها؛ در این مبلغ حساب نشده`, // NEW (rules §8)
+  unknownRows: (n: number) => `${fa(n)} قلم با بهای نامعلوم`, // NEW
+  openAdjustments: (name: string) => `ضایعات «${name}» در «تعدیل موجودی»`, // NEW
+  wasteEmptyTitle: "در این بازه ضایعاتی ثبت نشده", // NEW
+  wasteEmptyBody: "ضایعات از «تعدیل موجودی» ثبت می‌شود.", // NEW
+  checkWaste: "جمع بهای معلوم اقلام = «ضایعات» سود و زیان", // NEW
+
+  // ── expenses & purchases ──
+  expensesTitle: "هزینه‌های عملیاتی به تفکیک دسته", // NEW
+  colCategory: "دسته", // NEW
+  colCount: "تعداد", // NEW
+  get colAmount() {
+    return `مبلغ (${currencyLabel()})`
+  }, // NEW
+  colShare: "سهم", // NEW
+  openExpenses: (name: string) => `هزینه‌های دسته «${name}»`, // NEW
+  expensesEmptyTitle: "در این بازه هزینه‌ای ثبت نشده", // NEW
+  expensesEmptyBody: "هزینه‌ها از صفحه «هزینه‌ها» ثبت می‌شوند.", // NEW
+  checkExpenses: "جمع دسته‌ها = «هزینه‌های عملیاتی» سود و زیان", // NEW
+  purchasesTitle: "خرید موجودی (جزو هزینه‌ها نیست)", // NEW
+  purchasesMaterial: "خرید متریال", // NEW
+  purchasesProduct: "خرید محصول", // NEW
+  purchasesCount: (n: number) => `${fa(n)} خرید`, // NEW
+  purchasesNote:
+    "جمع مبلغ پرداختی خریدهایی که تاریخ خریدشان در این بازه است. خرید، موجودی است نه هزینه: موجودی و میانگین موزون بهای آن را بالا می‌برد و فقط وقتی فروخته یا مصرف شود، به‌صورت بهای تمام‌شده (یا بهای ساخت و بسته‌بندی) به سود و زیان می‌رسد. هیچ رقمی از سود و زیان شامل خرید نیست؛ این دو جمع جدا گزارش می‌شوند و با هزینه‌های عملیاتی جمع نمی‌شوند.", // NEW (rules §9, §2)
+  openPurchases: (what: string) => `فهرست «${what}»`, // NEW
 }
+
+// ── part 2 explanations (docs/accounting-rules.md) ─────────────────────────
+
+/** Shipping summary figures (rules §9 «Shipping summary»). */
+export const SHIPPING_EXPLAIN = {
+  shipping_revenue: {
+    label: "درآمد هزینه ارسال",
+    meaning: "هزینه ارسالی که از مشتری‌های سفارش‌های ارسالی گرفته شده.", // NEW
+    how: "جمع هزینه ارسال سفارش‌های ارسالی.", // NEW
+  },
+  packaging_cost: {
+    label: "بسته‌بندی",
+    meaning: "بهای کیت بسته‌بندی سفارش‌های ارسالی.", // NEW
+    how: "سفارش کانالی که پست ندارد (مثل حضوری) و کیت داشته، هزینه همان فروش است نه ارسال، و اینجا نمی‌آید.", // NEW
+  },
+  postage_estimated: {
+    label: "هزینه پست (تخمینی)",
+    meaning: "جمع هزینه پستی که هنگام ثبت روی هر سفارش ارسالی گذاشته شد.", // NEW
+    how: "جمع پست ثبت‌شده روی سفارش‌های ارسالی.", // NEW
+  },
+  net_shipping_result_estimated: {
+    label: "نتیجه ارسال (با پست تخمینی)", // NEW
+    meaning: "عدد اصلی این گزارش: درآمد هزینه ارسال − بسته‌بندی − پست تخمینی.", // NEW
+    how: "هر سفارش ارسالی با پستی که رویش ثبت شده حساب می‌شود، پس بازه‌ای که پرداخت‌هایش به پست هنوز ثبت نشده، سودده به نظر نمی‌رسد.", // NEW
+  },
+  postage_actual: {
+    label: "پرداختی واقعی به پست", // NEW
+    meaning: "جمع پرداخت‌های ثبت‌شده به اداره پست که تاریخ پرداختشان در این بازه است.", // NEW
+    how: "فیلتر کانال ندارد: پرداخت به پست برای بسته‌هاست و فقط سفارش‌های ارسالی بسته دارند.", // NEW
+  },
+  net_shipping_result: {
+    label: "نتیجه ارسال (با پرداختی واقعی)", // NEW
+    meaning: "درآمد هزینه ارسال − بسته‌بندی − پرداختی واقعی به پست.", // NEW
+    how: "پرداخت‌های به پست ممکن است در بازه دیگری از سفارش‌ها ثبت شوند؛ عدد اصلی، نتیجه با پست تخمینی است.", // NEW
+  },
+  postage_gap: {
+    label: "اختلاف پست (تخمین − پرداخت)", // NEW
+    meaning: "هزینه پست (تخمینی) − پرداختی واقعی به پست.", // NEW
+    how: `مثبت یعنی بخشی از پست تخمینی این بازه هنوز پرداخت یا ثبت نشده است. این همان «مغایرت هزینه پست» سود و زیان نیست؛ آن یکی پست سفارش‌های ${st("REFUNDED")} را هم حساب می‌کند.`, // NEW
+  },
+  averages: {
+    label: "میانگین هر سفارش ارسالی", // NEW
+    meaning: "هر جمع ÷ تعداد سفارش ارسالی، گردشده؛ بدون سفارش ارسالی صفر.", // NEW
+    how: "",
+  },
+} as const
+
+/** Payment-method report columns (rules §14 «Payment-method report»). */
+export const PAYMENTS_EXPLAIN = {
+  orders: `سفارش، مبلغ مشتری و کارمزد: سفارش‌های ${ELIGIBLE} با تاریخ سفارش در این بازه. مبلغ مشتری = اقلام پس از تخفیف + هزینه ارسال. جمع این ستون‌ها با «تعداد سفارش»، «جمع درآمد» و «کارمزد تراکنش» سود و زیان برابر است.`, // NEW
+  feesLost: `کارمزد از دست‌رفته: کارمزد سفارش‌های ${st("REFUNDED")} و سفارش‌های ${st("CANCELLED")} که کالایشان کسر شده بود، با تاریخ سفارش در این بازه. جمع آن بخش کارمزد «زیان مرجوعی و لغو» است؛ «زیان مرجوعی و لغو» بسته‌بندی و پست سفارش‌های ${st("REFUNDED")} را هم دارد.`, // NEW
+  pending: "در انتظار تسویه: جمع (مبلغ مشتری − کارمزد) سفارش‌هایی که الان منتظر تسویه‌اند (روش پرداخت دارند، پرداخت‌شده یا تکمیل‌شده و هنوز تسویه نشده)، با تاریخ سفارش در این بازه. ممکن است منفی باشد.", // NEW
+  settled: "تسویه‌شده: تسویه‌هایی که تاریخ تسویه‌شان در این بازه است؛ مبلغ مورد انتظار (هنگام ثبت تسویه ثبت شده) و مبلغ دریافتی. اختلاف = دریافتی − مورد انتظار. ردیف «بدون روش پرداخت» تسویه ندارد.", // NEW
+} as const
+
+/** Waste report (rules §8). */
+export const WASTE_EXPLAIN =
+  "بهای هر قلم = جمع (مقدار × بهای واحد در لحظه ثبت ضایعات)، دقیق حساب و یک بار گرد می‌شود؛ «ضایعات» سود و زیان جمع همین مبلغ‌هاست. ثبتی که بهای واحدش معلوم نبود در مقدار و دفعات می‌آید ولی در بها نه؛ اگر هیچ ثبتی از یک قلم بها نداشته باشد، بهای آن نامعلوم است. «تعدیل موجودی» (اصلاح شمارش) در سود و زیان نمی‌آید." // NEW
 
 // ── P&L key explanations ───────────────────────────────────────────────────
 
@@ -229,12 +420,13 @@ export const PNL_EXPLAIN: Record<PnlKey, Explain> = {
   postage_variance: {
     label: "مغایرت هزینه پست",
     meaning: "فرق پولی که واقعاً به پست پرداخت شد با تخمین‌هایی که روی سفارش‌ها ثبت شده بود.", // NEW
-    how: `پرداختی واقعی به پست در این بازه − جمع پست ثبت‌شده روی سفارش‌های ${ELIGIBLE} و ${st("REFUNDED")} همین بازه. مثبت یعنی پست بیش از تخمین هزینه داشته و از سود کم می‌شود (−)؛ منفی یعنی کمتر از تخمین بوده و به سود برمی‌گردد (+).`, // NEW
+    how: `پرداختی واقعی به پست در این بازه − «پست ثبت‌شده روی سفارش‌های ارسال‌شده» (سفارش‌های ${ELIGIBLE} و ${st("REFUNDED")} همین بازه). مثبت یعنی پست بیش از تخمین هزینه داشته و از سود کم می‌شود (−)؛ منفی یعنی کمتر از تخمین بوده و به سود برمی‌گردد (+).`, // NEW
+    formula: (p) => sum(p.postage_actual, [[-1, p.postage_committed]], p.postage_variance), // NEW
   },
   refund_losses: {
     label: "زیان مرجوعی و لغو",
     meaning: "هزینه‌هایی که با مرجوعی یا لغو سفارش‌ها از دست رفت. درآمد این سفارش‌ها در درآمد نمی‌آید.", // NEW
-    how: `برای سفارش‌های ${st("REFUNDED")} این بازه: بسته‌بندی + پست + کارمزد. برای سفارش‌های ${st("CANCELLED")} که کالایشان کسر شده بود: فقط کارمزد (چیزی ارسال نشده، پس بسته‌بندی و پست زیان نیست).`, // NEW
+    how: `برای سفارش‌های ${st("REFUNDED")} این بازه: بسته‌بندی + پست + کارمزد. برای سفارش‌های ${st("CANCELLED")} که کالایشان کسر شده بود: فقط کارمزد (چیزی ارسال نشده، پس بسته‌بندی و پست زیان نیست). بخش کارمزد آن جداگانه در «کارمزد از دست‌رفته در مرجوعی و لغو» آمده است.`, // NEW
   },
   waste_cost: {
     label: "ضایعات",
@@ -266,6 +458,16 @@ export const PNL_EXPLAIN: Record<PnlKey, Explain> = {
     label: "پرداختی واقعی به پست", // NEW
     meaning: "جمع پرداخت‌های ثبت‌شده به اداره پست که تاریخ پرداختشان در این بازه است.", // NEW
     how: "مستقیم از سود کم نمی‌شود؛ فقط در «مغایرت هزینه پست» با تخمین‌های ثبت‌شده روی سفارش‌ها مقایسه می‌شود.", // NEW
+  },
+  postage_committed: {
+    label: "پست ثبت‌شده روی سفارش‌های ارسال‌شده", // NEW
+    meaning: `جمع هزینه پستی که روی هر سفارش ارسال‌شده ثبت شده: سفارش‌های ${ELIGIBLE} و ${st("REFUNDED")} این بازه.`, // NEW (rules §9)
+    how: "مبنای «مغایرت هزینه پست» است (پرداختی واقعی به پست − همین عدد). فقط برای توضیح آمده و دوباره از سود کم نمی‌شود.", // NEW (rules §9)
+  },
+  refund_fee_losses: {
+    label: "کارمزد از دست‌رفته در مرجوعی و لغو", // NEW
+    meaning: `کارمزد سفارش‌های ${st("REFUNDED")} این بازه و سفارش‌های ${st("CANCELLED")} که کالایشان کسر شده بود.`, // NEW (rules §9)
+    how: `بخش کارمزد «زیان مرجوعی و لغو» است؛ آن عدد بسته‌بندی و پست سفارش‌های ${st("REFUNDED")} را هم دارد. فقط برای توضیح آمده و دوباره از سود کم نمی‌شود. با جمع «کارمزد از دست‌رفته» در گزارش روش‌های پرداخت برابر است.`, // NEW (rules §9, §14)
   },
   order_count: {
     label: "تعداد سفارش", // NEW

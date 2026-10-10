@@ -90,6 +90,10 @@ test("tab: default pnl, unknown values fall back, default writes nothing", () =>
   assert.equal(readReportTab(qs("")), "pnl")
   assert.equal(readReportTab(qs("tab=channels")), "channels")
   assert.equal(readReportTab(qs("tab=nope")), "pnl")
+  for (const t of ["shipping", "payments", "waste", "expenses"]) {
+    assert.equal(readReportTab(qs(`tab=${t}`)), t)
+    assert.equal(writeReportTab(qs(""), t).toString(), `tab=${t}`)
+  }
   assert.equal(writeReportTab(qs("tab=products&from=2026-09-01&to=2026-09-02"), "pnl").toString(), "from=2026-09-01&to=2026-09-02")
   assert.equal(writeReportTab(qs(""), "products").toString(), "tab=products")
 })

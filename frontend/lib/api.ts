@@ -670,6 +670,27 @@ export function getShippingSummary(r: DateRangeParams): Promise<ShippingSummary>
   return apiFetch<ShippingSummary>(reportUrl("/reports/shipping", r))
 }
 
+export type ShippingByChannel = Schemas["ShippingByChannelOut"]
+
+/** Shipped orders (channels that apply postage) per channel; channels with none are omitted. */
+export function getShippingByChannel(r: DateRangeParams): Promise<ShippingByChannel[]> {
+  return apiFetch<ShippingByChannel[]>(reportUrl("/reports/shipping-by-channel", r))
+}
+
+export type WasteReportRow = Schemas["WasteReportOut"]
+
+/** WASTE movements per item; cost null = every movement's cost unknown. Their known costs sum to the P&L waste_cost. */
+export function getWasteReport(r: DateRangeParams): Promise<WasteReportRow[]> {
+  return apiFetch<WasteReportRow[]>(reportUrl("/reports/waste", r))
+}
+
+export type PaymentMethodReportRow = Schemas["PaymentMethodReportRowOut"]
+
+/** One row per payment method (sorted by name), then the "no method" row (payment_method_id null). */
+export function getPaymentMethodReport(r: DateRangeParams): Promise<PaymentMethodReportRow[]> {
+  return apiFetch<PaymentMethodReportRow[]>(reportUrl("/reports/payment-methods", r))
+}
+
 export type PurchasesSummary = Schemas["PurchasesSummaryOut"]
 
 /** Σ total_paid and count of material / product purchases in range; inventory, not P&L. */
