@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { ApiError, createOrder, getCatalog, listPaymentMethods, type Catalog, type PaymentMethod } from "@/lib/api"
+import { refusedProductId } from "@/lib/error-codes"
 import { classifyPaymentError } from "@/lib/payment-methods"
 import { DEFAULT_TZ, storeToday } from "@/lib/store-day"
 import { paymentErrorText } from "@/components/payment-methods/copy"
@@ -38,12 +39,11 @@ function loadErrorCode(error: unknown): string {
   return "NET_TIMEOUT"
 }
 
-/** Finds which of this order's products a backend message is about. */
-function productNamed(message: string, state: FormState, catalog: Catalog) {
+/** Which of this order's products a no-recipe / no-cost refusal is about (details.product_id). */
+function refusedProduct(error: ApiError, state: FormState, catalog: Catalog) {
+  const id = refusedProductId(error)
   const ids = new Set(state.lines.map((l) => l.productId))
-  return catalog.products
-    .filter((p) => ids.has(p.id) && message.includes(p.name))
-    .sort((a, b) => b.name.length - a.name.length)[0]
+  return id != null && ids.has(id) ? catalog.products.find((p) => p.id === id) : undefined
 }
 
 /** Maps a POST /orders failure to where the UI shows it. */
@@ -63,7 +63,7 @@ function classifyOrderError(
       payment.kind === "inactiveMethod" ? "payment_method_id" : "paid_date"
     return { kind: "payment", field, message: paymentErrorText(payment, methodName) }
   }
-  if (error.status === 404 && /Payment method/.test(error.message)) {
+  if (error.status === 404 && error.code === "PAYMENT_METHOD_NOT_FOUND") {
     return { kind: "payment", field: "payment_method_id", message: paymentErrorText({ kind: "inactiveMethod" }, null) }
   }
   if (error.status === 422 && error.field === "transaction_fee") {
@@ -86,7 +86,7 @@ function classifyOrderError(
     }
   }
   if (error.status === 422 && (error.field === "unit_cost" || error.field === "made_to_order")) {
-    const product = productNamed(error.message, state, catalog)
+    const product = refusedProduct(error, state, catalog)
     if (product) {
       return { kind: error.field === "unit_cost" ? "noCost" : "noRecipe", productId: product.id, name: product.name }
     }

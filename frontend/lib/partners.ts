@@ -9,6 +9,7 @@
  * from POST /distributions.
  */
 
+import { type CodedError, detailNum, detailStr, hasCode } from "./error-codes.ts"
 import { dateToISO, isoToDate, toGregorianISO, toJalali } from "./jalali.ts"
 import { formatQuantity, toLatinDigits, toPersianDigits } from "./persian-numbers.ts"
 
@@ -135,8 +136,6 @@ export function overCapBy(amount: number, undistributed: number): number | null 
   return Number.isSafeInteger(amount) && Number.isSafeInteger(undistributed) && Number.isSafeInteger(d) ? d : null
 }
 
-type ErrorLike = { status: number; field: string | null; message: string }
-
 export type DistributionError =
   | { kind: "overlap"; id: number; from: string; to: string }
   | { kind: "noPartners" }
@@ -146,19 +145,22 @@ export type DistributionError =
   | { kind: "periodOrder" }
   | { kind: "badDate" }
 
-/** The backend's distribution errors (db/distributions.py messages); null = show its message. */
-export function classifyDistributionError(e: ErrorLike): DistributionError | null {
-  const msg = e.message
+/** The backend's distribution errors (db/distributions.py codes); null = show its message. */
+export function classifyDistributionError(e: CodedError): DistributionError | null {
   if (e.status === 409) {
-    const m = /overlaps distribution #(\d+) \((\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})\)/.exec(msg)
-    return m ? { kind: "overlap", id: Number(m[1]), from: m[2], to: m[3] } : null
+    const id = detailNum(e, "distribution_id")
+    const from = detailStr(e, "period_start")
+    const to = detailStr(e, "period_end")
+    return hasCode(e, "DISTRIBUTION_PERIOD_OVERLAP") && id != null && from != null && to != null
+      ? { kind: "overlap", id, from, to }
+      : null
   }
   if (e.status !== 422) return null
-  if (/^No active partners/.test(msg)) return { kind: "noPartners" }
-  if (/must sum to 100%/.test(msg)) return { kind: "percentSum" }
+  if (hasCode(e, "DISTRIBUTION_NO_ACTIVE_PARTNERS")) return { kind: "noPartners" }
+  if (hasCode(e, "DISTRIBUTION_PERCENT_SUM")) return { kind: "percentSum" }
   if (e.field === "total_amount_distributed")
-    return /exceeds undistributed profit/.test(msg) ? { kind: "overCap" } : { kind: "badAmount" }
-  if (e.field === "period_end" && /cannot be before/.test(msg)) return { kind: "periodOrder" }
+    return hasCode(e, "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED") ? { kind: "overCap" } : { kind: "badAmount" }
+  if (e.field === "period_end" && hasCode(e, "DISTRIBUTION_PERIOD_ORDER")) return { kind: "periodOrder" }
   if (e.field === "date" || e.field === "period_start" || e.field === "period_end" || e.field === "distribution_date")
     return { kind: "badDate" }
   return null

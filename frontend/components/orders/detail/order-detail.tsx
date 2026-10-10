@@ -24,6 +24,7 @@ import { formatQuantity } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { D, L } from "../copy"
 import { LIST_QUERY_KEY } from "../order-figures"
+import { refusedProductId } from "@/lib/error-codes"
 import { classifyPaymentError } from "@/lib/payment-methods"
 import { DEFAULT_TZ, storeToday } from "@/lib/store-day"
 import { paymentErrorText } from "@/components/payment-methods/copy"
@@ -163,7 +164,8 @@ export function OrderDetail() {
       return
     }
     if (error.status === 422 && (error.field === "unit_cost" || error.field === "made_to_order")) {
-      const item = d.items.find((i) => error.message.includes(i.product_name))
+      const productId = refusedProductId(error)
+      const item = productId == null ? undefined : d.items.find((i) => i.product_id === productId)
       if (item) {
         setBanner({
           tone: "err",

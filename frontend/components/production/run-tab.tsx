@@ -65,7 +65,7 @@ function toLineError(e: unknown, unitOf: (name: string) => string): LineError {
       unit: unitOf(name),
     }
   }
-  if (e instanceof ApiError && e.status === 422 && /no recipe/i.test(e.message)) return { type: "noRecipe" }
+  if (e instanceof ApiError && e.status === 422 && e.code === "PRODUCT_NO_RECIPE") return { type: "noRecipe" }
   return e instanceof ApiError
     ? { type: "other", message: e.message, code: e.status === 0 ? "NET_TIMEOUT" : `PRODUCTION_${e.status}` }
     : { type: "other", message: String(e), code: "UNKNOWN" }

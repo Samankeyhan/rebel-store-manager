@@ -6,6 +6,7 @@
  */
 
 import { ApiError, type CategoryTree } from "@/lib/api"
+import { type CategoryConflict, categoryConflict } from "./refusal"
 
 export type Count = { total: number; inactive: number }
 
@@ -67,26 +68,14 @@ export function siblingClash(
 }
 
 export type Refusal =
-  | { kind: "inUse"; count: number | null }
-  | { kind: "hasChildren" }
-  | { kind: "parentInactive" }
-  | { kind: "duplicate" }
+  | CategoryConflict
   | { kind: "field"; field: string; message: string }
   | { kind: "other"; message: string; code: string }
 
-/**
- * The backend's category refusals. ConflictError carries no details, so the
- * 409s are told apart by their (English) message; the count of items using a
- * category exists only inside that message.
- */
+/** The backend's category refusals, by code (refusal.ts). */
 export function refusalOf(e: unknown): Refusal {
-  if (e instanceof ApiError && e.status === 409) {
-    const used = /is used by (\d+)/.exec(e.message)
-    if (used || /is used by/.test(e.message)) return { kind: "inUse", count: used ? Number(used[1]) : null }
-    if (/active subcategories/.test(e.message)) return { kind: "hasChildren" }
-    if (/^Parent category .* is inactive/.test(e.message)) return { kind: "parentInactive" }
-    if (/already exists at this level/.test(e.message)) return { kind: "duplicate" }
-  }
+  const conflict = e instanceof ApiError ? categoryConflict(e) : null
+  if (conflict) return conflict
   if (e instanceof ApiError && e.status === 422 && e.field) return { kind: "field", field: e.field, message: e.message }
   return errorInfo(e)
 }

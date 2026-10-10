@@ -5,7 +5,7 @@ import sqlite3
 
 from db.connection import transaction
 from db.costing import blend_unit_cost
-from db.errors import InsufficientStockError, NotFoundError, ValidationError
+from db.errors import ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 from db.products import get_product
 from db.timeutil import normalize_record_date, now_utc
 
@@ -60,7 +60,9 @@ def run_production_batch(
         if not recipe:
             raise ValidationError(
                 f"Product '{product['name']}' has no recipe defined — "
-                f"add one before running production."
+                f"add one before running production.",
+                code=ErrorCode.PRODUCT_NO_RECIPE,
+                details={"product_id": product["id"], "product_name": product["name"]},
             )
 
         requirements: list[dict] = []

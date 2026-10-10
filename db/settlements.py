@@ -6,7 +6,7 @@ from datetime import date
 
 from db import jalali
 from db.connection import transaction
-from db.errors import ConflictError, NotFoundError, ValidationError
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.payment_methods import PAID_STATUSES, compute_expected_settlement_date, get_payment_method
 from db.timeutil import parse_calendar_date, today_local
 
@@ -203,6 +203,8 @@ def _validate_settled_date(conn: sqlite3.Connection, value) -> date:
             f"settled_date {settled.isoformat()} is in the future (today is "
             f"{today.isoformat()})",
             field="settled_date",
+            code=ErrorCode.DATE_IN_FUTURE,
+            details={"today": today.isoformat()},
         )
     return settled
 
@@ -214,6 +216,8 @@ def _check_after_month(settled: date, jy: int, jm: int) -> None:
             f"settled_date {settled.isoformat()} must be after the end of month "
             f"{jy}/{jm:02d} ({last_day.isoformat()})",
             field="settled_date",
+            code=ErrorCode.SETTLEMENT_DATE_BEFORE_MONTH_END,
+            details={"jalali_year": jy, "jalali_month": jm, "month_end": last_day.isoformat()},
         )
 
 
@@ -223,6 +227,8 @@ def _check_not_before_paid(settled: date, latest_paid: str | None) -> None:
             f"settled_date {settled.isoformat()} is before the latest paid date "
             f"of its orders ({latest_paid})",
             field="settled_date",
+            code=ErrorCode.SETTLEMENT_DATE_BEFORE_PAID,
+            details={"latest_paid_date": latest_paid},
         )
 
 
@@ -282,14 +288,20 @@ def _orders_for_subset(
             raise ValidationError(
                 f"Order #{order_id} was not paid with '{method['name']}'",
                 field="order_ids",
+                code=ErrorCode.SETTLEMENT_ORDER_WRONG_METHOD,
+                details={"order_id": order_id},
             )
         if order["status"] not in PAID_STATUSES:
             raise ConflictError(
-                f"Order #{order_id} is {order['status']}, not paid; it cannot be settled."
+                f"Order #{order_id} is {order['status']}, not paid; it cannot be settled.",
+                code=ErrorCode.ORDER_NOT_PAID,
+                details={"order_id": order_id, "status": order["status"]},
             )
         if order["settlement_id"] is not None:
             raise ConflictError(
-                f"Order #{order_id} is already in settlement #{order['settlement_id']}."
+                f"Order #{order_id} is already in settlement #{order['settlement_id']}.",
+                code=ErrorCode.ORDER_ALREADY_SETTLED,
+                details={"order_id": order_id, "settlement_id": order["settlement_id"]},
             )
         orders.append(order)
 
@@ -305,7 +317,9 @@ def _orders_for_month(
     if not last_day < today:
         raise ConflictError(
             f"Month {jy}/{jm:02d} has not ended yet (it ends {last_day.isoformat()}); "
-            f"'{method['name']}' settles whole months only."
+            f"'{method['name']}' settles whole months only.",
+            code=ErrorCode.SETTLEMENT_MONTH_NOT_ENDED,
+            details={"jalali_year": jy, "jalali_month": jm, "month_end": last_day.isoformat()},
         )
     _check_after_month(settled, jy, jm)
 
@@ -319,7 +333,9 @@ def _orders_for_month(
     if existing is not None:
         raise ConflictError(
             f"{method['name']}'s month {jy}/{jm:02d} is already settled "
-            f"(settlement #{existing['id']})."
+            f"(settlement #{existing['id']}).",
+            code=ErrorCode.MONTH_ALREADY_SETTLED,
+            details={"jalali_year": jy, "jalali_month": jm, "settlement_id": existing["id"]},
         )
 
     rows = conn.execute(
@@ -338,7 +354,9 @@ def _orders_for_month(
     if not rows:
         raise ConflictError(
             f"Nothing to settle: '{method['name']}' has no pending paid orders "
-            f"in {jy}/{jm:02d}."
+            f"in {jy}/{jm:02d}.",
+            code=ErrorCode.SETTLEMENT_NOTHING_PENDING,
+            details={"jalali_year": jy, "jalali_month": jm},
         )
     return [_with_expected(row) for row in rows]
 
@@ -367,6 +385,7 @@ def record_settlement(
                 f"'{method['name']}' settles whole months only; give jalali_year "
                 f"and jalali_month, not order_ids",
                 field="order_ids",
+                code=ErrorCode.SETTLEMENT_WHOLE_MONTHS_ONLY,
             )
         jy, jm = _validate_jalali_month(jalali_year, jalali_month)
     else:
@@ -376,6 +395,7 @@ def record_settlement(
                     f"{name} applies only to a method that settles whole months; "
                     f"'{method['name']}' settles chosen orders",
                     field=name,
+                    code=ErrorCode.SETTLEMENT_NOT_MONTHLY,
                 )
         jy = jm = None
 
@@ -412,15 +432,19 @@ def record_settlement(
             ).rowcount
             if updated != len(ids):
                 raise ConflictError(
-                    "Some of these orders were settled meanwhile; reload and try again."
+                    "Some of these orders were settled meanwhile; reload and try again.",
+                    code=ErrorCode.SETTLEMENT_RACED,
                 )
     except sqlite3.IntegrityError as exc:
         if monthly:
             raise ConflictError(
-                f"{method['name']}'s month {jy}/{jm:02d} is already settled."
+                f"{method['name']}'s month {jy}/{jm:02d} is already settled.",
+                code=ErrorCode.MONTH_ALREADY_SETTLED,
+                details={"jalali_year": jy, "jalali_month": jm, "settlement_id": None},
             ) from None
         raise ConflictError(
-            "Could not record the settlement: it conflicts with existing data"
+            "Could not record the settlement: it conflicts with existing data",
+            code=ErrorCode.SETTLEMENT_CONFLICT,
         ) from exc
     return settlement_id
 

@@ -5,7 +5,7 @@ import sqlite3
 
 from db.categories import validate_assignable
 from db.connection import transaction
-from db.errors import NotFoundError, ValidationError
+from db.errors import ErrorCode, NotFoundError, ValidationError
 
 # Products carry their category's name (and its parent's, for a subcategory)
 # so callers never need a second lookup. products.category is the legacy code
@@ -127,6 +127,8 @@ def set_made_to_order(
                 f"Product '{product['name']}' has no recipe — add one before "
                 f"marking it made-to-order.",
                 field="made_to_order",
+                code=ErrorCode.PRODUCT_NO_RECIPE,
+                details={"product_id": product["id"], "product_name": product["name"]},
             )
 
     with transaction(conn):

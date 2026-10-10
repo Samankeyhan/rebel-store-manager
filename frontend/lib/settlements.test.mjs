@@ -123,56 +123,56 @@ test("attachReferences: join by id, missing or blank → null", () => {
   assert.deepEqual(attachReferences([{ id: 9 }], new Map()), [{ id: 9, payment_reference: null }])
 })
 
-// The real messages of db/settlements.py (and FastAPI's strict int refusal).
+// The codes and details of db/settlements.py (and FastAPI's strict int refusal); messages are only documentation.
 const CASES = [
   [
-    { status: 409, message: "Month 1405/07 has not ended yet (it ends 2026-10-22); 'Gateway M' settles whole months only." },
+    { status: 409, code: "SETTLEMENT_MONTH_NOT_ENDED", details: { jalali_year: 1405, jalali_month: 7, month_end: "2026-10-22" }, message: "Month 1405/07 has not ended yet (it ends 2026-10-22); 'Gateway M' settles whole months only." },
     { kind: "monthNotEnded", year: 1405, month: 7, ends: "2026-10-22" },
     "ماه ۱۴۰۵/۰۷ هنوز تمام نشده؛ بعد از ۳۰ مهر ۱۴۰۵ قابل تسویه است.",
   ],
   [
-    { status: 409, message: "Gateway M's month 1405/06 is already settled (settlement #12)." },
+    { status: 409, code: "MONTH_ALREADY_SETTLED", details: { jalali_year: 1405, jalali_month: 6, settlement_id: 12 }, message: "Gateway M's month 1405/06 is already settled (settlement #12)." },
     { kind: "monthSettled", year: 1405, month: 6, settlementId: 12 },
     "ماه ۱۴۰۵/۰۶ این روش قبلاً تسویه شده (تسویه شماره ۱۲).",
   ],
   [
-    { status: 409, message: "Gateway M's month 1405/06 is already settled." },
+    { status: 409, code: "MONTH_ALREADY_SETTLED", details: { jalali_year: 1405, jalali_month: 6, settlement_id: null }, message: "Gateway M's month 1405/06 is already settled." },
     { kind: "monthSettled", year: 1405, month: 6, settlementId: null },
     "ماه ۱۴۰۵/۰۶ این روش قبلاً تسویه شده.",
   ],
   [
-    { status: 409, message: "Order #31 is already in settlement #4." },
+    { status: 409, code: "ORDER_ALREADY_SETTLED", details: { order_id: 31, settlement_id: 4 }, message: "Order #31 is already in settlement #4." },
     { kind: "orderSettled", orderId: 31, settlementId: 4 },
     "سفارش ۳۱ قبلاً در تسویه شماره ۴ ثبت شده.",
   ],
   [
-    { status: 409, message: "Order #31 is REFUNDED, not paid; it cannot be settled." },
+    { status: 409, code: "ORDER_NOT_PAID", details: { order_id: 31, status: "REFUNDED" }, message: "Order #31 is REFUNDED, not paid; it cannot be settled." },
     { kind: "orderNotPaid", orderId: 31 },
     "سفارش ۳۱ دیگر پرداخت‌شده نیست (لغو یا مرجوع شده) و قابل تسویه نیست.",
   ],
   [
-    { status: 409, message: "Nothing to settle: 'Gateway M' has no pending paid orders in 1405/05." },
+    { status: 409, code: "SETTLEMENT_NOTHING_PENDING", details: { jalali_year: 1405, jalali_month: 5 }, message: "Nothing to settle: 'Gateway M' has no pending paid orders in 1405/05." },
     { kind: "nothingPending" },
     "این ماه سفارش در انتظار تسویه‌ای ندارد.",
   ],
   [
-    { status: 409, message: "Some of these orders were settled meanwhile; reload and try again." },
+    { status: 409, code: "SETTLEMENT_RACED", message: "Some of these orders were settled meanwhile; reload and try again." },
     { kind: "raced" },
     "بعضی از این سفارش‌ها همین حالا تسویه شدند؛ فهرست به‌روز شد، دوباره انتخاب کنید.",
   ],
   [
-    { status: 409, message: "Could not record the settlement: it conflicts with existing data" },
+    { status: 409, code: "SETTLEMENT_CONFLICT", message: "Could not record the settlement: it conflicts with existing data" },
     { kind: "conflict" },
     "ثبت تسویه با داده‌های موجود تداخل دارد؛ صفحه را تازه کنید.",
   ],
   [
-    { status: 422, field: "settled_date", message: "settled_date 2026-10-10 is in the future (today is 2026-10-09)" },
+    { status: 422, code: "DATE_IN_FUTURE", details: { today: "2026-10-09" }, field: "settled_date", message: "settled_date 2026-10-10 is in the future (today is 2026-10-09)" },
     { kind: "futureDate" },
     "تاریخ تسویه نمی‌تواند بعد از امروز باشد.",
   ],
   [
     {
-      status: 422,
+      status: 422, code: "SETTLEMENT_DATE_BEFORE_MONTH_END", details: { jalali_year: 1405, jalali_month: 6, month_end: "2026-09-22" },
       field: "settled_date",
       message: "settled_date 2026-09-01 must be after the end of month 1405/06 (2026-09-22)",
     },
@@ -181,7 +181,7 @@ const CASES = [
   ],
   [
     {
-      status: 422,
+      status: 422, code: "SETTLEMENT_DATE_BEFORE_PAID", details: { latest_paid_date: "2026-10-05" },
       field: "settled_date",
       message: "settled_date 2026-10-01 is before the latest paid date of its orders (2026-10-05)",
     },
@@ -189,7 +189,7 @@ const CASES = [
     "تاریخ تسویه نمی‌تواند قبل از آخرین تاریخ پرداخت این سفارش‌ها (۱۳ مهر ۱۴۰۵) باشد.",
   ],
   [
-    { status: 422, field: "amount_received", message: "amount_received must be >= 0, got -5" },
+    { status: 422, code: "VALIDATION_FAILED", field: "amount_received", message: "amount_received must be >= 0, got -5" },
     { kind: "badAmount" },
     "مبلغ دریافتی باید عددی صحیح و نامنفی باشد.",
   ],
@@ -199,24 +199,24 @@ const CASES = [
     "مبلغ دریافتی باید عددی صحیح و نامنفی باشد.",
   ],
   [
-    { status: 422, field: "order_ids", message: "Order #8 was not paid with 'Card'" },
+    { status: 422, code: "SETTLEMENT_ORDER_WRONG_METHOD", details: { order_id: 8 }, field: "order_ids", message: "Order #8 was not paid with 'Card'" },
     { kind: "wrongMethod", orderId: 8 },
     "سفارش ۸ با این روش پرداخت نشده.",
   ],
   [
-    { status: 422, field: "order_ids", message: "Order #999 does not exist" },
+    { status: 422, code: "VALIDATION_FAILED", field: "order_ids", message: "Order #999 does not exist" },
     { kind: "badSelection" },
     "انتخاب سفارش‌ها معتبر نیست؛ صفحه را تازه کنید.",
   ],
-  [{ status: 422, field: "order_ids", message: "order_ids contains duplicates" }, { kind: "badSelection" }, null],
+  [{ status: 422, code: "VALIDATION_FAILED", field: "order_ids", message: "order_ids contains duplicates" }, { kind: "badSelection" }, null],
   [
-    { status: 422, field: "order_ids", message: "order_ids is required: choose at least one pending order to settle" },
+    { status: 422, code: "VALIDATION_FAILED", field: "order_ids", message: "order_ids is required: choose at least one pending order to settle" },
     { kind: "badSelection" },
     null,
   ],
   [
     {
-      status: 422,
+      status: 422, code: "SETTLEMENT_WHOLE_MONTHS_ONLY",
       field: "order_ids",
       message: "'Gateway M' settles whole months only; give jalali_year and jalali_month, not order_ids",
     },
@@ -225,7 +225,7 @@ const CASES = [
   ],
   [
     {
-      status: 422,
+      status: 422, code: "SETTLEMENT_NOT_MONTHLY",
       field: "jalali_year",
       message: "jalali_year applies only to a method that settles whole months; 'Card' settles chosen orders",
     },
@@ -233,7 +233,7 @@ const CASES = [
     "این روش ماهانه تسویه نمی‌کند.",
   ],
   [
-    { status: 404, message: "Settlement with id 77 does not exist" },
+    { status: 404, code: "NOT_FOUND", message: "Settlement with id 77 does not exist" },
     { kind: "notFound" },
     "این روش پرداخت یا تسویه دیگر وجود ندارد.",
   ],
@@ -254,6 +254,13 @@ test("classifySettlementError: unknown → null", () => {
   assert.equal(classifySettlementError({ status: 409, message: "Something else" }), null)
   assert.equal(classifySettlementError({ status: 422, field: "settled_date", message: "bad format" }), null)
   assert.equal(classifySettlementError({ status: 422, field: "note", message: "x" }), null)
+  // The old message text alone no longer classifies; a code without its details doesn't either.
+  assert.equal(classifySettlementError({ status: 409, message: "Order #31 is already in settlement #4." }), null)
+  assert.equal(classifySettlementError({ status: 409, code: "ORDER_ALREADY_SETTLED", details: {}, message: "x" }), null)
+  assert.equal(
+    classifySettlementError({ status: 422, field: "settled_date", message: "settled_date 2026-10-10 is in the future (today is 2026-10-09)" }),
+    null
+  )
 })
 
 test("settlementErrorField and settlementErrorRefreshes", () => {

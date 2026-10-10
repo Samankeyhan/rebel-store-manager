@@ -5,7 +5,7 @@ Deactivate is refused while any product/material uses the category or it has act
 import sqlite3
 
 from db.connection import transaction
-from db.errors import ConflictError, NotFoundError, ValidationError
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 
 VALID_KINDS = ("PRODUCT", "MATERIAL")
 
@@ -56,7 +56,10 @@ def _check_sibling_name(
             (parent_id, name),
         ).fetchone()
     if row is not None and row["id"] != exclude_id:
-        raise ConflictError(f"A category named '{name}' already exists at this level.")
+        raise ConflictError(
+            f"A category named '{name}' already exists at this level.",
+            code=ErrorCode.CATEGORY_DUPLICATE_NAME,
+        )
 
 
 def _has_active_children(conn: sqlite3.Connection, category_id: int) -> bool:
@@ -132,7 +135,9 @@ def create_category(
             )
         if not parent["is_active"]:
             raise ValidationError(
-                f"Parent category '{parent['name']}' is inactive.", field="parent_id"
+                f"Parent category '{parent['name']}' is inactive.",
+                field="parent_id",
+                code=ErrorCode.CATEGORY_PARENT_INACTIVE,
             )
     _check_sibling_name(conn, kind, parent_id, name)
     with transaction(conn):
@@ -182,12 +187,15 @@ def deactivate_category(conn: sqlite3.Connection, category_id: int) -> None:
         noun = "product(s)" if category["kind"] == "PRODUCT" else "material(s)"
         raise ConflictError(
             f"Category '{category['name']}' is used by {used_by} {noun}; "
-            f"move them to another category before deactivating it."
+            f"move them to another category before deactivating it.",
+            code=ErrorCode.CATEGORY_IN_USE,
+            details={"item_count": used_by},
         )
     if _has_active_children(conn, category_id):
         raise ConflictError(
             f"Category '{category['name']}' has active subcategories; "
-            f"deactivate them first."
+            f"deactivate them first.",
+            code=ErrorCode.CATEGORY_HAS_SUBCATEGORIES,
         )
     with transaction(conn):
         conn.execute("UPDATE categories SET is_active = 0 WHERE id = ?", (category_id,))
@@ -200,7 +208,8 @@ def reactivate_category(conn: sqlite3.Connection, category_id: int) -> None:
         parent = _require(conn, category["parent_id"])
         if not parent["is_active"]:
             raise ConflictError(
-                f"Parent category '{parent['name']}' is inactive; reactivate it first."
+                f"Parent category '{parent['name']}' is inactive; reactivate it first.",
+                code=ErrorCode.CATEGORY_PARENT_INACTIVE,
             )
     with transaction(conn):
         conn.execute("UPDATE categories SET is_active = 1 WHERE id = ?", (category_id,))
@@ -226,4 +235,5 @@ def validate_assignable(conn: sqlite3.Connection, category_id: int, kind: str) -
         raise ValidationError(
             f"Category '{category['name']}' has subcategories; choose one of them.",
             field="category_id",
+            code=ErrorCode.CATEGORY_HAS_SUBCATEGORIES,
         )

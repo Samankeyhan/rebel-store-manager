@@ -6,7 +6,7 @@ May read `get_profit_and_loss` as a reference; never writes `orders`, `order_ite
 import sqlite3
 
 from db.connection import transaction
-from db.errors import ConflictError, ValidationError
+from db.errors import ConflictError, ErrorCode, ValidationError
 from db.partners import list_partners
 from db.reports import get_profit_and_loss
 from db.timeutil import normalize_record_date, to_utc_range, validate_calendar_date
@@ -29,7 +29,8 @@ def _validate_percentage_sum(partners: list[dict]) -> None:
         raise ValidationError(
             f"Active partner percentages must sum to 100% (tolerance "
             f"{PERCENTAGE_SUM_TOLERANCE}), but they sum to {total:.2f}%. "
-            f"Current split: {breakdown}"
+            f"Current split: {breakdown}",
+            code=ErrorCode.DISTRIBUTION_PERCENT_SUM,
         )
 
 
@@ -99,6 +100,7 @@ def _validate_distribution_request(
         raise ValidationError(
             f"period_end ({period_end}) cannot be before period_start ({period_start})",
             field="period_end",
+            code=ErrorCode.DISTRIBUTION_PERIOD_ORDER,
         )
     if distribution_date is not None:
         distribution_date = normalize_record_date(distribution_date, conn)
@@ -126,13 +128,20 @@ def _plan_distribution(
     if overlap is not None:
         raise ConflictError(
             f"Period {period_start}..{period_end} overlaps distribution "
-            f"#{overlap['id']} ({overlap['period_start']}..{overlap['period_end']})"
+            f"#{overlap['id']} ({overlap['period_start']}..{overlap['period_end']})",
+            code=ErrorCode.DISTRIBUTION_PERIOD_OVERLAP,
+            details={
+                "distribution_id": overlap["id"],
+                "period_start": overlap["period_start"],
+                "period_end": overlap["period_end"],
+            },
         )
 
     active_partners = list_partners(conn, active_only=True)
     if not active_partners:
         raise ValidationError(
-            "No active partners found — add partners before distributing"
+            "No active partners found — add partners before distributing",
+            code=ErrorCode.DISTRIBUTION_NO_ACTIVE_PARTNERS,
         )
 
     _validate_percentage_sum(active_partners)
@@ -206,6 +215,7 @@ def record_profit_distribution(
                     f"undistributed profit as of {period_end} ({undistributed}). "
                     f"Pass allow_exceeding=True to distribute anyway.",
                     field="total_amount_distributed",
+                    code=ErrorCode.DISTRIBUTION_EXCEEDS_UNDISTRIBUTED,
                 )
 
         if distribution_date is not None:

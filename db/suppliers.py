@@ -3,7 +3,7 @@
 import sqlite3
 
 from db.connection import transaction
-from db.errors import NotFoundError, ValidationError
+from db.errors import ErrorCode, NotFoundError, ValidationError
 
 UPDATABLE_FIELDS = ("name", "phone", "email", "website", "notes")
 
@@ -50,7 +50,11 @@ def get_supplier(conn: sqlite3.Connection, supplier_id: int) -> dict | None:
 
 def update_supplier(conn: sqlite3.Connection, supplier_id: int, **fields) -> None:
     if get_supplier(conn, supplier_id) is None:
-        raise NotFoundError(f"Supplier with id {supplier_id} does not exist")
+        raise NotFoundError(
+            f"Supplier with id {supplier_id} does not exist",
+            code=ErrorCode.SUPPLIER_NOT_FOUND,
+            details={"supplier_id": supplier_id},
+        )
 
     updates: list[str] = []
     params: list = []
