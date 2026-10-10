@@ -4,7 +4,7 @@ import sqlite3
 
 from db.connection import next_counter, transaction
 from db.costing import blend_unit_cost
-from db.errors import NotFoundError, ValidationError
+from db.errors import ErrorCode, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
 from db.suppliers import get_supplier
@@ -20,7 +20,11 @@ def _validate_supplier(conn: sqlite3.Connection, supplier_id: int | None) -> Non
     if supplier_id is None:
         return
     if get_supplier(conn, supplier_id) is None:
-        raise NotFoundError(f"Supplier with id {supplier_id} does not exist")
+        raise NotFoundError(
+            f"Supplier with id {supplier_id} does not exist",
+            code=ErrorCode.SUPPLIER_NOT_FOUND,
+            details={"supplier_id": supplier_id},
+        )
 
 
 def _compute_unit_cost(total_paid: int, quantity_bought: float) -> int:

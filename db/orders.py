@@ -9,7 +9,7 @@ from datetime import date
 from db import jalali
 from db.connection import next_counter, transaction
 from db.constants import VALID_CHANNELS, VALID_STATUSES  # re-exported for existing importers
-from db.errors import ConflictError, InsufficientStockError, NotFoundError, ValidationError
+from db.errors import ConflictError, ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 from db.materials import get_material
 from db.packaging import calculate_kit_cost, get_kit
 from db.payment_methods import (
@@ -190,6 +190,8 @@ def _resolve_payment_method(conn, channel_settings: dict, payment_method_id) -> 
             f"Payment method '{method['name']}' is not active. Choose another method "
             f"or update the channel's default payment method.",
             field="payment_method_id",
+            code=ErrorCode.PAYMENT_METHOD_INACTIVE,
+            details={"payment_method_id": method["id"]},
         )
     return method
 
@@ -201,6 +203,8 @@ def _validate_paid_day_not_future(conn: sqlite3.Connection, paid_day: date) -> N
             f"paid_date {paid_day.isoformat()} is in the future (today is "
             f"{today.isoformat()})",
             field="paid_date",
+            code=ErrorCode.DATE_IN_FUTURE,
+            details={"today": today.isoformat()},
         )
 
 
@@ -229,7 +233,9 @@ def _check_month_open(conn: sqlite3.Connection, method: dict | None, paid_day: d
     if row is not None:
         raise ConflictError(
             f"{method['name']}'s month {jy}/{jm:02d} is already settled "
-            f"(settlement #{row['id']}); choose a paid date in an open month."
+            f"(settlement #{row['id']}); choose a paid date in an open month.",
+            code=ErrorCode.MONTH_ALREADY_SETTLED,
+            details={"jalali_year": jy, "jalali_month": jm, "settlement_id": row["id"]},
         )
 
 
@@ -291,6 +297,8 @@ def _commit_order(
                         f"Cannot commit order #{order_id}: product '{product['name']}' "
                         f"is made-to-order but has no recipe",
                         field="made_to_order",
+                        code=ErrorCode.PRODUCT_NO_RECIPE,
+                        details={"product_id": product["id"], "product_name": product["name"]},
                     )
 
                 from_stock = min(product["current_stock"], needed)
@@ -301,6 +309,8 @@ def _commit_order(
                         f"Cannot commit order #{order_id}: product '{product['name']}' "
                         f"has no unit_cost",
                         field="unit_cost",
+                        code=ErrorCode.PRODUCT_NO_UNIT_COST,
+                        details={"product_id": product["id"], "product_name": product["name"]},
                     )
 
                 make_cost = 0
@@ -331,6 +341,8 @@ def _commit_order(
                         f"Cannot commit order #{order_id}: product '{product['name']}' "
                         f"has no unit_cost",
                         field="unit_cost",
+                        code=ErrorCode.PRODUCT_NO_UNIT_COST,
+                        details={"product_id": product["id"], "product_name": product["name"]},
                     )
                 if product["current_stock"] < needed:
                     raise InsufficientStockError(
@@ -863,12 +875,16 @@ def set_paid_date(conn: sqlite3.Connection, order_id: int, paid_date: str) -> No
         raise NotFoundError(f"Order with id {order_id} does not exist")
     if order["status"] not in PAID_STATUSES:
         raise ConflictError(
-            f"Order #{order_id} is {order['status']}, not paid; it has no paid date to change."
+            f"Order #{order_id} is {order['status']}, not paid; it has no paid date to change.",
+            code=ErrorCode.ORDER_NOT_PAID,
+            details={"order_id": order_id, "status": order["status"]},
         )
     if order["settlement_id"] is not None:
         raise ConflictError(
             f"Order #{order_id} is part of settlement #{order['settlement_id']}; "
-            f"its paid date can no longer change."
+            f"its paid date can no longer change.",
+            code=ErrorCode.ORDER_ALREADY_SETTLED,
+            details={"order_id": order_id, "settlement_id": order["settlement_id"]},
         )
 
     paid_day = _parse_paid_date(conn, paid_date)

@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from db.connection import transaction
 from db.constants import VALID_CHANNELS
 from db.currency import DISPLAY_CURRENCIES
-from db.errors import NotFoundError, ValidationError
+from db.errors import ErrorCode, NotFoundError, ValidationError
 from db.payment_methods import get_payment_method
 
 _UNSET = object()
@@ -156,6 +156,8 @@ def update_channel_settings(
                     f"Payment method '{method['name']}' is not active and cannot be "
                     f"a channel's default payment method",
                     field="default_payment_method_id",
+                    code=ErrorCode.PAYMENT_METHOD_INACTIVE,
+                    details={"payment_method_id": method["id"]},
                 )
         fields["default_payment_method_id"] = default_payment_method_id
 

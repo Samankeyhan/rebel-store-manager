@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.deps import db_path, get_db
+from api.schemas.common import ErrorEnvelope
 from api.routers import (
     adjustments,
     catalog,
@@ -52,7 +53,16 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Rebel Store Manager API", lifespan=lifespan)
+# App errors (db/errors.py) share one body. Declared for 400/404/409 so the
+# ErrorEnvelope / ErrorCode schemas reach the OpenAPI spec (and api-types.ts);
+# 422 stays FastAPI's default declaration (HTTPValidationError), though db/
+# ValidationErrors also answer 422 with an ErrorEnvelope.
+_APP_ERROR_RESPONSES = {
+    status: {"model": ErrorEnvelope, "description": "App error (see ErrorBody.code)"}
+    for status in (400, 404, 409)
+}
+
+app = FastAPI(title="Rebel Store Manager API", lifespan=lifespan, responses=_APP_ERROR_RESPONSES)
 
 app.add_middleware(
     CORSMiddleware,
@@ -63,15 +73,17 @@ app.add_middleware(
 )
 
 
-def _error_response(status_code: int, exc: AppError, details: dict | None = None) -> JSONResponse:
+def _error_response(status_code: int, exc: AppError) -> JSONResponse:
+    """The ErrorEnvelope body: `code` and `details` are what clients act on."""
     return JSONResponse(
         status_code=status_code,
         content={
             "error": {
                 "type": type(exc).__name__,
+                "code": str(exc.code),
                 "message": str(exc),
                 "field": getattr(exc, "field", None),
-                "details": details or {},
+                "details": exc.details,
             }
         },
     )
@@ -79,15 +91,7 @@ def _error_response(status_code: int, exc: AppError, details: dict | None = None
 
 @app.exception_handler(InsufficientStockError)
 def handle_insufficient_stock_error(request: Request, exc: InsufficientStockError) -> JSONResponse:
-    return _error_response(
-        409,
-        exc,
-        details={
-            "item_name": exc.item_name,
-            "needed": exc.needed,
-            "available": exc.available,
-        },
-    )
+    return _error_response(409, exc)
 
 
 @app.exception_handler(ValidationError)

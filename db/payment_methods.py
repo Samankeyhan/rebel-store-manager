@@ -8,7 +8,7 @@ from datetime import date, timedelta
 
 from db import jalali
 from db.connection import transaction
-from db.errors import ConflictError, NotFoundError, ValidationError
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.timeutil import now_utc
 
 SETTLEMENT_RULES = ("IMMEDIATE", "DAYS_AFTER", "DAY_OF_NEXT_MONTH")
@@ -89,7 +89,10 @@ def _validate_rule(settlement_rule: str, settlement_days: int | None) -> None:
 
 
 def _name_conflict(name: str) -> ConflictError:
-    return ConflictError(f"A payment method named '{name}' already exists")
+    return ConflictError(
+        f"A payment method named '{name}' already exists",
+        code=ErrorCode.PAYMENT_METHOD_DUPLICATE_NAME,
+    )
 
 
 def count_pending_orders(conn: sqlite3.Connection, payment_method_id: int) -> int:
@@ -151,7 +154,11 @@ def get_payment_method(conn: sqlite3.Connection, payment_method_id: int) -> dict
         "SELECT * FROM payment_methods WHERE id = ?", (payment_method_id,)
     ).fetchone()
     if row is None:
-        raise NotFoundError(f"Payment method with id {payment_method_id} does not exist")
+        raise NotFoundError(
+            f"Payment method with id {payment_method_id} does not exist",
+            code=ErrorCode.PAYMENT_METHOD_NOT_FOUND,
+            details={"payment_method_id": payment_method_id},
+        )
     return dict(row)
 
 
@@ -192,7 +199,9 @@ def update_payment_method(conn: sqlite3.Connection, payment_method_id: int, **fi
             raise ConflictError(
                 f"Cannot change the settlement rule of '{current['name']}': "
                 f"{pending} {noun} still pending settlement. Deactivate this method "
-                f"and create a new one with the new rule."
+                f"and create a new one with the new rule.",
+                code=ErrorCode.PAYMENT_METHOD_RULE_PENDING,
+                details={"pending_count": pending},
             )
 
     assignments = [f"{name} = ?" for name in fields] + ["updated_at = ?"]
