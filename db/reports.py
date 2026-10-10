@@ -1,4 +1,7 @@
-"""Read-only aggregates: product performance, channel breakdown, low stock, waste, expenses, profit & loss (revenue − COGS/fees − expenses), payment-method report (reconciled with the P&L's transaction_fees and refund_losses).
+"""Read-only aggregates: product performance, channel breakdown, low stock, waste, expenses, profit & loss (revenue − COGS/fees − expenses), payment-method report (reconciled with the P&L's transaction_fees and refund_fee_losses).
+Channel breakdown rows are the per-order profit of section 7, so they sum to the P&L's order_count, total_revenue and gross_profit (never net_profit); avg_order_value = total_revenue ÷ order_count, half-even.
+Waste rows carry item_id and unit (products: "piece"); expense rows are grouped by category_id.
+P&L also reports postage_committed (the baseline of postage_variance) and refund_fee_losses (the fee part of refund_losses); both are breakdowns, not new deductions.
 Never query `partners`, `profit_distributions` or `distribution_shares`: distributions are owner payouts, not expenses."""
 
 import sqlite3
@@ -176,14 +179,22 @@ def _shipped_order_aggregates(
 
 def _refund_losses(
     conn: sqlite3.Connection, start_date: str | None, end_date: str | None
-) -> int:
+) -> tuple[int, int]:
+    """(refund_losses, refund_fee_losses) for orders in the date range.
+
+    refund_fee_losses = transaction_fee of REFUNDED orders + CANCELLED orders
+    with stock_committed = 1. refund_losses = refund_fee_losses + packaging_cost
+    + postage_cost of the REFUNDED orders.
+    """
     date_clause, date_params = _date_range_clause(
         conn, "orders.order_date", start_date, end_date
     )
 
     refunded_row = conn.execute(
         f"""
-        SELECT COALESCE(SUM(packaging_cost + postage_cost + transaction_fee), 0) AS total
+        SELECT
+            COALESCE(SUM(packaging_cost + postage_cost), 0) AS non_fee,
+            COALESCE(SUM(transaction_fee), 0) AS fees
         FROM orders
         WHERE status = 'REFUNDED'
         {date_clause}
@@ -201,7 +212,8 @@ def _refund_losses(
         date_params,
     ).fetchone()
 
-    return refunded_row["total"] + cancelled_row["total"]
+    refund_fee_losses = refunded_row["fees"] + cancelled_row["total"]
+    return refunded_row["non_fee"] + refund_fee_losses, refund_fee_losses
 
 
 def _waste_cost(
@@ -320,6 +332,10 @@ def get_channel_breakdown(
         by_channel[channel]["total_revenue"] += revenue
         by_channel[channel]["total_profit"] += profit
 
+    # Every row has order_count >= 1; round() on a Fraction is exact half-even.
+    for row in by_channel.values():
+        row["avg_order_value"] = round(Fraction(row["total_revenue"], row["order_count"]))
+
     return sorted(
         by_channel.values(),
         key=lambda row: row["total_revenue"],
@@ -363,6 +379,9 @@ def get_waste_report(
 
     cost is integer Rial: the item's exact sum(|quantity| × unit_cost_at_time),
     rounded once, half-even. The P&L waste_cost is the sum of these costs.
+
+    unit is materials.unit for a material; products have no unit column and
+    count whole units, so a product's unit is "piece" (the materials default).
     """
     date_clause, date_params = _date_range_clause(
         conn, "stock_movements.movement_date", start_date, end_date
@@ -375,6 +394,7 @@ def get_waste_report(
             'MATERIAL' AS item_type,
             materials.id AS item_id,
             materials.name AS item_name,
+            materials.unit AS unit,
             SUM(ABS(stock_movements.quantity_change)) AS total_wasted,
             COUNT(*) AS waste_event_count,
             SUM(CASE WHEN stock_movements.unit_cost_at_time IS NULL THEN 1 ELSE 0 END)
@@ -384,7 +404,7 @@ def get_waste_report(
         WHERE stock_movements.reason = 'WASTE'
           AND stock_movements.item_type = 'MATERIAL'
           {date_clause}
-        GROUP BY materials.id, materials.name
+        GROUP BY materials.id, materials.name, materials.unit
         """,
         date_params,
     ).fetchall()
@@ -395,6 +415,7 @@ def get_waste_report(
             'PRODUCT' AS item_type,
             products.id AS item_id,
             products.name AS item_name,
+            'piece' AS unit,
             SUM(ABS(stock_movements.quantity_change)) AS total_wasted,
             COUNT(*) AS waste_event_count,
             SUM(CASE WHEN stock_movements.unit_cost_at_time IS NULL THEN 1 ELSE 0 END)
@@ -412,7 +433,9 @@ def get_waste_report(
     results = [
         {
             "item_type": row["item_type"],
+            "item_id": row["item_id"],
             "item_name": row["item_name"],
+            "unit": row["unit"],
             "total_wasted": row["total_wasted"],
             "waste_event_count": row["waste_event_count"],
             "cost": costs.get((row["item_type"], row["item_id"])),
@@ -434,17 +457,18 @@ def get_expense_breakdown(
 ) -> list[dict]:
     expenses = list_expenses(conn, start_date=start_date, end_date=end_date)
 
-    by_category: dict[str, dict] = {}
+    by_category: dict[int, dict] = {}
     for expense in expenses:
-        name = expense["category_name"]
-        if name not in by_category:
-            by_category[name] = {
-                "category_name": name,
+        category_id = expense["expense_category_id"]
+        if category_id not in by_category:
+            by_category[category_id] = {
+                "category_id": category_id,
+                "category_name": expense["category_name"],
                 "total_amount": 0,
                 "expense_count": 0,
             }
-        by_category[name]["total_amount"] += expense["amount"]
-        by_category[name]["expense_count"] += 1
+        by_category[category_id]["total_amount"] += expense["amount"]
+        by_category[category_id]["expense_count"] += 1
 
     return sorted(
         by_category.values(),
@@ -501,11 +525,10 @@ def get_profit_and_loss(
     )
 
     postage_actual = _postage_actual(conn, start_date, end_date)
-    postage_variance = postage_actual - _postage_committed_on_shipped_orders(
-        conn, start_date, end_date
-    )
+    postage_committed = _postage_committed_on_shipped_orders(conn, start_date, end_date)
+    postage_variance = postage_actual - postage_committed
 
-    refund_losses = _refund_losses(conn, start_date, end_date)
+    refund_losses, refund_fee_losses = _refund_losses(conn, start_date, end_date)
     waste_cost = _waste_cost(conn, start_date, end_date)
     operating_expenses = get_total_expenses(conn, start_date, end_date)
 
@@ -523,8 +546,10 @@ def get_profit_and_loss(
         "transaction_fees": transaction_fees,
         "gross_profit": gross_profit,
         "postage_actual": postage_actual,
+        "postage_committed": postage_committed,
         "postage_variance": postage_variance,
         "refund_losses": refund_losses,
+        "refund_fee_losses": refund_fee_losses,
         "waste_cost": waste_cost,
         "operating_expenses": operating_expenses,
         "net_profit": net_profit,
@@ -672,8 +697,8 @@ def get_payment_method_report(
       Summed over all rows they equal the P&L order_count, total_revenue and
       transaction_fees.
     - fees_lost_on_returns: transaction_fee of REFUNDED orders, plus CANCELLED
-      orders with stock_committed = 1, order_date in range: the fee part of
-      the P&L refund_losses.
+      orders with stock_committed = 1, order_date in range. Summed over all
+      rows it equals the P&L refund_fee_losses.
     - pending_expected: sum(customer_total - transaction_fee) of orders still
       pending settlement now (has a method, PAID or COMPLETED, no
       settlement_id) with order_date in range.

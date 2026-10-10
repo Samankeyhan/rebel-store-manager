@@ -131,6 +131,43 @@ def test_profit_and_loss_key_parity(seeded):
     )
     assert resp.status_code == 200
     assert set(resp.json().keys()) == expected_keys
+    assert {"postage_committed", "refund_fee_losses"} <= expected_keys
+    body = resp.json()
+    assert type(body["postage_committed"]) is int
+    assert type(body["refund_fee_losses"]) is int
+    assert body["postage_variance"] == body["postage_actual"] - body["postage_committed"]
+
+
+def test_report_row_ids_units_and_averages(seeded):
+    client = seeded["client"]
+    product_id = seeded["product_id"]
+
+    # A product waste row alongside the seeded Glue material row.
+    record_stock_adjustment(seeded["conn"], "PRODUCT", product_id, -1, "WASTE")
+    waste = client.get("/reports/waste")
+    assert waste.status_code == 200, waste.text
+    by_type = {row["item_type"]: row for row in waste.json()}
+    assert by_type["MATERIAL"]["item_id"] == seeded["material_id"]
+    assert by_type["MATERIAL"]["unit"] == "piece"
+    assert by_type["PRODUCT"]["item_id"] == product_id
+    assert by_type["PRODUCT"]["unit"] == "piece"
+
+    expenses = client.get("/reports/expenses")
+    assert expenses.status_code == 200, expenses.text
+    (ads,) = expenses.json()
+    ads_id = seeded["conn"].execute(
+        "SELECT id FROM expense_categories WHERE name = 'Ads'"
+    ).fetchone()["id"]
+    assert ads["category_id"] == ads_id
+    assert ads["category_name"] == "Ads"
+
+    channels = client.get("/reports/channels")
+    assert channels.status_code == 200, channels.text
+    # One eligible INSTAGRAM order (the DRAFT one is not revenue-eligible).
+    (instagram,) = channels.json()
+    assert instagram["order_count"] == 1
+    assert type(instagram["avg_order_value"]) is int
+    assert instagram["avg_order_value"] == instagram["total_revenue"]
 
 
 def test_shipping_summary_key_parity(seeded):

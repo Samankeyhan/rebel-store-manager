@@ -95,6 +95,7 @@ Selling a product whose unit_cost is NULL is refused with ValidationError (field
 - Every WASTE and ADJUSTMENT movement stores unit_cost_at_time = the item's unit_cost at that moment (NULL if unknown).
 - WASTE reaches the P&L as waste_cost. ADJUSTMENT movements are corrections and do not reach the P&L.
 - Waste cost per item (the waste report's cost): sum(|quantity_change| × unit_cost_at_time) over that item's WASTE movements in the range, computed exactly (a REAL quantity counts as the decimal it was entered as) and rounded once, half-even, to the Rial. Movements with unknown unit_cost_at_time are left out; an item whose every movement is unknown has no cost (NULL).
+- Waste report row fields: item_type, item_id, item_name, unit, total_wasted, waste_event_count, cost, unknown_cost_count. unit is the material's unit, or "piece" for a product (products have no unit column and count whole units).
 - waste_cost (P&L) = the sum of those per-item rounded costs, so the waste report's total and the P&L always agree exactly, fractional quantities included. Example: 2.5 × 333 = 832.5 → 832 and 0.5 × 1 = 0.5 → 0 give waste_cost 832, not round(833).
 
 ## 9. Reports
@@ -107,12 +108,18 @@ Profit & loss for a date range:
 - cogs, packaging_cost, postage_estimated, transaction_fees = sums over eligible orders
 - gross_profit = total_revenue − cogs − packaging_cost − postage_estimated − transaction_fees
 - postage_actual = sum(total_paid) of postage batches with paid_date in range
-- postage_variance = postage_actual − (sum of postage_cost over eligible AND refunded orders in range)
-- refund_losses = sum(packaging_cost + postage_cost + transaction_fee) over REFUNDED orders in range + sum(transaction_fee) over CANCELLED orders in range whose stock_committed = 1
+- postage_committed = sum(postage_cost) over eligible AND REFUNDED orders in range: the postage frozen on every order that shipped
+- postage_variance = postage_actual − postage_committed
+- refund_fee_losses = sum(transaction_fee) over REFUNDED orders in range + sum(transaction_fee) over CANCELLED orders in range whose stock_committed = 1 (section 7). Equals the sum of the payment-method report's fees_lost_on_returns (section 14).
+- refund_losses = refund_fee_losses + sum(packaging_cost + postage_cost) over REFUNDED orders in range
 - waste_cost = section 8: the sum of the per-item rounded waste costs, WASTE movements in range
 - operating_expenses = sum(expenses) in range
 - net_profit = gross_profit − postage_variance − refund_losses − waste_cost − operating_expenses
 - order_count = number of eligible orders
+
+postage_committed and refund_fee_losses are shown for explanation only: they are parts of postage_variance and refund_losses, not further deductions, so net_profit does not subtract them again.
+
+Channel breakdown for a date range: one row per channel with at least one revenue-eligible order (PENDING, PAID, COMPLETED) by order_date; channels with no orders are left out. Each row's order_count, total_revenue and total_profit are summed over that channel's orders, where an order's revenue and profit are the per-order figures of section 7 (profit = revenue − cogs − packaging_cost − postage_cost − transaction_fee). Over all rows, order_count, total_revenue and total_profit sum exactly to the P&L's order_count, total_revenue and gross_profit for the same range — gross, not net: postage_variance, refund_losses, waste_cost and operating_expenses are not order-level and are never attributed to a channel. CANCELLED and REFUNDED orders are on neither side; their losses appear only in refund_losses. Each row also has avg_order_value = total_revenue ÷ order_count, rounded half-even to the Rial (every row has at least one order).
 
 Product performance: revenue = sum(items_net), cost = sum(quantity × unit_cost_at_time). Must reconcile exactly with items_revenue and cogs in the P&L for the same range.
 
