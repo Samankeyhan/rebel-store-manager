@@ -202,10 +202,18 @@ def test_fees_lost_on_returns_reconcile_with_refund_losses(test_db, report_data,
     assert sum(r["fees_lost_on_returns"] for r in rows) == pnl["refund_losses"] - non_fee
 
 
+@pytest.mark.parametrize("start_date, end_date", RANGES)
+def test_fees_lost_on_returns_sum_to_refund_fee_losses(test_db, report_data, start_date, end_date):
+    rows = get_payment_method_report(test_db, start_date, end_date)
+    pnl = get_profit_and_loss(test_db, start_date, end_date)
+    assert sum(r["fees_lost_on_returns"] for r in rows) == pnl["refund_fee_losses"]
+
+
 def test_fees_lost_on_returns_whole_range_values(test_db, report_data):
     pnl = get_profit_and_loss(test_db)
     # Refunded z3: postage 5000 + fee 2000; cancelled z4: fee 2000; refunded no-method: fee 300.
     assert pnl["refund_losses"] == 9300
+    assert pnl["refund_fee_losses"] == 4300
     assert sum(r["fees_lost_on_returns"] for r in get_payment_method_report(test_db)) == 4300
 
 

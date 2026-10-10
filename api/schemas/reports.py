@@ -15,8 +15,10 @@ class ProfitAndLossOut(BaseModel):
     transaction_fees: Rial
     gross_profit: Rial
     postage_actual: Rial
+    postage_committed: Rial
     postage_variance: Rial
     refund_losses: Rial
+    refund_fee_losses: Rial
     waste_cost: Rial
     operating_expenses: Rial
     net_profit: Rial
@@ -41,6 +43,7 @@ class ChannelBreakdownOut(BaseModel):
     order_count: int
     total_revenue: Rial
     total_profit: Rial
+    avg_order_value: Rial
 
 
 class ShippingSummaryOut(BaseModel):
@@ -78,7 +81,10 @@ class WasteReportOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     item_type: str
+    item_id: int
     item_name: str
+    # materials.unit; "piece" for a product (whole units).
+    unit: str
     total_wasted: float
     waste_event_count: int
     # Integer Rial, rounded half-even per item; the P&L waste_cost is their sum.
@@ -89,6 +95,7 @@ class WasteReportOut(BaseModel):
 class ExpenseBreakdownOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    category_id: int
     category_name: str
     total_amount: Rial
     expense_count: int

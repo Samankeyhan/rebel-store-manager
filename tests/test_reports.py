@@ -20,6 +20,7 @@ from db.reports import (
 )
 from db.returns import process_return
 from db.settings import update_channel_settings
+from db.timeutil import to_utc_range
 from tests.helpers import cat
 
 
@@ -132,6 +133,8 @@ def report_setup(test_db):
         "low_stock_id": low_stock_id,
         "inactive_id": inactive_id,
         "material_id": material_id,
+        "ads_id": ads_id,
+        "tools_id": tools_id,
         "order_instagram": order_instagram,
         "order_website": order_website,
     }
@@ -186,10 +189,12 @@ def test_get_channel_breakdown(report_setup, test_db):
     assert by_channel["INSTAGRAM"]["order_count"] == 1
     assert by_channel["INSTAGRAM"]["total_revenue"] == 6100
     assert by_channel["INSTAGRAM"]["total_profit"] == 5030
+    assert by_channel["INSTAGRAM"]["avg_order_value"] == 6100
 
     assert by_channel["WEBSITE"]["order_count"] == 1
     assert by_channel["WEBSITE"]["total_revenue"] == 1_801_500
     assert by_channel["WEBSITE"]["total_profit"] == 1_801_200
+    assert by_channel["WEBSITE"]["avg_order_value"] == 1_801_500
 
     # Sorted by total_revenue desc — WEBSITE's default shipping charge now
     # puts it ahead of INSTAGRAM.
@@ -199,6 +204,44 @@ def test_get_channel_breakdown(report_setup, test_db):
 def test_get_channel_breakdown_excludes_cancelled_and_empty_range(report_setup, test_db):
     assert "OTHER" not in {row["channel"] for row in get_channel_breakdown(test_db)}
     assert get_channel_breakdown(test_db, start_date="2099-01-01") == []
+
+
+def _channel_order(conn, product_id, channel, price):
+    return record_order(
+        conn,
+        channel,
+        [{"product_id": product_id, "quantity": 1, "unit_price": price}],
+        shipping_charge=0,
+        postage_cost=0,
+        transaction_fee=0,
+        packaging_kit_id=None,
+        order_date="2026-03-10",
+    )
+
+
+@pytest.mark.parametrize(
+    "prices, expected",
+    [
+        ((1000, 2000, 4000), 2333),  # 7000 / 3 = 2333.33 -> 2333
+        ((1000, 1001), 1000),  # 2001 / 2 = 1000.5 -> 1000 (tie, to even)
+        ((1000, 1003), 1002),  # 2003 / 2 = 1001.5 -> 1002 (tie, to even)
+        ((1000, 2001), 1500),  # 3001 / 2 = 1500.5 -> 1500 (tie, to even)
+    ],
+)
+def test_channel_avg_order_value_rounds_half_even(test_db, prices, expected):
+    product_id = add_product(test_db, "AOV Tee", cat(test_db, "OTHER"), 1000, 500)
+    test_db.execute(
+        "UPDATE products SET current_stock = 100, unit_cost = 100 WHERE id = ?", (product_id,)
+    )
+    test_db.commit()
+    for price in prices:
+        _channel_order(test_db, product_id, "INSTAGRAM", price)
+
+    (row,) = get_channel_breakdown(test_db)
+    assert row["total_revenue"] == sum(prices)
+    assert row["order_count"] == len(prices)
+    assert row["avg_order_value"] == expected
+    assert type(row["avg_order_value"]) is int
 
 
 def test_get_low_stock_products(report_setup, test_db):
@@ -215,12 +258,16 @@ def test_get_waste_report(report_setup, test_db):
 
     by_key = {(row["item_type"], row["item_name"]): row for row in rows}
     material = by_key[("MATERIAL", "Waste Material")]
+    assert material["item_id"] == report_setup["material_id"]
+    assert material["unit"] == "piece"
     assert material["total_wasted"] == 5
     assert material["waste_event_count"] == 2
     assert material["cost"] == 1000
     assert material["unknown_cost_count"] == 0
 
     product = by_key[("PRODUCT", "Report Vinyl")]
+    assert product["item_id"] == report_setup["product_a_id"]
+    assert product["unit"] == "piece"
     assert product["total_wasted"] == 1
     assert product["waste_event_count"] == 1
     assert product["cost"] == 500
@@ -287,6 +334,8 @@ def test_get_expense_breakdown(report_setup, test_db):
     assert len(rows) == 2
 
     by_name = {row["category_name"]: row for row in rows}
+    assert by_name["Ads"]["category_id"] == report_setup["ads_id"]
+    assert by_name["Tools"]["category_id"] == report_setup["tools_id"]
     assert by_name["Ads"]["total_amount"] == 500
     assert by_name["Ads"]["expense_count"] == 1
     assert by_name["Tools"]["total_amount"] == 200
@@ -300,6 +349,7 @@ def test_get_expense_breakdown_date_filter_and_empty(report_setup, test_db):
     )
     assert len(march) == 1
     assert march[0]["category_name"] == "Ads"
+    assert march[0]["category_id"] == report_setup["ads_id"]
 
     assert get_expense_breakdown(test_db, start_date="2099-01-01") == []
 
@@ -340,8 +390,10 @@ def test_get_profit_and_loss_hand_calculated(report_setup, test_db):
     assert pnl["transaction_fees"] == 20
     assert pnl["gross_profit"] == 1_806_230
     assert pnl["postage_actual"] == 0
+    assert pnl["postage_committed"] == 50
     assert pnl["postage_variance"] == -50
     assert pnl["refund_losses"] == 0
+    assert pnl["refund_fee_losses"] == 0
     assert pnl["waste_cost"] == 1500
     assert pnl["operating_expenses"] == 700
     assert pnl["net_profit"] == 1_804_080
@@ -362,8 +414,10 @@ def test_get_profit_and_loss_date_filter(report_setup, test_db):
     assert instagram_only["total_revenue"] == 6100
     assert instagram_only["cogs"] == 1000
     assert instagram_only["gross_profit"] == 5030
+    assert instagram_only["postage_committed"] == 50
     assert instagram_only["postage_variance"] == -50
     assert instagram_only["refund_losses"] == 0
+    assert instagram_only["refund_fee_losses"] == 0
     assert instagram_only["waste_cost"] == 0
     assert instagram_only["operating_expenses"] == 0
     assert instagram_only["net_profit"] == 5080
@@ -379,8 +433,10 @@ def test_get_profit_and_loss_date_filter(report_setup, test_db):
         "transaction_fees": 0,
         "gross_profit": 0,
         "postage_actual": 0,
+        "postage_committed": 0,
         "postage_variance": 0,
         "refund_losses": 0,
+        "refund_fee_losses": 0,
         "waste_cost": 0,
         "operating_expenses": 0,
         "net_profit": 0,
@@ -730,8 +786,12 @@ def test_full_scenario_profit_and_loss(full_scenario_setup, test_db):
     assert pnl["transaction_fees"] == 50_000
     assert pnl["gross_profit"] == 4_055_000
     assert pnl["postage_actual"] == 600_000
+    # Order A (eligible) and order B (REFUNDED) each froze the 250,000 estimate.
+    assert pnl["postage_committed"] == 500_000
     assert pnl["postage_variance"] == 100_000
+    # Order B: packaging 45,000 + postage 250,000 + fee 30,000; the fee part is 30,000.
     assert pnl["refund_losses"] == 325_000
+    assert pnl["refund_fee_losses"] == 30_000
     assert pnl["waste_cost"] == 1_200_000
     assert pnl["operating_expenses"] == 500_000
     assert pnl["net_profit"] == 1_930_000
@@ -795,6 +855,9 @@ def test_full_scenario_cancellation_contributes_fee_only_to_refund_losses(
 
     pnl = get_profit_and_loss(test_db, "2026-04-01", "2026-04-30")
     assert pnl["refund_losses"] == 25_000
+    assert pnl["refund_fee_losses"] == 25_000
+    # A cancelled order never shipped, so its frozen postage is not committed.
+    assert pnl["postage_committed"] == 0
     # "and nothing else": the cancelled order is excluded from every other
     # eligible-order figure, so all of these stay at 0.
     assert pnl["items_revenue"] == 0
@@ -803,6 +866,163 @@ def test_full_scenario_cancellation_contributes_fee_only_to_refund_losses(
     assert pnl["postage_estimated"] == 0
     assert pnl["postage_variance"] == 0
     assert pnl["net_profit"] == -25_000
+    _assert_pnl_breakdowns_match_orders(test_db, "2026-04-01", "2026-04-30")
+    _assert_pnl_breakdowns_match_orders(test_db, None, None)
+
+
+def test_full_scenario_waste_rows_carry_item_id_and_unit(full_scenario_setup, test_db):
+    tape_id = full_scenario_setup["tape_id"]
+    record_stock_adjustment(
+        test_db, "MATERIAL", tape_id, -3, "WASTE", movement_date="2026-03-12"
+    )
+    rows = get_waste_report(test_db, "2026-03-05", "2026-03-31")
+    by_type = {row["item_type"]: row for row in rows}
+
+    tape = by_type["MATERIAL"]
+    assert tape["item_id"] == tape_id
+    assert tape["item_name"] == "Tape"
+    assert tape["unit"] == "m"
+
+    vinyl = by_type["PRODUCT"]
+    assert vinyl["item_id"] == full_scenario_setup["vinyl_id"]
+    assert vinyl["unit"] == "piece"
+
+
+@pytest.mark.parametrize(
+    "start_date, end_date",
+    [(None, None), ("2026-03-01", "2026-03-10"), ("2026-03-11", "2026-03-31"), ("2099-01-01", None)],
+)
+def test_expense_breakdown_sums_to_operating_expenses(report_setup, test_db, start_date, end_date):
+    rows = get_expense_breakdown(test_db, start_date, end_date)
+    pnl = get_profit_and_loss(test_db, start_date, end_date)
+    assert sum(row["total_amount"] for row in rows) == pnl["operating_expenses"]
+
+
+# ---------------------------------------------------------------------------
+# postage_committed / refund_fee_losses, and channel breakdown vs P&L (section 9)
+# ---------------------------------------------------------------------------
+
+PNL_RANGES = [
+    (None, None),
+    ("2026-03-05", "2026-03-31"),
+    ("2026-03-10", "2026-03-10"),
+    ("2026-03-11", "2026-03-13"),
+    ("2099-01-01", None),
+]
+
+
+def _order_sum(conn, expression, status_sql, start_date, end_date):
+    """SUM(expression) straight from the orders table, order_date in range."""
+    start_utc, end_utc = to_utc_range(start_date, end_date, conn)
+    return conn.execute(
+        f"""
+        SELECT COALESCE(SUM({expression}), 0) FROM orders
+        WHERE ({status_sql})
+          AND (? IS NULL OR order_date >= ?) AND (? IS NULL OR order_date < ?)
+        """,
+        (start_utc, start_utc, end_utc, end_utc),
+    ).fetchone()[0]
+
+
+def _assert_pnl_breakdowns_match_orders(conn, start_date, end_date):
+    pnl = get_profit_and_loss(conn, start_date, end_date)
+    postage_committed = _order_sum(
+        conn,
+        "postage_cost",
+        "status IN ('PENDING', 'PAID', 'COMPLETED', 'REFUNDED')",
+        start_date,
+        end_date,
+    )
+    refund_fee_losses = _order_sum(
+        conn,
+        "transaction_fee",
+        "status = 'REFUNDED' OR (status = 'CANCELLED' AND stock_committed = 1)",
+        start_date,
+        end_date,
+    )
+    refunded_non_fee = _order_sum(
+        conn, "packaging_cost + postage_cost", "status = 'REFUNDED'", start_date, end_date
+    )
+    assert pnl["postage_committed"] == postage_committed
+    assert pnl["refund_fee_losses"] == refund_fee_losses
+    assert pnl["postage_variance"] == pnl["postage_actual"] - pnl["postage_committed"]
+    assert pnl["refund_losses"] - pnl["refund_fee_losses"] == refunded_non_fee
+
+
+def _assert_channels_sum_to_gross_profit(conn, start_date, end_date):
+    rows = get_channel_breakdown(conn, start_date, end_date)
+    pnl = get_profit_and_loss(conn, start_date, end_date)
+    assert sum(row["order_count"] for row in rows) == pnl["order_count"]
+    assert sum(row["total_revenue"] for row in rows) == pnl["total_revenue"]
+    assert sum(row["total_profit"] for row in rows) == pnl["gross_profit"]
+
+
+@pytest.mark.parametrize("start_date, end_date", PNL_RANGES)
+def test_pnl_breakdowns_match_orders_report_setup(report_setup, test_db, start_date, end_date):
+    _assert_pnl_breakdowns_match_orders(test_db, start_date, end_date)
+
+
+@pytest.mark.parametrize("start_date, end_date", PNL_RANGES)
+def test_pnl_breakdowns_match_orders_full_scenario(
+    full_scenario_setup, test_db, start_date, end_date
+):
+    _assert_pnl_breakdowns_match_orders(test_db, start_date, end_date)
+
+
+@pytest.fixture
+def channel_scenario(full_scenario_setup, test_db):
+    """full_scenario_setup (one eligible WEBSITE order, one REFUNDED) plus an
+    eligible INSTAGRAM order and a committed CANCELLED order with a fee."""
+    vinyl_id = full_scenario_setup["vinyl_id"]
+    instagram_id = record_order(
+        test_db,
+        "INSTAGRAM",
+        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_800_000}],
+        transaction_fee=40_000,
+        order_date="2026-03-13",
+        status="PAID",
+    )
+    cancelled_id = record_order(
+        test_db,
+        "INSTAGRAM",
+        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_800_000}],
+        transaction_fee=15_000,
+        order_date="2026-03-13",
+        status="PAID",
+    )
+    process_return(test_db, cancelled_id, "CANCELLED")
+    return {**full_scenario_setup, "instagram_id": instagram_id, "cancelled_id": cancelled_id}
+
+
+@pytest.mark.parametrize("start_date, end_date", PNL_RANGES)
+def test_channel_breakdown_reconciles_with_pnl(channel_scenario, test_db, start_date, end_date):
+    _assert_channels_sum_to_gross_profit(test_db, start_date, end_date)
+    _assert_pnl_breakdowns_match_orders(test_db, start_date, end_date)
+
+
+def test_channel_breakdown_is_gross_not_net(channel_scenario, test_db):
+    statuses = {r[0] for r in test_db.execute("SELECT status FROM orders")}
+    assert {"REFUNDED", "CANCELLED"} <= statuses
+    rows = get_channel_breakdown(test_db, "2026-03-05", "2026-03-31")
+    assert {row["channel"] for row in rows} == {"WEBSITE", "INSTAGRAM"}
+
+    pnl = get_profit_and_loss(test_db, "2026-03-05", "2026-03-31")
+    assert pnl["gross_profit"] != pnl["net_profit"]
+    assert sum(row["total_profit"] for row in rows) == pnl["gross_profit"]
+    # Refunded order B's 30,000 fee + the cancelled order's 15,000 fee.
+    assert pnl["refund_fee_losses"] == 45_000
+    # Order B's 325,000 (section 9 hand value above) + the cancelled fee.
+    assert pnl["refund_losses"] == 340_000
+
+
+@pytest.mark.parametrize("start_date, end_date", PNL_RANGES)
+def test_channel_breakdown_reconciles_with_pnl_report_setup(
+    report_setup, test_db, start_date, end_date
+):
+    # report_setup's CANCELLED order was never committed.
+    _assert_channels_sum_to_gross_profit(test_db, start_date, end_date)
+    pnl = get_profit_and_loss(test_db)
+    assert pnl["gross_profit"] != pnl["net_profit"]
 
 
 @pytest.fixture

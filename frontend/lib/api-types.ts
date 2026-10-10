@@ -1654,6 +1654,11 @@ export interface components {
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
             total_profit: number;
+            /**
+             * Avg Order Value
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            avg_order_value: number;
         };
         /** ChannelSettingsOut */
         ChannelSettingsOut: {
@@ -1812,6 +1817,8 @@ export interface components {
         };
         /** ExpenseBreakdownOut */
         ExpenseBreakdownOut: {
+            /** Category Id */
+            category_id: number;
             /** Category Name */
             category_name: string;
             /**
@@ -2968,6 +2975,11 @@ export interface components {
              */
             postage_actual: number;
             /**
+             * Postage Committed
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            postage_committed: number;
+            /**
              * Postage Variance
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
@@ -2977,6 +2989,11 @@ export interface components {
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
             refund_losses: number;
+            /**
+             * Refund Fee Losses
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            refund_fee_losses: number;
             /**
              * Waste Cost
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
@@ -3436,8 +3453,12 @@ export interface components {
         WasteReportOut: {
             /** Item Type */
             item_type: string;
+            /** Item Id */
+            item_id: number;
             /** Item Name */
             item_name: string;
+            /** Unit */
+            unit: string;
             /** Total Wasted */
             total_wasted: number;
             /** Waste Event Count */
