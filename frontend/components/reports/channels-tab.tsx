@@ -13,7 +13,7 @@ import { formatNumber } from "@/lib/persian-numbers"
 import { apiRange, periodKey, type ReportPeriod } from "@/lib/report-period"
 import { barPercent, channelChecks, percentText, ratioTenths } from "@/lib/reports"
 import { cn } from "@/lib/utils"
-import { CheckLines } from "./check-line"
+import { CheckLines, pnlChecks } from "./check-line"
 import { R } from "./copy"
 
 const channelName = (c: string) => CHANNELS[c as Channel]?.name ?? c
@@ -76,7 +76,7 @@ function BarChart({
  * «کانال‌ها»: GET /reports/channels for the period, revenue-eligible orders
  * only, channels without orders omitted by the backend. Order count, revenue
  * and order profit are checked against the P&L's order_count, total_revenue
- * and gross_profit.
+ * and gross_profit. avg_order_value is shown as returned (§9).
  */
 export function ChannelsTab({
   period,
@@ -94,19 +94,14 @@ export function ChannelsTab({
     return <ErrorBlock title={R.errorTitle} body={R.errorBody} retry={R.retry} onRetry={rows.retry} mobile={mobile} />
 
   const data = rows.data
-  const checks =
-    pnl.status === "ready"
-      ? (() => {
-          const c = channelChecks(data, pnl.data)
-          return [
-            { label: R.checkChannelsOrders, check: c.orders },
-            { label: R.checkChannelsRevenue, check: c.revenue },
-            { label: R.checkChannelsProfit, check: c.profit },
-          ]
-        })()
-      : pnl.status === "error"
-        ? null
-        : []
+  const checks = pnlChecks(pnl, (p) => {
+    const c = channelChecks(data, p)
+    return [
+      { label: R.checkChannelsOrders, check: c.orders },
+      { label: R.checkChannelsRevenue, check: c.revenue },
+      { label: R.checkChannelsProfit, check: c.profit },
+    ]
+  })
 
   if (data.length === 0)
     return (
@@ -136,6 +131,9 @@ export function ChannelsTab({
             </span>
             <span>
               {R.sortLabels.revenue}: <Money value={r.total_revenue} className="text-text-2" />
+            </span>
+            <span>
+              {R.colAvgOrder}: <Money value={r.avg_order_value} className="text-text-2" />
             </span>
             <span>
               {R.colMargin}: <span className="tabular-nums text-text-2">{margin(r)}</span>
@@ -174,6 +172,9 @@ export function ChannelsTab({
                 {R.colRevenue}
               </th>
               <th scope="col" className="text-end">
+                {R.colAvgOrder}
+              </th>
+              <th scope="col" className="text-end">
                 {R.colOrderProfit}
               </th>
               <th scope="col" className="text-end">
@@ -194,6 +195,9 @@ export function ChannelsTab({
                 <td className="text-end">
                   <Money value={r.total_revenue} />
                 </td>
+                <td className="text-end text-text-2">
+                  <Money value={r.avg_order_value} />
+                </td>
                 <td className={cn("text-end font-bold", profitTone(r.total_profit))}>
                   <Money value={r.total_profit} />
                 </td>
@@ -208,6 +212,7 @@ export function ChannelsTab({
               <td className="text-end">
                 <Money value={sum((r) => r.total_revenue)} />
               </td>
+              <td className="text-end text-text-3">{R.nil}</td>
               <td className={cn("text-end", profitTone(sum((r) => r.total_profit)))}>
                 <Money value={sum((r) => r.total_profit)} />
               </td>
@@ -241,7 +246,9 @@ export function ChannelsTab({
       </div>
       {table}
       <CheckLines checks={checks} />
-      <p className="text-xs text-text-3">{R.channelsNote}</p>
+      <p className="text-xs text-text-3">
+        {R.channelsNote} {R.avgOrderNote}
+      </p>
     </div>
   )
 }

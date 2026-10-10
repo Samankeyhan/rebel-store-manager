@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { ChartColumn, Package, Scale, Store, type LucideIcon } from "lucide-react"
+import { ChartColumn, CreditCard, Package, Scale, Store, Trash2, Truck, Wallet, type LucideIcon } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { ErrorBlock, LoadingBlock, StateShell } from "@/components/common/screen-states"
 import { Segment } from "@/components/common/segment"
@@ -25,18 +25,34 @@ import { useCurrency } from "@/lib/use-currency"
 import { cn } from "@/lib/utils"
 import { ChannelsTab } from "./channels-tab"
 import { R } from "./copy"
+import { ExpensesTab } from "./expenses-tab"
+import { PaymentsTab } from "./payments-tab"
 import { PeriodBar } from "./period-bar"
 import { PnlTab } from "./pnl-tab"
 import { ProductsTab } from "./products-tab"
+import { ShippingTab } from "./shipping-tab"
+import { WasteTab } from "./waste-tab"
 
 type TabProps = { period: ReportPeriod; pnl: Loader<ProfitAndLoss>; periodTitle: string; mobile: boolean }
 
+type TabDef = {
+  label: string
+  short: string
+  icon: LucideIcon
+  Body: React.ComponentType<TabProps>
+  /**
+   * The tab shows figures that are not in the P&L (settlements by
+   * settled_date, purchases, unknown-cost waste), so an all-zero P&L does not
+   * mean it is empty: the shell leaves the empty state to the tab.
+   */
+  ownEmpty?: true
+}
+
 /**
- * The reports, in tab order. Part 2 (shipping, payment methods, waste,
- * expenses) adds an entry here and its id to REPORT_TAB_IDS in
- * lib/report-period.ts; the shell, the period and the P&L load stay as they are.
+ * The reports, in tab order (the same as REPORT_TAB_IDS in
+ * lib/report-period.ts). The shell, the period and the P&L load are shared.
  */
-const TABS: Record<ReportTab, { label: string; short: string; icon: LucideIcon; Body: React.ComponentType<TabProps> }> = {
+const TABS: Record<ReportTab, TabDef> = {
   pnl: {
     label: R.tabPnl,
     short: R.tabPnl,
@@ -54,6 +70,33 @@ const TABS: Record<ReportTab, { label: string; short: string; icon: LucideIcon; 
     short: R.tabChannels,
     icon: Store,
     Body: ChannelsTab,
+  },
+  shipping: {
+    label: R.tabShipping,
+    short: R.tabShippingShort,
+    icon: Truck,
+    Body: ShippingTab,
+  },
+  payments: {
+    label: R.tabPayments,
+    short: R.tabPaymentsShort,
+    icon: CreditCard,
+    Body: PaymentsTab,
+    ownEmpty: true,
+  },
+  waste: {
+    label: R.tabWaste,
+    short: R.tabWaste,
+    icon: Trash2,
+    Body: WasteTab,
+    ownEmpty: true,
+  },
+  expenses: {
+    label: R.tabExpenses,
+    short: R.tabExpensesShort,
+    icon: Wallet,
+    Body: ExpensesTab,
+    ownEmpty: true,
   },
 }
 
@@ -119,7 +162,7 @@ export function ReportsPage() {
       />
     </div>
   ) : (
-    <div role="tablist" aria-label={R.tabsLabel} className="flex gap-1 border-b border-border">
+    <div role="tablist" aria-label={R.tabsLabel} className="flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none]">
       {ids.map((id) => {
         const { label, icon: Icon } = TABS[id]
         const on = tab === id
@@ -146,7 +189,7 @@ export function ReportsPage() {
   let body: React.ReactNode
   if (!period) body = <LoadingBlock mobile={mobile} label={R.loadingAria} />
   // Nothing at all happened in the period: one friendly state, not tables of zeros.
-  else if (pnl.status === "ready" && pnlIsEmpty(pnl.data))
+  else if (pnl.status === "ready" && pnlIsEmpty(pnl.data) && !TABS[tab].ownEmpty)
     body = (
       <StateShell icon={ChartColumn} mobile={mobile} title={R.emptyTitle} body={mobile ? R.emptyBodyMobile : R.emptyBody} />
     )

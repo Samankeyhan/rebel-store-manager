@@ -3,6 +3,8 @@
 import { CircleCheck, CircleHelp, TriangleAlert } from "lucide-react"
 import { Money } from "@/components/common/money"
 import { formatMoney } from "@/lib/money"
+import type { Loader } from "@/components/dashboard/use-dashboard-data"
+import type { ProfitAndLoss } from "@/lib/api"
 import type { Check } from "@/lib/reports"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
@@ -60,4 +62,15 @@ export function CheckLines({
       ))}
     </ul>
   )
+}
+
+export type CheckItem = { label: string; check: Check }
+
+/**
+ * The «مطابقت» lines that compare with the shell's P&L: none while it loads,
+ * null (cannot compare) when it failed, else `build(pnl)`.
+ */
+export function pnlChecks(pnl: Loader<ProfitAndLoss>, build: (p: ProfitAndLoss) => CheckItem[]): CheckItem[] | null {
+  if (pnl.status === "ready") return build(pnl.data)
+  return pnl.status === "error" ? null : []
 }
