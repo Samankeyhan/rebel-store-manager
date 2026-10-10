@@ -124,35 +124,41 @@ test("overCapBy: exact difference, negative undistributed, unsafe", () => {
   assert.equal(overCapBy(Number.MAX_SAFE_INTEGER, -1), null)
 })
 
-test("classifyDistributionError: the backend's messages", () => {
-  const e = (status, message, field = null) => ({ status, message, field })
-  assert.deepEqual(
-    classifyDistributionError(e(409, "Period 2026-03-15..2026-04-15 overlaps distribution #4 (2026-03-01..2026-03-31)")),
-    { kind: "overlap", id: 4, from: "2026-03-01", to: "2026-03-31" }
-  )
-  assert.deepEqual(classifyDistributionError(e(422, "No active partners found — add partners before distributing")), {
-    kind: "noPartners",
-  })
-  assert.deepEqual(
-    classifyDistributionError(e(422, "Active partner percentages must sum to 100% (tolerance 0.01), but they sum to 90.00%.")),
-    { kind: "percentSum" }
-  )
+test("classifyDistributionError: the backend's codes and details", () => {
+  const e = (status, code, details = {}, field = null) => ({ status, code, details, field, message: "documentation only" })
   assert.deepEqual(
     classifyDistributionError(
-      e(422, "total_amount_distributed (1000) exceeds undistributed profit as of 2026-01-31 (0).", "total_amount_distributed")
+      e(409, "DISTRIBUTION_PERIOD_OVERLAP", { distribution_id: 4, period_start: "2026-03-01", period_end: "2026-03-31" })
     ),
+    { kind: "overlap", id: 4, from: "2026-03-01", to: "2026-03-31" }
+  )
+  assert.deepEqual(classifyDistributionError(e(422, "DISTRIBUTION_NO_ACTIVE_PARTNERS")), { kind: "noPartners" })
+  assert.deepEqual(classifyDistributionError(e(422, "DISTRIBUTION_PERCENT_SUM")), { kind: "percentSum" })
+  assert.deepEqual(
+    classifyDistributionError(e(422, "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED", {}, "total_amount_distributed")),
     { kind: "overCap" }
   )
-  assert.deepEqual(classifyDistributionError(e(422, "Input should be a valid integer", "total_amount_distributed")), {
-    kind: "badAmount",
-  })
-  assert.deepEqual(
-    classifyDistributionError(e(422, "period_end (2026-03-01) cannot be before period_start (2026-03-31)", "period_end")),
-    { kind: "periodOrder" }
+  // FastAPI's strict-int refusal (no code) and db/'s ">= 0" both mean a bad amount.
+  assert.deepEqual(classifyDistributionError(e(422, null, {}, "total_amount_distributed")), { kind: "badAmount" })
+  assert.deepEqual(classifyDistributionError(e(422, "VALIDATION_FAILED", {}, "total_amount_distributed")), { kind: "badAmount" })
+  assert.deepEqual(classifyDistributionError(e(422, "DISTRIBUTION_PERIOD_ORDER", {}, "period_end")), { kind: "periodOrder" })
+  assert.deepEqual(classifyDistributionError(e(422, "VALIDATION_FAILED", {}, "date")), { kind: "badDate" })
+  assert.equal(classifyDistributionError(e(500, null)), null)
+  assert.equal(classifyDistributionError(e(409, "CONFLICT")), null)
+  assert.equal(classifyDistributionError(e(409, "DISTRIBUTION_PERIOD_OVERLAP", {})), null)
+})
+
+test("classifyDistributionError ignores message text", () => {
+  const msg = (status, message, field = null) => ({ status, message, field })
+  assert.equal(
+    classifyDistributionError(msg(409, "Period 2026-03-15..2026-04-15 overlaps distribution #4 (2026-03-01..2026-03-31)")),
+    null
   )
-  assert.deepEqual(classifyDistributionError(e(422, "Invalid date 'x'. Expected 'YYYY-MM-DD'.", "date")), { kind: "badDate" })
-  assert.equal(classifyDistributionError(e(500, "boom")), null)
-  assert.equal(classifyDistributionError(e(409, "something else")), null)
+  assert.equal(classifyDistributionError(msg(422, "No active partners found — add partners before distributing")), null)
+  assert.deepEqual(
+    classifyDistributionError(msg(422, "total_amount_distributed (1000) exceeds undistributed profit", "total_amount_distributed")),
+    { kind: "badAmount" }
+  )
 })
 
 test("copy: Persian digits only", () => {

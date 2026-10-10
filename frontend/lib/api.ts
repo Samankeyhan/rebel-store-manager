@@ -8,6 +8,7 @@
  */
 
 import type { components } from "@/lib/api-types"
+import type { ErrorCode } from "@/lib/error-codes"
 
 export type Schemas = components["schemas"]
 export type Catalog = Schemas["CatalogOut"]
@@ -21,6 +22,9 @@ export const API_URL = (
  * ValidationError, InsufficientStockError, ConflictError, AppError),
  * "RequestValidationError" for FastAPI's own 422s (bad body shape),
  * or "NetworkError" when the backend couldn't be reached at all.
+ * Screens branch on `code` (lib/error-codes.ts) and `details`, never on
+ * `message`; `code` is null for FastAPI's own 422s, other HTTP errors and
+ * NetworkError.
  */
 export class ApiError extends Error {
   constructor(
@@ -28,21 +32,15 @@ export class ApiError extends Error {
     readonly status: number,
     readonly type: string,
     readonly field: string | null = null,
-    readonly details: Record<string, unknown> = {}
+    readonly details: Record<string, unknown> = {},
+    readonly code: ErrorCode | null = null
   ) {
     super(message)
     this.name = "ApiError"
   }
 }
 
-type AppErrorBody = {
-  error: {
-    type: string
-    message: string
-    field: string | null
-    details: Record<string, unknown>
-  }
-}
+type AppErrorBody = Schemas["ErrorEnvelope"]
 type FastApiErrorBody = {
   detail: string | { loc: (string | number)[]; msg: string }[]
 }
@@ -50,7 +48,7 @@ type FastApiErrorBody = {
 function toApiError(status: number, body: unknown): ApiError {
   if (body && typeof body === "object" && "error" in body) {
     const e = (body as AppErrorBody).error
-    return new ApiError(e.message, status, e.type, e.field, e.details)
+    return new ApiError(e.message, status, e.type, e.field ?? null, e.details ?? {}, e.code)
   }
   if (body && typeof body === "object" && "detail" in body) {
     const detail = (body as FastApiErrorBody).detail

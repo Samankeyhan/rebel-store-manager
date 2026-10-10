@@ -136,7 +136,7 @@ export const PurchaseForm = React.forwardRef<
       setTouched(false)
       setSupplierGone(false)
     } catch (e) {
-      if (e instanceof ApiError && e.status === 404 && /supplier/i.test(e.message)) {
+      if (e instanceof ApiError && e.status === 404 && e.code === "SUPPLIER_NOT_FOUND") {
         // The picked supplier was deleted since the list loaded: say so, make
         // them choose again, and refresh the list.
         setSupplierGone(true)

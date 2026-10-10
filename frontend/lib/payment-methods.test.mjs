@@ -138,30 +138,38 @@ test("the cap field's typed text → Rial (MoneyInput with allowEmpty)", () => {
   assert.equal(capForSave(50, cap("", "TOMAN")), null)
 })
 
-// The exact texts db/ raises (db/orders.py, db/payment_methods.py).
+// The codes and details db/ raises (db/orders.py, db/payment_methods.py); messages are only documentation.
 const CASES = [
-  [{ status: 409, message: "Digipay's month 1405/06 is already settled (settlement #2); choose a paid date in an open month." },
+  [{ status: 409, code: "MONTH_ALREADY_SETTLED", details: { jalali_year: 1405, jalali_month: 6, settlement_id: 2 }, message: "Digipay's month 1405/06 is already settled (settlement #2); choose a paid date in an open month." },
     { kind: "closedMonth", year: 1405, month: 6 }],
-  [{ status: 409, message: "Order #4 is part of settlement #3; its paid date can no longer change." },
+  [{ status: 409, code: "ORDER_ALREADY_SETTLED", details: { order_id: 4, settlement_id: 3 }, message: "Order #4 is part of settlement #3; its paid date can no longer change." },
     { kind: "settled", settlementId: 3 }],
-  [{ status: 409, message: "Order #5 is PENDING, not paid; it has no paid date to change." }, { kind: "unpaid" }],
-  [{ status: 409, message: "Cannot change the settlement rule of 'Zarinpal': 1 paid order is still pending settlement. Deactivate this method and create a new one with the new rule." },
+  [{ status: 409, code: "ORDER_NOT_PAID", details: { order_id: 5, status: "PENDING" }, message: "Order #5 is PENDING, not paid; it has no paid date to change." }, { kind: "unpaid" }],
+  [{ status: 409, code: "PAYMENT_METHOD_RULE_PENDING", details: { pending_count: 1 }, message: "Cannot change the settlement rule of 'Zarinpal': 1 paid order is still pending settlement. Deactivate this method and create a new one with the new rule." },
     { kind: "rulePending", count: 1 }],
-  [{ status: 409, message: "Cannot change the settlement rule of 'Zarinpal': 12 paid orders are still pending settlement. Deactivate this method and create a new one with the new rule." },
+  [{ status: 409, code: "PAYMENT_METHOD_RULE_PENDING", details: { pending_count: 12 }, message: "Cannot change the settlement rule of 'Zarinpal': 12 paid orders are still pending settlement. Deactivate this method and create a new one with the new rule." },
     { kind: "rulePending", count: 12 }],
-  [{ status: 409, message: "A payment method named 'Digipay' already exists" }, { kind: "duplicateName" }],
-  [{ status: 422, field: "paid_date", message: "paid_date 2026-10-07 is in the future (today is 2026-10-06)" }, { kind: "futurePaidDate" }],
-  [{ status: 422, field: "paid_date", message: "paid_date can only be given for a PAID or COMPLETED order, not PENDING" }, { kind: "paidDateNotAllowed" }],
-  [{ status: 422, field: "payment_method_id", message: "Payment method 'Digipay' is not active. Choose another method or update the channel's default payment method." },
+  [{ status: 409, code: "PAYMENT_METHOD_DUPLICATE_NAME", message: "A payment method named 'Digipay' already exists" }, { kind: "duplicateName" }],
+  [{ status: 422, code: "DATE_IN_FUTURE", details: { today: "2026-10-06" }, field: "paid_date", message: "paid_date 2026-10-07 is in the future (today is 2026-10-06)" }, { kind: "futurePaidDate" }],
+  [{ status: 422, code: "VALIDATION_FAILED", field: "paid_date", message: "paid_date can only be given for a PAID or COMPLETED order, not PENDING" }, { kind: "paidDateNotAllowed" }],
+  [{ status: 422, code: "PAYMENT_METHOD_INACTIVE", details: { payment_method_id: 3 }, field: "payment_method_id", message: "Payment method 'Digipay' is not active. Choose another method or update the channel's default payment method." },
     { kind: "inactiveMethod" }],
-  [{ status: 422, field: "default_payment_method_id", message: "Payment method 'Card' is not active and cannot be a channel's default payment method" },
+  [{ status: 422, code: "PAYMENT_METHOD_INACTIVE", details: { payment_method_id: 1 }, field: "default_payment_method_id", message: "Payment method 'Card' is not active and cannot be a channel's default payment method" },
     { kind: "inactiveDefault" }],
-  [{ status: 409, message: "Cannot transition order #1 from COMPLETED to PAID" }, null],
-  [{ status: 422, field: "unit_cost", message: "no cost" }, null],
+  [{ status: 409, code: "CONFLICT", message: "Cannot transition order #1 from COMPLETED to PAID" }, null],
+  [{ status: 422, code: "PRODUCT_NO_UNIT_COST", details: { product_id: 1, product_name: "Test LP" }, field: "unit_cost", message: "no cost" }, null],
 ]
 
 test("classifyPaymentError recognises every payment error the backend raises", () => {
   for (const [error, expected] of CASES) assert.deepEqual(classifyPaymentError(error), expected, error.message)
+})
+
+test("classifyPaymentError ignores message text: no code, no classification", () => {
+  for (const [error, expected] of CASES) {
+    if (!expected || error.status !== 409) continue
+    const { code: _code, details: _details, ...textOnly } = error
+    assert.equal(classifyPaymentError(textOnly), null, error.message)
+  }
 })
 
 test("paymentErrorText", () => {

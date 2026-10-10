@@ -8,6 +8,7 @@
  * string with integer arithmetic (never parseFloat, never a float multiply).
  */
 
+import { type CodedError, detailNum, hasCode } from "./error-codes.ts"
 import { toLatinDigits, toPersianDigits } from "./persian-numbers.ts"
 
 export const BPS_MAX = 10000
@@ -89,31 +90,38 @@ export type PaymentError =
   | { kind: "inactiveMethod" }
   | { kind: "inactiveDefault" }
 
-type ErrorLike = { status: number; field?: string | null; message: string }
-
 /**
- * Classifies a payment-related API error. The backend sends no error codes,
- * so the 409s are recognised by their (English) message text; keep these
- * patterns in step with db/orders.py and db/payment_methods.py.
+ * Classifies a payment-related API error by its code and details
+ * (db/orders.py, db/payment_methods.py; see lib/error-codes.ts).
  */
-export function classifyPaymentError(e: ErrorLike): PaymentError | null {
-  const msg = e.message
+export function classifyPaymentError(e: CodedError): PaymentError | null {
   if (e.status === 409) {
-    const month = /month (\d{4})\/(\d{1,2}) is already settled/.exec(msg)
-    if (month) return { kind: "closedMonth", year: Number(month[1]), month: Number(month[2]) }
-    const settled = /is part of settlement #(\d+)/.exec(msg)
-    if (settled) return { kind: "settled", settlementId: Number(settled[1]) }
-    if (/, not paid\b/.test(msg)) return { kind: "unpaid" }
-    const pending = /(\d+) paid orders? (?:is|are) still pending settlement/.exec(msg)
-    if (pending) return { kind: "rulePending", count: Number(pending[1]) }
-    if (/payment method named .* already exists/.test(msg)) return { kind: "duplicateName" }
-    return null
+    switch (e.code) {
+      case "MONTH_ALREADY_SETTLED": {
+        const year = detailNum(e, "jalali_year")
+        const month = detailNum(e, "jalali_month")
+        return year != null && month != null ? { kind: "closedMonth", year, month } : null
+      }
+      case "ORDER_ALREADY_SETTLED": {
+        const settlementId = detailNum(e, "settlement_id")
+        return settlementId != null ? { kind: "settled", settlementId } : null
+      }
+      case "ORDER_NOT_PAID":
+        return { kind: "unpaid" }
+      case "PAYMENT_METHOD_RULE_PENDING": {
+        const count = detailNum(e, "pending_count")
+        return count != null ? { kind: "rulePending", count } : null
+      }
+      case "PAYMENT_METHOD_DUPLICATE_NAME":
+        return { kind: "duplicateName" }
+      default:
+        return null
+    }
   }
   if (e.status === 422) {
-    if (e.field === "paid_date") {
-      return /in the future/.test(msg) ? { kind: "futurePaidDate" } : { kind: "paidDateNotAllowed" }
-    }
-    if (e.field === "payment_method_id" && /is not active/.test(msg)) return { kind: "inactiveMethod" }
+    // Any other paid_date refusal (given where not allowed, or not a date) is paidDateNotAllowed.
+    if (e.field === "paid_date") return hasCode(e, "DATE_IN_FUTURE") ? { kind: "futurePaidDate" } : { kind: "paidDateNotAllowed" }
+    if (e.field === "payment_method_id" && hasCode(e, "PAYMENT_METHOD_INACTIVE")) return { kind: "inactiveMethod" }
     if (e.field === "default_payment_method_id") return { kind: "inactiveDefault" }
   }
   return null

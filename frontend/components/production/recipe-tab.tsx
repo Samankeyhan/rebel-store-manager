@@ -36,7 +36,7 @@ type Item = Recipe["items"][number]
 function errorText(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 409) return R.duplicateLine
-    if (e.status === 422 && (e.field === "quantity_needed" || /quantity/i.test(e.message))) return R.qtyInvalid
+    if (e.status === 422 && e.field === "quantity_needed") return R.qtyInvalid
     return e.message
   }
   return String(e)

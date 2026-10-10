@@ -148,7 +148,7 @@ export function ProductDrawer({
       if (e instanceof ApiError && e.status === 422 && e.field === "category_id") {
         // The tree changed since this page loaded (e.g. a subcategory was
         // added, or the category was deactivated, in another tab).
-        setCategoryError(e.message.includes("subcategories") ? P.categoryHasChildren : P.categoryUnavailable)
+        setCategoryError(e.code === "CATEGORY_HAS_SUBCATEGORIES" ? P.categoryHasChildren : P.categoryUnavailable)
       } else {
         setError(errorOf(e))
       }

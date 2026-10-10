@@ -10,6 +10,7 @@
  * amount_received − expected_amount.
  */
 
+import { type CodedError, detailNum, detailStr, hasCode } from "./error-codes.ts"
 import { formatJalali, toGregorianISO } from "./jalali.ts"
 
 /** The pending-order fields these helpers read (PendingOrderOut). */
@@ -144,49 +145,59 @@ export type SettlementError =
   | { kind: "notMonthly" }
   | { kind: "notFound" }
 
-type ErrorLike = { status: number; field?: string | null; message: string }
-
 /**
- * Classifies a settlement API error. The backend sends no error codes, so
- * these are recognised by their (English) message text; keep the patterns in
- * step with db/settlements.py. null = not a settlement error (show the
- * generic message).
+ * Classifies a settlement API error by its code and details
+ * (db/settlements.py; see lib/error-codes.ts). null = not a settlement error
+ * (show the generic message).
  */
-export function classifySettlementError(e: ErrorLike): SettlementError | null {
-  const msg = e.message
+export function classifySettlementError(e: CodedError): SettlementError | null {
   if (e.status === 404) return { kind: "notFound" }
+  const year = detailNum(e, "jalali_year")
+  const month = detailNum(e, "jalali_month")
+  const orderId = detailNum(e, "order_id")
   if (e.status === 409) {
-    let m = /Month (\d{4})\/(\d{1,2}) has not ended yet \(it ends (\d{4}-\d{2}-\d{2})\)/.exec(msg)
-    if (m) return { kind: "monthNotEnded", year: Number(m[1]), month: Number(m[2]), ends: m[3] }
-    m = /month (\d{4})\/(\d{1,2}) is already settled(?: \(settlement #(\d+)\))?/.exec(msg)
-    if (m) return { kind: "monthSettled", year: Number(m[1]), month: Number(m[2]), settlementId: m[3] ? Number(m[3]) : null }
-    m = /Order #(\d+) is already in settlement #(\d+)/.exec(msg)
-    if (m) return { kind: "orderSettled", orderId: Number(m[1]), settlementId: Number(m[2]) }
-    m = /Order #(\d+) is \w+, not paid/.exec(msg)
-    if (m) return { kind: "orderNotPaid", orderId: Number(m[1]) }
-    if (/^Nothing to settle\b/.test(msg)) return { kind: "nothingPending" }
-    if (/settled meanwhile/.test(msg)) return { kind: "raced" }
-    if (/conflicts with existing data/.test(msg)) return { kind: "conflict" }
-    return null
+    switch (e.code) {
+      case "SETTLEMENT_MONTH_NOT_ENDED": {
+        const ends = detailStr(e, "month_end")
+        return year != null && month != null && ends != null ? { kind: "monthNotEnded", year, month, ends } : null
+      }
+      case "MONTH_ALREADY_SETTLED":
+        return year != null && month != null
+          ? { kind: "monthSettled", year, month, settlementId: detailNum(e, "settlement_id") }
+          : null
+      case "ORDER_ALREADY_SETTLED": {
+        const settlementId = detailNum(e, "settlement_id")
+        return orderId != null && settlementId != null ? { kind: "orderSettled", orderId, settlementId } : null
+      }
+      case "ORDER_NOT_PAID":
+        return orderId != null ? { kind: "orderNotPaid", orderId } : null
+      case "SETTLEMENT_NOTHING_PENDING":
+        return { kind: "nothingPending" }
+      case "SETTLEMENT_RACED":
+        return { kind: "raced" }
+      case "SETTLEMENT_CONFLICT":
+        return { kind: "conflict" }
+      default:
+        return null
+    }
   }
   if (e.status === 422) {
     if (e.field === "settled_date") {
-      if (/in the future/.test(msg)) return { kind: "futureDate" }
-      const m = /must be after the end of month (\d{4})\/(\d{1,2})/.exec(msg)
-      if (m) return { kind: "beforeMonthEnd", year: Number(m[1]), month: Number(m[2]) }
-      const p = /before the latest paid date of its orders \((\d{4}-\d{2}-\d{2})\)/.exec(msg)
-      if (p) return { kind: "beforePaid", date: p[1] }
+      if (hasCode(e, "DATE_IN_FUTURE")) return { kind: "futureDate" }
+      if (hasCode(e, "SETTLEMENT_DATE_BEFORE_MONTH_END") && year != null && month != null)
+        return { kind: "beforeMonthEnd", year, month }
+      const date = hasCode(e, "SETTLEMENT_DATE_BEFORE_PAID") ? detailStr(e, "latest_paid_date") : null
+      if (date != null) return { kind: "beforePaid", date }
       return null
     }
     // db/'s ">= 0" / "must be an integer", or FastAPI's strict-int refusal.
     if (e.field === "amount_received") return { kind: "badAmount" }
     if (e.field === "order_ids") {
-      if (/settles whole months only/.test(msg)) return { kind: "wrongShape" }
-      const m = /Order #(\d+) was not paid with/.exec(msg)
-      if (m) return { kind: "wrongMethod", orderId: Number(m[1]) }
+      if (hasCode(e, "SETTLEMENT_WHOLE_MONTHS_ONLY")) return { kind: "wrongShape" }
+      if (hasCode(e, "SETTLEMENT_ORDER_WRONG_METHOD") && orderId != null) return { kind: "wrongMethod", orderId }
       return { kind: "badSelection" }
     }
-    if ((e.field === "jalali_year" || e.field === "jalali_month") && /applies only to a method that settles whole months/.test(msg))
+    if ((e.field === "jalali_year" || e.field === "jalali_month") && hasCode(e, "SETTLEMENT_NOT_MONTHLY"))
       return { kind: "notMonthly" }
   }
   return null
