@@ -71,3 +71,27 @@ def test_get_postage_batch(test_db):
     assert batch["notes"] == "Feb"
 
     assert postage.get_postage_batch(test_db, 999) is None
+
+
+@pytest.mark.parametrize("total_paid, order_count, expected", [
+    (5, 2, 2),      # 2.5 -> 2, the even neighbour
+    (7, 2, 4),      # 3.5 -> 4
+    (1_000, 3, 333),
+])
+def test_estimate_ties_go_to_the_even_neighbour(test_db, total_paid, order_count, expected):
+    postage.record_postage_batch(test_db, total_paid=total_paid, order_count=order_count)
+    assert postage.get_current_postage_estimate(test_db) == expected
+
+
+def test_estimate_is_exact_above_float_precision(test_db):
+    # 2^53 + 1 = 9,007,199,254,740,993: a float quotient lands on ...994, the exact one is ...993.
+    # Only differs above 2^53 Rial; a cleanup, not a real-world bug.
+    postage.record_postage_batch(test_db, total_paid=3 * 9_007_199_254_740_993 + 1, order_count=3)
+    assert postage.get_current_postage_estimate(test_db) == 9_007_199_254_740_993
+
+
+def test_estimate_sums_the_window_before_dividing(test_db):
+    postage.record_postage_batch(test_db, total_paid=3, order_count=2, paid_date="2026-01-01")
+    postage.record_postage_batch(test_db, total_paid=2, order_count=2, paid_date="2026-01-02")
+    # (3 + 2) / (2 + 2) = 1.25 -> 1 (not the mean of 1.5 and 1)
+    assert postage.get_current_postage_estimate(test_db) == 1
