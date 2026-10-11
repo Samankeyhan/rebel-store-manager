@@ -73,7 +73,9 @@ def test_010_adds_fee_cap_null_and_changes_nothing_else(tmp_path):
     finally:
         conn.close()
 
-    init_db(str(db_path))
+    # Only up to this migration: later ones (012 audit triggers) add schema objects of their own.
+    only_this = _migrations_dir(tmp_path, "up_to_010", [n for n in sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql")) if n < "011"])
+    init_db(str(db_path), migrations_dir=only_this)
 
     conn = get_connection(str(db_path))
     try:

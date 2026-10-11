@@ -65,6 +65,14 @@ def _columns(db_path, table):
         conn.close()
 
 
+def _tables(db_path):
+    conn = get_connection(str(db_path))
+    try:
+        return {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    finally:
+        conn.close()
+
+
 def _setting(db_path, key):
     conn = get_connection(str(db_path))
     try:
@@ -88,11 +96,12 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
     assert LATEST not in _applied(db_path)
 
     # Without the startup event (no `with`), nothing applies the newest
-    # migration: it is not recorded, and materials has no min_stock yet
-    # (011). (Earlier migrations added the columns /products and /production
+    # migration: it is not recorded, and there is no audit_log yet (012).
+    # (Earlier migrations added the columns /products and /production
     # need, and reads 500'd without them.)
     assert _applied(db_path) == ALL_MIGRATIONS[:-1]
-    assert "min_stock" not in _columns(db_path, "materials")
+    assert "audit_log" not in _tables(db_path)
+    assert "min_stock" in _columns(db_path, "materials")
     assert "fee_cap" in _columns(db_path, "payment_methods")
     assert _setting(db_path, "default_shipping_charge") == "1800000"
 
@@ -120,11 +129,11 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
         assert material.status_code == 201, material.text
         assert material.json()["min_stock"] is None
 
-    # Startup applied and recorded the newest migration (011 adds min_stock and
+    # Startup applied and recorded the newest migration (012 adds the audit log and
     # touches no setting; money has been integer Rial since 009).
     assert _applied(db_path) == ALL_MIGRATIONS
     assert LATEST in _applied(db_path)
-    assert "min_stock" in _columns(db_path, "materials")
+    assert "audit_log" in _tables(db_path)
     assert _setting(db_path, "default_shipping_charge") == "1800000"
 
 
