@@ -1510,6 +1510,27 @@ export interface paths {
         patch: operations["patch_settlement_settlements__settlement_id__patch"];
         trace?: never;
     };
+    "/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Audit Log
+         * @description The append-only history of every write to accounting data, newest first.
+         *     Read-only: the log is written by database triggers, never through the API.
+         */
+        get: operations["read_audit_log_audit_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1555,6 +1576,71 @@ export interface components {
             unit_cost_at_time: number | null;
             /** Item Name */
             item_name: string | null;
+        };
+        /** AuditEntryOut */
+        AuditEntryOut: {
+            /** Id */
+            id: number;
+            /**
+             * Ts
+             * @description UTC moment, "YYYY-MM-DD HH:MM:SS" (like every stored moment)
+             */
+            ts: string;
+            /**
+             * Entity Type
+             * @description The table that changed, e.g. orders
+             */
+            entity_type: string;
+            /**
+             * Entity Id
+             * @description The row's key as text (a number, or a text key for settings)
+             */
+            entity_id: string;
+            /**
+             * Action
+             * @description INSERT, UPDATE or DELETE
+             */
+            action: string;
+            /**
+             * Operation
+             * @description The business operation (the db/ function name), or UNLABELLED for a write outside one
+             */
+            operation: string;
+            /**
+             * Before
+             * @description UPDATE: the changed columns before. DELETE: the whole row. Money is integer Rial.
+             */
+            before: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * After
+             * @description UPDATE: the changed columns after. INSERT: the whole row. Money is integer Rial.
+             */
+            after: {
+                [key: string]: unknown;
+            } | null;
+            /** Actor */
+            actor: string | null;
+            /**
+             * Op Id
+             * @description Shared by every row written by one business operation
+             */
+            op_id: string | null;
+        };
+        /** AuditPageOut */
+        AuditPageOut: {
+            /** Items */
+            items: components["schemas"]["AuditEntryOut"][];
+            /**
+             * Total
+             * @description Rows matching the filters, ignoring limit and offset
+             */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** CatalogOut */
         CatalogOut: {
@@ -9501,6 +9587,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettlementOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_audit_log_audit_log_get: {
+        parameters: {
+            query?: {
+                /** @description A table name, e.g. orders */
+                entity_type?: string | null;
+                /** @description The row key, with entity_type */
+                entity_id?: string | null;
+                /** @description One business operation's rows */
+                op_id?: string | null;
+                /** @description A db/ function name, e.g. record_order */
+                operation?: string | null;
+                /** @description First local day, YYYY-MM-DD */
+                start_date?: string | null;
+                /** @description Last local day, YYYY-MM-DD (inclusive) */
+                end_date?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPageOut"];
                 };
             };
             /** @description App error (see ErrorBody.code) */

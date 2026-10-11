@@ -11,6 +11,7 @@ from api.deps import db_path, get_db
 from api.schemas.common import ErrorEnvelope
 from api.routers import (
     adjustments,
+    audit,
     catalog,
     categories,
     distributions,
@@ -139,3 +140,4 @@ app.include_router(catalog.router)
 app.include_router(categories.router)
 app.include_router(payment_methods.router)
 app.include_router(settlements.router)
+app.include_router(audit.router)
