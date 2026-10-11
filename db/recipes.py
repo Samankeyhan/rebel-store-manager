@@ -3,6 +3,7 @@
 import sqlite3
 
 from db.connection import transaction
+from db.costing import per_unit_cost, recipe_batch_total
 from db.errors import ConflictError, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
@@ -166,13 +167,8 @@ def calculate_recipe_cost(
         (product_id,),
     ).fetchall()
 
-    total = 0.0
-    for row in rows:
-        if row["cost_basis"] == "PER_BATCH":
-            needed = row["quantity_needed"]
-        else:
-            needed = row["quantity_needed"] * batch_qty
-        total += needed * row["material_unit_cost"]
-
-    batch_total_cost = round(total)
-    return round(batch_total_cost / batch_qty)
+    batch_total_cost = recipe_batch_total(
+        [(row["quantity_needed"], row["cost_basis"], row["material_unit_cost"]) for row in rows],
+        batch_qty,
+    )
+    return per_unit_cost(batch_total_cost, batch_qty)
