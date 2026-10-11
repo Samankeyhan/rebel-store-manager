@@ -14,6 +14,7 @@ Products have no minimum."""
 import math
 import sqlite3
 
+from db.audit import audited
 from db.categories import validate_assignable
 from db.connection import transaction
 from db.errors import NotFoundError, ValidationError
@@ -73,6 +74,7 @@ def _validate_min_stock(min_stock, material_type: str) -> None:
         )
 
 
+@audited()
 def add_material(
     conn: sqlite3.Connection,
     name: str,
@@ -127,6 +129,7 @@ def get_material(conn: sqlite3.Connection, material_id: int) -> dict | None:
     return dict(row) if row is not None else None
 
 
+@audited()
 def update_material(conn: sqlite3.Connection, material_id: int, **fields) -> None:
     """Partial update; only `min_stock` (None clears it). The updated_at trigger stamps the row."""
     for field_name in fields:
@@ -185,16 +188,19 @@ def get_low_stock_materials(
     return [dict(row) for row in rows]
 
 
+@audited()
 def deactivate_material(conn: sqlite3.Connection, material_id: int) -> None:
     with transaction(conn):
         conn.execute("UPDATE materials SET is_active = 0 WHERE id = ?", (material_id,))
 
 
+@audited()
 def reactivate_material(conn: sqlite3.Connection, material_id: int) -> None:
     with transaction(conn):
         conn.execute("UPDATE materials SET is_active = 1 WHERE id = ?", (material_id,))
 
 
+@audited()
 def set_material_category(
     conn: sqlite3.Connection, material_id: int, category_id: int
 ) -> None:

@@ -7,6 +7,7 @@ import sqlite3
 from datetime import date, timedelta
 
 from db import jalali
+from db.audit import audited
 from db.connection import transaction
 from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.timeutil import now_utc
@@ -128,6 +129,7 @@ def count_pending_orders(conn: sqlite3.Connection, payment_method_id: int) -> in
     return row[0]
 
 
+@audited()
 def add_payment_method(
     conn: sqlite3.Connection,
     name: str,
@@ -180,6 +182,7 @@ def get_payment_method(conn: sqlite3.Connection, payment_method_id: int) -> dict
     return dict(row)
 
 
+@audited()
 def update_payment_method(conn: sqlite3.Connection, payment_method_id: int, **fields) -> None:
     """Partial update. Fee changes are always allowed (the fee is frozen per
     order); a rule change is refused while paid orders are pending settlement,
@@ -239,12 +242,14 @@ def _set_active(conn: sqlite3.Connection, payment_method_id: int, is_active: int
         )
 
 
+@audited()
 def deactivate_payment_method(conn: sqlite3.Connection, payment_method_id: int) -> None:
     """An inactive method can't be chosen for a new order or as a channel
     default; its existing orders still settle normally."""
     _set_active(conn, payment_method_id, 0)
 
 
+@audited()
 def reactivate_payment_method(conn: sqlite3.Connection, payment_method_id: int) -> None:
     _set_active(conn, payment_method_id, 1)
 

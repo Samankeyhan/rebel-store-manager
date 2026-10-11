@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from db.audit import audited
 from db.connection import next_counter, transaction
 from db.costing import blend_unit_cost, per_unit_cost
 from db.errors import ErrorCode, NotFoundError, ValidationError
@@ -33,6 +34,7 @@ def _compute_unit_cost(total_paid: int, quantity_bought: float) -> int:
     return per_unit_cost(total_paid, quantity_bought)
 
 
+@audited()
 def record_material_purchase(
     conn: sqlite3.Connection,
     material_id: int,
@@ -145,6 +147,7 @@ def record_material_purchase(
     return purchase_id
 
 
+@audited()
 def record_product_purchase(
     conn: sqlite3.Connection,
     product_id: int,

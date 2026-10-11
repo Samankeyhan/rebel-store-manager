@@ -5,6 +5,7 @@ import sqlite3
 from datetime import date
 
 from db import jalali
+from db.audit import audited
 from db.connection import transaction
 from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.payment_methods import PAID_STATUSES, compute_expected_settlement_date, get_payment_method
@@ -361,6 +362,7 @@ def _orders_for_month(
     return [_with_expected(row) for row in rows]
 
 
+@audited()
 def record_settlement(
     conn: sqlite3.Connection,
     payment_method_id: int,
@@ -531,6 +533,7 @@ def list_settlements(
 
 # ---------------------------------------------------------------- update
 
+@audited()
 def update_settlement(conn: sqlite3.Connection, settlement_id: int, **fields) -> None:
     """Correct amount_received, settled_date or note. Which orders a settlement
     holds, and its expected_amount, never change."""

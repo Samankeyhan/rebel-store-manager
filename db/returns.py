@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from db.audit import audited
 from db.connection import transaction
 from db.costing import blend_unit_cost, exact_quantity
 from db.errors import ConflictError, NotFoundError, ValidationError
@@ -14,6 +15,7 @@ _CANCELLED_ALLOWED_FROM = {"DRAFT", "PENDING", "PAID"}
 _REFUNDED_ALLOWED_FROM = {"PAID", "COMPLETED"}
 
 
+@audited()
 def process_return(
     conn: sqlite3.Connection,
     order_id: int,

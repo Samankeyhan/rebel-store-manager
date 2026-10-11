@@ -7,6 +7,7 @@ import sqlite3
 from datetime import date
 
 from db import jalali
+from db.audit import audited
 from db.connection import next_counter, transaction
 from db.costing import exact_quantity, recipe_batch_total, round_half_even
 from db.constants import VALID_CHANNELS, VALID_STATUSES  # re-exported for existing importers
@@ -490,6 +491,7 @@ def _commit_order(
         )
 
 
+@audited()
 def record_order(
     conn: sqlite3.Connection,
     channel: str,
@@ -835,6 +837,7 @@ def get_revenue_summary(
     }
 
 
+@audited()
 def update_order_status(
     conn: sqlite3.Connection,
     order_id: int,
@@ -891,6 +894,7 @@ def update_order_status(
             _commit_order(conn, order_id, postage_cost_override=None)
 
 
+@audited()
 def set_paid_date(conn: sqlite3.Connection, order_id: int, paid_date: str) -> None:
     """Move a paid, unsettled order's paid_date and recompute its frozen
     expected_settlement_date and Jalali month."""

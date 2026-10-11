@@ -3,6 +3,7 @@ Every product has `category_id`. `products.category` is a legacy column (NULL af
 
 import sqlite3
 
+from db.audit import audited
 from db.categories import validate_assignable
 from db.connection import transaction
 from db.errors import ErrorCode, NotFoundError, ValidationError
@@ -26,6 +27,7 @@ def _validate_price(price: int, field_name: str) -> None:
         raise ValidationError(f"{field_name} must be >= 0, got {price}", field=field_name)
 
 
+@audited()
 def add_product(
     conn: sqlite3.Connection,
     name: str,
@@ -67,6 +69,7 @@ def get_product(conn: sqlite3.Connection, product_id: int) -> dict | None:
     return dict(row) if row is not None else None
 
 
+@audited()
 def update_product_prices(
     conn: sqlite3.Connection,
     product_id: int,
@@ -100,16 +103,19 @@ def update_product_prices(
         )
 
 
+@audited()
 def deactivate_product(conn: sqlite3.Connection, product_id: int) -> None:
     with transaction(conn):
         conn.execute("UPDATE products SET is_active = 0 WHERE id = ?", (product_id,))
 
 
+@audited()
 def reactivate_product(conn: sqlite3.Connection, product_id: int) -> None:
     with transaction(conn):
         conn.execute("UPDATE products SET is_active = 1 WHERE id = ?", (product_id,))
 
 
+@audited()
 def set_made_to_order(
     conn: sqlite3.Connection, product_id: int, made_to_order: bool
 ) -> None:
@@ -138,6 +144,7 @@ def set_made_to_order(
         )
 
 
+@audited()
 def set_product_category(
     conn: sqlite3.Connection, product_id: int, category_id: int
 ) -> None:

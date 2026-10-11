@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from db.audit import audited
 from db.connection import transaction
 from db.costing import per_unit_cost, recipe_batch_total
 from db.errors import ConflictError, NotFoundError, ValidationError
@@ -29,6 +30,7 @@ def _validate_cost_basis(cost_basis: str) -> None:
         )
 
 
+@audited()
 def add_recipe_item(
     conn: sqlite3.Connection,
     product_id: int,
@@ -66,6 +68,7 @@ def add_recipe_item(
     return cursor.lastrowid
 
 
+@audited()
 def update_recipe_item(
     conn: sqlite3.Connection,
     product_id: int,
@@ -103,6 +106,7 @@ def update_recipe_item(
             )
 
 
+@audited()
 def remove_recipe_item(
     conn: sqlite3.Connection, product_id: int, material_id: int
 ) -> None:

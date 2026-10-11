@@ -6,6 +6,7 @@ May read `get_profit_and_loss` as a reference; never writes `orders`, `order_ite
 import sqlite3
 from fractions import Fraction
 
+from db.audit import audited
 from db.connection import transaction
 from db.costing import exact_quantity, round_half_even
 from db.errors import ConflictError, ErrorCode, ValidationError
@@ -194,6 +195,7 @@ def preview_profit_distribution(
     }
 
 
+@audited()
 def record_profit_distribution(
     conn: sqlite3.Connection,
     period_start: str,

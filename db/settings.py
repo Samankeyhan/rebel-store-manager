@@ -4,6 +4,7 @@
 import sqlite3
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from db.audit import audited
 from db.connection import transaction
 from db.constants import VALID_CHANNELS
 from db.currency import DISPLAY_CURRENCIES
@@ -65,6 +66,7 @@ def get_setting(conn: sqlite3.Connection, key: str, default: str | None = None) 
     return row["value"]
 
 
+@audited()
 def set_setting(conn: sqlite3.Connection, key: str, value) -> None:
     # An unknown key (e.g. a typo) would otherwise be saved silently while the
     # real setting never changes.
@@ -103,6 +105,7 @@ def get_channel_settings(conn: sqlite3.Connection, channel: str) -> dict:
     return dict(row)
 
 
+@audited()
 def update_channel_settings(
     conn: sqlite3.Connection,
     channel: str,

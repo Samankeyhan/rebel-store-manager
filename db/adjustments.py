@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from db.audit import audited
 from db.connection import transaction
 from db.costing import blend_unit_cost, exact_quantity
 from db.errors import InsufficientStockError, NotFoundError, ValidationError
@@ -53,6 +54,7 @@ def _get_and_validate_item(
         return product
 
 
+@audited()
 def record_stock_adjustment(
     conn: sqlite3.Connection,
     item_type: str,

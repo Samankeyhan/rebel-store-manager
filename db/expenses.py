@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from db.audit import audited
 from db.connection import transaction
 from db.errors import ConflictError, NotFoundError, ValidationError
 from db.timeutil import normalize_record_date, to_utc_range
@@ -18,6 +19,7 @@ def get_expense_category(conn: sqlite3.Connection, category_id: int) -> dict | N
     return dict(row) if row is not None else None
 
 
+@audited()
 def add_expense_category(conn: sqlite3.Connection, name: str) -> int:
     stripped = name.strip()
     if not stripped:
@@ -50,6 +52,7 @@ def list_expense_categories(
     return [dict(row) for row in rows]
 
 
+@audited()
 def deactivate_expense_category(conn: sqlite3.Connection, category_id: int) -> None:
     if _get_expense_category(conn, category_id) is None:
         raise NotFoundError(f"Expense category with id {category_id} does not exist")
@@ -61,6 +64,7 @@ def deactivate_expense_category(conn: sqlite3.Connection, category_id: int) -> N
         )
 
 
+@audited()
 def add_expense(
     conn: sqlite3.Connection,
     expense_category_id: int,

@@ -4,6 +4,7 @@
 import sqlite3
 from fractions import Fraction
 
+from db.audit import audited
 from db.connection import transaction
 from db.costing import round_half_even
 from db.errors import ValidationError
@@ -21,6 +22,7 @@ def _validate_order_count(order_count: int) -> None:
         raise ValidationError(f"order_count must be > 0, got {order_count}", field="order_count")
 
 
+@audited()
 def record_postage_batch(
     conn: sqlite3.Connection,
     total_paid: int,

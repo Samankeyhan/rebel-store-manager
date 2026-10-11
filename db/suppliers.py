@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from db.audit import audited
 from db.connection import transaction
 from db.errors import ErrorCode, NotFoundError, ValidationError
 
@@ -15,6 +16,7 @@ def _validate_name(name: str) -> str:
     return stripped
 
 
+@audited()
 def add_supplier(
     conn: sqlite3.Connection,
     name: str,
@@ -48,6 +50,7 @@ def get_supplier(conn: sqlite3.Connection, supplier_id: int) -> dict | None:
     return dict(row) if row is not None else None
 
 
+@audited()
 def update_supplier(conn: sqlite3.Connection, supplier_id: int, **fields) -> None:
     if get_supplier(conn, supplier_id) is None:
         raise NotFoundError(

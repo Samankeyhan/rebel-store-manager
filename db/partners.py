@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from db.audit import audited
 from db.connection import transaction
 from db.errors import NotFoundError, ValidationError
 
@@ -24,6 +25,7 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     return dict(row)
 
 
+@audited()
 def add_partner(
     conn: sqlite3.Connection,
     name: str,
@@ -46,6 +48,7 @@ def add_partner(
     return cursor.lastrowid
 
 
+@audited()
 def update_partner_percentage(
     conn: sqlite3.Connection, partner_id: int, new_percentage: float
 ) -> None:
@@ -64,6 +67,7 @@ def update_partner_percentage(
         )
 
 
+@audited()
 def deactivate_partner(conn: sqlite3.Connection, partner_id: int) -> None:
     partner = get_partner(conn, partner_id)
     if partner is None:

@@ -4,6 +4,7 @@ Deactivate is refused while any product/material uses the category or it has act
 
 import sqlite3
 
+from db.audit import audited
 from db.connection import transaction
 from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 
@@ -110,6 +111,7 @@ def list_category_tree(
     return tops
 
 
+@audited()
 def create_category(
     conn: sqlite3.Connection, kind: str, name: str, parent_id: int | None = None
 ) -> int:
@@ -148,6 +150,7 @@ def create_category(
     return cursor.lastrowid
 
 
+@audited()
 def update_category(
     conn: sqlite3.Connection,
     category_id: int,
@@ -173,6 +176,7 @@ def update_category(
             deactivate_category(conn, category_id)
 
 
+@audited()
 def deactivate_category(conn: sqlite3.Connection, category_id: int) -> None:
     """Refuses while any product/material (active or not) uses it, or it has active children."""
     category = _require(conn, category_id)
@@ -201,6 +205,7 @@ def deactivate_category(conn: sqlite3.Connection, category_id: int) -> None:
         conn.execute("UPDATE categories SET is_active = 0 WHERE id = ?", (category_id,))
 
 
+@audited()
 def reactivate_category(conn: sqlite3.Connection, category_id: int) -> None:
     """Refuses for a subcategory whose parent is inactive."""
     category = _require(conn, category_id)

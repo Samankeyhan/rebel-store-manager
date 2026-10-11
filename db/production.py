@@ -3,6 +3,7 @@ Stores `total_cost` and `created_at` (when recorded, distinct from a possibly ba
 
 import sqlite3
 
+from db.audit import audited
 from db.connection import transaction
 from db.costing import blend_unit_cost, per_unit_cost, recipe_batch_total
 from db.errors import ErrorCode, InsufficientStockError, NotFoundError, ValidationError
@@ -33,6 +34,7 @@ def _fetch_recipe_for_production(
     return list(rows)
 
 
+@audited()
 def run_production_batch(
     conn: sqlite3.Connection,
     product_id: int,

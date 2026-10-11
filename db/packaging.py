@@ -4,6 +4,7 @@ Items must be active STOCK materials, one row per material (a duplicate is a Con
 import sqlite3
 from fractions import Fraction
 
+from db.audit import audited
 from db.connection import transaction
 from db.costing import exact_quantity, round_half_even
 from db.errors import ConflictError, NotFoundError, ValidationError
@@ -37,6 +38,7 @@ def _validate_kit_material(conn: sqlite3.Connection, material_id: int) -> dict:
     return material
 
 
+@audited()
 def create_kit(conn: sqlite3.Connection, name: str) -> int:
     with transaction(conn):
         cursor = conn.execute(
@@ -92,6 +94,7 @@ def get_kit(conn: sqlite3.Connection, kit_id: int) -> dict:
     return kit
 
 
+@audited()
 def add_kit_item(
     conn: sqlite3.Connection, kit_id: int, material_id: int, quantity: float
 ) -> int:
@@ -116,6 +119,7 @@ def add_kit_item(
     return cursor.lastrowid
 
 
+@audited()
 def update_kit_item(
     conn: sqlite3.Connection, kit_id: int, material_id: int, quantity: float
 ) -> None:
@@ -136,6 +140,7 @@ def update_kit_item(
             )
 
 
+@audited()
 def remove_kit_item(
     conn: sqlite3.Connection, kit_id: int, material_id: int
 ) -> None:
@@ -153,6 +158,7 @@ def remove_kit_item(
             )
 
 
+@audited()
 def deactivate_kit(conn: sqlite3.Connection, kit_id: int) -> None:
     with transaction(conn):
         conn.execute(
@@ -160,6 +166,7 @@ def deactivate_kit(conn: sqlite3.Connection, kit_id: int) -> None:
         )
 
 
+@audited()
 def reactivate_kit(conn: sqlite3.Connection, kit_id: int) -> None:
     with transaction(conn):
         conn.execute(
