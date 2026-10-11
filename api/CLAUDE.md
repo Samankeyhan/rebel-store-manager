@@ -5,7 +5,7 @@
 - Schemas (`api/schemas/`): field names match `db/` dict keys; request models `<Thing>Create`/`<Thing>Update` with `extra="forbid"`; money fields typed `Money` (strict int Rial, so float/string/bool → 422).
 - Boolean-ish fields stay int 0/1 in responses. Intentional; don't convert to bool.
 - Writes return the resource re-fetched via the GET getter. Create 201, update/action 200. DELETE of a recipe/kit item returns 200 with the updated recipe/kit.
-- Partial updates (PATCH): `model_dump(exclude_unset=True)`; omitted = unchanged, explicit `null` = clear.
+- Partial updates (PATCH): `model_dump(exclude_unset=True)`; omitted = unchanged, explicit `null` = clear, except for fields that are NOT NULL: `PATCH /payment-methods` `fee_bps` and `fee_fixed` cannot be cleared with `null` (422, field set); only `fee_cap` can.
 - `POST /orders`:
   - `packaging_kit_id` and `payment_method_id`: `"default"`/omitted = channel default, `null` = none, int = that one (strict int).
   - `shipping_charge`, `postage_cost`, `transaction_fee`: `null`/omitted = default/computed; `0` is a real override.
