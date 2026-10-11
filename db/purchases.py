@@ -3,7 +3,7 @@
 import sqlite3
 
 from db.connection import next_counter, transaction
-from db.costing import blend_unit_cost
+from db.costing import blend_unit_cost, per_unit_cost
 from db.errors import ErrorCode, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
@@ -28,12 +28,9 @@ def _validate_supplier(conn: sqlite3.Connection, supplier_id: int | None) -> Non
 
 
 def _compute_unit_cost(total_paid: int, quantity_bought: float) -> int:
-    """Per-unit cost from total paid and quantity.
-
-    Uses Python ``round()`` to the nearest integer (half-to-even / banker's
-    rounding for .5 ties), consistent with ``round(total_paid / quantity_bought)``.
-    """
-    return round(total_paid / quantity_bought)
+    """Per-unit cost from total paid and quantity: exact, rounded half-even to the Rial
+    (a REAL quantity counts as the decimal it was entered as)."""
+    return per_unit_cost(total_paid, quantity_bought)
 
 
 def record_material_purchase(

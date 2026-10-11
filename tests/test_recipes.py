@@ -229,3 +229,29 @@ def test_add_recipe_item_nonexistent_material(test_db, sample_product_and_materi
 
     with pytest.raises(ValueError, match="Material with id 9999 does not exist"):
         add_recipe_item(test_db, product_id, 9999, 1)
+
+
+def _recipe_cost_product(test_db, *lines):
+    """lines: (quantity_needed, cost_basis, material unit_cost)."""
+    product_id = add_product(test_db, "Boundary Product", cat(test_db, "OTHER"), 3000, 2000)
+    for index, (quantity, basis, unit_cost) in enumerate(lines):
+        material_id = add_material(test_db, f"Boundary Material {index}", "STOCK", unit_cost)
+        add_recipe_item(test_db, product_id, material_id, quantity, basis)
+    return product_id
+
+
+@pytest.mark.parametrize("lines, batch_qty, expected", [
+    # 0.1 x 3 x 15 = 4.5 -> total 4 (float: 4.500000000000001 -> 5); per unit round(4 / 3) = 1
+    (((0.1, "PER_UNIT", 15),), 3, 1),
+    # 0.3 x 3 x 15 = 13.5 -> total 14 (float: 13.499999999999998 -> 13); per unit round(14 / 3) = 5
+    (((0.3, "PER_UNIT", 15),), 3, 5),
+    # PER_BATCH 0.5 x 9 = 4.5 -> total 4, not multiplied by the batch; per unit 4 / 2 = 2
+    (((0.5, "PER_BATCH", 9),), 2, 2),
+    # PER_BATCH 0.5 x 9 = 4.5 plus PER_UNIT 0.1 x 3 x 15 = 4.5, summed before rounding: 9; per unit 3
+    (((0.5, "PER_BATCH", 9), (0.1, "PER_UNIT", 15)), 3, 3),
+    # a PER_BATCH tie that lands on the odd side: 0.5 x 7 = 3.5 -> 4
+    (((0.5, "PER_BATCH", 7),), 1, 4),
+])
+def test_calculate_recipe_cost_is_exact_half_even(test_db, lines, batch_qty, expected):
+    product_id = _recipe_cost_product(test_db, *lines)
+    assert calculate_recipe_cost(test_db, product_id, batch_qty=batch_qty) == expected

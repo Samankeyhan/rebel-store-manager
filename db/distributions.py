@@ -4,8 +4,10 @@ May read `get_profit_and_loss` as a reference; never writes `orders`, `order_ite
 `preview_profit_distribution` shares `_validate_distribution_request` and `_plan_distribution` with `record_profit_distribution`, so a preview is exactly what recording would store; it never writes."""
 
 import sqlite3
+from fractions import Fraction
 
 from db.connection import transaction
+from db.costing import exact_quantity, round_half_even
 from db.errors import ConflictError, ErrorCode, ValidationError
 from db.partners import list_partners
 from db.reports import get_profit_and_loss
@@ -39,12 +41,17 @@ def _compute_share_amounts(
 ) -> list[dict]:
     rounded_amounts: list[dict] = []
     for partner in partners:
-        raw_amount = total_amount_distributed * (partner["current_percentage"] / 100)
+        # Exact: a REAL percentage counts as the decimal it was entered as.
+        raw_amount = (
+            Fraction(total_amount_distributed)
+            * exact_quantity(partner["current_percentage"])
+            / 100
+        )
         rounded_amounts.append(
             {
                 "partner_id": partner["id"],
                 "percentage_at_time": partner["current_percentage"],
-                "amount": round(raw_amount),
+                "amount": round_half_even(raw_amount),
             }
         )
 

@@ -4,7 +4,7 @@ Stores `total_cost` and `created_at` (when recorded, distinct from a possibly ba
 import sqlite3
 
 from db.connection import transaction
-from db.costing import blend_unit_cost
+from db.costing import blend_unit_cost, per_unit_cost, recipe_batch_total
 from db.errors import ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 from db.products import get_product
 from db.timeutil import normalize_record_date, now_utc
@@ -95,10 +95,14 @@ def run_production_batch(
                         available=available,
                     )
 
-        batch_total_cost = round(
-            sum(req["needed"] * req["unit_cost"] for req in requirements)
+        batch_total_cost = recipe_batch_total(
+            [
+                (row["quantity_needed"], row["cost_basis"], row["material_unit_cost"])
+                for row in recipe
+            ],
+            quantity_produced,
         )
-        unit_cost = round(batch_total_cost / quantity_produced)
+        unit_cost = per_unit_cost(batch_total_cost, quantity_produced)
 
         cursor = conn.execute(
             """

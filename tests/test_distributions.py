@@ -1,6 +1,7 @@
 import pytest
 
 from db.distributions import (
+    _compute_share_amounts,
     get_partner_payout_history,
     get_partner_totals,
     get_profit_distribution,
@@ -409,3 +410,43 @@ def test_period_end_before_period_start_raises_validation_error(
 ):
     with pytest.raises(ValidationError):
         record_profit_distribution(test_db, "2026-05-31", "2026-05-01", 100)
+
+
+def _partners(*percentages):
+    return [{"id": i + 1, "current_percentage": pct} for i, pct in enumerate(percentages)]
+
+
+@pytest.mark.parametrize("percentages, total, expected", [
+    # 1500 x 33.35% = 500.25 -> 500, 1500 x 33.3% = 499.5 -> 500 (even): [500, 500, 500]
+    # (float gave [501, 500, 499])
+    ((33.35, 33.35, 33.3), 1500, [500, 500, 500]),
+    # 333.25 -> 333, 83.25 -> 83, 83.5 -> 84 (even): sum 500 (float gave [334, 83, 83])
+    ((66.65, 16.65, 16.7), 500, [333, 83, 84]),
+    # 31.5 -> 32 (even), 58.5 -> 58 (even), 90 -> 90 (float gave [31, 58, 91])
+    ((17.5, 32.5, 50.0), 180, [32, 58, 90]),
+])
+def test_shares_are_exact_half_even(percentages, total, expected):
+    shares = _compute_share_amounts(_partners(*percentages), total)
+    assert [s["amount"] for s in shares] == expected
+    assert sum(s["amount"] for s in shares) == total
+
+
+def test_leftover_goes_to_the_highest_percentage_then_the_lowest_id():
+    # 100 x 33.34% = 33.34 -> 33 each; 3 x 33 = 99, leftover 1 -> the highest (id 3)
+    shares = _compute_share_amounts(_partners(33.33, 33.33, 33.34), 100)
+    assert [s["amount"] for s in shares] == [33, 33, 34]
+    # three equal 33.33: 33 each, leftover 1 -> the lowest id
+    shares = _compute_share_amounts(_partners(33.33, 33.33, 33.33), 100)
+    assert [s["amount"] for s in shares] == [34, 33, 33]
+
+
+def test_recorded_shares_use_the_exact_amounts(test_db):
+    ids = [add_partner(test_db, name, pct) for name, pct in
+           (("Alpha", 33.35), ("Beta", 33.35), ("Gamma", 33.3))]
+    distribution_id = record_profit_distribution(
+        test_db, "2026-01-01", "2026-01-31", 1500,
+        distribution_date="2026-02-01", allow_exceeding=True,
+    )
+    shares = {s["partner_id"]: s["amount"] for s in
+              get_profit_distribution(test_db, distribution_id)["shares"]}
+    assert [shares[i] for i in ids] == [500, 500, 500]

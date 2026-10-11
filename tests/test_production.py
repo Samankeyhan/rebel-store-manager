@@ -366,3 +366,31 @@ def test_backdated_batch_still_gets_real_created_at(test_db, production_setup):
     # created_at is when it was recorded, not the backdated production day.
     assert batch["created_at"] >= before
     assert batch["created_at"] > batch["production_date"]
+
+
+@pytest.mark.parametrize("lines, produced, total_cost, unit_cost", [
+    # 0.1 x 3 x 15 = 4.5 -> 4 (float: 5); per unit round(4 / 3) = 1
+    (((0.1, "PER_UNIT", 15),), 3, 4, 1),
+    # 0.3 x 3 x 15 = 13.5 -> 14 (float: 13); per unit round(14 / 3) = 5
+    (((0.3, "PER_UNIT", 15),), 3, 14, 5),
+    # PER_BATCH 0.5 x 9 = 4.5 -> 4, once whatever the batch size; per unit 4 / 2 = 2
+    (((0.5, "PER_BATCH", 9),), 2, 4, 2),
+    # PER_BATCH 4.5 + PER_UNIT 4.5 summed before rounding = 9; per unit 3
+    (((0.5, "PER_BATCH", 9), (0.1, "PER_UNIT", 15)), 3, 9, 3),
+])
+def test_batch_costs_are_exact_half_even(test_db, lines, produced, total_cost, unit_cost):
+    product_id = add_product(test_db, "Boundary Product", cat(test_db, "OTHER"), 3000, 2000)
+    for index, (quantity, basis, material_cost) in enumerate(lines):
+        material_id = add_material(
+            test_db, f"Boundary Material {index}", "STOCK", material_cost, initial_stock=100
+        )
+        add_recipe_item(test_db, product_id, material_id, quantity, basis)
+
+    batch_id = run_production_batch(test_db, product_id, produced)
+
+    stored = test_db.execute(
+        "SELECT total_cost, unit_cost FROM production_batches WHERE id = ?", (batch_id,)
+    ).fetchone()
+    assert (stored["total_cost"], stored["unit_cost"]) == (total_cost, unit_cost)
+    # an empty product takes the batch total over the batch size as its own cost
+    assert get_product(test_db, product_id)["unit_cost"] == unit_cost
