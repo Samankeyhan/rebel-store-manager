@@ -955,3 +955,69 @@ def test_invoice_pdf_never_shows_computed_fee(api, shop):
     ):
         assert hidden not in text
     assert "Odd fee" not in text
+
+
+def _patch_state(client, method_id):
+    return _call(client, "get", f"/payment-methods/{method_id}", 200)
+
+
+def test_patch_null_fee_error_envelope_has_generic_code_and_no_details(api, shop):
+    client, _ = api
+    error = _error(_call(
+        client, "patch", f"/payment-methods/{shop['zarinpal']}", 422, json={"fee_bps": None}
+    ))
+    assert (error["code"], error["field"], error["details"]) == ("VALIDATION_FAILED", "fee_bps", {})
+
+
+def test_patch_null_fee_alongside_valid_change_writes_nothing(api, shop):
+    client, _ = api
+    before = _patch_state(client, shop["zarinpal"])
+    _call(
+        client, "patch", f"/payment-methods/{shop['zarinpal']}", 422,
+        json={"name": "Renamed", "fee_fixed": None},
+    )
+    assert _patch_state(client, shop["zarinpal"]) == before  # name and updated_at unchanged
+
+
+def test_patch_both_fee_fields_null_is_422(api, shop):
+    client, _ = api
+    error = _error(_call(
+        client, "patch", f"/payment-methods/{shop['zarinpal']}", 422,
+        json={"fee_bps": None, "fee_fixed": None},
+    ))
+    assert error["field"] in ("fee_bps", "fee_fixed")
+
+
+def test_patch_omitted_fee_fields_stay_and_empty_body_is_a_noop(api, shop):
+    client, _ = api
+    before = _patch_state(client, shop["zarinpal"])
+    assert _call(client, "patch", f"/payment-methods/{shop['zarinpal']}", 200, json={}) == before
+    renamed = _call(
+        client, "patch", f"/payment-methods/{shop['zarinpal']}", 200, json={"name": "Zarin"}
+    )
+    assert (renamed["fee_bps"], renamed["fee_fixed"]) == (150, 500)
+
+
+def test_patch_fee_cap_null_still_clears_the_cap(api, shop):
+    client, _ = api
+    path = f"/payment-methods/{shop['zarinpal']}"
+    _call(client, "patch", path, 200, json={"fee_cap": 160_000})
+    assert _call(client, "patch", path, 200, json={"fee_cap": None})["fee_cap"] is None
+
+
+@pytest.mark.parametrize("body", [{"fee_bps": "50"}, {"fee_bps": 1.5}, {"fee_fixed": "5"}, {"fee_fixed": True}])
+def test_patch_wrong_type_fee_is_422_and_unchanged(api, shop, body):
+    client, _ = api
+    before = _patch_state(client, shop["zarinpal"])
+    _call(client, "patch", f"/payment-methods/{shop['zarinpal']}", 422, json=body)
+    assert _patch_state(client, shop["zarinpal"]) == before
+
+
+@pytest.mark.parametrize("field", ["fee_fixed", "fee_cap"])
+def test_patch_huge_integer_is_422_not_500(api, shop, field):
+    client, _ = api
+    error = _error(_call(
+        client, "patch", f"/payment-methods/{shop['zarinpal']}", 422, json={field: 2**63}
+    ))
+    assert error["field"] == field
+    assert error["code"] == "VALIDATION_FAILED"

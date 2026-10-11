@@ -120,3 +120,29 @@ def test_reactivate_active_kit_is_a_no_op(test_db):
     kit_id = packaging.create_kit(test_db, "Kit")
     packaging.reactivate_kit(test_db, kit_id)
     assert packaging.get_kit(test_db, kit_id)["is_active"] == 1
+
+
+def _kit_with(test_db, *lines):
+    kit_id = packaging.create_kit(test_db, "Boundary kit")
+    for index, (quantity, unit_cost) in enumerate(lines):
+        material_id = add_material(
+            test_db, f"Boundary material {index}", "STOCK", unit_cost=unit_cost, initial_stock=10
+        )
+        packaging.add_kit_item(test_db, kit_id, material_id, quantity)
+    return kit_id
+
+
+@pytest.mark.parametrize("lines, expected", [
+    # 0.036 x 375 = 13.5 exactly -> 14 (float: 13.499999999999998 -> 13)
+    (((0.036, 375),), 14),
+    # 0.07 x 150 = 10.5 exactly -> 10, the even neighbour (float: 10.500000000000002 -> 11)
+    (((0.07, 150),), 10),
+    # 0.1 x 1 + 0.1 x 24 = 2.5 exactly -> 2 (float: 2.5000000000000004 -> 3)
+    (((0.1, 1), (0.1, 24)), 2),
+    # rounded once, never per line: 0.5 + 0.5 = 1, not 0 + 0
+    (((0.5, 1), (0.5, 1)), 1),
+])
+def test_kit_cost_is_exact_half_even_rounded_once(test_db, lines, expected):
+    kit_id = _kit_with(test_db, *lines)
+    assert packaging.calculate_kit_cost(test_db, kit_id) == expected
+    assert packaging.get_kit(test_db, kit_id)["kit_cost"] == expected

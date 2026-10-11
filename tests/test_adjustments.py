@@ -312,3 +312,22 @@ def test_negative_unit_cost_raises(adjustment_setup, test_db):
         record_stock_adjustment(
             test_db, "MATERIAL", material_id, 1, "ADJUSTMENT", unit_cost=-5
         )
+
+
+def test_positive_adjustment_blend_uses_exact_value_in(test_db):
+    # stock 0.1 at cost 1, add 0.1 at unit_cost 50: (0.1*1 + 0.1*50) / 0.2 = 25.5 -> 26
+    # (float arithmetic gave 25.499999999999996 -> 25)
+    material_id = add_material(test_db, "Exact Blend Material", "STOCK", 1, initial_stock=0.1)
+    record_stock_adjustment(
+        test_db, "MATERIAL", material_id, 0.1, "ADJUSTMENT", unit_cost=50
+    )
+    assert get_material(test_db, material_id)["unit_cost"] == 26
+
+
+def test_positive_adjustment_blend_tie_goes_to_even(test_db):
+    # (0.1*1 + 0.1*40) / 0.2 = 20.5 -> 20
+    material_id = add_material(test_db, "Even Blend Material", "STOCK", 1, initial_stock=0.1)
+    record_stock_adjustment(
+        test_db, "MATERIAL", material_id, 0.1, "ADJUSTMENT", unit_cost=40
+    )
+    assert get_material(test_db, material_id)["unit_cost"] == 20

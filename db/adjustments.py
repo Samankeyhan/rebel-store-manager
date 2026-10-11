@@ -3,7 +3,7 @@
 import sqlite3
 
 from db.connection import transaction
-from db.costing import blend_unit_cost
+from db.costing import blend_unit_cost, exact_quantity
 from db.errors import InsufficientStockError, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
@@ -109,7 +109,8 @@ def record_stock_adjustment(
 
     if unit_cost is not None:
         new_unit_cost = blend_unit_cost(
-            current_stock, item["unit_cost"], quantity_change, unit_cost * quantity_change
+            current_stock, item["unit_cost"], quantity_change,
+            exact_quantity(quantity_change) * unit_cost,
         )
     else:
         new_unit_cost = item["unit_cost"]

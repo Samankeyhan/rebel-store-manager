@@ -2,8 +2,10 @@
 Items must be active STOCK materials, one row per material (a duplicate is a ConflictError). `calculate_kit_cost` = Σ quantity × material unit_cost, rounded half-even to the Rial."""
 
 import sqlite3
+from fractions import Fraction
 
 from db.connection import transaction
+from db.costing import exact_quantity, round_half_even
 from db.errors import ConflictError, NotFoundError, ValidationError
 from db.materials import get_material
 
@@ -76,8 +78,11 @@ def _get_kit_items(conn: sqlite3.Connection, kit_id: int) -> list[dict]:
 def calculate_kit_cost(conn: sqlite3.Connection, kit_id: int) -> int:
     _get_kit_row(conn, kit_id)
     items = _get_kit_items(conn, kit_id)
-    total = sum(item["quantity"] * item["material_unit_cost"] for item in items)
-    return round(total)
+    total = sum(
+        (exact_quantity(item["quantity"]) * item["material_unit_cost"] for item in items),
+        Fraction(0),
+    )
+    return round_half_even(total)
 
 
 def get_kit(conn: sqlite3.Connection, kit_id: int) -> dict:

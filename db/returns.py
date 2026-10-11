@@ -3,7 +3,7 @@
 import sqlite3
 
 from db.connection import transaction
-from db.costing import blend_unit_cost
+from db.costing import blend_unit_cost, exact_quantity
 from db.errors import ConflictError, NotFoundError, ValidationError
 from db.orders import _fetch_order_items
 from db.products import get_product
@@ -67,7 +67,7 @@ def process_return(
                             product["current_stock"],
                             product["unit_cost"],
                             item["quantity"],
-                            item["quantity"] * item["unit_cost_at_time"],
+                            exact_quantity(item["quantity"]) * item["unit_cost_at_time"],
                         )
                         conn.execute(
                             """

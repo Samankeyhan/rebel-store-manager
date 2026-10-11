@@ -2,8 +2,10 @@
 `get_current_postage_estimate`: total_paid ÷ order_count over the newest `postage_estimate_window` batches, rounded half-even; `default_postage_estimate` when there are none."""
 
 import sqlite3
+from fractions import Fraction
 
 from db.connection import transaction
+from db.costing import round_half_even
 from db.errors import ValidationError
 from db.settings import get_setting
 from db.timeutil import normalize_record_date, to_utc_range
@@ -98,4 +100,4 @@ def get_current_postage_estimate(conn: sqlite3.Connection) -> int:
 
     total_paid = sum(row["total_paid"] for row in rows)
     order_count = sum(row["order_count"] for row in rows)
-    return round(total_paid / order_count)
+    return round_half_even(Fraction(total_paid, order_count))

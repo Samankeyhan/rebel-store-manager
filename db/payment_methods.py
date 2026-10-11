@@ -19,10 +19,10 @@ PAID_STATUSES = ("PAID", "COMPLETED")
 
 UPDATABLE_FIELDS = ("name", "fee_bps", "fee_fixed", "fee_cap", "settlement_rule", "settlement_days")
 
-# Fee fields an update may not set to None (fee_cap may: None = no cap).
-_NOT_NULL_FIELDS = ("fee_bps", "fee_fixed")
-
 _BPS_DENOMINATOR = 10000
+# The largest value SQLite stores in an INTEGER column; a technical guard (anything
+# larger would be an OverflowError, a 500), not a business limit.
+_MAX_STORABLE = 2**63 - 1
 _DAYS_RANGE = {"DAYS_AFTER": (1, 365), "DAY_OF_NEXT_MONTH": (1, 31)}
 
 
@@ -33,7 +33,17 @@ def _validate_name(name: str) -> str:
     return stripped
 
 
+def _require_int(value, field: str) -> None:
+    """fee_bps / fee_fixed always have a value: an integer, never None, bool or float."""
+    if value is None:
+        raise ValidationError(f"{field} cannot be empty", field=field)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValidationError(f"{field} must be an integer, got {value!r}", field=field)
+
+
 def _validate_fee(fee_bps: int, fee_fixed: int) -> None:
+    _require_int(fee_bps, "fee_bps")
+    _require_int(fee_fixed, "fee_fixed")
     if not 0 <= fee_bps <= _BPS_DENOMINATOR:
         raise ValidationError(
             f"fee_bps must be between 0 and {_BPS_DENOMINATOR}, got {fee_bps}",
@@ -41,6 +51,10 @@ def _validate_fee(fee_bps: int, fee_fixed: int) -> None:
         )
     if fee_fixed < 0:
         raise ValidationError(f"fee_fixed must be >= 0, got {fee_fixed}", field="fee_fixed")
+    if fee_fixed > _MAX_STORABLE:
+        raise ValidationError(
+            f"fee_fixed must be <= {_MAX_STORABLE}, got {fee_fixed}", field="fee_fixed"
+        )
 
 
 def _validate_fee_cap(fee_cap: int | None, fee_bps: int) -> None:
@@ -56,6 +70,10 @@ def _validate_fee_cap(fee_cap: int | None, fee_bps: int) -> None:
         raise ValidationError(
             f"fee_cap must be >= 1 Rial; leave it empty for no cap, got {fee_cap}",
             field="fee_cap",
+        )
+    if fee_cap > _MAX_STORABLE:
+        raise ValidationError(
+            f"fee_cap must be <= {_MAX_STORABLE}, got {fee_cap}", field="fee_cap"
         )
     if fee_bps == 0:
         raise ValidationError(
@@ -176,10 +194,6 @@ def update_payment_method(conn: sqlite3.Connection, payment_method_id: int, **fi
             raise ValidationError(f"Unknown field '{field_name}'", field=field_name)
     if not fields:
         return
-    for field_name in _NOT_NULL_FIELDS:
-        if field_name in fields and fields[field_name] is None:
-            raise ValidationError(f"{field_name} cannot be empty", field=field_name)
-
     if "name" in fields:
         fields["name"] = _validate_name(fields["name"])
 

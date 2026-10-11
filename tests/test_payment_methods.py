@@ -573,3 +573,51 @@ def test_preview_fee_rejects_bad_amount(test_db, amount):
     with pytest.raises(ValidationError) as exc_info:
         preview_fee(test_db, method_id, amount)
     assert exc_info.value.field == "amount"
+
+
+# ------------------------------------------- fee_bps / fee_fixed types and size
+
+
+@pytest.mark.parametrize("field, value", [
+    ("fee_bps", 1.5), ("fee_bps", True), ("fee_bps", "50"), ("fee_bps", None),
+    ("fee_fixed", 2.5), ("fee_fixed", True), ("fee_fixed", "5"), ("fee_fixed", None),
+])
+def test_fee_fields_must_be_integers_in_add_and_update(test_db, field, value):
+    with pytest.raises(ValidationError) as add_info:
+        add_payment_method(test_db, "Bad fee", "IMMEDIATE", **{field: value})
+    assert add_info.value.field == field
+
+    method_id = add_payment_method(test_db, "Good fee", "IMMEDIATE", fee_bps=150, fee_fixed=500)
+    before = get_payment_method(test_db, method_id)
+    with pytest.raises(ValidationError) as update_info:
+        update_payment_method(test_db, method_id, **{field: value})
+    assert update_info.value.field == field
+    assert get_payment_method(test_db, method_id) == before  # nothing written
+
+
+def test_null_fee_field_message_says_empty(test_db):
+    method_id = add_payment_method(test_db, "Null fee", "IMMEDIATE", fee_bps=150)
+    with pytest.raises(ValidationError, match="fee_bps cannot be empty"):
+        update_payment_method(test_db, method_id, fee_bps=None)
+
+
+@pytest.mark.parametrize("field", ["fee_fixed", "fee_cap"])
+def test_fee_amount_above_sqlite_integer_is_a_validation_error(test_db, field):
+    too_big = 2**63
+    extra = {"fee_bps": 50} if field == "fee_cap" else {}
+    with pytest.raises(ValidationError) as add_info:
+        add_payment_method(test_db, "Huge", "IMMEDIATE", **extra, **{field: too_big})
+    assert add_info.value.field == field
+
+    method_id = add_payment_method(test_db, "Huge update", "IMMEDIATE", fee_bps=50)
+    with pytest.raises(ValidationError) as update_info:
+        update_payment_method(test_db, method_id, **{field: too_big})
+    assert update_info.value.field == field
+
+
+@pytest.mark.parametrize("field", ["fee_fixed", "fee_cap"])
+def test_fee_amount_at_sqlite_integer_maximum_is_stored(test_db, field):
+    biggest = 2**63 - 1
+    extra = {"fee_bps": 50} if field == "fee_cap" else {}
+    method_id = add_payment_method(test_db, "Max", "IMMEDIATE", **extra, **{field: biggest})
+    assert get_payment_method(test_db, method_id)[field] == biggest

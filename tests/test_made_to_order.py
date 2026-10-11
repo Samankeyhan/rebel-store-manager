@@ -296,3 +296,25 @@ def test_normal_product_insufficient_stock_untouched_by_made_to_order_logic(test
         )
 
     assert _count_rows(test_db, "stock_movements") == movements_before
+
+
+def test_refund_blend_receives_an_exact_value_in(test_db, cd_album_setup, monkeypatch):
+    from fractions import Fraction
+
+    import db.returns
+
+    seen = []
+    real = db.returns.blend_unit_cost
+
+    def spy(stock_before, cost_before, qty_in, value_in):
+        seen.append(value_in)
+        return real(stock_before, cost_before, qty_in, value_in)
+
+    monkeypatch.setattr(db.returns, "blend_unit_cost", spy)
+    order_id = record_order(
+        test_db,
+        "IN_PERSON",
+        [{"product_id": cd_album_setup["product_id"], "quantity": 2, "unit_price": 570_000}],
+    )
+    process_return(test_db, order_id, "REFUNDED")
+    assert seen == [Fraction(2 * CD_ALBUM_UNIT_COST)]
