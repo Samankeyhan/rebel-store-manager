@@ -1174,3 +1174,29 @@ def test_pnl_waste_cost_values(fractional_waste, test_db):
     # 100,859) would differ; the sum of the per-item rounded costs is the rule.
     assert get_profit_and_loss(test_db)["waste_cost"] == 100_858
     assert get_profit_and_loss(test_db, "2026-03-01", "2026-03-10")["waste_cost"] == 857
+
+
+@pytest.mark.parametrize("charges, expected", [
+    ((1, 4), 2),      # 5 / 2 = 2.5 -> 2, the even neighbour
+    ((3, 4), 4),      # 7 / 2 = 3.5 -> 4
+    ((1, 2, 4), 2),   # 7 / 3 = 2.33 -> 2
+])
+def test_shipping_averages_round_half_even(test_db, charges, expected):
+    product_id = add_product(test_db, "Avg Item", cat(test_db, "OTHER"), 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 50, unit_cost = 100 WHERE id = ?", (product_id,)
+    )
+    test_db.commit()
+    for charge in charges:
+        record_order(
+            test_db, "WEBSITE",
+            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            shipping_charge=charge, postage_cost=0, transaction_fee=0, packaging_kit_id=None,
+            status="COMPLETED",
+        )
+
+    shipping = get_shipping_summary(test_db)
+    assert shipping["avg_shipping_revenue"] == expected
+    assert shipping["avg_net_shipping_result"] == expected
+    (website,) = get_shipping_by_channel(test_db)
+    assert website["net_per_order"] == expected

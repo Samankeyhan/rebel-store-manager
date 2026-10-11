@@ -7,7 +7,7 @@ Never query `partners`, `profit_distributions` or `distribution_shares`: distrib
 import sqlite3
 from fractions import Fraction
 
-from db.costing import exact_quantity
+from db.costing import exact_quantity, round_half_even
 from db.expenses import get_total_expenses, list_expenses
 from db.orders import (
     REVENUE_ELIGIBLE_STATUSES,
@@ -584,7 +584,7 @@ def get_shipping_summary(
     postage_gap = postage_estimated - postage_actual
 
     def _avg(total: int) -> int:
-        return round(total / shipped_order_count) if shipped_order_count else 0
+        return round_half_even(Fraction(total, shipped_order_count)) if shipped_order_count else 0
 
     return {
         "shipping_revenue": shipping_revenue,
@@ -647,7 +647,7 @@ def get_shipping_by_channel(
                 "packaging_cost": row["packaging_cost"],
                 "postage_estimated": row["postage_estimated"],
                 "net": net,
-                "net_per_order": round(net / shipped) if shipped else 0,
+                "net_per_order": round_half_even(Fraction(net, shipped)) if shipped else 0,
             }
         )
 
