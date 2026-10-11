@@ -912,3 +912,10 @@ def test_material_category_on_create_and_move(api):
 
     catalog = client.get("/catalog").json()
     assert {m["category_name"] for m in catalog["materials"]} == {"چاپ"}
+
+
+def test_fractional_order_quantity_is_422_and_nothing_is_written(api, shop):
+    client, _ = api
+    _order(client, "IN_PERSON", shop["product_id"], quantity=1.5, expected=422)
+    assert client.get("/orders").json() == []
+    assert client.get(f"/products/{shop['product_id']}").json()["current_stock"] == 10

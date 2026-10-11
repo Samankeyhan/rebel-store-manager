@@ -1,4 +1,4 @@
-"""Sales orders and line items: record, decrement product stock, order total/profit, revenue summary; valid channels and statuses.
+"""Sales orders and line items (a line quantity is a whole number): record, decrement product stock, order total/profit, revenue summary; valid channels and statuses.
 Payment side: method (explicit, none, or channel default via `USE_CHANNEL_DEFAULT`); `transaction_fee=None` means computed from the method, any int overrides.
 `shipping_charge`/`postage_cost` None = channel default, 0 = real zero.
 `paid_date` freezes `expected_settlement_date` and `paid_jalali_year/month`; `set_paid_date`; closed-month guard; filters `payment_method_id`, `settlement_state`."""
@@ -8,6 +8,7 @@ from datetime import date
 
 from db import jalali
 from db.connection import next_counter, transaction
+from db.costing import exact_quantity, recipe_batch_total, round_half_even
 from db.constants import VALID_CHANNELS, VALID_STATUSES  # re-exported for existing importers
 from db.errors import ConflictError, ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 from db.materials import get_material
@@ -316,8 +317,12 @@ def _commit_order(
                 make_cost = 0
                 if to_make > 0:
                     requirements = _recipe_requirements(recipe_rows, to_make)
-                    make_cost = round(
-                        sum(req["needed"] * req["unit_cost"] for req in requirements)
+                    make_cost = recipe_batch_total(
+                        [
+                            (row["quantity_needed"], row["cost_basis"], row["material_unit_cost"])
+                            for row in recipe_rows
+                        ],
+                        to_make,
                     )
                     for req in requirements:
                         if req["material_type"] == "STOCK":
@@ -326,8 +331,9 @@ def _commit_order(
                                 + req["needed"]
                             )
 
-                unit_cost_at_time = round(
-                    (from_stock * (product["unit_cost"] or 0) + make_cost) / needed
+                unit_cost_at_time = round_half_even(
+                    (exact_quantity(from_stock) * (product["unit_cost"] or 0) + make_cost)
+                    / exact_quantity(needed)
                 )
 
                 made_to_order_plan[product_id] = {
@@ -566,6 +572,12 @@ def record_order(
             if not product["is_active"]:
                 raise ValidationError(
                     f"Item {index}: product '{product['name']}' is not active"
+                )
+            if isinstance(quantity, bool) or not isinstance(quantity, int):
+                raise ValidationError(
+                    f"Item {index} ('{product['name']}'): quantity must be a whole number, "
+                    f"got {quantity!r}",
+                    field="quantity",
                 )
             if quantity <= 0:
                 raise ValidationError(

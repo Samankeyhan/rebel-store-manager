@@ -15,6 +15,7 @@ from db.orders import (
 )
 from db.products import add_product, get_product
 from db.purchases import record_material_purchase, record_product_purchase
+from db.reports import get_product_performance, get_profit_and_loss
 from db.settings import get_setting, set_setting, update_channel_settings
 from tests.helpers import cat
 
@@ -792,3 +793,34 @@ def test_changing_default_shipping_charge_does_not_affect_existing_order(
     set_setting(test_db, "default_shipping_charge", 999_999)
 
     assert get_order(test_db, order_id)["order"]["shipping_charge"] == 1_800_000
+
+
+@pytest.mark.parametrize("quantity", [1.5, 2.0, True, "2"])
+def test_record_order_requires_a_whole_number_quantity(test_db, quantity):
+    product_id = add_product(test_db, "Whole Product", cat(test_db, "OTHER"), 3000, 2000)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 500 WHERE id = ?", (product_id,)
+    )
+    test_db.commit()
+    with pytest.raises(ValidationError) as exc_info:
+        record_order(
+            test_db, "IN_PERSON",
+            [{"product_id": product_id, "quantity": quantity, "unit_price": 3000}],
+        )
+    assert exc_info.value.field == "quantity"
+    assert test_db.execute("SELECT COUNT(*) FROM order_items").fetchone()[0] == 0
+
+
+def test_cogs_and_product_cost_are_integers(test_db):
+    product_id = add_product(test_db, "Integer Cogs", cat(test_db, "OTHER"), 3000, 2000)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 500 WHERE id = ?", (product_id,)
+    )
+    test_db.commit()
+    record_order(
+        test_db, "IN_PERSON",
+        [{"product_id": product_id, "quantity": 3, "unit_price": 3000}],
+    )
+    assert get_profit_and_loss(test_db)["cogs"] == 1500
+    assert isinstance(get_profit_and_loss(test_db)["cogs"], int)
+    assert [type(row["total_cost"]) for row in get_product_performance(test_db)] == [int]

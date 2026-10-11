@@ -318,3 +318,67 @@ def test_refund_blend_receives_an_exact_value_in(test_db, cd_album_setup, monkey
     )
     process_return(test_db, order_id, "REFUNDED")
     assert seen == [Fraction(2 * CD_ALBUM_UNIT_COST)]
+
+
+def _boundary_product(test_db, *lines, stock=0, unit_cost=None):
+    """A made-to-order product; lines are (quantity_needed, cost_basis, material unit_cost)."""
+    product_id = add_product(
+        test_db, "Boundary Album", cat(test_db, "ALBUM"), 570_000, 285_000, made_to_order=True
+    )
+    for index, (quantity, basis, material_cost) in enumerate(lines):
+        material_id = add_material(
+            test_db, f"Boundary Material {index}", "STOCK", material_cost, initial_stock=100
+        )
+        add_recipe_item(test_db, product_id, material_id, quantity, basis)
+    if stock:
+        test_db.execute(
+            "UPDATE products SET current_stock = ?, unit_cost = ? WHERE id = ?",
+            (stock, unit_cost, product_id),
+        )
+        test_db.commit()
+    return product_id
+
+
+def _line_cost_at_time(conn, order_id):
+    return conn.execute(
+        "SELECT unit_cost_at_time FROM order_items WHERE order_id = ?", (order_id,)
+    ).fetchone()[0]
+
+
+@pytest.mark.parametrize("lines, quantity, unit_cost_at_time", [
+    # make_cost 0.1 x 3 x 15 = 4.5 -> 4 (float: 5); per unit round(4 / 3) = 1
+    (((0.1, "PER_UNIT", 15),), 3, 1),
+    # make_cost 0.3 x 3 x 15 = 13.5 -> 14 (float: 13); per unit round(14 / 3) = 5
+    (((0.3, "PER_UNIT", 15),), 3, 5),
+    # PER_BATCH 0.5 x 9 = 4.5 -> 4, once for the 2 units made; per unit 2
+    (((0.5, "PER_BATCH", 9),), 2, 2),
+    # PER_BATCH 4.5 + PER_UNIT 4.5 summed before rounding = 9; per unit 3
+    (((0.5, "PER_BATCH", 9), (0.1, "PER_UNIT", 15)), 3, 3),
+])
+def test_made_to_order_make_cost_is_exact_half_even(test_db, lines, quantity, unit_cost_at_time):
+    product_id = _boundary_product(test_db, *lines)
+    order_id = record_order(
+        test_db, "IN_PERSON",
+        [{"product_id": product_id, "quantity": quantity, "unit_price": 570_000}],
+    )
+    assert _line_cost_at_time(test_db, order_id) == unit_cost_at_time
+
+
+def test_made_to_order_blend_of_stock_and_made_units_ties_to_even(test_db):
+    # 1 unit from stock at 5, 1 made: PER_UNIT 0.3 x 15 = 4.5 -> 4; (5 + 4) / 2 = 4.5 -> 4
+    product_id = _boundary_product(test_db, (0.3, "PER_UNIT", 15), stock=1, unit_cost=5)
+    order_id = record_order(
+        test_db, "IN_PERSON",
+        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}],
+    )
+    assert _line_cost_at_time(test_db, order_id) == 4
+
+
+def test_made_to_order_blend_with_per_batch_line_and_stock(test_db):
+    # 1 from stock at 6, 1 made: PER_BATCH 0.5 x 7 = 3.5 -> 4; (6 + 4) / 2 = 5
+    product_id = _boundary_product(test_db, (0.5, "PER_BATCH", 7), stock=1, unit_cost=6)
+    order_id = record_order(
+        test_db, "IN_PERSON",
+        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}],
+    )
+    assert _line_cost_at_time(test_db, order_id) == 5
