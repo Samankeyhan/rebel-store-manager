@@ -288,7 +288,7 @@ export function ItemsCard({
             <div className="flex min-w-0 flex-col">
               <span className="font-bold">{i.product_name}</span>
               <span className="text-xs text-text-3 tabular-nums">
-                {D.mobileQty(i.quantity, i.unit_price)}
+                {D.mobileQty(i.quantity, i.list_unit_price)}
                 {i.discount_amount > 0 && ` · ${D.mobileDiscount(i.discount_amount, i.discount_reason)}`}
               </span>
             </div>
@@ -343,7 +343,7 @@ export function ItemsCard({
                   </td>
                   <td className="tabular-nums">{formatNumber(i.quantity)}</td>
                   <td>
-                    <Money value={i.unit_price} />
+                    <Money value={i.list_unit_price} />
                   </td>
                   <td className={cn(!i.discount_amount && "text-text-3")}>
                     {i.discount_amount ? <Money value={-i.discount_amount} /> : "—"}
