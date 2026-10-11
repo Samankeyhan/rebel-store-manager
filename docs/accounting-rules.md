@@ -67,6 +67,7 @@ channel_settings:
 
 ## 7. Orders
 Per line: list_price = quantity × unit_price; items_net = list_price − discount_amount.
+The stored order_items.unit_price is a legacy display value, floor((list_price − discount_amount) / quantity); it is not the unit_price in the line above, and no figure reads it. The list unit price (list_price ÷ quantity, always exact) is what screens and the invoice show (`list_unit_price` in the API).
 Per order:
 - shipping_charge: REVENUE. Default = default_shipping_charge if the channel applies_shipping_charge, else 0. Overridable (>= 0). Set at creation.
 - packaging_cost, postage_cost: COSTS, frozen at commit (sections 5, 6).
@@ -146,7 +147,7 @@ Order invoices INV-000001..., purchase invoices PUR-000001... (one sequence shar
 - Shares: amount = round(total × percentage / 100) per active partner; the rounding leftover goes to the partner with the highest percentage (ties: lowest id), so shares sum exactly to the total. Percentages are snapshotted per share.
 
 ## 12. Customer invoices
-- A customer invoice shows only what the customer is charged: item lines (quantity, unit price, per-line discount), the shipping charge, and the total the customer pays = sum(items_net) + shipping_charge (= section 7 revenue).
+- A customer invoice shows only what the customer is charged: item lines (quantity, unit price, per-line discount; the unit price is the list unit price, never a discounted one, and the line total is list_price − discount_amount), the shipping charge, and the total the customer pays = sum(items_net) + shipping_charge (= section 7 revenue).
 - It never shows postage_cost, packaging_cost, transaction_fee, unit_cost, COGS, or profit — in any form.
 
 ## 13. Made-to-order products
