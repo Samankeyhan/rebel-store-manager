@@ -330,3 +330,28 @@ def test_list_product_purchases_filters(purchase_setup, test_db):
 def test_get_purchase_returns_none_for_missing(purchase_setup, test_db):
     assert get_material_purchase(test_db, 99999) is None
     assert get_product_purchase(test_db, 99999) is None
+
+
+@pytest.mark.parametrize("total_paid, quantity, expected", [
+    (9, 0.144, 62),     # 62.5 -> 62, the even neighbour (float: 62.50000000000001 -> 63)
+    (117, 0.144, 812),  # 812.5 -> 812 (float: 813)
+    (5, 2, 2),          # 2.5 -> 2
+    (7, 2, 4),          # 3.5 -> 4
+])
+def test_compute_unit_cost_is_exact_half_even(total_paid, quantity, expected):
+    assert _compute_unit_cost(total_paid, quantity) == expected
+
+
+def test_material_purchase_row_and_material_cost_use_exact_unit_cost(test_db):
+    material_id = add_material(test_db, "Tie Material", "STOCK", unit_cost=0)
+    purchase_id = record_material_purchase(
+        test_db, material_id, quantity_bought=0.144, total_paid=9
+    )
+    assert get_material_purchase(test_db, purchase_id)["unit_cost"] == 62
+    assert get_material(test_db, material_id)["unit_cost"] == 62
+
+
+def test_product_purchase_row_unit_cost_tie_goes_to_even(test_db):
+    product_id = add_product(test_db, "Tie Product", cat(test_db, "OTHER"), 3000, 2000)
+    purchase_id = record_product_purchase(test_db, product_id, quantity_bought=2, total_paid=5)
+    assert get_product_purchase(test_db, purchase_id)["unit_cost"] == 2
