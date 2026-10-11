@@ -216,7 +216,7 @@ def test_invoice_amounts_follow_display_currency(
     text = _invoice_text(test_db, order_id, invoice_order_setup["output_dir"])
 
     for rial in (
-        item["unit_price"],
+        item["list_unit_price"],
         item["list_price"] - item["discount_amount"],
         item["discount_amount"],
         order["shipping_charge"],
@@ -333,3 +333,37 @@ def test_widest_amount_fits_the_amount_columns(currency, expected):
     unit_price_left = invoice_module.COL_UNIT_PRICE - width
     gap = unit_price_left - invoice_module.COL_LINE_TOTAL
     assert gap >= MIN_GAP_UNIT_PRICE_TO_LINE_TOTAL, (currency, width, gap)
+
+
+@pytest.mark.parametrize("quantity, discount, old_derived, net", [
+    (2, 1, 12_339, 24_679),   # 2 x 12,340 - 1: the old column printed 12,339 (x 2 != 24,679)
+    (3, 2, 12_339, 37_018),   # 3 x 12,340 - 2: 37,018 // 3 = 12,339
+    (2, 0, None, 24_680),     # no discount: nothing to derive
+    (1, 3, None, 12_337),     # quantity 1: the old column printed the net, 12,337
+])
+def test_invoice_unit_price_column_is_the_list_price(test_db, tmp_path, quantity, discount, old_derived, net):
+    from db.settings import set_setting
+
+    set_setting(test_db, "display_currency", "RIAL")
+    product_id = add_product(test_db, "Fictional LP", cat(test_db, "VINYL"), 12_340, 10_000)
+    test_db.execute("UPDATE products SET current_stock = 10, unit_cost = 500 WHERE id = ?", (product_id,))
+    test_db.commit()
+    order_id = record_order(
+        test_db, "IN_PERSON",
+        [{"product_id": product_id, "quantity": quantity, "unit_price": 12_340,
+          "discount_amount": discount, "discount_reason": "promo" if discount else None}],
+        customer_name="Test Customer", shipping_charge=0, postage_cost=88_888,
+        transaction_fee=77_777, packaging_kit_id=None,
+    )
+    assert get_order(test_db, order_id)["customer_total"] == net
+
+    text = _invoice_text(test_db, order_id, str(tmp_path / "invoices"))
+
+    assert _shown(12_340, "RIAL") in text                      # the list unit price
+    assert _shown(net, "RIAL") in text                         # the line total, unchanged
+    if old_derived is not None and old_derived != net:
+        assert _shown(old_derived, "RIAL") not in text         # never a derived price
+    discount_label = invoice_module.prepare_persian("تخفیف")
+    assert (discount_label in text) == bool(discount)          # the discount line, only if any
+    for hidden in (88_888, 77_777):
+        assert _shown(hidden, "RIAL") not in text

@@ -606,7 +606,10 @@ def record_order(
                     field="discount_amount",
                 )
 
-            effective_unit_price = (list_price - discount_amount) // quantity
+            # Legacy display value stored in order_items.unit_price: the floor of the
+            # discounted price per unit. Nothing reads it for money; screens and the
+            # invoice show the list unit price (`list_unit_price`, derived in get_order).
+            legacy_discounted_unit_price = (list_price - discount_amount) // quantity
             placeholder_unit_cost = (
                 product["unit_cost"] if product["unit_cost"] is not None else 0
             )
@@ -618,7 +621,7 @@ def record_order(
                     "list_price": list_price,
                     "discount_amount": discount_amount,
                     "discount_reason": discount_reason,
-                    "unit_price": effective_unit_price,
+                    "unit_price": legacy_discounted_unit_price,
                     "unit_cost_at_time": placeholder_unit_cost,
                 }
             )
@@ -684,7 +687,16 @@ def record_order(
     return order_id
 
 
+def list_unit_price(item) -> int:
+    """The list price of one unit: list_price ÷ quantity. Exact, because
+    list_price = quantity × unit_price when the line is recorded (section 7)."""
+    return item["list_price"] // item["quantity"]
+
+
 def get_order(conn: sqlite3.Connection, order_id: int) -> dict:
+    """The order, its items and totals. Each item carries `list_unit_price`
+    (what customers see); its `unit_price` is the legacy floored discounted
+    value and must not be shown."""
     order = conn.execute(
         """
         SELECT orders.*, payment_methods.name AS payment_method_name
@@ -700,7 +712,7 @@ def get_order(conn: sqlite3.Connection, order_id: int) -> dict:
     items = _fetch_order_items(conn, order_id)
     return {
         "order": dict(order),
-        "items": [dict(item) for item in items],
+        "items": [{**item, "list_unit_price": list_unit_price(item)} for item in map(dict, items)],
         "customer_total": compute_order_revenue(order, items),
         "profit": compute_order_profit(order, items),
     }

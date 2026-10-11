@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from api.schemas.common import DateStr, Money, Rial
 
@@ -73,7 +73,15 @@ class OrderItemOut(BaseModel):
     list_price: Rial
     discount_amount: Rial
     discount_reason: str | None
-    unit_price: Rial
+    list_unit_price: Rial = Field(
+        description="List price of one unit (list_price ÷ quantity, exact): what screens "
+        "and the invoice show. Integer Rial."
+    )
+    unit_price: Rial = Field(
+        description="Legacy: floor((list_price - discount_amount) / quantity), integer "
+        "Rial. Not the list price (the unit_price sent when recording is); do not show it, "
+        "use list_unit_price."
+    )
     unit_cost_at_time: Rial
     product_name: str
 

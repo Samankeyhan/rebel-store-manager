@@ -251,7 +251,8 @@ def _draw_line_item(c: canvas.Canvas, item, y: float, currency: str) -> float:
     qty_text = prepare_persian(str(item["quantity"]))
     c.drawRightString(COL_QUANTITY, y, qty_text)
 
-    _draw_amount_right(c, COL_UNIT_PRICE, y, item["unit_price"], currency, size=10)
+    # The list unit price, never a discounted one: the discount has its own line.
+    _draw_amount_right(c, COL_UNIT_PRICE, y, item["list_unit_price"], currency, size=10)
     _draw_amount_right(c, COL_LINE_TOTAL, y, _line_total(item), currency, size=10)
 
     y -= TABLE_ROW_HEIGHT

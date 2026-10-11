@@ -2256,8 +2256,13 @@ export interface components {
             /** Discount Reason */
             discount_reason: string | null;
             /**
+             * List Unit Price
+             * @description List price of one unit (list_price ÷ quantity, exact): what screens and the invoice show. Integer Rial.
+             */
+            list_unit_price: number;
+            /**
              * Unit Price
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             * @description Legacy: floor((list_price - discount_amount) / quantity), integer Rial. Not the list price (the unit_price sent when recording is); do not show it, use list_unit_price.
              */
             unit_price: number;
             /**
