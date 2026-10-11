@@ -1,5 +1,5 @@
 """Exact money arithmetic for costs. `blend_unit_cost`: weighted-average unit cost when stock comes in (accounting rules section 2), exact and rounded half-even once at the end; with no prior stock or cost, the incoming value ÷ quantity.
-`exact_quantity` reads a stored REAL quantity as the decimal it was entered as; `round_half_even` rounds an exact value to the Rial. Money never goes through float."""
+`recipe_batch_total` (sections 3 and 13: Σ needed × unit cost, rounded once) and `per_unit_cost` (a total ÷ a quantity) are the shared recipe and purchase formulas. `exact_quantity` reads a stored REAL quantity as the decimal it was entered as; `round_half_even` rounds an exact value to the Rial. Money never goes through float."""
 
 from decimal import Decimal
 from fractions import Fraction
@@ -27,3 +27,24 @@ def blend_unit_cost(
         return round_half_even(Fraction(value_in) / qty)
     before = exact_quantity(stock_before)
     return round_half_even((before * cost_before + value_in) / (before + qty))
+
+
+def per_unit_cost(total: int, quantity: float) -> int:
+    """A money total ÷ a quantity, exact, rounded half-even to the Rial."""
+    return round_half_even(Fraction(total) / exact_quantity(quantity))
+
+
+def recipe_batch_total(lines, batch_qty: float) -> int:
+    """Σ needed × unit_cost over recipe lines, exact, rounded half-even once.
+
+    `lines` are (quantity_needed, cost_basis, unit_cost) tuples: a PER_UNIT line
+    needs quantity_needed × batch_qty, a PER_BATCH line quantity_needed once.
+    """
+    batch = exact_quantity(batch_qty)
+    total = Fraction(0)
+    for quantity_needed, cost_basis, unit_cost in lines:
+        needed = exact_quantity(quantity_needed)
+        if cost_basis != "PER_BATCH":
+            needed *= batch
+        total += needed * unit_cost
+    return round_half_even(total)
