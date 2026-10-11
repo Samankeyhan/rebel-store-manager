@@ -5,9 +5,9 @@ P&L also reports postage_committed (the baseline of postage_variance) and refund
 Never query `partners`, `profit_distributions` or `distribution_shares`: distributions are owner payouts, not expenses."""
 
 import sqlite3
-from decimal import Decimal
 from fractions import Fraction
 
+from db.costing import exact_quantity
 from db.expenses import get_total_expenses, list_expenses
 from db.orders import (
     REVENUE_ELIGIBLE_STATUSES,
@@ -228,11 +228,6 @@ def _waste_cost(
     )
 
 
-def _exact_quantity(quantity: float | int) -> Fraction:
-    """A stored REAL quantity as the decimal it was entered as (2.5, 0.1), exactly."""
-    return Fraction(Decimal(repr(quantity)))
-
-
 def _waste_costs_by_item(
     conn: sqlite3.Connection, date_clause: str, date_params: list
 ) -> dict[tuple[str, int], int]:
@@ -253,7 +248,7 @@ def _waste_costs_by_item(
     ).fetchall()
     for row in rows:
         key = (row["item_type"], row["item_id"])
-        value = abs(_exact_quantity(row["quantity_change"])) * row["unit_cost_at_time"]
+        value = abs(exact_quantity(row["quantity_change"])) * row["unit_cost_at_time"]
         totals[key] = totals.get(key, Fraction(0)) + value
     # round() on a Fraction is exact half-even.
     return {key: round(total) for key, total in totals.items()}
