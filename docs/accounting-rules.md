@@ -214,3 +214,10 @@ For a date range, one row per payment method (active, or inactive with any non-z
 - pending_expected: sum(customer_total − transaction_fee) of orders pending settlement now, by order_date.
 - settled_expected, settled_received, settlement_difference (= received − expected): settlements by settled_date (local calendar day, inclusive range). 0 on the no-method row.
 - The customer invoice never shows the fee, the method's name or the settlement (section 12).
+
+## 15. Audit log
+- Every INSERT, UPDATE and DELETE on an accounting table is recorded in `audit_log`, in the same transaction as the change: a failed change leaves no row, and a failed log insert undoes the change. Accounting tables are all tables except `counters` (invoice numbering), `schema_migrations` and the audit tables; a new table is audited unless listed as an exception in `db/audit.py`.
+- A row holds the moment (UTC, section 1), the table (`entity_type`), the row key (`entity_id`), the action, the business operation (the `db/` function name, or `UNLABELLED` for a write outside one), the shared `op_id` of one business operation, an optional actor (none until there are users), and the data: INSERT = the whole new row, DELETE = the whole old row, UPDATE = only the changed columns, before and after. `updated_at` is never logged. Money is integer Rial exactly as stored.
+- The log is append-only: UPDATE and DELETE on `audit_log` are refused. The one deliberate way to clear it is `reset_audit_log` (the go-live reset): it first writes every row to a verified JSON-lines archive (by default `data/backups/audit-archive-<moment>.jsonl`, never overwritten), then clears the log in one transaction and leaves a single `reset_audit_log` row recording the count, archive name and checksum.
+- Rows that existed before migration 012 are not logged; the log starts at the migration.
+- Read-only access: `GET /audit-log`, filtered by table, row key, `op_id`, operation and local-day range, newest first, with `limit`/`offset` and a total.
