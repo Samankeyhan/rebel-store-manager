@@ -43,7 +43,8 @@ def test_order_with_odd_rial_amounts(test_db):
     order, item = detail["order"], detail["items"][0]
     assert item["list_price"] == 37_035  # 3 x 12,345
     assert item["discount_amount"] == 7
-    assert item["unit_price"] == 12_342  # (37,035 - 7) // 3, floored to the Rial
+    assert item["unit_price"] == 12_342  # legacy: (37,035 - 7) // 3, floored to the Rial
+    assert item["list_unit_price"] == 12_345  # what customers see
     assert item["unit_cost_at_time"] == 5_003
     assert (order["shipping_charge"], order["postage_cost"], order["transaction_fee"]) == (1_800_005, 3_333, 4_567)
     # customer_total = 37,035 - 7 + 1,800,005

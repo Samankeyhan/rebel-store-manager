@@ -919,3 +919,27 @@ def test_fractional_order_quantity_is_422_and_nothing_is_written(api, shop):
     _order(client, "IN_PERSON", shop["product_id"], quantity=1.5, expected=422)
     assert client.get("/orders").json() == []
     assert client.get(f"/products/{shop['product_id']}").json()["current_stock"] == 10
+
+
+def _discounted_order(client, product_id, quantity, discount_amount):
+    return _post(client, "/orders", {
+        "channel": "IN_PERSON",
+        "items": [{"product_id": product_id, "quantity": quantity, "unit_price": 1000,
+                   "discount_amount": discount_amount}],
+    })
+
+
+def test_order_detail_has_list_unit_price_and_legacy_unit_price(api, shop):
+    client, _ = api
+    created = _discounted_order(client, shop["product_id"], quantity=2, discount_amount=1)
+    (item,) = created["items"]
+    assert item["list_unit_price"] == 1000
+    assert item["unit_price"] == 999  # legacy: (2,000 - 1) // 2
+    assert item["list_price"] - item["discount_amount"] == 1999
+
+
+def test_order_detail_get_matches_the_post_response_for_unit_prices(api, shop):
+    client, _ = api
+    created = _discounted_order(client, shop["product_id"], quantity=3, discount_amount=2)
+    fetched = client.get(f"/orders/{created['order']['id']}").json()
+    assert [i["list_unit_price"] for i in fetched["items"]] == [1000]

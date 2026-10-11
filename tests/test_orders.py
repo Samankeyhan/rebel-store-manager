@@ -824,3 +824,49 @@ def test_cogs_and_product_cost_are_integers(test_db):
     assert get_profit_and_loss(test_db)["cogs"] == 1500
     assert isinstance(get_profit_and_loss(test_db)["cogs"], int)
     assert [type(row["total_cost"]) for row in get_product_performance(test_db)] == [int]
+
+
+@pytest.mark.parametrize("quantity, unit_price, discount, list_unit, legacy_unit", [
+    (2, 10, 1, 10, 9),     # 2 x 10, discount 1: list unit price 10 (the legacy floor is 9)
+    (3, 10, 2, 10, 9),     # 3 x 10, discount 2: 28 // 3 = 9 legacy
+    (2, 10, 0, 10, 10),    # no discount: both are 10
+    (1, 10, 3, 10, 7),     # quantity 1, discount 3: legacy 7
+])
+def test_get_order_items_carry_the_list_unit_price(
+    test_db, quantity, unit_price, discount, list_unit, legacy_unit
+):
+    product_id = add_product(test_db, "List Price Item", cat(test_db, "OTHER"), 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 10, unit_cost = 1 WHERE id = ?", (product_id,)
+    )
+    test_db.commit()
+    order_id = record_order(
+        test_db, "IN_PERSON",
+        [{"product_id": product_id, "quantity": quantity, "unit_price": unit_price,
+          "discount_amount": discount}],
+    )
+    (item,) = get_order(test_db, order_id)["items"]
+    assert item["list_unit_price"] == list_unit
+    assert item["unit_price"] == legacy_unit  # the stored legacy value is unchanged
+    assert item["list_price"] - item["discount_amount"] == quantity * unit_price - discount
+
+
+def test_list_unit_price_times_quantity_is_always_the_list_price(test_db):
+    product_id = add_product(test_db, "Invariant Item", cat(test_db, "OTHER"), 1000, 800)
+    test_db.execute(
+        "UPDATE products SET current_stock = 1000, unit_cost = 1 WHERE id = ?", (product_id,)
+    )
+    test_db.commit()
+    order_ids = [
+        record_order(
+            test_db, "IN_PERSON",
+            [{"product_id": product_id, "quantity": quantity, "unit_price": unit_price,
+              "discount_amount": discount}],
+        )
+        for quantity, unit_price, discount in (
+            (1, 12_345, 0), (3, 12_345, 7), (7, 999, 1), (13, 1, 13), (2, 0, 0),
+        )
+    ]
+    for order_id in order_ids:
+        (item,) = get_order(test_db, order_id)["items"]
+        assert item["list_unit_price"] * item["quantity"] == item["list_price"]

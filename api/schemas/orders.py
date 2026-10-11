@@ -73,6 +73,11 @@ class OrderItemOut(BaseModel):
     list_price: Rial
     discount_amount: Rial
     discount_reason: str | None
+    # The list price of one unit (list_price ÷ quantity, exact): what screens and
+    # the invoice show.
+    list_unit_price: Rial
+    # Legacy display value: floor((list_price - discount_amount) / quantity). Not the
+    # list price (the unit_price you send when recording is); use list_unit_price.
     unit_price: Rial
     unit_cost_at_time: Rial
     product_name: str
