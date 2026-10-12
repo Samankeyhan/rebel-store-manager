@@ -139,7 +139,9 @@ def _apply_migration(
 def init_db(
     db_path: str = "data/shop.db",
     migrations_dir: str | Path | None = None,
-) -> None:
+) -> list[dict]:
+    """Apply pending migrations, fill `name_key` of existing rows (db/name_keys.py) and return
+    the name collisions left without a key (empty when there are none)."""
     migrations_path = Path(migrations_dir) if migrations_dir is not None else MIGRATIONS_DIR
     path = _resolve_db_path(db_path)
 
@@ -177,12 +179,17 @@ def init_db(
         for filename, content, content_hash in to_apply:
             _apply_migration(conn, filename, content, content_hash)
 
+        from db.name_keys import backfill_name_keys
+
+        collisions = backfill_name_keys(conn)
+
         violations = conn.execute("PRAGMA foreign_key_check").fetchall()
         if violations:
             raise RuntimeError(
                 f"Foreign key violations found after applying migrations: "
                 f"{[dict(row) for row in violations]}"
             )
+        return collisions
     finally:
         conn.close()
 

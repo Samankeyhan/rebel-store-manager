@@ -26,9 +26,9 @@ UNAUDITED_TABLES = frozenset({
     "audit_control",
 })
 
-# Columns left out of every UPDATE diff (they carry no accounting meaning). Extend this
+# set before adding a column that should stay out of the log; the coverage test reads it.
 # set (for example with "name_key") before adding such a column; the coverage test reads it.
-UNAUDITED_COLUMNS = frozenset({"updated_at"})
+UNAUDITED_COLUMNS = frozenset({"updated_at", "name_key"})  # name_key: derived from name (db/names.py)
 
 _ACTIONS = ("INSERT", "UPDATE", "DELETE")
 
@@ -116,6 +116,27 @@ BEGIN
     {context};
 END;
 """
+
+
+def stale_audit_tables(conn: sqlite3.Connection) -> list[str]:
+    """Audited tables whose trg_audit_* triggers differ from what `audit_trigger_sql` generates
+    for the table's current columns (a column added without regenerated triggers)."""
+
+    def squash(sql: str) -> str:
+        return " ".join(sql.split())
+
+    def stored(name: str) -> str:
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?", (name,)
+        ).fetchone()
+        return squash(row[0]) if row else "MISSING"
+
+    stale = []
+    for table, columns in audited_table_columns(conn).items():
+        actual = " ".join(stored(f"trg_audit_{table}_{kind}") + ";" for kind in ("ins", "upd", "del"))
+        if actual != squash(audit_trigger_sql(table, columns)):
+            stale.append(table)
+    return stale
 
 
 # ----------------------------------------------------------------- operations

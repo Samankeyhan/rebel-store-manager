@@ -61,6 +61,24 @@ def test_every_audited_table_has_exactly_the_generated_triggers(test_db):
         assert actual == generated, table
 
 
+def test_stale_audit_tables_reports_a_table_with_an_untracked_new_column(test_db):
+    """The freshness check fails when a column is added without regenerated triggers."""
+    assert audit.stale_audit_tables(test_db) == []
+    test_db.execute("ALTER TABLE suppliers ADD COLUMN fax TEXT")
+    assert audit.stale_audit_tables(test_db) == ["suppliers"]
+    test_db.execute("DROP TRIGGER trg_audit_suppliers_del")
+    assert audit.stale_audit_tables(test_db) == ["suppliers"]
+
+
+def test_name_key_is_unaudited_and_in_no_trigger(test_db):
+    assert "name_key" in UNAUDITED_COLUMNS
+    for table in ("products", "materials", "suppliers", "partners", "categories",
+                  "payment_methods", "packaging_kits", "expense_categories"):
+        assert any(c["name"] == "name_key" for c in audited_table_columns(test_db)[table])
+        for kind in ("ins", "upd", "del"):
+            assert "name_key" not in _trigger_sql(test_db, f"trg_audit_{table}_{kind}")
+
+
 def test_unaudited_tables_have_no_audit_triggers_and_the_rest_do(test_db):
     all_tables = {
         r[0] for r in test_db.execute(

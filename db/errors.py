@@ -19,7 +19,7 @@ class ErrorCode(StrEnum):
     PAYMENT_METHOD_INACTIVE          payment_method_id
     PAYMENT_METHOD_NOT_FOUND         payment_method_id
     PAYMENT_METHOD_RULE_PENDING      pending_count
-    PAYMENT_METHOD_DUPLICATE_NAME    -
+    PAYMENT_METHOD_DUPLICATE_NAME    entity, existing_id
     SETTLEMENT_MONTH_NOT_ENDED       jalali_year, jalali_month, month_end
     SETTLEMENT_NOTHING_PENDING       jalali_year, jalali_month
     SETTLEMENT_RACED                 -
@@ -37,7 +37,10 @@ class ErrorCode(StrEnum):
     CATEGORY_IN_USE                  item_count
     CATEGORY_HAS_SUBCATEGORIES       -
     CATEGORY_PARENT_INACTIVE         -
-    CATEGORY_DUPLICATE_NAME          -
+    CATEGORY_DUPLICATE_NAME          entity, existing_id
+    NAME_DUPLICATE                   entity (product, material, supplier, partner, packaging_kit,
+                                     expense_category), existing_id (None if unknown): the name's
+                                     spelling-normalized key already exists (db/names.py)
     PRODUCT_NO_RECIPE                product_id, product_name
     PRODUCT_NO_UNIT_COST             product_id, product_name
     SUPPLIER_NOT_FOUND               supplier_id
@@ -94,6 +97,9 @@ class ErrorCode(StrEnum):
     PRODUCT_NO_RECIPE = "PRODUCT_NO_RECIPE"
     PRODUCT_NO_UNIT_COST = "PRODUCT_NO_UNIT_COST"
     SUPPLIER_NOT_FOUND = "SUPPLIER_NOT_FOUND"
+
+    # Names
+    NAME_DUPLICATE = "NAME_DUPLICATE"
 
 
 DEFAULT_CODES = frozenset({
