@@ -4,12 +4,13 @@ import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
+from pydantic import TypeAdapter
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.deps import db_path, get_db
-from api.schemas.common import ErrorEnvelope
+from api.schemas.errors import ErrorEnvelope
 from api.validation import validation_envelope
 from api.routers import (
     adjustments,
@@ -34,7 +35,7 @@ from api.routers import (
     suppliers,
 )
 from db.connection import init_db
-from db.errors import AppError, ConflictError, InsufficientStockError, NotFoundError, ValidationError
+from db.errors import AppError, ConflictError, ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 
 
 @asynccontextmanager
@@ -65,6 +66,19 @@ _APP_ERROR_RESPONSES = {
 }
 
 app = FastAPI(title="Rebel Store Manager API", lifespan=lifespan, responses=_APP_ERROR_RESPONSES)
+
+
+def _openapi_with_error_code() -> dict:
+    """The default schema plus the ErrorCode enum as a named component: the per-code error bodies
+    (api/schemas/errors.py) use Literals, so nothing references the enum, but clients type `code` with it."""
+    if app.openapi_schema is None:
+        schema = FastAPI.openapi(app)
+        schema["components"]["schemas"]["ErrorCode"] = TypeAdapter(ErrorCode).json_schema()
+        app.openapi_schema = schema
+    return app.openapi_schema
+
+
+app.openapi = _openapi_with_error_code
 
 app.add_middleware(
     CORSMiddleware,

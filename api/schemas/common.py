@@ -3,7 +3,6 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, Strict, StringConstraints, model_validator
 
 from db.constants import MAX_MONEY, MAX_QUANTITY, MAX_WHOLE_QUANTITY
-from db.errors import ErrorCode
 
 DateStr = Annotated[str, StringConstraints(pattern=r"^\d{4}-\d{2}-\d{2}$")]
 
@@ -40,22 +39,3 @@ class NamedOut(BaseModel):
         if isinstance(data, dict) and "name_key" in data:
             return {k: v for k, v in data.items() if k != "name_key"}
         return data
-
-
-class ErrorBody(BaseModel):
-    """An app error (db/errors.py). The client decides what to show from
-    `code` and `details`; `message` is English text for logs only."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    type: str
-    code: ErrorCode
-    message: str
-    field: str | None = None
-    details: dict = {}
-
-
-class ErrorEnvelope(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    error: ErrorBody

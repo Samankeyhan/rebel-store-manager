@@ -1577,6 +1577,13 @@ export interface components {
             /** Item Name */
             item_name: string | null;
         };
+        /** AmountTooLargeDetails */
+        AmountTooLargeDetails: {
+            /** Max */
+            max: number;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][] | null;
+        };
         /** AuditEntryOut */
         AuditEntryOut: {
             /** Id */
@@ -1677,6 +1684,11 @@ export interface components {
             /** Parent Id */
             parent_id?: number | null;
         };
+        /** CategoryInUseDetails */
+        CategoryInUseDetails: {
+            /** Item Count */
+            item_count: number;
+        };
         /** CategoryOut */
         CategoryOut: {
             /** Id */
@@ -1774,6 +1786,11 @@ export interface components {
             /** Default Payment Method Id */
             default_payment_method_id?: number | null;
         };
+        /** DateInFutureDetails */
+        DateInFutureDetails: {
+            /** Today */
+            today: string;
+        };
         /** DistributionCreate */
         DistributionCreate: {
             /** Period Start */
@@ -1843,6 +1860,15 @@ export interface components {
             /** Notes */
             notes: string | null;
         };
+        /** DistributionOverlapDetails */
+        DistributionOverlapDetails: {
+            /** Distribution Id */
+            distribution_id: number;
+            /** Period Start */
+            period_start: string;
+            /** Period End */
+            period_end: string;
+        };
         /** DistributionPreviewOut */
         DistributionPreviewOut: {
             /** Period Start */
@@ -1901,80 +1927,337 @@ export interface components {
             /** Partner Name */
             partner_name: string;
         };
-        /**
-         * ErrorBody
-         * @description An app error (db/errors.py). The client decides what to show from
-         *     `code` and `details`; `message` is English text for logs only.
-         */
-        ErrorBody: {
+        /** ErrorBodyAmountTooLarge */
+        ErrorBodyAmountTooLarge: {
             /** Type */
             type: string;
-            code: components["schemas"]["ErrorCode"];
             /** Message */
             message: string;
             /** Field */
             field?: string | null;
             /**
-             * Details
-             * @default {}
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            details?: {
-                [key: string]: unknown;
-            };
+            code: "AMOUNT_TOO_LARGE";
+            details: components["schemas"]["AmountTooLargeDetails"];
         };
-        /**
-         * ErrorCode
-         * @description Stable error codes. The details each specific code carries:
-         *
-         *     MONTH_ALREADY_SETTLED            jalali_year, jalali_month, settlement_id (None if unknown)
-         *     ORDER_NOT_PAID                   order_id, status
-         *     ORDER_ALREADY_SETTLED            order_id, settlement_id
-         *     DATE_IN_FUTURE                   today (YYYY-MM-DD); field says which date
-         *     PAYMENT_METHOD_INACTIVE          payment_method_id
-         *     PAYMENT_METHOD_NOT_FOUND         payment_method_id
-         *     PAYMENT_METHOD_RULE_PENDING      pending_count
-         *     PAYMENT_METHOD_DUPLICATE_NAME    entity, existing_id
-         *     SETTLEMENT_MONTH_NOT_ENDED       jalali_year, jalali_month, month_end
-         *     SETTLEMENT_NOTHING_PENDING       jalali_year, jalali_month
-         *     SETTLEMENT_RACED                 -
-         *     SETTLEMENT_CONFLICT              -
-         *     SETTLEMENT_DATE_BEFORE_MONTH_END jalali_year, jalali_month, month_end
-         *     SETTLEMENT_DATE_BEFORE_PAID      latest_paid_date
-         *     SETTLEMENT_WHOLE_MONTHS_ONLY     -
-         *     SETTLEMENT_ORDER_WRONG_METHOD    order_id
-         *     SETTLEMENT_NOT_MONTHLY           -
-         *     DISTRIBUTION_PERIOD_OVERLAP      distribution_id, period_start, period_end
-         *     DISTRIBUTION_NO_ACTIVE_PARTNERS  -
-         *     DISTRIBUTION_PERCENT_SUM         -
-         *     DISTRIBUTION_EXCEEDS_UNDISTRIBUTED -
-         *     DISTRIBUTION_PERIOD_ORDER        -
-         *     CATEGORY_IN_USE                  item_count
-         *     CATEGORY_HAS_SUBCATEGORIES       -
-         *     CATEGORY_PARENT_INACTIVE         -
-         *     CATEGORY_DUPLICATE_NAME          entity, existing_id
-         *     NAME_DUPLICATE                   entity (product, material, supplier, partner, packaging_kit,
-         *                                      expense_category), existing_id (None if unknown): the name's
-         *                                      spelling-normalized key already exists (db/names.py)
-         *     PRODUCT_NO_RECIPE                product_id, product_name
-         *     PRODUCT_NO_UNIT_COST             product_id, product_name
-         *     SUPPLIER_NOT_FOUND               supplier_id
-         *     AMOUNT_TOO_LARGE                 max (MAX_MONEY, db/constants.py); the amount's size is over it,
-         *                                      above or below zero; field says which amount
-         *     QUANTITY_NOT_WHOLE               -
-         *     QUANTITY_OUT_OF_RANGE            min, max (None when that side has no bound)
-         *     PAID_DATE_NOT_ALLOWED            -
-         *     PACKAGING_KIT_NOT_FOUND          packaging_kit_id
-         *     PACKAGING_KIT_INACTIVE           packaging_kit_id
-         *
-         *     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
-         *     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
-         *     item_name, needed, available.
-         * @enum {string}
-         */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE";
+        /** ErrorBodyCategoryInUse */
+        ErrorBodyCategoryInUse: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "CATEGORY_IN_USE";
+            details: components["schemas"]["CategoryInUseDetails"];
+        };
+        /** ErrorBodyDateInFuture */
+        ErrorBodyDateInFuture: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "DATE_IN_FUTURE";
+            details: components["schemas"]["DateInFutureDetails"];
+        };
+        /** ErrorBodyDistributionOverlap */
+        ErrorBodyDistributionOverlap: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "DISTRIBUTION_PERIOD_OVERLAP";
+            details: components["schemas"]["DistributionOverlapDetails"];
+        };
+        /** ErrorBodyEmpty */
+        ErrorBodyEmpty: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "APP_ERROR" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CONFLICT" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_PERIOD_ORDER" | "NOT_FOUND" | "PAID_DATE_NOT_ALLOWED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_NOT_MONTHLY" | "SETTLEMENT_RACED" | "SETTLEMENT_WHOLE_MONTHS_ONLY";
+            details: components["schemas"]["NoDetails"];
+        };
+        /** ErrorBodyInsufficientStock */
+        ErrorBodyInsufficientStock: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "INSUFFICIENT_STOCK";
+            details: components["schemas"]["InsufficientStockDetails"];
+        };
+        /** ErrorBodyJalaliMonth */
+        ErrorBodyJalaliMonth: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "SETTLEMENT_NOTHING_PENDING";
+            details: components["schemas"]["JalaliMonthDetails"];
+        };
+        /** ErrorBodyKitRef */
+        ErrorBodyKitRef: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PACKAGING_KIT_INACTIVE" | "PACKAGING_KIT_NOT_FOUND";
+            details: components["schemas"]["KitRefDetails"];
+        };
+        /** ErrorBodyLatestPaid */
+        ErrorBodyLatestPaid: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "SETTLEMENT_DATE_BEFORE_PAID";
+            details: components["schemas"]["LatestPaidDetails"];
+        };
+        /** ErrorBodyMonthEnd */
+        ErrorBodyMonthEnd: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_MONTH_NOT_ENDED";
+            details: components["schemas"]["MonthEndDetails"];
+        };
+        /** ErrorBodyMonthSettled */
+        ErrorBodyMonthSettled: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "MONTH_ALREADY_SETTLED";
+            details: components["schemas"]["MonthSettledDetails"];
+        };
+        /** ErrorBodyNameDuplicate */
+        ErrorBodyNameDuplicate: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "CATEGORY_DUPLICATE_NAME" | "NAME_DUPLICATE" | "PAYMENT_METHOD_DUPLICATE_NAME";
+            details: components["schemas"]["NameDuplicateDetails"];
+        };
+        /** ErrorBodyOrderNotPaid */
+        ErrorBodyOrderNotPaid: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "ORDER_NOT_PAID";
+            details: components["schemas"]["OrderNotPaidDetails"];
+        };
+        /** ErrorBodyOrderRef */
+        ErrorBodyOrderRef: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "SETTLEMENT_ORDER_WRONG_METHOD";
+            details: components["schemas"]["OrderRefDetails"];
+        };
+        /** ErrorBodyOrderSettled */
+        ErrorBodyOrderSettled: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "ORDER_ALREADY_SETTLED";
+            details: components["schemas"]["OrderSettledDetails"];
+        };
+        /** ErrorBodyPaymentMethodRef */
+        ErrorBodyPaymentMethodRef: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND";
+            details: components["schemas"]["PaymentMethodRefDetails"];
+        };
+        /** ErrorBodyProductRef */
+        ErrorBodyProductRef: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST";
+            details: components["schemas"]["ProductRefDetails"];
+        };
+        /** ErrorBodyQuantityOutOfRange */
+        ErrorBodyQuantityOutOfRange: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "QUANTITY_OUT_OF_RANGE";
+            details: components["schemas"]["QuantityOutOfRangeDetails"];
+        };
+        /** ErrorBodyRulePending */
+        ErrorBodyRulePending: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PAYMENT_METHOD_RULE_PENDING";
+            details: components["schemas"]["RulePendingDetails"];
+        };
+        /** ErrorBodySupplierRef */
+        ErrorBodySupplierRef: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "SUPPLIER_NOT_FOUND";
+            details: components["schemas"]["SupplierRefDetails"];
+        };
+        /** ErrorBodyValidationFailed */
+        ErrorBodyValidationFailed: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "QUANTITY_NOT_WHOLE" | "VALIDATION_FAILED";
+            details: components["schemas"]["ValidationFailedDetails"];
+        };
         /** ErrorEnvelope */
         ErrorEnvelope: {
-            error: components["schemas"]["ErrorBody"];
+            /** Error */
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"];
+        };
+        /**
+         * ErrorItem
+         * @description One request-validation error: where, what, which pydantic error type (never the input).
+         */
+        ErrorItem: {
+            /** Loc */
+            loc: (string | number)[];
+            /** Msg */
+            msg: string;
+            /** Type */
+            type: string;
         };
         /** ExpenseBreakdownOut */
         ExpenseBreakdownOut: {
@@ -2060,6 +2343,22 @@ export interface components {
              */
             expected_amount: number;
         };
+        /** InsufficientStockDetails */
+        InsufficientStockDetails: {
+            /** Item Name */
+            item_name: string;
+            /** Needed */
+            needed: number;
+            /** Available */
+            available: number;
+        };
+        /** JalaliMonthDetails */
+        JalaliMonthDetails: {
+            /** Jalali Year */
+            jalali_year: number;
+            /** Jalali Month */
+            jalali_month: number;
+        };
         /** KitCreate */
         KitCreate: {
             /** Name */
@@ -2127,6 +2426,16 @@ export interface components {
             created_at: string;
             /** Updated At */
             updated_at: string | null;
+        };
+        /** KitRefDetails */
+        KitRefDetails: {
+            /** Packaging Kit Id */
+            packaging_kit_id: number;
+        };
+        /** LatestPaidDetails */
+        LatestPaidDetails: {
+            /** Latest Paid Date */
+            latest_paid_date: string | null;
         };
         /** MadeToOrderUpdate */
         MadeToOrderUpdate: {
@@ -2250,6 +2559,36 @@ export interface components {
             /** Min Stock */
             min_stock?: number | null;
         };
+        /** MonthEndDetails */
+        MonthEndDetails: {
+            /** Jalali Year */
+            jalali_year: number;
+            /** Jalali Month */
+            jalali_month: number;
+            /** Month End */
+            month_end: string;
+        };
+        /** MonthSettledDetails */
+        MonthSettledDetails: {
+            /** Jalali Year */
+            jalali_year: number;
+            /** Jalali Month */
+            jalali_month: number;
+            /** Settlement Id */
+            settlement_id: number | null;
+        };
+        /** NameDuplicateDetails */
+        NameDuplicateDetails: {
+            /** Entity */
+            entity: string;
+            /** Existing Id */
+            existing_id: number | null;
+        };
+        /**
+         * NoDetails
+         * @description The code carries no details: `details` is {}.
+         */
+        NoDetails: Record<string, never>;
         /** OrderCreate */
         OrderCreate: {
             /** Channel */
@@ -2428,6 +2767,13 @@ export interface components {
             /** Profit */
             profit: number | null;
         };
+        /** OrderNotPaidDetails */
+        OrderNotPaidDetails: {
+            /** Order Id */
+            order_id: number;
+            /** Status */
+            status: string;
+        };
         /** OrderOut */
         OrderOut: {
             /** Id */
@@ -2490,6 +2836,11 @@ export interface components {
             /** Paid Date */
             paid_date: string;
         };
+        /** OrderRefDetails */
+        OrderRefDetails: {
+            /** Order Id */
+            order_id: number;
+        };
         /** OrderReturn */
         OrderReturn: {
             /**
@@ -2499,6 +2850,13 @@ export interface components {
             status: "CANCELLED" | "REFUNDED";
             /** Reason */
             reason?: string | null;
+        };
+        /** OrderSettledDetails */
+        OrderSettledDetails: {
+            /** Order Id */
+            order_id: number;
+            /** Settlement Id */
+            settlement_id: number | null;
         };
         /** OrderStatusUpdate */
         OrderStatusUpdate: {
@@ -2623,6 +2981,11 @@ export interface components {
             updated_at: string;
             /** Pending Order Count */
             pending_order_count: number;
+        };
+        /** PaymentMethodRefDetails */
+        PaymentMethodRefDetails: {
+            /** Payment Method Id */
+            payment_method_id: number;
         };
         /**
          * PaymentMethodReportRowOut
@@ -3007,6 +3370,13 @@ export interface components {
             /** Supplier Name */
             supplier_name: string | null;
         };
+        /** ProductRefDetails */
+        ProductRefDetails: {
+            /** Product Id */
+            product_id: number;
+            /** Product Name */
+            product_name: string;
+        };
         /** ProductionBatchDetailOut */
         ProductionBatchDetailOut: {
             batch: components["schemas"]["ProductionBatchOut"];
@@ -3192,6 +3562,15 @@ export interface components {
             /** Product Purchases Count */
             product_purchases_count: number;
         };
+        /** QuantityOutOfRangeDetails */
+        QuantityOutOfRangeDetails: {
+            /** Min */
+            min: number | null;
+            /** Max */
+            max: number | null;
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][] | null;
+        };
         /** RecipeItemCreate */
         RecipeItemCreate: {
             /** Material Id */
@@ -3264,6 +3643,11 @@ export interface components {
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
             total_profit: number;
+        };
+        /** RulePendingDetails */
+        RulePendingDetails: {
+            /** Pending Count */
+            pending_count: number;
         };
         /** SettingUpdate */
         SettingUpdate: {
@@ -3575,6 +3959,11 @@ export interface components {
             /** Updated At */
             updated_at: string | null;
         };
+        /** SupplierRefDetails */
+        SupplierRefDetails: {
+            /** Supplier Id */
+            supplier_id: number;
+        };
         /**
          * SupplierUpdate
          * @description Only the fields present in the body change; omitted fields are kept.
@@ -3601,6 +3990,11 @@ export interface components {
             /** As Of */
             as_of: string;
         };
+        /** ValidationFailedDetails */
+        ValidationFailedDetails: {
+            /** Errors */
+            errors?: components["schemas"]["ErrorItem"][] | null;
+        };
         /** WasteReportOut */
         WasteReportOut: {
             /** Item Type */
@@ -3620,6 +4014,56 @@ export interface components {
             /** Unknown Cost Count */
             unknown_cost_count: number;
         };
+        /**
+         * ErrorCode
+         * @description Stable error codes. The details each specific code carries:
+         *
+         *     MONTH_ALREADY_SETTLED            jalali_year, jalali_month, settlement_id (None if unknown)
+         *     ORDER_NOT_PAID                   order_id, status
+         *     ORDER_ALREADY_SETTLED            order_id, settlement_id
+         *     DATE_IN_FUTURE                   today (YYYY-MM-DD); field says which date
+         *     PAYMENT_METHOD_INACTIVE          payment_method_id
+         *     PAYMENT_METHOD_NOT_FOUND         payment_method_id
+         *     PAYMENT_METHOD_RULE_PENDING      pending_count
+         *     PAYMENT_METHOD_DUPLICATE_NAME    entity, existing_id
+         *     SETTLEMENT_MONTH_NOT_ENDED       jalali_year, jalali_month, month_end
+         *     SETTLEMENT_NOTHING_PENDING       jalali_year, jalali_month
+         *     SETTLEMENT_RACED                 -
+         *     SETTLEMENT_CONFLICT              -
+         *     SETTLEMENT_DATE_BEFORE_MONTH_END jalali_year, jalali_month, month_end
+         *     SETTLEMENT_DATE_BEFORE_PAID      latest_paid_date
+         *     SETTLEMENT_WHOLE_MONTHS_ONLY     -
+         *     SETTLEMENT_ORDER_WRONG_METHOD    order_id
+         *     SETTLEMENT_NOT_MONTHLY           -
+         *     DISTRIBUTION_PERIOD_OVERLAP      distribution_id, period_start, period_end
+         *     DISTRIBUTION_NO_ACTIVE_PARTNERS  -
+         *     DISTRIBUTION_PERCENT_SUM         -
+         *     DISTRIBUTION_EXCEEDS_UNDISTRIBUTED -
+         *     DISTRIBUTION_PERIOD_ORDER        -
+         *     CATEGORY_IN_USE                  item_count
+         *     CATEGORY_HAS_SUBCATEGORIES       -
+         *     CATEGORY_PARENT_INACTIVE         -
+         *     CATEGORY_DUPLICATE_NAME          entity, existing_id
+         *     NAME_DUPLICATE                   entity (product, material, supplier, partner, packaging_kit,
+         *                                      expense_category), existing_id (None if unknown): the name's
+         *                                      spelling-normalized key already exists (db/names.py)
+         *     PRODUCT_NO_RECIPE                product_id, product_name
+         *     PRODUCT_NO_UNIT_COST             product_id, product_name
+         *     SUPPLIER_NOT_FOUND               supplier_id
+         *     AMOUNT_TOO_LARGE                 max (MAX_MONEY, db/constants.py); the amount's size is over it,
+         *                                      above or below zero; field says which amount
+         *     QUANTITY_NOT_WHOLE               -
+         *     QUANTITY_OUT_OF_RANGE            min, max (None when that side has no bound)
+         *     PAID_DATE_NOT_ALLOWED            -
+         *     PACKAGING_KIT_NOT_FOUND          packaging_kit_id
+         *     PACKAGING_KIT_INACTIVE           packaging_kit_id
+         *
+         *     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
+         *     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
+         *     item_name, needed, available.
+         * @enum {string}
+         */
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE";
     };
     responses: never;
     parameters: never;

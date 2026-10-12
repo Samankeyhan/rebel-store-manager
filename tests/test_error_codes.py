@@ -631,5 +631,5 @@ def test_openapi_lists_every_error_code():
     schemas = app.openapi()["components"]["schemas"]
     assert sorted(schemas["ErrorCode"]["enum"]) == sorted(c.value for c in ErrorCode)
     assert len(schemas["ErrorCode"]["enum"]) == 41
-    assert schemas["ErrorBody"]["properties"]["code"] == {"$ref": "#/components/schemas/ErrorCode"}
+    assert schemas["ErrorCode"]["type"] == "string"
     assert "ErrorEnvelope" in schemas
