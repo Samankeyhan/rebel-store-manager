@@ -9,7 +9,7 @@ from datetime import date
 from db import jalali
 from db.audit import audited
 from db.connection import next_counter, transaction
-from db.costing import exact_quantity, recipe_batch_total, round_half_even
+from db.costing import check_money, check_quantity, exact_quantity, recipe_batch_total, round_half_even
 from db.constants import VALID_CHANNELS, VALID_STATUSES  # re-exported for existing importers
 from db.errors import ConflictError, ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 from db.materials import get_material
@@ -78,6 +78,7 @@ def _validate_creation_status(status: str) -> None:
 
 
 def _validate_non_negative(value: int, field_name: str) -> None:
+    check_money(value, field_name)
     if value < 0:
         raise ValidationError(f"{field_name} must be >= 0, got {value}", field=field_name)
 
@@ -171,6 +172,8 @@ def _resolve_packaging_kit_id(conn, channel_settings: dict, packaging_kit_id) ->
                 f"Packaging kit '{kit['name']}' is not active. Choose another kit "
                 f"or update the channel's default packaging kit.",
                 field="packaging_kit_id",
+                code=ErrorCode.PACKAGING_KIT_INACTIVE,
+                details={"packaging_kit_id": resolved},
             )
 
     return resolved
@@ -523,6 +526,7 @@ def record_order(
         raise ValidationError(
             f"paid_date can only be given for a PAID or COMPLETED order, not {status}",
             field="paid_date",
+            code=ErrorCode.PAID_DATE_NOT_ALLOWED,
         )
 
     if not items:
@@ -575,24 +579,17 @@ def record_order(
                 raise ValidationError(
                     f"Item {index}: product '{product['name']}' is not active"
                 )
-            if isinstance(quantity, bool) or not isinstance(quantity, int):
-                raise ValidationError(
-                    f"Item {index} ('{product['name']}'): quantity must be a whole number, "
-                    f"got {quantity!r}",
-                    field="quantity",
-                )
-            if quantity <= 0:
-                raise ValidationError(
-                    f"Item {index} ('{product['name']}'): quantity must be > 0, "
-                    f"got {quantity}",
-                    field="quantity",
-                )
+            check_quantity(
+                quantity, "quantity", whole=True, prefix=f"Item {index} ('{product['name']}'): "
+            )
+            check_money(unit_price, "unit_price")
             if unit_price < 0:
                 raise ValidationError(
                     f"Item {index} ('{product['name']}'): unit_price must be >= 0, "
                     f"got {unit_price}",
                     field="unit_price",
                 )
+            check_money(discount_amount, "discount_amount")
             if discount_amount < 0:
                 raise ValidationError(
                     f"Item {index} ('{product['name']}'): discount_amount must be >= 0, "
@@ -600,7 +597,7 @@ def record_order(
                     field="discount_amount",
                 )
 
-            list_price = quantity * unit_price
+            list_price = check_money(quantity * unit_price, "unit_price")
             if discount_amount > list_price:
                 raise ValidationError(
                     f"Item {index} ('{product['name']}'): discount_amount ({discount_amount}) "
@@ -631,11 +628,12 @@ def record_order(
         if paid_fields:
             _check_month_open(conn, method, paid_day)
 
+        customer_total = shipping_charge + sum(
+            _line_revenue(item["list_price"], item["discount_amount"])
+            for item in validated_items
+        )
+        check_money(customer_total, "shipping_charge")
         if transaction_fee is None:
-            customer_total = shipping_charge + sum(
-                _line_revenue(item["list_price"], item["discount_amount"])
-                for item in validated_items
-            )
             transaction_fee = compute_fee(customer_total, method) if method else 0
 
         insert_columns = [
@@ -872,6 +870,7 @@ def update_order_status(
             f"paid_date can only be given when an order becomes paid; "
             f"{current_status} to {new_status} is not a payment",
             field="paid_date",
+            code=ErrorCode.PAID_DATE_NOT_ALLOWED,
         )
 
     paid_fields: dict = {}

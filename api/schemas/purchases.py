@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr, Money, Rial
+from api.schemas.common import DateStr, Money, PositiveQuantity, Rial, WholeQuantity
 
 
 class MaterialPurchaseOut(BaseModel):
@@ -39,7 +39,7 @@ class MaterialPurchaseCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     material_id: int
-    quantity_bought: float
+    quantity_bought: PositiveQuantity
     total_paid: Money
     supplier_id: int | None = None
     purchase_date: DateStr | None = None
@@ -50,7 +50,7 @@ class ProductPurchaseCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     product_id: int
-    quantity_bought: int
+    quantity_bought: WholeQuantity
     total_paid: Money
     supplier_id: int | None = None
     purchase_date: DateStr | None = None

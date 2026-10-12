@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr, Rial
+from api.schemas.common import DateStr, Rial, WholeQuantity
 
 
 class ProductionBatchListOut(BaseModel):
@@ -59,6 +59,6 @@ class ProductionCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     product_id: int
-    quantity_produced: int
+    quantity_produced: WholeQuantity
     production_date: DateStr | None = None
     notes: str | None = None

@@ -4,7 +4,7 @@ import sqlite3
 
 from db.audit import audited
 from db.connection import next_counter, transaction
-from db.costing import blend_unit_cost, per_unit_cost
+from db.costing import blend_unit_cost, check_money, check_quantity, per_unit_cost
 from db.errors import ErrorCode, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
@@ -13,6 +13,7 @@ from db.timeutil import normalize_record_date, to_utc_range
 
 
 def _validate_total_paid(total_paid: int) -> None:
+    check_money(total_paid, "total_paid")
     if total_paid < 0:
         raise ValidationError(f"total_paid must be >= 0, got {total_paid}", field="total_paid")
 
@@ -31,7 +32,16 @@ def _validate_supplier(conn: sqlite3.Connection, supplier_id: int | None) -> Non
 def _compute_unit_cost(total_paid: int, quantity_bought: float) -> int:
     """Per-unit cost from total paid and quantity: exact, rounded half-even to the Rial
     (a REAL quantity counts as the decimal it was entered as)."""
-    return per_unit_cost(total_paid, quantity_bought)
+    try:
+        return per_unit_cost(total_paid, quantity_bought)
+    except ValidationError as exc:
+        if exc.code != ErrorCode.AMOUNT_TOO_LARGE:
+            raise
+        # A tiny quantity makes the per-unit cost too large: the amount to change is total_paid.
+        raise ValidationError(
+            f"The unit cost (total_paid / quantity_bought) must be at most {exc.details['max']} Rial",
+            field="total_paid", code=exc.code, details=exc.details,
+        ) from None
 
 
 @audited()
@@ -54,11 +64,7 @@ def record_material_purchase(
             f"Material '{material['name']}' is a SERVICE and cannot be purchased "
             f"into stock"
         )
-    if quantity_bought <= 0:
-        raise ValidationError(
-            f"quantity_bought must be > 0, got {quantity_bought}",
-            field="quantity_bought",
-        )
+    check_quantity(quantity_bought, "quantity_bought")
 
     _validate_total_paid(total_paid)
     _validate_supplier(conn, supplier_id)
@@ -162,11 +168,7 @@ def record_product_purchase(
         raise NotFoundError(f"Product with id {product_id} does not exist")
     if not product["is_active"]:
         raise ValidationError(f"Product '{product['name']}' is not active")
-    if quantity_bought <= 0:
-        raise ValidationError(
-            f"quantity_bought must be > 0, got {quantity_bought}",
-            field="quantity_bought",
-        )
+    check_quantity(quantity_bought, "quantity_bought", whole=True)
 
     _validate_total_paid(total_paid)
     _validate_supplier(conn, supplier_id)

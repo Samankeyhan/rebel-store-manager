@@ -32,7 +32,7 @@ class MaterialCreate(BaseModel):
     type: str
     unit_cost: Money
     unit: str = "piece"
-    initial_stock: float | None = None
+    initial_stock: Quantity | None = None
     category_id: int | None = None
     # Optional minimum stock in the material's unit; null/omitted = none.
     # STOCK only: a SERVICE material with a minimum is a 422 (field "min_stock").

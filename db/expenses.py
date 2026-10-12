@@ -4,6 +4,7 @@ import sqlite3
 
 from db.audit import audited
 from db.connection import transaction
+from db.costing import check_money
 from db.errors import ConflictError, NotFoundError, ValidationError
 from db.name_keys import duplicate_guard
 from db.names import name_key, stored_form
@@ -74,6 +75,7 @@ def add_expense(
         raise NotFoundError(
             f"Expense category with id {expense_category_id} does not exist"
         )
+    check_money(amount, "amount")
     if amount < 0:
         raise ValidationError(f"amount must be >= 0, got {amount}", field="amount")
     if expense_date is not None:

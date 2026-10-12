@@ -4,8 +4,9 @@ import sqlite3
 
 from db.audit import audited
 from db.connection import transaction
-from db.costing import blend_unit_cost, exact_quantity
-from db.errors import InsufficientStockError, NotFoundError, ValidationError
+from db.costing import blend_unit_cost, check_money, exact_quantity
+from db.constants import MAX_QUANTITY
+from db.errors import ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
 from db.timeutil import normalize_record_date, to_utc_range
@@ -70,6 +71,13 @@ def record_stock_adjustment(
 
     if quantity_change == 0:
         raise ValidationError("quantity_change must not be 0", field="quantity_change")
+    if abs(quantity_change) > MAX_QUANTITY:
+        raise ValidationError(
+            f"quantity_change must be between -{MAX_QUANTITY} and {MAX_QUANTITY}",
+            field="quantity_change",
+            code=ErrorCode.QUANTITY_OUT_OF_RANGE,
+            details={"min": -MAX_QUANTITY, "max": MAX_QUANTITY},
+        )
 
     if item_type == "PRODUCT":
         if quantity_change != int(quantity_change):
@@ -77,6 +85,7 @@ def record_stock_adjustment(
                 f"quantity_change must be a whole number for products, "
                 f"got {quantity_change}",
                 field="quantity_change",
+                code=ErrorCode.QUANTITY_NOT_WHOLE,
             )
         quantity_change = int(quantity_change)
 
@@ -91,6 +100,7 @@ def record_stock_adjustment(
                 "unit_cost is only allowed for a positive ADJUSTMENT",
                 field="unit_cost",
             )
+        check_money(unit_cost, "unit_cost")
         if unit_cost < 0:
             raise ValidationError(
                 f"unit_cost must be >= 0, got {unit_cost}", field="unit_cost"

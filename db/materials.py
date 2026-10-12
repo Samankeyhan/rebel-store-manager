@@ -17,7 +17,9 @@ import sqlite3
 from db.audit import audited
 from db.categories import validate_assignable
 from db.connection import transaction
-from db.errors import NotFoundError, ValidationError
+from db.costing import check_money
+from db.constants import MAX_QUANTITY
+from db.errors import ErrorCode, NotFoundError, ValidationError
 from db.name_keys import duplicate_guard
 from db.names import name_key, stored_form
 
@@ -64,8 +66,25 @@ def _validate_type(material_type: str) -> None:
 
 
 def _validate_unit_cost(unit_cost: int) -> None:
+    check_money(unit_cost, "unit_cost")
     if unit_cost < 0:
         raise ValidationError(f"unit_cost must be >= 0, got {unit_cost}", field="unit_cost")
+
+
+def _validate_initial_stock(initial_stock) -> None:
+    if initial_stock is None:
+        return
+    if isinstance(initial_stock, bool) or not isinstance(initial_stock, (int, float)) or not math.isfinite(initial_stock):
+        raise ValidationError(
+            f"initial_stock must be a number, got {initial_stock!r}", field="initial_stock"
+        )
+    if not 0 <= initial_stock <= MAX_QUANTITY:
+        raise ValidationError(
+            f"initial_stock must be between 0 and {MAX_QUANTITY}, got {initial_stock}",
+            field="initial_stock",
+            code=ErrorCode.QUANTITY_OUT_OF_RANGE,
+            details={"min": 0 if initial_stock < 0 else None, "max": None if initial_stock < 0 else MAX_QUANTITY},
+        )
 
 
 def _validate_min_stock(min_stock, material_type: str) -> None:
@@ -76,7 +95,19 @@ def _validate_min_stock(min_stock, material_type: str) -> None:
             f"min_stock must be a number, got {min_stock!r}", field="min_stock"
         )
     if not math.isfinite(min_stock) or min_stock < 0:
-        raise ValidationError(f"min_stock must be >= 0, got {min_stock}", field="min_stock")
+        raise ValidationError(
+            f"min_stock must be >= 0, got {min_stock}",
+            field="min_stock",
+            code=ErrorCode.QUANTITY_OUT_OF_RANGE,
+            details={"min": 0, "max": None},
+        )
+    if min_stock > MAX_QUANTITY:
+        raise ValidationError(
+            f"min_stock must be at most {MAX_QUANTITY}",
+            field="min_stock",
+            code=ErrorCode.QUANTITY_OUT_OF_RANGE,
+            details={"min": None, "max": MAX_QUANTITY},
+        )
     if material_type == "SERVICE":
         raise ValidationError(
             "SERVICE materials have no stock and cannot have a min_stock", field="min_stock"
@@ -96,6 +127,7 @@ def add_material(
 ) -> int:
     name = _validate_name(name)
     _validate_type(type)
+    _validate_initial_stock(initial_stock)
     _validate_unit_cost(unit_cost)
     _validate_min_stock(min_stock, type)
     if category_id is not None:

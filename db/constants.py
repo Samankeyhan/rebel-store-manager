@@ -24,3 +24,14 @@ VALID_STATUSES = (
     "CANCELLED",
     "REFUNDED",
 )
+
+# The largest amount of money on the wire or in a stored column, in integer Rial: the largest
+# integer a JSON / JavaScript client round-trips exactly (the frontend's MoneyInput stops at the
+# same number), and far below SQLite's 2^63 - 1, so sums of many rows cannot overflow.
+MAX_MONEY = 2**53 - 1
+
+# Quantity limits (far above any real stock; they keep quantity x price inside MAX_MONEY checks).
+# Whole units (order lines, production batches, product purchases):
+MAX_WHOLE_QUANTITY = 1_000_000
+# Fractional material quantities (purchases, recipes, kits, stock, adjustments):
+MAX_QUANTITY = 1_000_000_000

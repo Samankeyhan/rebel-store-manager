@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
-from api.schemas.common import DateStr, Money, Rial
+from api.schemas.common import DateStr, Money, Rial, WholeQuantity
 
 
 class OrderListItemOut(BaseModel):
@@ -99,7 +99,7 @@ class OrderItemCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     product_id: int
-    quantity: int
+    quantity: WholeQuantity
     unit_price: Money
     discount_amount: Money = 0
     discount_reason: str | None = None

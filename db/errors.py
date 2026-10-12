@@ -44,6 +44,13 @@ class ErrorCode(StrEnum):
     PRODUCT_NO_RECIPE                product_id, product_name
     PRODUCT_NO_UNIT_COST             product_id, product_name
     SUPPLIER_NOT_FOUND               supplier_id
+    AMOUNT_TOO_LARGE                 max (MAX_MONEY, db/constants.py); the amount's size is over it,
+                                     above or below zero; field says which amount
+    QUANTITY_NOT_WHOLE               -
+    QUANTITY_OUT_OF_RANGE            min, max (None when that side has no bound)
+    PAID_DATE_NOT_ALLOWED            -
+    PACKAGING_KIT_NOT_FOUND          packaging_kit_id
+    PACKAGING_KIT_INACTIVE           packaging_kit_id
 
     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
@@ -100,6 +107,16 @@ class ErrorCode(StrEnum):
 
     # Names
     NAME_DUPLICATE = "NAME_DUPLICATE"
+
+    # Limits and input shape
+    AMOUNT_TOO_LARGE = "AMOUNT_TOO_LARGE"
+    QUANTITY_NOT_WHOLE = "QUANTITY_NOT_WHOLE"
+    QUANTITY_OUT_OF_RANGE = "QUANTITY_OUT_OF_RANGE"
+    PAID_DATE_NOT_ALLOWED = "PAID_DATE_NOT_ALLOWED"
+
+    # Packaging kits
+    PACKAGING_KIT_NOT_FOUND = "PACKAGING_KIT_NOT_FOUND"
+    PACKAGING_KIT_INACTIVE = "PACKAGING_KIT_INACTIVE"
 
 
 DEFAULT_CODES = frozenset({

@@ -85,7 +85,7 @@ def _error(response_json):
 
 def _pydantic_fields(response_json):
     """The body field names a FastAPI request-validation 422 points at."""
-    return {err["loc"][1] for err in response_json["detail"] if err["loc"][0] == "body"}
+    return {err["loc"][1] for err in response_json["error"]["details"]["errors"] if err["loc"][0] == "body"}
 
 
 def _count(conn, table):
@@ -1020,4 +1020,5 @@ def test_patch_huge_integer_is_422_not_500(api, shop, field):
         client, "patch", f"/payment-methods/{shop['zarinpal']}", 422, json={field: 2**63}
     ))
     assert error["field"] == field
-    assert error["code"] == "VALIDATION_FAILED"
+    assert error["code"] == "AMOUNT_TOO_LARGE"
+    assert error["details"]["max"] == 2**53 - 1

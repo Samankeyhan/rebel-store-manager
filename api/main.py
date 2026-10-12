@@ -4,11 +4,13 @@ import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.deps import db_path, get_db
 from api.schemas.common import ErrorEnvelope
+from api.validation import validation_envelope
 from api.routers import (
     adjustments,
     audit,
@@ -54,13 +56,12 @@ async def lifespan(app: FastAPI):
     yield
 
 
-# App errors (db/errors.py) share one body. Declared for 400/404/409 so the
+# App errors (db/errors.py) share one body. Declared for 400/404/409/422 so the
 # ErrorEnvelope / ErrorCode schemas reach the OpenAPI spec (and api-types.ts);
-# 422 stays FastAPI's default declaration (HTTPValidationError), though db/
-# ValidationErrors also answer 422 with an ErrorEnvelope.
+# 422 is declared too: db/ ValidationErrors and request-shape errors (api/validation.py) both answer it with an ErrorEnvelope.
 _APP_ERROR_RESPONSES = {
     status: {"model": ErrorEnvelope, "description": "App error (see ErrorBody.code)"}
-    for status in (400, 404, 409)
+    for status in (400, 404, 409, 422)
 }
 
 app = FastAPI(title="Rebel Store Manager API", lifespan=lifespan, responses=_APP_ERROR_RESPONSES)
@@ -88,6 +89,11 @@ def _error_response(status_code: int, exc: AppError) -> JSONResponse:
             }
         },
     )
+
+
+@app.exception_handler(RequestValidationError)
+def handle_request_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    return JSONResponse(status_code=422, content=validation_envelope(exc.errors()))
 
 
 @app.exception_handler(InsufficientStockError)

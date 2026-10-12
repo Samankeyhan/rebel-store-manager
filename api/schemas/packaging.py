@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import NamedOut, Rial
+from api.schemas.common import NamedOut, PositiveQuantity, Rial
 
 
 class KitOut(NamedOut):
@@ -46,10 +46,10 @@ class KitItemCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     material_id: int
-    quantity: float
+    quantity: PositiveQuantity
 
 
 class KitItemUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    quantity: float
+    quantity: PositiveQuantity

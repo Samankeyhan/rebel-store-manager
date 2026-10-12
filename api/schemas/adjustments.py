@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr, Money, Rial
+from api.schemas.common import DateStr, Money, QuantityChange, Rial
 
 
 class AdjustmentOut(BaseModel):
@@ -24,7 +24,7 @@ class AdjustmentCreate(BaseModel):
 
     item_type: str
     item_id: int
-    quantity_change: float
+    quantity_change: QuantityChange
     reason: str
     unit_cost: Money | None = None
     notes: str | None = None

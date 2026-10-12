@@ -5,7 +5,7 @@ import pytest
 
 import db.orders
 import db.payment_methods
-from db.errors import ConflictError, NotFoundError, ValidationError
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.orders import record_order, update_order_status
 from db.payment_methods import (
     add_payment_method,
@@ -603,11 +603,12 @@ def test_null_fee_field_message_says_empty(test_db):
 
 @pytest.mark.parametrize("field", ["fee_fixed", "fee_cap"])
 def test_fee_amount_above_sqlite_integer_is_a_validation_error(test_db, field):
-    too_big = 2**63
+    too_big = MAX_SAFE + 1
     extra = {"fee_bps": 50} if field == "fee_cap" else {}
     with pytest.raises(ValidationError) as add_info:
         add_payment_method(test_db, "Huge", "IMMEDIATE", **extra, **{field: too_big})
     assert add_info.value.field == field
+    assert add_info.value.code == ErrorCode.AMOUNT_TOO_LARGE
 
     method_id = add_payment_method(test_db, "Huge update", "IMMEDIATE", fee_bps=50)
     with pytest.raises(ValidationError) as update_info:
@@ -616,8 +617,8 @@ def test_fee_amount_above_sqlite_integer_is_a_validation_error(test_db, field):
 
 
 @pytest.mark.parametrize("field", ["fee_fixed", "fee_cap"])
-def test_fee_amount_at_sqlite_integer_maximum_is_stored(test_db, field):
-    biggest = 2**63 - 1
+def test_fee_amount_at_the_money_maximum_is_stored(test_db, field):
+    biggest = MAX_SAFE  # MAX_MONEY, 2^53 - 1; 2^63 - 1 (SQLite's limit) is no longer accepted
     extra = {"fee_bps": 50} if field == "fee_cap" else {}
     method_id = add_payment_method(test_db, "Max", "IMMEDIATE", **extra, **{field: biggest})
     assert get_payment_method(test_db, method_id)[field] == biggest

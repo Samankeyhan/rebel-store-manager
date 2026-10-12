@@ -6,6 +6,7 @@ import sqlite3
 from db.audit import audited
 from db.categories import validate_assignable
 from db.connection import transaction
+from db.costing import check_money
 from db.errors import ErrorCode, NotFoundError, ValidationError
 from db.name_keys import duplicate_guard
 from db.names import name_key, stored_form
@@ -32,6 +33,7 @@ def _validate_name(name: str) -> str:
 
 
 def _validate_price(price: int, field_name: str) -> None:
+    check_money(price, field_name)
     if price < 0:
         raise ValidationError(f"{field_name} must be >= 0, got {price}", field=field_name)
 

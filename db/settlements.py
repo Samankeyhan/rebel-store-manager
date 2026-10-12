@@ -7,6 +7,7 @@ from datetime import date
 from db import jalali
 from db.audit import audited
 from db.connection import transaction
+from db.costing import check_money
 from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.payment_methods import PAID_STATUSES, compute_expected_settlement_date, get_payment_method
 from db.timeutil import parse_calendar_date, today_local
@@ -181,6 +182,7 @@ def _validate_amount_received(value) -> int:
         raise ValidationError(
             f"amount_received must be an integer, got {value!r}", field="amount_received"
         )
+    check_money(value, "amount_received")
     if value < 0:
         raise ValidationError(
             f"amount_received must be >= 0, got {value}", field="amount_received"
@@ -407,7 +409,7 @@ def record_settlement(
                 orders = _orders_for_month(conn, method, jy, jm, settled)
             else:
                 orders = _orders_for_subset(conn, method, order_ids, settled)
-            expected_amount = sum(o["expected_amount"] for o in orders)
+            expected_amount = check_money(sum(o["expected_amount"] for o in orders), "amount_received")
 
             cursor = conn.execute(
                 """

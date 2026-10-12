@@ -8,7 +8,7 @@ from fractions import Fraction
 
 from db.audit import audited
 from db.connection import transaction
-from db.costing import exact_quantity, round_half_even
+from db.costing import check_money, exact_quantity, round_half_even
 from db.errors import ConflictError, ErrorCode, ValidationError
 from db.partners import list_partners
 from db.reports import get_profit_and_loss
@@ -18,6 +18,7 @@ PERCENTAGE_SUM_TOLERANCE = 0.01
 
 
 def _validate_non_negative(amount: int, field_name: str) -> None:
+    check_money(amount, field_name)
     if amount < 0:
         raise ValidationError(f"{field_name} must be >= 0, got {amount}", field=field_name)
 

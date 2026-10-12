@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from db import jalali
 from db.audit import audited
 from db.connection import transaction
+from db.costing import check_money
 from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.name_keys import duplicate_guard
 from db.names import name_key, stored_form
@@ -23,9 +24,6 @@ PAID_STATUSES = ("PAID", "COMPLETED")
 UPDATABLE_FIELDS = ("name", "fee_bps", "fee_fixed", "fee_cap", "settlement_rule", "settlement_days")
 
 _BPS_DENOMINATOR = 10000
-# The largest value SQLite stores in an INTEGER column; a technical guard (anything
-# larger would be an OverflowError, a 500), not a business limit.
-_MAX_STORABLE = 2**63 - 1
 _DAYS_RANGE = {"DAYS_AFTER": (1, 365), "DAY_OF_NEXT_MONTH": (1, 31)}
 
 
@@ -52,12 +50,9 @@ def _validate_fee(fee_bps: int, fee_fixed: int) -> None:
             f"fee_bps must be between 0 and {_BPS_DENOMINATOR}, got {fee_bps}",
             field="fee_bps",
         )
+    check_money(fee_fixed, "fee_fixed")
     if fee_fixed < 0:
         raise ValidationError(f"fee_fixed must be >= 0, got {fee_fixed}", field="fee_fixed")
-    if fee_fixed > _MAX_STORABLE:
-        raise ValidationError(
-            f"fee_fixed must be <= {_MAX_STORABLE}, got {fee_fixed}", field="fee_fixed"
-        )
 
 
 def _validate_fee_cap(fee_cap: int | None, fee_bps: int) -> None:
@@ -69,14 +64,11 @@ def _validate_fee_cap(fee_cap: int | None, fee_bps: int) -> None:
             f"fee_cap must be an integer number of Rial, or empty for no cap, got {fee_cap!r}",
             field="fee_cap",
         )
+    check_money(fee_cap, "fee_cap")
     if fee_cap < 1:
         raise ValidationError(
             f"fee_cap must be >= 1 Rial; leave it empty for no cap, got {fee_cap}",
             field="fee_cap",
-        )
-    if fee_cap > _MAX_STORABLE:
-        raise ValidationError(
-            f"fee_cap must be <= {_MAX_STORABLE}, got {fee_cap}", field="fee_cap"
         )
     if fee_bps == 0:
         raise ValidationError(
@@ -267,7 +259,7 @@ def compute_fee(customer_total: int, method: dict) -> int:
         quotient += 1
     if method["fee_cap"] is not None:
         quotient = min(quotient, method["fee_cap"])
-    return quotient + method["fee_fixed"]
+    return check_money(quotient + method["fee_fixed"], "transaction_fee")
 
 
 def compute_expected_settlement_date(paid_date: date, method: dict) -> date:

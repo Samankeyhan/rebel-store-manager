@@ -4,7 +4,7 @@ import sqlite3
 
 from db.audit import audited
 from db.connection import transaction
-from db.costing import per_unit_cost, recipe_batch_total
+from db.costing import check_quantity, per_unit_cost, recipe_batch_total
 from db.errors import ConflictError, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
@@ -14,11 +14,7 @@ VALID_COST_BASIS = ("PER_UNIT", "PER_BATCH")
 
 
 def _validate_quantity(quantity_needed: float) -> None:
-    if quantity_needed <= 0:
-        raise ValidationError(
-            f"quantity_needed must be > 0, got {quantity_needed}",
-            field="quantity_needed",
-        )
+    check_quantity(quantity_needed, "quantity_needed")
 
 
 def _validate_cost_basis(cost_basis: str) -> None:

@@ -9,6 +9,7 @@ from api.schemas.payment_methods import (
     PaymentMethodOut,
     PaymentMethodUpdate,
 )
+from db.constants import MAX_MONEY
 from db.payment_methods import (
     add_payment_method,
     count_pending_orders,
@@ -86,7 +87,7 @@ def reactivate(payment_method_id: int, conn: sqlite3.Connection = Depends(get_db
 @router.get("/payment-methods/{payment_method_id}/fee-preview", response_model=FeePreviewOut)
 def read_fee_preview(
     payment_method_id: int,
-    amount: int = Query(..., description="customer_total in integer Rial"),
+    amount: int = Query(..., ge=-MAX_MONEY, le=MAX_MONEY, description="customer_total in integer Rial"),
     conn: sqlite3.Connection = Depends(get_db),
 ) -> FeePreviewOut:
     """The fee the method would charge on a customer_total of `amount`

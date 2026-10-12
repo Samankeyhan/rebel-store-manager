@@ -409,10 +409,12 @@ def test_422_malformed_date(seeded):
     client = seeded["client"]
     resp = client.get("/orders", params={"start_date": "not-a-date"})
     assert resp.status_code == 422
-    # FastAPI's own validation error shape, distinct from the custom
-    # {"error": {...}} body the db/errors.py handlers produce.
-    assert "detail" in resp.json()
-    assert "error" not in resp.json()
+    # A request-shape error is in the same envelope as a db/ error (api/validation.py).
+    error = resp.json()["error"]
+    assert (error["type"], error["code"], error["field"]) == (
+        "RequestValidationError", "VALIDATION_FAILED", "start_date"
+    )
+    assert "detail" not in resp.json()
 
 
 def test_made_to_order_recipe_cost(api):

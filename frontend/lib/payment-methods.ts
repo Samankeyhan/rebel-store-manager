@@ -119,8 +119,11 @@ export function classifyPaymentError(e: CodedError): PaymentError | null {
     }
   }
   if (e.status === 422) {
-    // Any other paid_date refusal (given where not allowed, or not a date) is paidDateNotAllowed.
-    if (e.field === "paid_date") return hasCode(e, "DATE_IN_FUTURE") ? { kind: "futurePaidDate" } : { kind: "paidDateNotAllowed" }
+    if (e.field === "paid_date") {
+      if (hasCode(e, "DATE_IN_FUTURE")) return { kind: "futurePaidDate" }
+      if (hasCode(e, "PAID_DATE_NOT_ALLOWED")) return { kind: "paidDateNotAllowed" }
+      return null // not a date: no screen can send one
+    }
     if (e.field === "payment_method_id" && hasCode(e, "PAYMENT_METHOD_INACTIVE")) return { kind: "inactiveMethod" }
     if (e.field === "default_payment_method_id") return { kind: "inactiveDefault" }
   }

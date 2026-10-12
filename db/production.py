@@ -5,7 +5,7 @@ import sqlite3
 
 from db.audit import audited
 from db.connection import transaction
-from db.costing import blend_unit_cost, per_unit_cost, recipe_batch_total
+from db.costing import blend_unit_cost, check_quantity, per_unit_cost, recipe_batch_total
 from db.errors import ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 from db.products import get_product
 from db.timeutil import normalize_record_date, now_utc
@@ -46,11 +46,7 @@ def run_production_batch(
     if product is None:
         raise NotFoundError(f"Product with id {product_id} does not exist")
 
-    if quantity_produced <= 0:
-        raise ValidationError(
-            f"quantity_produced must be > 0, got {quantity_produced}",
-            field="quantity_produced",
-        )
+    check_quantity(quantity_produced, "quantity_produced", whole=True)
 
     # None keeps the column default (now); the batch's stock movements are
     # dated the same way, like purchases date theirs.

@@ -1,7 +1,7 @@
 import pytest
 
 from db import postage
-from db.errors import ValidationError
+from db.errors import ErrorCode, ValidationError
 from db.settings import set_setting
 
 
@@ -83,11 +83,16 @@ def test_estimate_ties_go_to_the_even_neighbour(test_db, total_paid, order_count
     assert postage.get_current_postage_estimate(test_db) == expected
 
 
-def test_estimate_is_exact_above_float_precision(test_db):
-    # 2^53 + 1 = 9,007,199,254,740,993: a float quotient lands on ...994, the exact one is ...993.
-    # Only differs above 2^53 Rial; a cleanup, not a real-world bug.
-    postage.record_postage_batch(test_db, total_paid=3 * 9_007_199_254_740_993 + 1, order_count=3)
-    assert postage.get_current_postage_estimate(test_db) == 9_007_199_254_740_993
+def test_estimate_is_exact_at_the_money_maximum(test_db):
+    # The largest amount (2^53 - 1) is where a float quotient first can differ from the exact one.
+    postage.record_postage_batch(test_db, total_paid=9_007_199_254_740_991, order_count=3)
+    assert postage.get_current_postage_estimate(test_db) == 3_002_399_751_580_330  # 3002399751580330.33
+
+
+def test_a_postage_batch_above_the_money_maximum_is_refused(test_db):
+    with pytest.raises(ValidationError) as exc_info:
+        postage.record_postage_batch(test_db, total_paid=9_007_199_254_740_992, order_count=3)
+    assert exc_info.value.code == ErrorCode.AMOUNT_TOO_LARGE
 
 
 def test_estimate_sums_the_window_before_dividing(test_db):

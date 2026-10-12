@@ -6,16 +6,15 @@ from fractions import Fraction
 
 from db.audit import audited
 from db.connection import transaction
-from db.costing import exact_quantity, round_half_even
-from db.errors import ConflictError, NotFoundError, ValidationError
+from db.costing import check_quantity, exact_quantity, round_half_even
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.name_keys import duplicate_guard
 from db.names import name_key, stored_form
 from db.materials import get_material
 
 
 def _validate_quantity(quantity: float) -> None:
-    if quantity <= 0:
-        raise ValidationError(f"quantity must be > 0, got {quantity}", field="quantity")
+    check_quantity(quantity, "quantity")
 
 
 def _get_kit_row(conn: sqlite3.Connection, kit_id: int) -> dict:
@@ -23,7 +22,11 @@ def _get_kit_row(conn: sqlite3.Connection, kit_id: int) -> dict:
         "SELECT * FROM packaging_kits WHERE id = ?", (kit_id,)
     ).fetchone()
     if row is None:
-        raise NotFoundError(f"Packaging kit with id {kit_id} does not exist")
+        raise NotFoundError(
+            f"Packaging kit with id {kit_id} does not exist",
+            code=ErrorCode.PACKAGING_KIT_NOT_FOUND,
+            details={"packaging_kit_id": kit_id},
+        )
     return dict(row)
 
 

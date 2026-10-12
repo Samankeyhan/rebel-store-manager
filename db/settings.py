@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from db.audit import audited
 from db.connection import transaction
+from db.costing import check_money
 from db.constants import VALID_CHANNELS
 from db.currency import DISPLAY_CURRENCIES
 from db.errors import ErrorCode, NotFoundError, ValidationError
@@ -33,6 +34,8 @@ def _validate_setting_value(key: str, value: str) -> None:
             raise ValidationError(
                 f"Setting '{key}' must be an integer, got {value!r}", field="value"
             ) from None
+        if key in _NON_NEGATIVE_INT_KEYS:
+            check_money(amount, "value")
         if key in _NON_NEGATIVE_INT_KEYS and amount < 0:
             raise ValidationError(
                 f"Setting '{key}' must be >= 0, got {amount}", field="value"
@@ -140,13 +143,22 @@ def update_channel_settings(
     if default_packaging_kit_id is not _UNSET:
         if default_packaging_kit_id is not None:
             kit = conn.execute(
-                "SELECT id FROM packaging_kits WHERE id = ? AND is_active = 1",
+                "SELECT id, is_active FROM packaging_kits WHERE id = ?",
                 (default_packaging_kit_id,),
             ).fetchone()
             if kit is None:
                 raise NotFoundError(
-                    f"Packaging kit with id {default_packaging_kit_id} does not "
-                    f"exist or is not active"
+                    f"Packaging kit with id {default_packaging_kit_id} does not exist",
+                    code=ErrorCode.PACKAGING_KIT_NOT_FOUND,
+                    details={"packaging_kit_id": default_packaging_kit_id},
+                )
+            if not kit["is_active"]:
+                raise ValidationError(
+                    f"Packaging kit with id {default_packaging_kit_id} is not active and "
+                    f"cannot be a channel's default kit",
+                    field="default_packaging_kit_id",
+                    code=ErrorCode.PACKAGING_KIT_INACTIVE,
+                    details={"packaging_kit_id": default_packaging_kit_id},
                 )
         fields["default_packaging_kit_id"] = default_packaging_kit_id
 

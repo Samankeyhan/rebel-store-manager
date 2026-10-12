@@ -6,13 +6,14 @@ from fractions import Fraction
 
 from db.audit import audited
 from db.connection import transaction
-from db.costing import round_half_even
+from db.costing import check_money, round_half_even
 from db.errors import ValidationError
 from db.settings import get_setting
 from db.timeutil import normalize_record_date, to_utc_range
 
 
 def _validate_total_paid(total_paid: int) -> None:
+    check_money(total_paid, "total_paid")
     if total_paid < 0:
         raise ValidationError(f"total_paid must be >= 0, got {total_paid}", field="total_paid")
 

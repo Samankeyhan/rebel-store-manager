@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import Rial
+from api.schemas.common import PositiveQuantity, Rial
 
 
 class RecipeItemOut(BaseModel):
@@ -29,13 +29,13 @@ class RecipeItemCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     material_id: int
-    quantity_needed: float
+    quantity_needed: PositiveQuantity
     cost_basis: str = "PER_UNIT"
 
 
 class RecipeItemUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    quantity_needed: float
+    quantity_needed: PositiveQuantity
     # None (or omitted) keeps the line's existing cost_basis.
     cost_basis: str | None = None

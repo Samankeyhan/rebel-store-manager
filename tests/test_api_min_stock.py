@@ -39,8 +39,6 @@ def _create(client, name, stock=None, type_="STOCK", expected=201, **extra):
 def _error_field(response) -> str | None:
     """The field of a 422: pydantic's loc or the db ValidationError envelope."""
     body = response.json()
-    if "detail" in body:
-        return body["detail"][0]["loc"][-1]
     return body["error"]["field"]
 
 
