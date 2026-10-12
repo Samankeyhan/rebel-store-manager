@@ -1933,7 +1933,7 @@ export interface components {
          *     PAYMENT_METHOD_INACTIVE          payment_method_id
          *     PAYMENT_METHOD_NOT_FOUND         payment_method_id
          *     PAYMENT_METHOD_RULE_PENDING      pending_count
-         *     PAYMENT_METHOD_DUPLICATE_NAME    -
+         *     PAYMENT_METHOD_DUPLICATE_NAME    entity, existing_id
          *     SETTLEMENT_MONTH_NOT_ENDED       jalali_year, jalali_month, month_end
          *     SETTLEMENT_NOTHING_PENDING       jalali_year, jalali_month
          *     SETTLEMENT_RACED                 -
@@ -1951,7 +1951,10 @@ export interface components {
          *     CATEGORY_IN_USE                  item_count
          *     CATEGORY_HAS_SUBCATEGORIES       -
          *     CATEGORY_PARENT_INACTIVE         -
-         *     CATEGORY_DUPLICATE_NAME          -
+         *     CATEGORY_DUPLICATE_NAME          entity, existing_id
+         *     NAME_DUPLICATE                   entity (product, material, supplier, partner, packaging_kit,
+         *                                      expense_category), existing_id (None if unknown): the name's
+         *                                      spelling-normalized key already exists (db/names.py)
          *     PRODUCT_NO_RECIPE                product_id, product_name
          *     PRODUCT_NO_UNIT_COST             product_id, product_name
          *     SUPPLIER_NOT_FOUND               supplier_id
@@ -1961,7 +1964,7 @@ export interface components {
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE";
         /** ErrorEnvelope */
         ErrorEnvelope: {
             error: components["schemas"]["ErrorBody"];
