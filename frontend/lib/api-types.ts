@@ -2821,6 +2821,8 @@ export interface components {
             expected_amount: number;
             /** Expected Settlement Date */
             expected_settlement_date: string;
+            /** Payment Reference */
+            payment_reference: string | null;
         };
         /** PostageBatchCreate */
         PostageBatchCreate: {
@@ -3388,6 +3390,8 @@ export interface components {
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
             expected_amount: number;
+            /** Payment Reference */
+            payment_reference: string | null;
         };
         /** SettlementOut */
         SettlementOut: {

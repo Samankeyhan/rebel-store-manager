@@ -27,18 +27,19 @@ _ORDER_COLUMNS_SQL = f"""
     orders.id, orders.invoice_number, orders.order_date, orders.paid_date,
     orders.customer_name, orders.channel, orders.status, orders.payment_method_id,
     orders.expected_settlement_date, orders.paid_jalali_year, orders.paid_jalali_month,
-    orders.settlement_id, orders.transaction_fee,
+    orders.settlement_id, orders.transaction_fee, orders.payment_reference,
     {_CUSTOMER_TOTAL_SQL} AS customer_total
 """
 
 _PENDING_ORDER_KEYS = (
     "id", "invoice_number", "order_date", "paid_date", "customer_name", "channel",
     "customer_total", "transaction_fee", "expected_amount", "expected_settlement_date",
+    "payment_reference",
 )
 
 _SETTLED_ORDER_KEYS = (
     "id", "invoice_number", "order_date", "paid_date", "customer_name", "channel",
-    "status", "customer_total", "transaction_fee", "expected_amount",
+    "status", "customer_total", "transaction_fee", "expected_amount", "payment_reference",
 )
 
 

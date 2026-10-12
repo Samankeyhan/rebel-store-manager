@@ -16,6 +16,8 @@ class PendingOrderOut(BaseModel):
     transaction_fee: Rial
     expected_amount: Rial
     expected_settlement_date: str
+    # The reference the payment method gave for this order's payment (null if none was recorded).
+    payment_reference: str | None
 
 
 class PendingDateGroupOut(BaseModel):
@@ -79,6 +81,7 @@ class SettlementOrderOut(BaseModel):
     customer_total: Rial
     transaction_fee: Rial
     expected_amount: Rial
+    payment_reference: str | None
 
 
 class SettlementListItemOut(BaseModel):

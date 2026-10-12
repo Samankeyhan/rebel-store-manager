@@ -117,6 +117,7 @@ def test_pending_shape_for_date_rules(test_db, setup):
             "transaction_fee": 1000,
             "expected_amount": 99000,
             "expected_settlement_date": "2026-10-02",
+            "payment_reference": None,
         }
     ]
 
@@ -318,6 +319,7 @@ def test_whole_month_settlement(test_db, setup):
         "customer_total": 250000,
         "transaction_fee": 7500,
         "expected_amount": 242500,
+        "payment_reference": None,
     }
     for order_id in (a, b, c):
         assert _settlement_id_of(test_db, order_id) == settlement_id
