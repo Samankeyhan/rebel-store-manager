@@ -20,7 +20,7 @@ export const API_URL = (
 /**
  * A failed API call. `type` is the backend error class (NotFoundError,
  * ValidationError, InsufficientStockError, ConflictError, AppError),
- * "RequestValidationError" for FastAPI's own 422s (bad body shape),
+ * "RequestValidationError" for request-shape 422s (bad body or query; same envelope, `details.errors`),
  * or "NetworkError" when the backend couldn't be reached at all.
  * Screens branch on `code` (lib/error-codes.ts) and `details`, never on
  * `message`; `code` is null for FastAPI's own 422s, other HTTP errors and

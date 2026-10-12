@@ -90,7 +90,7 @@ Selling a product whose unit_cost is NULL is refused with ValidationError (field
   - made-to-order lines follow section 13.
 
 ## 8. Stock adjustments
-- Product quantities must be whole numbers. Material quantities may be fractional.
+- Product quantities must be whole numbers. Material quantities may be fractional. Size limits: section 17.
 - WASTE quantity_change must be negative.
 - No movement may take stock below zero: InsufficientStockError, nothing written.
 - Every WASTE and ADJUSTMENT movement stores unit_cost_at_time = the item's unit_cost at that moment (NULL if unknown).
@@ -228,3 +228,9 @@ For a date range, one row per payment method (active, or inactive with any non-z
 - Names are unique, active or not (a deactivated name stays reserved), in: products, materials, suppliers, partners, payment methods, packaging kits, expense categories, and categories (among siblings: same kind and parent). A create or rename that repeats a name, even in another spelling, is refused with 409: `NAME_DUPLICATE` (details `entity`, `existing_id`), or `CATEGORY_DUPLICATE_NAME` / `PAYMENT_METHOD_DUPLICATE_NAME` for those two. The unique index on `name_key` is the final guard; rows without a key still count in the check.
 - Existing names are never rewritten, merged or deleted (invoices, the audit log and reports show what was typed). Migration 013 adds `name_key` (NULL); `init_db` fills it afterwards. Rows whose key collides with another row keep `name_key` NULL, are logged and returned by `init_db` / `name_keys.find_name_collisions` for the later integrity check; the backfill touches neither `name` nor `updated_at`, and writes no audit row.
 - `name_key` is never logged in the audit log (section 15) and never sent by the API.
+
+## 17. Limits
+- Money is an integer count of Rial with a size of at most `MAX_MONEY` = 9,007,199,254,740,991 (2^53 − 1: the largest integer a JSON/JavaScript client round-trips exactly, and far below SQLite's 2^63 − 1 so sums of many rows cannot overflow). It applies to every amount a client sends (request bodies and the `fee-preview` amount) and to every amount `db/` computes before it is written (line total, order total, fee, unit cost, batch cost, kit cost, settlement expected amount): a larger size, above or below zero, is refused with 422 `AMOUNT_TOO_LARGE` (details `max`, field = the amount to change), nothing is written. Whether an amount may be negative is each field's own rule (every amount field is ≥ 0). The largest amount in the real data was 300,000,000 Rial.
+- Quantities: whole-number fields (order line, production batch, product purchase) are integers in 1..1,000,000; material quantities (purchase, recipe line, kit item) are numbers in (0, 1,000,000,000]; stock fields (`initial_stock`, `min_stock`) are 0..1,000,000,000; a stock adjustment is ±1,000,000,000 and never 0 (WASTE negative and whole numbers for products stay as in section 8). A non-integer where a whole number is required is 422 `QUANTITY_NOT_WHOLE`; out of range is 422 `QUANTITY_OUT_OF_RANGE` (details `min`, `max`: the bound that was crossed, the other side null).
+- Report totals add up stored rows without a per-query guard: an overflow would need more than a thousand rows of the maximum amount.
+- Request-shape errors (wrong type, missing field, bad query) answer in the same error envelope as every other refusal, type `RequestValidationError`, `details.errors` = the list of {loc, msg, type}; the input itself is never echoed.

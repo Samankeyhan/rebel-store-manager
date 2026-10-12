@@ -13,3 +13,4 @@
 - `POST /settlements`: `order_ids` for IMMEDIATE/DAYS_AFTER; `jalali_year` + `jalali_month` for DAY_OF_NEXT_MONTH (`order_ids` there is a 422). `difference` comes from `db/`.
 - `PUT /settings/{key}`: only `VALID_SETTING_KEYS`, enforced in `db.settings.set_setting`.
 - Tests: `with TestClient(app)` runs `init_db` on `$REBEL_DB`; the autouse fixture in `tests/conftest.py` points it at a temp file. Keep it.
+- Money fields use `Money` (strict int, bounded ±`MAX_MONEY`); quantities use `WholeQuantity` / `PositiveQuantity` / `Quantity` / `QuantityChange` (`api/schemas/common.py`). Never a bare `int`/`float` for either. Every error, including FastAPI's own 422, is the `{"error": {...}}` envelope (`api/validation.py`); a new `ErrorCode` also needs its details model (`api/schemas/errors.py`).
