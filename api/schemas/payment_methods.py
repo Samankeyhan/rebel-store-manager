@@ -1,9 +1,9 @@
 from pydantic import BaseModel, ConfigDict, StrictInt
 
-from api.schemas.common import Money, Rial
+from api.schemas.common import Money, NamedOut, Rial
 
 
-class PaymentMethodOut(BaseModel):
+class PaymentMethodOut(NamedOut):
     model_config = ConfigDict(extra="forbid")
 
     id: int

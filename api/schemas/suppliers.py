@@ -1,7 +1,9 @@
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from api.schemas.common import NamedOut
 
-class SupplierOut(BaseModel):
+
+class SupplierOut(NamedOut):
     model_config = ConfigDict(extra="forbid")
 
     id: int

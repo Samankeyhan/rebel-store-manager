@@ -10,6 +10,8 @@ from db import jalali
 from db.audit import audited
 from db.connection import transaction
 from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
+from db.name_keys import duplicate_guard
+from db.names import name_key, stored_form
 from db.timeutil import now_utc
 
 SETTLEMENT_RULES = ("IMMEDIATE", "DAYS_AFTER", "DAY_OF_NEXT_MONTH")
@@ -28,7 +30,7 @@ _DAYS_RANGE = {"DAYS_AFTER": (1, 365), "DAY_OF_NEXT_MONTH": (1, 31)}
 
 
 def _validate_name(name: str) -> str:
-    stripped = name.strip() if name is not None else ""
+    stripped = stored_form(name) if name is not None else ""
     if not stripped:
         raise ValidationError("name is required and cannot be empty", field="name")
     return stripped
@@ -107,13 +109,6 @@ def _validate_rule(settlement_rule: str, settlement_days: int | None) -> None:
         )
 
 
-def _name_conflict(name: str) -> ConflictError:
-    return ConflictError(
-        f"A payment method named '{name}' already exists",
-        code=ErrorCode.PAYMENT_METHOD_DUPLICATE_NAME,
-    )
-
-
 def count_pending_orders(conn: sqlite3.Connection, payment_method_id: int) -> int:
     """Paid orders of this method that are not yet in a settlement."""
     placeholders = ", ".join("?" for _ in PAID_STATUSES)
@@ -144,18 +139,19 @@ def add_payment_method(
     _validate_fee_cap(fee_cap, fee_bps)
     _validate_rule(settlement_rule, settlement_days)
 
-    try:
+    with duplicate_guard(
+        conn, "payment_methods", validated_name, code=ErrorCode.PAYMENT_METHOD_DUPLICATE_NAME
+    ):
         with transaction(conn):
             cursor = conn.execute(
                 """
                 INSERT INTO payment_methods
-                    (name, fee_bps, fee_fixed, fee_cap, settlement_rule, settlement_days)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (name, name_key, fee_bps, fee_fixed, fee_cap, settlement_rule, settlement_days)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (validated_name, fee_bps, fee_fixed, fee_cap, settlement_rule, settlement_days),
+                (validated_name, name_key(validated_name), fee_bps, fee_fixed, fee_cap,
+                 settlement_rule, settlement_days),
             )
-    except sqlite3.IntegrityError:
-        raise _name_conflict(validated_name) from None
     return cursor.lastrowid
 
 
@@ -221,16 +217,19 @@ def update_payment_method(conn: sqlite3.Connection, payment_method_id: int, **fi
                 details={"pending_count": pending},
             )
 
+    if "name" in fields:
+        fields["name_key"] = name_key(fields["name"])
     assignments = [f"{name} = ?" for name in fields] + ["updated_at = ?"]
     params = [*fields.values(), now_utc(), payment_method_id]
-    try:
+    with duplicate_guard(
+        conn, "payment_methods", merged["name"], exclude_id=payment_method_id,
+        code=ErrorCode.PAYMENT_METHOD_DUPLICATE_NAME,
+    ):
         with transaction(conn):
             conn.execute(
                 f"UPDATE payment_methods SET {', '.join(assignments)} WHERE id = ?",
                 params,
             )
-    except sqlite3.IntegrityError:
-        raise _name_conflict(merged["name"]) from None
 
 
 def _set_active(conn: sqlite3.Connection, payment_method_id: int, is_active: int) -> None:

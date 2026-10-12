@@ -1,9 +1,9 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import Rial
+from api.schemas.common import NamedOut, Rial
 
 
-class PartnerOut(BaseModel):
+class PartnerOut(NamedOut):
     model_config = ConfigDict(extra="forbid")
 
     id: int

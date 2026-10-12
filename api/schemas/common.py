@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, Strict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, Strict, StringConstraints, model_validator
 
 from db.errors import ErrorCode
 
@@ -18,6 +18,18 @@ Rial = Annotated[int, Field(description=RIAL_DESCRIPTION)]
 # A stock quantity in request bodies (REAL, in the item's own unit): a finite
 # number >= 0. Strict, so "5" and true are rejected with 422; JSON integers pass.
 Quantity = Annotated[float, Strict(), Field(ge=0, allow_inf_nan=False)]
+
+
+class NamedOut(BaseModel):
+    """Base of the responses for tables with a unique name: `name_key` (db/names.py) is internal,
+    never sent."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_name_key(cls, data):
+        if isinstance(data, dict) and "name_key" in data:
+            return {k: v for k, v in data.items() if k != "name_key"}
+        return data
 
 
 class ErrorBody(BaseModel):

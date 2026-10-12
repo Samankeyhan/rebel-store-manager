@@ -7,6 +7,8 @@ import sqlite3
 from db.audit import audited
 from db.connection import transaction
 from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
+from db.name_keys import duplicate_guard
+from db.names import name_key, stored_form
 
 VALID_KINDS = ("PRODUCT", "MATERIAL")
 
@@ -26,7 +28,7 @@ def _validate_kind(kind: str) -> None:
 
 
 def _clean_name(name: str) -> str:
-    stripped = name.strip() if name is not None else ""
+    stripped = stored_form(name) if name is not None else ""
     if not stripped:
         raise ValidationError("Category name must not be empty", field="name")
     return stripped
@@ -37,30 +39,6 @@ def _require(conn: sqlite3.Connection, category_id: int) -> dict:
     if category is None:
         raise NotFoundError(f"Category with id {category_id} does not exist")
     return category
-
-
-def _check_sibling_name(
-    conn: sqlite3.Connection,
-    kind: str,
-    parent_id: int | None,
-    name: str,
-    exclude_id: int | None = None,
-) -> None:
-    if parent_id is None:
-        row = conn.execute(
-            "SELECT id FROM categories WHERE kind = ? AND parent_id IS NULL AND name = ?",
-            (kind, name),
-        ).fetchone()
-    else:
-        row = conn.execute(
-            "SELECT id FROM categories WHERE parent_id = ? AND name = ?",
-            (parent_id, name),
-        ).fetchone()
-    if row is not None and row["id"] != exclude_id:
-        raise ConflictError(
-            f"A category named '{name}' already exists at this level.",
-            code=ErrorCode.CATEGORY_DUPLICATE_NAME,
-        )
 
 
 def _has_active_children(conn: sqlite3.Connection, category_id: int) -> bool:
@@ -141,12 +119,15 @@ def create_category(
                 field="parent_id",
                 code=ErrorCode.CATEGORY_PARENT_INACTIVE,
             )
-    _check_sibling_name(conn, kind, parent_id, name)
-    with transaction(conn):
-        cursor = conn.execute(
-            "INSERT INTO categories (kind, name, parent_id) VALUES (?, ?, ?)",
-            (kind, name, parent_id),
-        )
+    with duplicate_guard(
+        conn, "categories", name, {"kind": kind, "parent_id": parent_id},
+        code=ErrorCode.CATEGORY_DUPLICATE_NAME,
+    ):
+        with transaction(conn):
+            cursor = conn.execute(
+                "INSERT INTO categories (kind, name, name_key, parent_id) VALUES (?, ?, ?, ?)",
+                (kind, name, name_key(name), parent_id),
+            )
     return cursor.lastrowid
 
 
@@ -166,10 +147,15 @@ def update_category(
     with transaction(conn):
         if name is not None:
             name = _clean_name(name)
-            _check_sibling_name(
-                conn, category["kind"], category["parent_id"], name, exclude_id=category_id
-            )
-            conn.execute("UPDATE categories SET name = ? WHERE id = ?", (name, category_id))
+            with duplicate_guard(
+                conn, "categories", name,
+                {"kind": category["kind"], "parent_id": category["parent_id"]},
+                exclude_id=category_id, code=ErrorCode.CATEGORY_DUPLICATE_NAME,
+            ):
+                conn.execute(
+                    "UPDATE categories SET name = ?, name_key = ? WHERE id = ?",
+                    (name, name_key(name), category_id),
+                )
         if is_active is True:
             reactivate_category(conn, category_id)
         elif is_active is False:

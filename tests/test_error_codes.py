@@ -90,8 +90,8 @@ def test_explicit_code_and_details_override_the_default():
 
 
 def test_every_specific_code_is_raised_in_db():
-    """The 29 specific codes, not the class defaults (covered above)."""
-    assert len(SPECIFIC_CODES) == 29
+    """The 30 specific codes, not the class defaults (covered above)."""
+    assert len(SPECIFIC_CODES) == 30
     source = "\n".join(p.read_text(encoding="utf-8") for p in Path("db").glob("*.py") if p.name != "errors.py")
     unused = [c.name for c in SPECIFIC_CODES if not re.search(rf"ErrorCode\.{c.name}\b", source)]
     assert unused == []
@@ -209,7 +209,8 @@ def test_payment_method_rule_change_with_pending_orders(test_db, setup):
 def test_payment_method_duplicate_name(test_db, setup):
     _raises(
         lambda: add_payment_method(test_db, "Card to card", "IMMEDIATE"),
-        ConflictError, ErrorCode.PAYMENT_METHOD_DUPLICATE_NAME, "payment method named .* already exists",
+        ConflictError, ErrorCode.PAYMENT_METHOD_DUPLICATE_NAME, "Payment method 'Card to card' already exists",
+        details={"entity": "payment_method", "existing_id": setup["card"]},
     )
 
 
@@ -217,6 +218,7 @@ def test_duplicate_name_on_rename(test_db, setup):
     _raises(
         lambda: update_payment_method(test_db, setup["zarinpal"], name="Card to card"),
         ConflictError, ErrorCode.PAYMENT_METHOD_DUPLICATE_NAME, "already exists",
+        details={"entity": "payment_method", "existing_id": setup["card"]},
     )
 
 
@@ -414,10 +416,11 @@ def test_distribution_period_order(test_db):
 
 
 def test_category_duplicate_name(test_db):
-    create_category(test_db, "PRODUCT", "Posters")
+    first = create_category(test_db, "PRODUCT", "Posters")
     _raises(
         lambda: create_category(test_db, "PRODUCT", "Posters"),
-        ConflictError, ErrorCode.CATEGORY_DUPLICATE_NAME, "already exists at this level",
+        ConflictError, ErrorCode.CATEGORY_DUPLICATE_NAME, "already exists",
+        details={"entity": "category", "existing_id": first},
     )
 
 
@@ -591,9 +594,9 @@ def test_api_409_envelope(client):
     assert error == {
         "type": "ConflictError",
         "code": "PAYMENT_METHOD_DUPLICATE_NAME",
-        "message": "A payment method named 'Card' already exists",
+        "message": "Payment method 'Card' already exists (a similar spelling counts as the same name).",
         "field": None,
-        "details": {},
+        "details": {"entity": "payment_method", "existing_id": 1},
     }
 
 
@@ -622,6 +625,6 @@ def test_fastapi_request_validation_body_unchanged(client):
 def test_openapi_lists_every_error_code():
     schemas = app.openapi()["components"]["schemas"]
     assert sorted(schemas["ErrorCode"]["enum"]) == sorted(c.value for c in ErrorCode)
-    assert len(schemas["ErrorCode"]["enum"]) == 34
+    assert len(schemas["ErrorCode"]["enum"]) == 35
     assert schemas["ErrorBody"]["properties"]["code"] == {"$ref": "#/components/schemas/ErrorCode"}
     assert "ErrorEnvelope" in schemas

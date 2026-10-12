@@ -8,6 +8,8 @@ from db.audit import audited
 from db.connection import transaction
 from db.costing import exact_quantity, round_half_even
 from db.errors import ConflictError, NotFoundError, ValidationError
+from db.name_keys import duplicate_guard
+from db.names import name_key, stored_form
 from db.materials import get_material
 
 
@@ -40,10 +42,15 @@ def _validate_kit_material(conn: sqlite3.Connection, material_id: int) -> dict:
 
 @audited()
 def create_kit(conn: sqlite3.Connection, name: str) -> int:
-    with transaction(conn):
-        cursor = conn.execute(
-            "INSERT INTO packaging_kits (name) VALUES (?)", (name,)
-        )
+    stored = stored_form(name) if isinstance(name, str) else ""
+    if not stored:
+        raise ValidationError("name is required and cannot be empty", field="name")
+    with duplicate_guard(conn, "packaging_kits", stored):
+        with transaction(conn):
+            cursor = conn.execute(
+                "INSERT INTO packaging_kits (name, name_key) VALUES (?, ?)",
+                (stored, name_key(stored)),
+            )
     return cursor.lastrowid
 
 

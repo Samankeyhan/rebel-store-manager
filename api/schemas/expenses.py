@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import DateStr, Money, Rial
+from api.schemas.common import DateStr, Money, NamedOut, Rial
 
 
 class ExpenseOut(BaseModel):
@@ -14,7 +14,7 @@ class ExpenseOut(BaseModel):
     category_name: str
 
 
-class ExpenseCategoryOut(BaseModel):
+class ExpenseCategoryOut(NamedOut):
     model_config = ConfigDict(extra="forbid")
 
     id: int

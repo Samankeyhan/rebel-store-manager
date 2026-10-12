@@ -1,9 +1,9 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import Money, Rial
+from api.schemas.common import Money, NamedOut, Rial
 
 
-class ProductOut(BaseModel):
+class ProductOut(NamedOut):
     model_config = ConfigDict(extra="forbid")
 
     id: int

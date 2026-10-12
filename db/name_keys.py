@@ -70,8 +70,8 @@ def duplicate_error(
 ) -> ConflictError:
     entity = NAME_KEY_TABLES[table]
     return ConflictError(
-        f"A {entity.replace('_', ' ')} named '{name}' already exists "
-        f"(the same name in a similar spelling counts).",
+        f"{entity.replace('_', ' ').capitalize()} '{name}' already exists "
+        f"(a similar spelling counts as the same name).",
         code=code or ErrorCode.NAME_DUPLICATE,
         details={"entity": entity, "existing_id": existing_id},
     )

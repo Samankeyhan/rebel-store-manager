@@ -2,10 +2,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.common import NamedOut
+
 CategoryKind = Literal["PRODUCT", "MATERIAL"]
 
 
-class CategoryOut(BaseModel):
+class CategoryOut(NamedOut):
     model_config = ConfigDict(extra="forbid")
 
     id: int

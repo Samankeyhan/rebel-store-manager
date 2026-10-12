@@ -1,9 +1,9 @@
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.common import Rial
+from api.schemas.common import NamedOut, Rial
 
 
-class KitOut(BaseModel):
+class KitOut(NamedOut):
     model_config = ConfigDict(extra="forbid")
 
     id: int
@@ -24,7 +24,7 @@ class KitItemOut(BaseModel):
     material_unit_cost: Rial
 
 
-class KitDetailOut(BaseModel):
+class KitDetailOut(NamedOut):
     model_config = ConfigDict(extra="forbid")
 
     id: int

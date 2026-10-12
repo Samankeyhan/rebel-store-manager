@@ -5,6 +5,8 @@ import sqlite3
 from db.audit import audited
 from db.connection import transaction
 from db.errors import ConflictError, NotFoundError, ValidationError
+from db.name_keys import duplicate_guard
+from db.names import name_key, stored_form
 from db.timeutil import normalize_record_date, to_utc_range
 
 
@@ -21,20 +23,16 @@ def get_expense_category(conn: sqlite3.Connection, category_id: int) -> dict | N
 
 @audited()
 def add_expense_category(conn: sqlite3.Connection, name: str) -> int:
-    stripped = name.strip()
+    stripped = stored_form(name)
     if not stripped:
         raise ValidationError("name is required and cannot be empty", field="name")
 
-    try:
+    with duplicate_guard(conn, "expense_categories", stripped):
         with transaction(conn):
             cursor = conn.execute(
-                "INSERT INTO expense_categories (name) VALUES (?)",
-                (stripped,),
+                "INSERT INTO expense_categories (name, name_key) VALUES (?, ?)",
+                (stripped, name_key(stripped)),
             )
-    except sqlite3.IntegrityError:
-        raise ConflictError(
-            f"Expense category '{stripped}' already exists."
-        ) from None
     return cursor.lastrowid
 
 

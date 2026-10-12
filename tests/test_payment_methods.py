@@ -101,14 +101,14 @@ def test_add_payment_method_requires_name(test_db, name):
 
 def test_duplicate_name_is_conflict(test_db):
     add_payment_method(test_db, "Digipay", "DAY_OF_NEXT_MONTH", 7)
-    with pytest.raises(ConflictError, match="A payment method named 'Digipay' already exists"):
+    with pytest.raises(ConflictError, match="Payment method 'Digipay' already exists"):
         add_payment_method(test_db, "Digipay", "IMMEDIATE")
 
 
 def test_rename_to_existing_name_is_conflict(test_db):
     add_payment_method(test_db, "Digipay", "DAY_OF_NEXT_MONTH", 7)
     other = add_payment_method(test_db, "Zarinpal", "DAYS_AFTER", 1)
-    with pytest.raises(ConflictError, match="named 'Digipay' already exists"):
+    with pytest.raises(ConflictError, match="Payment method 'Digipay' already exists"):
         update_payment_method(test_db, other, name="Digipay")
 
 
