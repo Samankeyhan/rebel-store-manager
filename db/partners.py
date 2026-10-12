@@ -5,6 +5,8 @@ import sqlite3
 from db.audit import audited
 from db.connection import transaction
 from db.errors import NotFoundError, ValidationError
+from db.name_keys import duplicate_guard
+from db.names import name_key, stored_form
 
 
 def _validate_percentage(percentage: float, field_name: str = "percentage") -> None:
@@ -15,7 +17,7 @@ def _validate_percentage(percentage: float, field_name: str = "percentage") -> N
 
 
 def _validate_name(name: str) -> str:
-    stripped = name.strip()
+    stripped = stored_form(name)
     if not stripped:
         raise ValidationError("name is required and cannot be empty", field="name")
     return stripped
@@ -37,14 +39,15 @@ def add_partner(
     validated_name = _validate_name(name)
     _validate_percentage(percentage, "percentage")
 
-    with transaction(conn):
-        cursor = conn.execute(
-            """
-            INSERT INTO partners (name, current_percentage, phone, email, notes)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (validated_name, percentage, phone, email, notes),
-        )
+    with duplicate_guard(conn, "partners", validated_name):
+        with transaction(conn):
+            cursor = conn.execute(
+                """
+                INSERT INTO partners (name, name_key, current_percentage, phone, email, notes)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (validated_name, name_key(validated_name), percentage, phone, email, notes),
+            )
     return cursor.lastrowid
 
 

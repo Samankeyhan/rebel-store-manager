@@ -88,7 +88,10 @@ def test_ordering_most_urgent_first(test_db):
 
 def test_ordering_ties_by_id(test_db):
     first = add_material(test_db, "Same", "STOCK", 100, initial_stock=0)
-    second = add_material(test_db, "Same", "STOCK", 100, initial_stock=0)
+    # Names are unique now; a same-named pair can only be legacy rows the backfill left without a key.
+    second = test_db.execute(
+        "INSERT INTO materials (name, type, unit_cost, current_stock) VALUES ('Same', 'STOCK', 100, 0)"
+    ).lastrowid
     assert _low_ids(test_db) == [first, second]
 
 

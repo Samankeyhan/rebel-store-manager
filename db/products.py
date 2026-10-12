@@ -7,6 +7,8 @@ from db.audit import audited
 from db.categories import validate_assignable
 from db.connection import transaction
 from db.errors import ErrorCode, NotFoundError, ValidationError
+from db.name_keys import duplicate_guard
+from db.names import name_key, stored_form
 
 # Products carry their category's name (and its parent's, for a subcategory)
 # so callers never need a second lookup. products.category is the legacy code
@@ -20,6 +22,13 @@ _SELECT = """
     JOIN categories c ON c.id = products.category_id
     LEFT JOIN categories pc ON pc.id = c.parent_id
 """
+
+
+def _validate_name(name: str) -> str:
+    stored = stored_form(name) if isinstance(name, str) else ""
+    if not stored:
+        raise ValidationError("name is required and cannot be empty", field="name")
+    return stored
 
 
 def _validate_price(price: int, field_name: str) -> None:
@@ -36,19 +45,21 @@ def add_product(
     wholesale_price: int,
     made_to_order: bool = False,
 ) -> int:
+    name = _validate_name(name)
     validate_assignable(conn, category_id, "PRODUCT")
     _validate_price(retail_price, "retail_price")
     _validate_price(wholesale_price, "wholesale_price")
 
-    with transaction(conn):
-        cursor = conn.execute(
-            """
-            INSERT INTO products
-                (name, category_id, retail_price, wholesale_price, made_to_order)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (name, category_id, retail_price, wholesale_price, int(made_to_order)),
-        )
+    with duplicate_guard(conn, "products", name):
+        with transaction(conn):
+            cursor = conn.execute(
+                """
+                INSERT INTO products
+                    (name, name_key, category_id, retail_price, wholesale_price, made_to_order)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (name, name_key(name), category_id, retail_price, wholesale_price, int(made_to_order)),
+            )
     return cursor.lastrowid
 
 

@@ -18,6 +18,8 @@ from db.audit import audited
 from db.categories import validate_assignable
 from db.connection import transaction
 from db.errors import NotFoundError, ValidationError
+from db.name_keys import duplicate_guard
+from db.names import name_key, stored_form
 
 VALID_TYPES = ("STOCK", "SERVICE")
 UPDATABLE_FIELDS = ("min_stock",)
@@ -44,6 +46,13 @@ _SELECT = """
     LEFT JOIN categories c ON c.id = materials.category_id
     LEFT JOIN categories pc ON pc.id = c.parent_id
 """.format(low=_LOW_STOCK)
+
+
+def _validate_name(name: str) -> str:
+    stored = stored_form(name) if isinstance(name, str) else ""
+    if not stored:
+        raise ValidationError("name is required and cannot be empty", field="name")
+    return stored
 
 
 def _validate_type(material_type: str) -> None:
@@ -85,6 +94,7 @@ def add_material(
     category_id: int | None = None,
     min_stock: float | None = None,
 ) -> int:
+    name = _validate_name(name)
     _validate_type(type)
     _validate_unit_cost(unit_cost)
     _validate_min_stock(min_stock, type)
@@ -100,15 +110,16 @@ def add_material(
     else:
         current_stock = initial_stock if initial_stock is not None else 0
 
-    with transaction(conn):
-        cursor = conn.execute(
-            """
-            INSERT INTO materials
-                (name, type, unit, current_stock, unit_cost, category_id, min_stock)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (name, type, unit, current_stock, unit_cost, category_id, min_stock),
-        )
+    with duplicate_guard(conn, "materials", name):
+        with transaction(conn):
+            cursor = conn.execute(
+                """
+                INSERT INTO materials
+                    (name, name_key, type, unit, current_stock, unit_cost, category_id, min_stock)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (name, name_key(name), type, unit, current_stock, unit_cost, category_id, min_stock),
+            )
     return cursor.lastrowid
 
 

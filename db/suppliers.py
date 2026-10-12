@@ -1,16 +1,19 @@
 """Supplier CRUD."""
 
+import contextlib
 import sqlite3
 
 from db.audit import audited
 from db.connection import transaction
 from db.errors import ErrorCode, NotFoundError, ValidationError
+from db.name_keys import duplicate_guard
+from db.names import name_key, stored_form
 
 UPDATABLE_FIELDS = ("name", "phone", "email", "website", "notes")
 
 
 def _validate_name(name: str) -> str:
-    stripped = name.strip()
+    stripped = stored_form(name)
     if not stripped:
         raise ValidationError("name is required and cannot be empty", field="name")
     return stripped
@@ -27,14 +30,15 @@ def add_supplier(
 ) -> int:
     validated_name = _validate_name(name)
 
-    with transaction(conn):
-        cursor = conn.execute(
-            """
-            INSERT INTO suppliers (name, phone, email, website, notes)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (validated_name, phone, email, website, notes),
-        )
+    with duplicate_guard(conn, "suppliers", validated_name):
+        with transaction(conn):
+            cursor = conn.execute(
+                """
+                INSERT INTO suppliers (name, name_key, phone, email, website, notes)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (validated_name, name_key(validated_name), phone, email, website, notes),
+            )
     return cursor.lastrowid
 
 
@@ -61,12 +65,16 @@ def update_supplier(conn: sqlite3.Connection, supplier_id: int, **fields) -> Non
 
     updates: list[str] = []
     params: list = []
+    new_name: str | None = None
 
     for field_name, value in fields.items():
         if field_name not in UPDATABLE_FIELDS:
             raise ValidationError(f"Unknown field '{field_name}'", field=field_name)
         if field_name == "name":
             value = _validate_name(value)
+            new_name = value
+            updates.append("name_key = ?")
+            params.append(name_key(value))
         updates.append(f"{field_name} = ?")
         params.append(value)
 
@@ -74,8 +82,14 @@ def update_supplier(conn: sqlite3.Connection, supplier_id: int, **fields) -> Non
         return
 
     params.append(supplier_id)
-    with transaction(conn):
-        conn.execute(
-            f"UPDATE suppliers SET {', '.join(updates)} WHERE id = ?",
-            params,
-        )
+    guard = (
+        duplicate_guard(conn, "suppliers", new_name, exclude_id=supplier_id)
+        if new_name is not None
+        else contextlib.nullcontext()
+    )
+    with guard:
+        with transaction(conn):
+            conn.execute(
+                f"UPDATE suppliers SET {', '.join(updates)} WHERE id = ?",
+                params,
+            )

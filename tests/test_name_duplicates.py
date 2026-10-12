@@ -9,9 +9,15 @@ from db import name_keys
 from db.categories import create_category, deactivate_category, update_category
 from db.errors import ConflictError, ErrorCode, ValidationError
 from db.expenses import add_expense_category
+from db.materials import add_material, deactivate_material
+from db.name_keys import NAME_KEY_TABLES
 from db.names import name_key
 from db.packaging import create_kit
+from db.partners import add_partner
 from db.payment_methods import add_payment_method, deactivate_payment_method, update_payment_method
+from db.products import add_product, deactivate_product
+from db.suppliers import add_supplier, update_supplier
+from tests.helpers import cat
 
 ARABIC = "كتاب ٣"  # Arabic Kaf, Arabic-Indic digit
 PERSIAN = "کتاب 3"  # Persian Kaf, ASCII digit
@@ -26,12 +32,28 @@ def _cat(conn, name):
     return create_category(conn, "PRODUCT", name)
 
 
+def _product(conn, name):
+    return add_product(conn, name, cat(conn), 3000, 2000)
+
+
+def _material(conn, name):
+    return add_material(conn, name, "STOCK", 100)
+
+
+def _partner(conn, name):
+    return add_partner(conn, name, 10)
+
+
 # table, create function, name column table, code expected
 CREATORS = [
     ("payment_methods", _pay, ErrorCode.PAYMENT_METHOD_DUPLICATE_NAME, "payment_method"),
     ("categories", _cat, ErrorCode.CATEGORY_DUPLICATE_NAME, "category"),
     ("packaging_kits", create_kit, ErrorCode.NAME_DUPLICATE, "packaging_kit"),
     ("expense_categories", add_expense_category, ErrorCode.NAME_DUPLICATE, "expense_category"),
+    ("products", _product, ErrorCode.NAME_DUPLICATE, "product"),
+    ("materials", _material, ErrorCode.NAME_DUPLICATE, "material"),
+    ("suppliers", add_supplier, ErrorCode.NAME_DUPLICATE, "supplier"),
+    ("partners", _partner, ErrorCode.NAME_DUPLICATE, "partner"),
 ]
 IDS = [c[0] for c in CREATORS]
 
@@ -125,6 +147,41 @@ def test_a_deactivated_payment_method_keeps_its_name_reserved(test_db):
     with pytest.raises(ConflictError) as exc_info:
         _pay(test_db, PERSIAN)
     _assert_duplicate(exc_info, ErrorCode.PAYMENT_METHOD_DUPLICATE_NAME, "payment_method", first)
+
+
+def test_every_name_table_is_covered_here():
+    assert {c[0] for c in CREATORS} == set(NAME_KEY_TABLES)
+
+
+@pytest.mark.parametrize(
+    "create, deactivate, table",
+    [(_product, deactivate_product, "products"), (_material, deactivate_material, "materials")],
+)
+def test_a_deactivated_product_or_material_keeps_its_name_reserved(test_db, create, deactivate, table):
+    first = create(test_db, ARABIC)
+    deactivate(test_db, first)
+    with pytest.raises(ConflictError) as exc_info:
+        create(test_db, PERSIAN)
+    _assert_duplicate(exc_info, ErrorCode.NAME_DUPLICATE, NAME_KEY_TABLES[table], first)
+
+
+def test_rename_a_supplier_to_a_variant_of_another_is_refused(test_db):
+    other = add_supplier(test_db, ARABIC)
+    mine = add_supplier(test_db, "Mine")
+    with pytest.raises(ConflictError) as exc_info:
+        update_supplier(test_db, mine, name=PERSIAN, phone="021")
+    _assert_duplicate(exc_info, ErrorCode.NAME_DUPLICATE, "supplier", other)
+    row = test_db.execute("SELECT name, phone FROM suppliers WHERE id = ?", (mine,)).fetchone()
+    assert (row["name"], row["phone"]) == ("Mine", None)  # nothing half-applied
+
+
+def test_rename_a_supplier_to_a_variant_of_itself_is_allowed_and_other_fields_need_no_name_check(test_db):
+    mine = add_supplier(test_db, ARABIC)
+    update_supplier(test_db, mine, name="  كتاب   3 ")
+    row = test_db.execute("SELECT name, name_key FROM suppliers WHERE id = ?", (mine,)).fetchone()
+    assert (row["name"], row["name_key"]) == ("کتاب 3", "کتاب 3")
+    update_supplier(test_db, mine, phone="021")
+    assert test_db.execute("SELECT name_key FROM suppliers WHERE id = ?", (mine,)).fetchone()[0] == "کتاب 3"
 
 
 def test_a_deactivated_category_keeps_its_name_reserved(test_db):
