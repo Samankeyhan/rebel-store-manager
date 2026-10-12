@@ -19,6 +19,7 @@
 - Navigation lives in `lib/nav.ts` (sidebar, top bar and `PageStub` read it). Add a screen = its nav item + `app/<slug>/page.tsx`.
 - Colours: theme tokens from `app/globals.css` (`bg-primary`, `bg-sidebar`, `bg-brand-red`, `text-navy`…), never raw hex. Brand: logo red `#F03045`, button red `#D21F37`, navy `#26364C`.
 - Copy lives in `frontend/components/common/copy.ts` plus a `copy.ts` per feature folder (`frontend/components/<feature>/copy.ts`); mark new strings `// NEW`.
+- A name refused as taken (create or rename): `isNameDuplicate(e)` (`lib/error-codes.ts`; `NAME_DUPLICATE` and the two older duplicate codes), message from `nameDuplicateMessage(duplicateEntity(e))` (`components/common/copy.ts`) under the name field; keep the typed input.
 - Product/material rows already include `category_name`/`parent_category_name`; don't fetch categories per row.
 - Backend gaps go in the report, not fixed here.
 
