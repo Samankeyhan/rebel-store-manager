@@ -4,7 +4,9 @@ import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { DrawerShell, SaveError, textInputClass } from "@/components/products/drawer-shell"
 import { Alert, Btn, Help, InlineMessage, Label } from "@/components/record-sale/primitives"
+import { nameDuplicateMessage } from "@/components/common/copy"
 import { ApiError, createPartner, deactivatePartner, setPartnerPercentage, type Partner } from "@/lib/api"
+import { duplicateEntity, isNameDuplicate } from "@/lib/error-codes"
 import {
   HUNDRED_PERCENT,
   isNameTaken,
@@ -54,6 +56,8 @@ export function SplitDialog({
   const [busy, setBusy] = React.useState(false)
   const [saveError, setSaveError] = React.useState<{ message: string; code: string } | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
+  // A name the server refused as a spelling variant of an existing one: { typed name, message }.
+  const [serverDup, setServerDup] = React.useState<{ name: string; message: string } | null>(null)
 
   // Keep the last mode while the drawer animates closed; reset on open.
   const [shown, setShown] = React.useState<SplitMode | null>(null)
@@ -61,6 +65,7 @@ export function SplitDialog({
     setShown(mode)
     setTexts(Object.fromEntries(partners.filter((p) => p.is_active === 1).map((p) => [p.id, percentText(p.current_percentage)])))
     setDraft(emptyDraft)
+    setServerDup(null)
     setTouched(false)
     setSaveError(null)
     setNotice(null)
@@ -78,7 +83,7 @@ export function SplitDialog({
   const noneLeft = m.kind === "deactivate" && rows.length === 0
 
   const name = draft.name.trim()
-  const nameError = m.kind !== "add" ? null : !name ? (touched ? S.nameRequired : null) : isNameTaken(name, partners) ? S.nameTaken : null
+  const nameError = m.kind !== "add" ? null : !name ? (touched ? S.nameRequired : null) : isNameTaken(name, partners) ? S.nameTaken : serverDup?.name === name ? serverDup.message : null
   const edited = new Map<number, number>()
   for (const [id, r] of parsed) if (r.hundredths !== null) edited.set(id, r.hundredths)
   const changes = percentChanges(rows, edited)
@@ -123,6 +128,10 @@ export function SplitDialog({
       }
       onDone(m.kind === "add" ? S.toastAdded : m.kind === "deactivate" ? S.toastDeactivated : S.toastSplit)
     } catch (e) {
+      if (saved.length === 0 && m.kind === "add" && e instanceof ApiError && isNameDuplicate(e)) {
+        setServerDup({ name, message: nameDuplicateMessage(duplicateEntity(e)) })
+        return
+      }
       const message = e instanceof ApiError ? (e.status === 0 ? S.errorBody : e.message) : String(e)
       if (saved.length === 0)
         setSaveError({ message, code: e instanceof ApiError ? `PARTNERS_${e.status || "NET"}` : "UNKNOWN" })

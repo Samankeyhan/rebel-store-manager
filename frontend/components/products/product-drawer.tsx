@@ -17,6 +17,8 @@ import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { P } from "./copy"
 import { DrawerShell, FieldError, SaveError, Switch, textInputClass } from "./drawer-shell"
+import { nameDuplicateMessage } from "@/components/common/copy"
+import { duplicateEntity, isNameDuplicate } from "@/lib/error-codes"
 import { CategoryPicker } from "./category-picker"
 import { costState } from "./figures"
 
@@ -82,6 +84,7 @@ export function ProductDrawer({
   const [busy, setBusy] = React.useState(false)
   const [mtoBusy, setMtoBusy] = React.useState(false)
   const [error, setError] = React.useState<{ message: string; code: string } | null>(null)
+  const [duplicateName, setDuplicateName] = React.useState<string | null>(null)
   const [mtoError, setMtoError] = React.useState<string | null>(null)
   const [touched, setTouched] = React.useState(false)
 
@@ -98,6 +101,7 @@ export function ProductDrawer({
     setMto(!!product?.made_to_order)
     setError(null)
     setMtoError(null)
+    setDuplicateName(null)
     setTouched(false)
   } else if (!seedKey && seeded) {
     setSeeded("")
@@ -112,6 +116,7 @@ export function ProductDrawer({
     setTouched(true)
     setError(null)
     setCategoryError(null)
+    setDuplicateName(null)
     if (category == null || (!editing && !name.trim()) || retail === null || wholesale === null) return
     setBusy(true)
     try {
@@ -149,6 +154,8 @@ export function ProductDrawer({
         // The tree changed since this page loaded (e.g. a subcategory was
         // added, or the category was deactivated, in another tab).
         setCategoryError(e.code === "CATEGORY_HAS_SUBCATEGORIES" ? P.categoryHasChildren : P.categoryUnavailable)
+      } else if (e instanceof ApiError && isNameDuplicate(e)) {
+        setDuplicateName(nameDuplicateMessage(duplicateEntity(e)))
       } else {
         setError(errorOf(e))
       }
@@ -237,11 +244,15 @@ export function ProductDrawer({
             <input
               id="pf-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={textInputClass(mobile, nameError)}
-              aria-invalid={nameError || undefined}
+              onChange={(e) => {
+                setName(e.target.value)
+                setDuplicateName(null)
+              }}
+              className={textInputClass(mobile, nameError || duplicateName != null)}
+              aria-invalid={nameError || duplicateName != null || undefined}
             />
             {nameError && <FieldError>{P.nameRequired}</FieldError>}
+            {duplicateName && <FieldError>{duplicateName}</FieldError>}
           </Field>
         </>
       )}

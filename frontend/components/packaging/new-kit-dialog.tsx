@@ -3,7 +3,9 @@
 import * as React from "react"
 import { DrawerShell, FieldError, SaveError, textInputClass } from "@/components/products/drawer-shell"
 import { Btn } from "@/components/record-sale/primitives"
+import { nameDuplicateMessage } from "@/components/common/copy"
 import { ApiError, createKit, type KitDetail } from "@/lib/api"
+import { duplicateEntity, isNameDuplicate } from "@/lib/error-codes"
 import { K } from "./copy"
 
 /** «کیت جدید»: a name, then the kit opens in the editor to add its materials. */
@@ -22,6 +24,7 @@ export function NewKitDialog({
   const [touched, setTouched] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<{ message: string; code: string } | null>(null)
+  const [duplicate, setDuplicate] = React.useState<string | null>(null)
 
   const [wasOpen, setWasOpen] = React.useState(false)
   if (open && !wasOpen) {
@@ -29,6 +32,7 @@ export function NewKitDialog({
     setName("")
     setTouched(false)
     setError(null)
+    setDuplicate(null)
   } else if (!open && wasOpen) {
     setWasOpen(false)
   }
@@ -40,9 +44,12 @@ export function NewKitDialog({
     if (!name.trim() || busy) return
     setBusy(true)
     setError(null)
+    setDuplicate(null)
     try {
       onCreated(await createKit(name.trim()))
     } catch (e) {
+      if (e instanceof ApiError && isNameDuplicate(e)) setDuplicate(nameDuplicateMessage(duplicateEntity(e)))
+      else
       setError(
         e instanceof ApiError
           ? { message: e.message, code: e.status === 0 ? "NET_TIMEOUT" : `PACKAGING_${e.status}` }
@@ -80,15 +87,19 @@ export function NewKitDialog({
           id="kit-name"
           autoFocus
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value)
+            setDuplicate(null)
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") save()
           }}
           placeholder={K.namePlaceholder}
-          className={textInputClass(mobile, nameError)}
-          aria-invalid={nameError || undefined}
+          className={textInputClass(mobile, nameError || duplicate != null)}
+          aria-invalid={nameError || duplicate != null || undefined}
         />
         {nameError && <FieldError>{K.nameRequired}</FieldError>}
+        {duplicate && <FieldError>{duplicate}</FieldError>}
         <span className="text-xs text-text-3">{K.nameReadOnly}</span>
       </div>
     </DrawerShell>

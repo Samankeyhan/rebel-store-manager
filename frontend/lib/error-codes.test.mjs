@@ -50,3 +50,35 @@ test("categoryConflict: not a 409, another code, or message text only → null",
   assert.equal(categoryConflict({ status: 409, message: "Category 'Posters' is used by 2 product(s)" }), null)
   assert.equal(categoryConflict({ status: 409, message: "A category named 'Posters' already exists at this level." }), null)
 })
+
+test("isNameDuplicate accepts the three duplicate-name codes on a 409 only", async () => {
+  const { isNameDuplicate } = await import("./error-codes.ts")
+  for (const code of ["NAME_DUPLICATE", "CATEGORY_DUPLICATE_NAME", "PAYMENT_METHOD_DUPLICATE_NAME"]) {
+    assert.equal(isNameDuplicate({ status: 409, code }), true, code)
+    assert.equal(isNameDuplicate({ status: 422, code }), false, code)
+  }
+  assert.equal(isNameDuplicate({ status: 409, code: "CONFLICT" }), false)
+  assert.equal(isNameDuplicate({ status: 409, code: "CATEGORY_IN_USE" }), false)
+  assert.equal(isNameDuplicate({ status: 409 }), false)
+})
+
+test("duplicateEntity and duplicateExistingId read the details of a duplicate refusal", async () => {
+  const { duplicateEntity, duplicateExistingId } = await import("./error-codes.ts")
+  const dup = { status: 409, code: "NAME_DUPLICATE", details: { entity: "supplier", existing_id: 7 } }
+  assert.equal(duplicateEntity(dup), "supplier")
+  assert.equal(duplicateExistingId(dup), 7)
+  assert.equal(duplicateEntity({ ...dup, details: {} }), null)
+  assert.equal(duplicateExistingId({ ...dup, details: { existing_id: "7" } }), null)
+  assert.equal(duplicateEntity({ status: 409, code: "CONFLICT", details: { entity: "supplier" } }), null)
+})
+
+test("nameDuplicateMessage names the kind of record, falls back for an unknown one, and never says «ماده»", async () => {
+  const { nameDuplicateMessage } = await import("../components/common/copy.ts")
+  assert.match(nameDuplicateMessage("material"), /^متریالی /)
+  assert.match(nameDuplicateMessage("supplier"), /^تأمین‌کننده‌ای /)
+  assert.match(nameDuplicateMessage(null), /^موردی /)
+  assert.match(nameDuplicateMessage("something_new"), /^موردی /)
+  for (const entity of ["product", "material", "supplier", "partner", "category", "payment_method", "packaging_kit", "expense_category"]) {
+    assert.doesNotMatch(nameDuplicateMessage(entity), /ماده|مواد/)
+  }
+})

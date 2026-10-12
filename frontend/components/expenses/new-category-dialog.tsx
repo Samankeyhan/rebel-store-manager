@@ -4,6 +4,7 @@ import * as React from "react"
 import { DrawerShell, FieldError, SaveError, textInputClass } from "@/components/products/drawer-shell"
 import { Btn } from "@/components/record-sale/primitives"
 import { ApiError, createExpenseCategory, type ExpenseCategory } from "@/lib/api"
+import { isNameDuplicate } from "@/lib/error-codes"
 import { E } from "./copy"
 
 /**
@@ -49,7 +50,7 @@ export function NewCategoryDialog({
     try {
       onCreated(await createExpenseCategory(name.trim()))
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409) setFieldError(E.categoryExists)
+      if (e instanceof ApiError && isNameDuplicate(e)) setFieldError(E.categoryExists)
       else if (e instanceof ApiError && e.status === 422 && e.field === "name") setFieldError(E.categoryNameRequired)
       else
         setError(

@@ -4,7 +4,9 @@ import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { DrawerShell, FieldError, SaveError, textInputClass } from "@/components/products/drawer-shell"
 import { Btn, Label } from "@/components/record-sale/primitives"
+import { nameDuplicateMessage } from "@/components/common/copy"
 import { ApiError, createSupplier, updateSupplier, type Supplier, type SupplierUpdate } from "@/lib/api"
+import { duplicateEntity, isNameDuplicate } from "@/lib/error-codes"
 import { cn } from "@/lib/utils"
 import { S } from "./copy"
 
@@ -80,6 +82,8 @@ export function SupplierDrawer({
     } catch (e) {
       if (e instanceof ApiError && e.status === 422 && e.field === "name") {
         setNameError(e.message)
+      } else if (e instanceof ApiError && isNameDuplicate(e)) {
+        setNameError(nameDuplicateMessage(duplicateEntity(e)))
       } else {
         setError(
           e instanceof ApiError

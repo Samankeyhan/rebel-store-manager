@@ -38,3 +38,23 @@ export function detailStr(e: CodedError, key: string): string | null {
 export function refusedProductId(e: CodedError): number | null {
   return hasCode(e, "PRODUCT_NO_RECIPE", "PRODUCT_NO_UNIT_COST") ? detailNum(e, "product_id") : null
 }
+
+const NAME_DUPLICATE_CODES: ErrorCode[] = ["NAME_DUPLICATE", "CATEGORY_DUPLICATE_NAME", "PAYMENT_METHOD_DUPLICATE_NAME"]
+
+/**
+ * A create or rename refused because the name (or a spelling variant of it) is taken: 409 with
+ * NAME_DUPLICATE, or the older category / payment-method code. details: `entity`, `existing_id`.
+ */
+export function isNameDuplicate(e: CodedError): boolean {
+  return e.status === 409 && hasCode(e, ...NAME_DUPLICATE_CODES)
+}
+
+/** Which kind of record a name-duplicate refusal is about (`details.entity`); null if missing. */
+export function duplicateEntity(e: CodedError): string | null {
+  return isNameDuplicate(e) ? detailStr(e, "entity") : null
+}
+
+/** The id of the record that already has the name; null if unknown. */
+export function duplicateExistingId(e: CodedError): number | null {
+  return isNameDuplicate(e) ? detailNum(e, "existing_id") : null
+}

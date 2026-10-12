@@ -20,6 +20,8 @@ import { TypeBadge } from "./badges"
 import { P } from "./copy"
 import { CategoryPicker } from "./category-picker"
 import { DrawerShell, FieldError, SaveError, textInputClass } from "./drawer-shell"
+import { nameDuplicateMessage } from "@/components/common/copy"
+import { duplicateEntity, isNameDuplicate } from "@/lib/error-codes"
 import { UNITS, unitLabel } from "./figures"
 
 const readOnlyBox = "flex h-10 items-center rounded-lg border border-border bg-surface-2 px-3 text-sm text-text-2 tabular-nums"
@@ -69,6 +71,7 @@ export function MaterialDrawer({
   const [categoryError, setCategoryError] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<{ message: string; code: string } | null>(null)
+  const [duplicateName, setDuplicateName] = React.useState<string | null>(null)
   const [touched, setTouched] = React.useState(false)
 
   const [openedFor, setOpenedFor] = React.useState<number | "add" | null>(null)
@@ -87,6 +90,7 @@ export function MaterialDrawer({
       setCategory(null)
       setCategoryError(false)
       setError(null)
+      setDuplicateName(null)
       setTouched(false)
     }
   }
@@ -106,6 +110,10 @@ export function MaterialDrawer({
     }
     if (e instanceof ApiError && e.status === 422 && e.field === "category_id") {
       setCategoryError(true)
+      return
+    }
+    if (e instanceof ApiError && isNameDuplicate(e)) {
+      setDuplicateName(nameDuplicateMessage(duplicateEntity(e)))
       return
     }
     setError(
@@ -166,6 +174,7 @@ export function MaterialDrawer({
   const save = () => {
     setTouched(true)
     setError(null)
+    setDuplicateName(null)
     return editing ? saveEdit(material) : saveNew()
   }
 
@@ -267,11 +276,15 @@ export function MaterialDrawer({
             <input
               id="mf-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={textInputClass(mobile, nameError)}
-              aria-invalid={nameError || undefined}
+              onChange={(e) => {
+                setName(e.target.value)
+                setDuplicateName(null)
+              }}
+              className={textInputClass(mobile, nameError || duplicateName != null)}
+              aria-invalid={nameError || duplicateName != null || undefined}
             />
             {nameError && <FieldError>{P.nameRequired}</FieldError>}
+            {duplicateName && <FieldError>{duplicateName}</FieldError>}
           </div>
 
           <div className="flex flex-col gap-1.5">

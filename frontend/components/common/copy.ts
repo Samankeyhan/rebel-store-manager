@@ -20,3 +20,20 @@ export const M = {
 export function moneyInputMessage(error: MoneyInputError): string {
   return M[error]
 }
+
+const NAME_TAKEN_BY: Record<string, string> = {
+  product: "محصولی", // NEW
+  material: "متریالی", // NEW
+  supplier: "تأمین‌کننده‌ای", // NEW
+  partner: "شریکی", // NEW
+  category: "دسته‌ای", // NEW
+  payment_method: "روش پرداختی", // NEW
+  packaging_kit: "کیتی", // NEW
+  expense_category: "دسته هزینه‌ای", // NEW
+}
+
+/** The message under a name field when the name (or a spelling variant of it) is already taken. */
+export function nameDuplicateMessage(entity: string | null): string {
+  const what = (entity != null && NAME_TAKEN_BY[entity]) || "موردی" // NEW
+  return `${what} با این نام (یا نوشتاری مشابه، مثلاً «ي» و «ی») از قبل وجود دارد. نام دیگری انتخاب کنید.` // NEW
+}
