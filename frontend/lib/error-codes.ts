@@ -58,3 +58,13 @@ export function duplicateEntity(e: CodedError): string | null {
 export function duplicateExistingId(e: CodedError): number | null {
   return isNameDuplicate(e) ? detailNum(e, "existing_id") : null
 }
+
+/** An amount over the limit (db/constants.py MAX_MONEY; details `max`, `field` says which amount). MoneyInput stops at the same number, so only a stale client or a script gets here. */
+export function isAmountTooLarge(e: CodedError): boolean {
+  return e.status === 422 && hasCode(e, "AMOUNT_TOO_LARGE")
+}
+
+/** A quantity that is not a whole number, or outside its range (details `min`, `max`: the bound crossed). */
+export function isQuantityRefusal(e: CodedError): boolean {
+  return e.status === 422 && hasCode(e, "QUANTITY_NOT_WHOLE", "QUANTITY_OUT_OF_RANGE")
+}

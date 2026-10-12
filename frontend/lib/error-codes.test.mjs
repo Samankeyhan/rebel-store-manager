@@ -82,3 +82,13 @@ test("nameDuplicateMessage names the kind of record, falls back for an unknown o
     assert.doesNotMatch(nameDuplicateMessage(entity), /ماده|مواد/)
   }
 })
+
+test("isAmountTooLarge and isQuantityRefusal read the 422 codes only", async () => {
+  const { isAmountTooLarge, isQuantityRefusal } = await import("./error-codes.ts")
+  assert.equal(isAmountTooLarge({ status: 422, code: "AMOUNT_TOO_LARGE", details: { max: 9007199254740991 }, field: "amount" }), true)
+  assert.equal(isAmountTooLarge({ status: 409, code: "AMOUNT_TOO_LARGE" }), false)
+  assert.equal(isAmountTooLarge({ status: 422, code: "VALIDATION_FAILED" }), false)
+  assert.equal(isQuantityRefusal({ status: 422, code: "QUANTITY_NOT_WHOLE" }), true)
+  assert.equal(isQuantityRefusal({ status: 422, code: "QUANTITY_OUT_OF_RANGE", details: { min: 0, max: null } }), true)
+  assert.equal(isQuantityRefusal({ status: 422, code: "AMOUNT_TOO_LARGE" }), false)
+})
