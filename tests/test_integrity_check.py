@@ -230,11 +230,39 @@ def test_a_wrong_expected_settlement_date_on_a_pending_order_is_named_but_not_on
     assert f"orders id={shop['zarinpal_order']} field=expected_settlement_date stored=\"2030-01-01\" expected=\"2026-10-01\"" in line
 
 
-def test_a_missing_paid_date_on_a_paid_order_is_named(shop, test_db):
+def test_a_missing_paid_date_on_a_paid_order_with_a_method_is_named(shop, test_db):
     raw = writable(test_db)
     raw.execute("UPDATE orders SET paid_date = NULL WHERE id = ?", (shop["zarinpal_order"],))
     raw.close()
-    assert any(f"orders id={shop['zarinpal_order']} field=paid_date stored=NULL" in line for line in fails(run(test_db), "c"))
+    (line,) = fails(run(test_db), "c")
+    assert f"orders id={shop['zarinpal_order']} field=paid_date stored=NULL" in line
+
+
+def test_a_paid_order_with_no_method_and_no_paid_date_is_legacy_info_listing_the_ids(shop, test_db, capsys):
+    no_method = record_order(
+        test_db, "WEBSITE", [{"product_id": shop["product"], "quantity": 1, "unit_price": 1000}],
+        shipping_charge=0, packaging_kit_id=None, postage_cost=0, payment_method_id=None, status="COMPLETED",
+    )
+    test_db.commit()
+    raw = writable(test_db)
+    raw.execute("UPDATE orders SET paid_date = NULL, paid_jalali_year = NULL, paid_jalali_month = NULL WHERE id IN (?, ?)",
+                (no_method, shop["draft"]))  # the draft is not paid: not listed
+    raw.close()
+    results = run(test_db)
+    assert results["c"].status == "PASS" and not results["c"].fails
+    (info,) = [i for i in results["c"].infos if "legacy" in i]
+    assert f"orders ids=[{no_method}]" in info
+    for _ in range(2):  # listed on every run, and the exit code stays 0
+        code, text = cli_run(test_db, capsys)
+        assert code == 0 and text.strip().splitlines()[-1] == "OK"
+        assert f"INFO orders ids=[{no_method}]" in text
+
+    raw = writable(test_db)
+    raw.execute("UPDATE orders SET paid_date = NULL WHERE id = ?", (shop["card_order"],))  # has a method: still a failure
+    raw.close()
+    results = run(test_db)
+    assert any(f"orders id={shop['card_order']} field=paid_date" in line for line in fails(results, "c"))
+    assert f"orders ids=[{no_method}]" in [i for i in results["c"].infos if "legacy" in i][0]
 
 
 def test_a_line_price_that_is_not_a_multiple_of_its_quantity_is_named(shop, test_db):

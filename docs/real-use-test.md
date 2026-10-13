@@ -38,6 +38,7 @@ Do not edit `data\shop.db` by hand (no DB browser, no SQL), and do not delete or
 - **PASS**: the numbers agree. **FAIL**: they do not; the rows under it say which table, which id, which field, what is stored, what was expected and the difference (money in whole Rial). Report every FAIL, even a difference of 1.
 - **WARN**: look, but not necessarily an error. A *fee differs from the method's current rule* means that order's fee was typed by hand or the method's fee was edited later; tell me if you did not do either. *Name collisions* are two records with the same name in different spellings; they are listed every evening until you decide what to do.
 - **INFO**: a note, not a problem. *Implied opening balance* lines are materials that were created with some stock before the history started; the number should stay the same every evening. If it changes, report it.
+- **INFO `orders ids=[…] … legacy`**: orders that were completed before the app recorded payment dates (no payment method, no paid date); they are listed every evening. If a NEW order id ever appears in that line after go-live, report it to the planning chat.
 - **SKIPPED**: that check needs a newer database than yours (it says which); nothing is wrong. Mention it once and ignore it afterwards.
 - **Exit code 2** or a line starting `CANNOT RUN` or `ERROR` / `INCOMPLETE`: the tool could not read the database or could not finish. Copy the message exactly, do not run it again and again, and send it. Never "fix" the database yourself.
 

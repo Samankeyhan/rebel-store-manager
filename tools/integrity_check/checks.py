@@ -112,6 +112,7 @@ def check_orders(conn: sqlite3.Connection, schema: int) -> CheckResult:
             methods[method_id] = get_payment_method(conn, method_id)
         return methods[method_id]
 
+    legacy_unpaid_date: list[int] = []
     orders = list_orders(conn)
     for order in orders:
         order_id = order["id"]
@@ -146,7 +147,10 @@ def check_orders(conn: sqlite3.Connection, schema: int) -> CheckResult:
 
         if order["status"] in PAID_STATUSES:
             if order["paid_date"] is None:
-                result.fails.append(Row("orders", order_id, "paid_date", None, "a date", note=f"status {order['status']}"))
+                if method is None:
+                    legacy_unpaid_date.append(order_id)  # created before migration 008 added paid_date; never backfilled
+                else:
+                    result.fails.append(Row("orders", order_id, "paid_date", None, "a date", note=f"status {order['status']}, method {method['id']}"))
                 continue
             try:
                 paid_day = date.fromisoformat(order["paid_date"])
@@ -164,6 +168,11 @@ def check_orders(conn: sqlite3.Connection, schema: int) -> CheckResult:
                     result.fails.append(Row("orders", order_id, "expected_settlement_date",
                                             order["expected_settlement_date"], wanted,
                                             note=f"pending order, method {method['id']}'s rule"))
+    if legacy_unpaid_date:
+        result.infos.append(
+            f"orders ids={sorted(legacy_unpaid_date)}: PAID/COMPLETED with no payment method and no paid_date (legacy, created "
+            f"before migration 008); a new id in this list after go-live must be reported"
+        )
     result.summary = f"{len(orders)} orders checked"
     return result
 
