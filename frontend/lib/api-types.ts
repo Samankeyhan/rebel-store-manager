@@ -634,6 +634,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stocktake/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Stocktake
+         * @description What applying this count would do (corrections, cost used, value). Writes nothing.
+         */
+        post: operations["preview_stocktake_stocktake_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stocktake": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Stocktake
+         * @description Apply a physical count: every differing item gets an ADJUSTMENT movement in one transaction, or
+         *     nothing is written. Items counted equal to the system quantity are left alone.
+         */
+        post: operations["create_stocktake_stocktake_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/expenses": {
         parameters: {
             query?: never;
@@ -2212,6 +2253,21 @@ export interface components {
             code: "PAYMENT_METHOD_RULE_PENDING";
             details: components["schemas"]["RulePendingDetails"];
         };
+        /** ErrorBodyStocktakeStale */
+        ErrorBodyStocktakeStale: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "STOCKTAKE_STALE";
+            details: components["schemas"]["StocktakeStaleDetails"];
+        };
         /** ErrorBodySupplierRef */
         ErrorBodySupplierRef: {
             /** Type */
@@ -2245,7 +2301,7 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             /** Error */
-            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"];
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"];
         };
         /**
          * ErrorItem
@@ -3927,6 +3983,93 @@ export interface components {
              */
             postage_gap: number;
         };
+        /**
+         * StaleItem
+         * @description An item whose live stock differs from the quantity the count was made against.
+         */
+        StaleItem: {
+            /** Item Type */
+            item_type: string;
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
+            /** Expected */
+            expected: number;
+            /** Actual */
+            actual: number;
+        };
+        /** StocktakeCorrection */
+        StocktakeCorrection: {
+            /** Item Type */
+            item_type: string;
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
+            /** Unit */
+            unit: string;
+            /** Old Quantity */
+            old_quantity: number;
+            /** New Quantity */
+            new_quantity: number;
+            /** Difference */
+            difference: number;
+            /** Unit Cost */
+            unit_cost: number | null;
+            /** Value */
+            value: number | null;
+            /** Movement Id */
+            movement_id: number | null;
+        };
+        /** StocktakeItem */
+        StocktakeItem: {
+            /**
+             * Item Type
+             * @enum {string}
+             */
+            item_type: "PRODUCT" | "MATERIAL";
+            /** Item Id */
+            item_id: number;
+            /** Counted */
+            counted: number;
+            /** System Quantity */
+            system_quantity: number;
+            /** Unit Cost */
+            unit_cost?: number | null;
+        };
+        /** StocktakeRequest */
+        StocktakeRequest: {
+            /** Stocktake Date */
+            stocktake_date?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Items */
+            items: components["schemas"]["StocktakeItem"][];
+        };
+        /** StocktakeResult */
+        StocktakeResult: {
+            /** Stocktake Date */
+            stocktake_date: string;
+            /** Note */
+            note: string;
+            /** Corrections */
+            corrections: components["schemas"]["StocktakeCorrection"][];
+            /** Unchanged Count */
+            unchanged_count: number;
+            /**
+             * Total Value
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            total_value: number;
+            /** Unvalued Count */
+            unvalued_count: number;
+        };
+        /** StocktakeStaleDetails */
+        StocktakeStaleDetails: {
+            /** Items */
+            items: components["schemas"]["StaleItem"][];
+        };
         /** SupplierCreate */
         SupplierCreate: {
             /** Name */
@@ -4057,13 +4200,15 @@ export interface components {
          *     PAID_DATE_NOT_ALLOWED            -
          *     PACKAGING_KIT_NOT_FOUND          packaging_kit_id
          *     PACKAGING_KIT_INACTIVE           packaging_kit_id
+         *     STOCKTAKE_STALE                  items: [{item_type, item_id, item_name, expected, actual}] whose live
+         *                                      stock differs from the system_quantity the count was made against
          *
          *     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
          *     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE";
     };
     responses: never;
     parameters: never;
@@ -6603,6 +6748,126 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdjustmentOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    preview_stocktake_stocktake_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StocktakeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StocktakeResult"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_stocktake_stocktake_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StocktakeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StocktakeResult"];
                 };
             };
             /** @description App error (see ErrorBody.code) */

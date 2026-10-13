@@ -32,6 +32,7 @@ from api.routers import (
     reports,
     settings,
     settlements,
+    stocktake,
     suppliers,
 )
 from db.connection import init_db
@@ -149,6 +150,7 @@ app.include_router(orders.router)
 app.include_router(suppliers.router)
 app.include_router(purchases.router)
 app.include_router(adjustments.router)
+app.include_router(stocktake.router)
 app.include_router(expenses.router)
 app.include_router(packaging.router)
 app.include_router(postage.router)

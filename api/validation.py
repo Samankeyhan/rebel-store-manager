@@ -10,7 +10,7 @@ from db.errors import ErrorCode
 # Request fields that hold a quantity (api/schemas: WholeQuantity, PositiveQuantity, Quantity, QuantityChange).
 QUANTITY_FIELDS = frozenset({
     "quantity", "quantity_produced", "quantity_bought", "quantity_needed",
-    "quantity_change", "initial_stock", "min_stock",
+    "quantity_change", "initial_stock", "min_stock", "counted", "system_quantity",
 })
 
 _NOT_WHOLE_TYPES = frozenset({"int_type", "int_parsing", "int_from_float", "int_parsing_size"})
