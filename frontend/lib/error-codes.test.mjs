@@ -92,3 +92,21 @@ test("isAmountTooLarge and isQuantityRefusal read the 422 codes only", async () 
   assert.equal(isQuantityRefusal({ status: 422, code: "QUANTITY_OUT_OF_RANGE", details: { min: 0, max: null } }), true)
   assert.equal(isQuantityRefusal({ status: 422, code: "AMOUNT_TOO_LARGE" }), false)
 })
+
+test("staleItems reads a STOCKTAKE_STALE refusal and nothing else", async () => {
+  const { staleItems } = await import("./error-codes.ts")
+  const e = { status: 409, code: "STOCKTAKE_STALE", details: { items: [
+    { item_type: "PRODUCT", item_id: 7, item_name: "Fictional LP", expected: 4, actual: 3 },
+    { item_type: "MATERIAL", item_id: "x" },
+  ] } }
+  assert.deepEqual(staleItems(e), [{ itemType: "PRODUCT", itemId: 7, itemName: "Fictional LP", expected: 4, actual: 3 }])
+  assert.deepEqual(staleItems({ status: 409, code: "CONFLICT", details: e.details }), [])
+  assert.deepEqual(staleItems({ status: 409, code: "STOCKTAKE_STALE", details: {} }), [])
+})
+
+test("itemErrorTarget maps items.N.field to a row index and field", async () => {
+  const { itemErrorTarget } = await import("./error-codes.ts")
+  assert.deepEqual(itemErrorTarget("items.12.unit_cost"), { index: 12, field: "unit_cost" })
+  assert.deepEqual(itemErrorTarget("items.0.counted"), { index: 0, field: "counted" })
+  for (const f of ["items", "note", "items.x.counted", null, undefined]) assert.equal(itemErrorTarget(f), null)
+})

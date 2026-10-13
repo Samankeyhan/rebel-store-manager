@@ -478,6 +478,29 @@ export function createAdjustment(body: AdjustmentCreate): Promise<Adjustment> {
   return apiFetch<Adjustment>("/adjustments", { method: "POST", body: JSON.stringify(body) })
 }
 
+export type StocktakeRequest = Schemas["StocktakeRequest"]
+export type StocktakeItem = Schemas["StocktakeItem"]
+export type StocktakeResult = Schemas["StocktakeResult"]
+export type StocktakeCorrection = Schemas["StocktakeCorrection"]
+
+/**
+ * What applying a count would do (corrections, the cost used, the value), writing nothing. Errors as
+ * applyStocktake: the `field` of a 422 is `items.<index>.counted | unit_cost | item_id`.
+ */
+export function previewStocktake(body: StocktakeRequest): Promise<StocktakeResult> {
+  return apiFetch<StocktakeResult>("/stocktake/preview", { method: "POST", body: JSON.stringify(body) })
+}
+
+/**
+ * Applies a count: one ADJUSTMENT movement per differing item, all or nothing. 409 STOCKTAKE_STALE
+ * (details.items) when an item's live stock is not the `system_quantity` sent; 422 PRODUCT_NO_UNIT_COST
+ * (field items.N.unit_cost) for a gain on an item with no cost; 422 QUANTITY_NOT_WHOLE / QUANTITY_OUT_OF_RANGE
+ * (field items.N.counted); 404 for an unknown item.
+ */
+export function applyStocktake(body: StocktakeRequest): Promise<StocktakeResult> {
+  return apiFetch<StocktakeResult>("/stocktake", { method: "POST", body: JSON.stringify(body) })
+}
+
 export function listSuppliers(): Promise<Supplier[]> {
   return apiFetch<Supplier[]>("/suppliers")
 }

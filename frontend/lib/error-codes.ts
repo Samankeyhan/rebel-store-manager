@@ -68,3 +68,25 @@ export function isAmountTooLarge(e: CodedError): boolean {
 export function isQuantityRefusal(e: CodedError): boolean {
   return e.status === 422 && hasCode(e, "QUANTITY_NOT_WHOLE", "QUANTITY_OUT_OF_RANGE")
 }
+
+export type StaleItem = { itemType: string; itemId: number; itemName: string; expected: number; actual: number }
+
+/** The items of a STOCKTAKE_STALE refusal (409): their live stock is not what the count was made against. */
+export function staleItems(e: CodedError): StaleItem[] {
+  if (e.status !== 409 || !hasCode(e, "STOCKTAKE_STALE")) return []
+  const items = e.details?.items
+  if (!Array.isArray(items)) return []
+  return items.flatMap((raw): StaleItem[] => {
+    const i = raw as Record<string, unknown>
+    return typeof i.item_type === "string" && typeof i.item_id === "number" && typeof i.item_name === "string" &&
+      typeof i.expected === "number" && typeof i.actual === "number"
+      ? [{ itemType: i.item_type, itemId: i.item_id, itemName: i.item_name, expected: i.expected, actual: i.actual }]
+      : []
+  })
+}
+
+/** The row index an `items.<index>.<field>` error field points at, and which field; null for any other field. */
+export function itemErrorTarget(field: string | null | undefined): { index: number; field: string } | null {
+  const match = /^items\.(\d+)\.(\w+)$/.exec(field ?? "")
+  return match ? { index: Number(match[1]), field: match[2] } : null
+}
