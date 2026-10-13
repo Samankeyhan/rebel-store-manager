@@ -51,6 +51,8 @@ class ErrorCode(StrEnum):
     PAID_DATE_NOT_ALLOWED            -
     PACKAGING_KIT_NOT_FOUND          packaging_kit_id
     PACKAGING_KIT_INACTIVE           packaging_kit_id
+    STOCKTAKE_STALE                  items: [{item_type, item_id, item_name, expected, actual}] whose live
+                                     stock differs from the system_quantity the count was made against
 
     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
@@ -117,6 +119,9 @@ class ErrorCode(StrEnum):
     # Packaging kits
     PACKAGING_KIT_NOT_FOUND = "PACKAGING_KIT_NOT_FOUND"
     PACKAGING_KIT_INACTIVE = "PACKAGING_KIT_INACTIVE"
+
+    # Stocktake
+    STOCKTAKE_STALE = "STOCKTAKE_STALE"
 
 
 DEFAULT_CODES = frozenset({

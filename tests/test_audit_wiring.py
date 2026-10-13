@@ -10,7 +10,7 @@ import db
 from db import (
     adjustments, categories, distributions, expenses, materials, orders, packaging, partners,
     payment_methods, postage, production, products, purchases, recipes, returns, settings,
-    settlements, suppliers,
+    settlements, stocktake, suppliers,
 )
 from db.audit import list_audit_log
 from tests.helpers import cat, stocked_product
@@ -34,7 +34,7 @@ def _public_writers():
         m for m in (
             "adjustments", "categories", "connection", "distributions", "expenses", "materials",
             "orders", "packaging", "partners", "payment_methods", "postage", "production",
-            "products", "purchases", "recipes", "returns", "settings", "settlements", "suppliers",
+            "products", "purchases", "recipes", "returns", "settings", "settlements", "stocktake", "suppliers",
             "audit",
         )
     ):

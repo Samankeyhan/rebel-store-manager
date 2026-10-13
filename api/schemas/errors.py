@@ -125,6 +125,22 @@ class InsufficientStockDetails(_Details):
     available: float
 
 
+class StaleItem(BaseModel):
+    """An item whose live stock differs from the quantity the count was made against."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    item_type: str
+    item_id: int
+    item_name: str
+    expected: float
+    actual: float
+
+
+class StocktakeStaleDetails(_Details):
+    items: list[StaleItem]
+
+
 class NameDuplicateDetails(_Details):
     entity: str
     existing_id: int | None
@@ -166,6 +182,7 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.SUPPLIER_NOT_FOUND: SupplierRefDetails,
     C.PACKAGING_KIT_NOT_FOUND: KitRefDetails,
     C.PACKAGING_KIT_INACTIVE: KitRefDetails,
+    C.STOCKTAKE_STALE: StocktakeStaleDetails,
     C.NAME_DUPLICATE: NameDuplicateDetails,
     C.CATEGORY_DUPLICATE_NAME: NameDuplicateDetails,
     C.PAYMENT_METHOD_DUPLICATE_NAME: NameDuplicateDetails,

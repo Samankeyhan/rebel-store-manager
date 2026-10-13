@@ -90,8 +90,8 @@ def test_explicit_code_and_details_override_the_default():
 
 
 def test_every_specific_code_is_raised_in_db():
-    """The 36 specific codes, not the class defaults (covered above)."""
-    assert len(SPECIFIC_CODES) == 36
+    """The 37 specific codes, not the class defaults (covered above)."""
+    assert len(SPECIFIC_CODES) == 37
     source = "\n".join(p.read_text(encoding="utf-8") for p in Path("db").glob("*.py") if p.name != "errors.py")
     unused = [c.name for c in SPECIFIC_CODES if not re.search(rf"ErrorCode\.{c.name}\b", source)]
     assert unused == []
@@ -630,6 +630,6 @@ def test_request_validation_error_is_in_the_envelope(client):
 def test_openapi_lists_every_error_code():
     schemas = app.openapi()["components"]["schemas"]
     assert sorted(schemas["ErrorCode"]["enum"]) == sorted(c.value for c in ErrorCode)
-    assert len(schemas["ErrorCode"]["enum"]) == 41
+    assert len(schemas["ErrorCode"]["enum"]) == 42
     assert schemas["ErrorCode"]["type"] == "string"
     assert "ErrorEnvelope" in schemas

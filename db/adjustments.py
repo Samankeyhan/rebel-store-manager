@@ -33,13 +33,13 @@ def _validate_reason(reason: str) -> None:
 
 
 def _get_and_validate_item(
-    conn: sqlite3.Connection, item_type: str, item_id: int
+    conn: sqlite3.Connection, item_type: str, item_id: int, allow_inactive: bool = False
 ) -> dict:
     if item_type == "MATERIAL":
         material = get_material(conn, item_id)
         if material is None:
             raise NotFoundError(f"Material with id {item_id} does not exist")
-        if not material["is_active"]:
+        if not material["is_active"] and not allow_inactive:
             raise ValidationError(f"Material '{material['name']}' is not active")
         if material["type"] == "SERVICE":
             raise ValidationError(
@@ -50,7 +50,7 @@ def _get_and_validate_item(
         product = get_product(conn, item_id)
         if product is None:
             raise NotFoundError(f"Product with id {item_id} does not exist")
-        if not product["is_active"]:
+        if not product["is_active"] and not allow_inactive:
             raise ValidationError(f"Product '{product['name']}' is not active")
         return product
 
@@ -65,7 +65,10 @@ def record_stock_adjustment(
     unit_cost: int | None = None,
     notes: str | None = None,
     movement_date: str | None = None,
+    allow_inactive: bool = False,
 ) -> int:
+    """`allow_inactive` is for the stocktake only (an archived item can still hold stock): every other
+    caller keeps refusing an inactive item."""
     _validate_item_type(item_type)
     _validate_reason(reason)
 
@@ -106,7 +109,7 @@ def record_stock_adjustment(
                 f"unit_cost must be >= 0, got {unit_cost}", field="unit_cost"
             )
 
-    item = _get_and_validate_item(conn, item_type, item_id)
+    item = _get_and_validate_item(conn, item_type, item_id, allow_inactive)
 
     current_stock = item["current_stock"]
     new_stock = current_stock + quantity_change
