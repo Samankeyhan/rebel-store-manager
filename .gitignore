@@ -11,3 +11,4 @@ frontend/out/
 frontend/.env*.local
 data/*.backup
 data/*.jsonl
+data/integrity-*.txt
