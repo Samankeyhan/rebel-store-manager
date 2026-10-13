@@ -1,6 +1,7 @@
 import {
   Box,
   ChartColumn,
+  ClipboardList,
   Factory,
   HandCoins,
   LayoutDashboard,
@@ -31,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/packaging", title: "بسته‌بندی", icon: Box },
   { href: "/postage", title: "ارسال پستی", icon: Mail },
   { href: "/adjustments", title: "تعدیل موجودی", icon: SlidersHorizontal },
+  { href: "/stocktake", title: "شمارش موجودی", icon: ClipboardList },
   { href: "/expenses", title: "هزینه‌ها", icon: Wallet },
   { href: "/reports", title: "گزارش‌ها", icon: ChartColumn },
   { href: "/partners", title: "شرکا", icon: Users },
