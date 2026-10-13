@@ -73,6 +73,10 @@ def _compute_share_amounts(
     return rounded_amounts
 
 
+# Public name of the pure share calculation (read-only, no database): the integrity check recomputes stored shares with it.
+compute_share_amounts = _compute_share_amounts
+
+
 def get_undistributed_profit(conn: sqlite3.Connection, as_of_date: str) -> int:
     """Section 11: all-time net_profit through *as_of_date* minus whatever has
     already been distributed for periods ending on or before it.
