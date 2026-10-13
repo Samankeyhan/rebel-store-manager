@@ -90,7 +90,7 @@ Selling a product whose unit_cost is NULL is refused with ValidationError (field
   - made-to-order lines follow section 13.
 
 ## 8. Stock adjustments
-- Product quantities must be whole numbers. Material quantities may be fractional. Size limits: section 17.
+- Product quantities must be whole numbers. Material quantities may be fractional. Size limits: section 17. A physical count is applied as a set of these adjustments: section 19.
 - WASTE quantity_change must be negative.
 - No movement may take stock below zero: InsufficientStockError, nothing written.
 - Every WASTE and ADJUSTMENT movement stores unit_cost_at_time = the item's unit_cost at that moment (NULL if unknown).
@@ -245,3 +245,11 @@ For a date range, one row per payment method (active, or inactive with any non-z
 - f. Invoice numbers have the `INV-` / `PUR-` format, no duplicates, and the counters are not behind the highest number. g. A distribution's `total_amount_distributed` = sum of its shares, periods do not overlap, and, when the stored percentages sum to exactly 100, each share is the section 11 calculation; when they do not, that is an INFO line (the leftover rule is not specified). h. Name collisions (section 16) are WARN lines, listed every run, and never change the exit code.
 - A check that needs a newer schema than the database has is SKIPPED with the reason; money checks need migration 009 (Rial storage).
 
+## 19. Stocktake
+A physical count turns into stock corrections (`db/stocktake.py`, `POST /stocktake`, screen «شمارش موجودی»). It adds no new accounting rule: each correction is a section 8 stock adjustment.
+- **Pause sales and adjustments while a count is running.** The count is compared with the system stock the screen showed (`system_quantity`); if an item's live stock is no longer that quantity, nothing is written and the refusal is 409 `STOCKTAKE_STALE` listing those items. The screen keeps every typed count, marks the changed rows, and a marked row must be rechecked before applying.
+- All or nothing: every differing item is corrected in ONE transaction, or none. An item left blank is not counted; an item counted equal to the system stock is unchanged. Products are counted in whole numbers, materials may be fractional (within section 17); services have no stock and are refused. Inactive items can be counted (an archived item can still hold stock): the stocktake is the only caller that may adjust an inactive item.
+- The difference is `counted − system`, computed as exact decimals (a REAL reads as the decimal it was entered as) rounded half-even to 1e-9; 0 after that rounding is "no change". Counting an item down to 0 removes exactly what the system holds.
+- Every correction is an `ADJUSTMENT` movement (a loss too: section 8, not WASTE, so a count does not reach the P&L; record known breakage as WASTE separately), dated with the stocktake day (default today, never in the future), with the note «شمارش موجودی <Jalali date>» (+ « — » + the caller's note). The audit log shows one `op_id` and the operation `apply_stocktake` for the whole count.
+- Valuation (section 2, nothing new): a gain without `unit_cost` adds stock at the item's current cost (unchanged); a gain with `unit_cost` blends it by weighted average (stock ≤ 0 or no cost: the supplied cost becomes the cost). A gain on an item with no unit cost (a product that was never bought, made or costed) REQUIRES a unit cost (422 `PRODUCT_NO_UNIT_COST`, field `items.N.unit_cost`): opening stock needs it, because an unpriced product cannot be sold. A loss takes stock at the current cost and gives no cost. The review shows each line's value = difference × cost used, rounded once half-even; an item with unknown cost has no value.
+- Applying the same count twice is stale the second time (the first changed the stock), so a double click cannot count twice.

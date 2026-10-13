@@ -29,3 +29,4 @@
 - `npm run build` (writes `out/`), `npm run lint`, `npx tsc --noEmit`, `npm run gen:api`.
 - `npm run check:money`: fails on a hard-coded currency unit, `formatNumber` on money, a money `IntInput`, or ×10 / ÷10 / `RIAL_PER_TOMAN` outside `lib/money.ts`. Run it before finishing any screen.
 - `npm test`: Node's built-in runner over `lib/**/*.test.mjs`, for dependency-free `lib/` helpers only (no test framework is installed).
+- Stocktake (`lib/stocktake.ts`): the count and its difference are exact BigInt decimals mirroring `db/stocktake.py`; ambiguous number text (`,` or `/`) is refused, not guessed. The draft lives only in `localStorage` (key `rebel.stocktake.draft.v1`), every access wrapped in try/catch.

@@ -33,6 +33,10 @@ Do not edit `data\shop.db` by hand (no DB browser, no SQL), and do not delete or
 
    (Copies named `data\shop-*.db` and the `data\integrity-*.txt` reports stay on this computer; git ignores them.)
 
+## Counting the shelves (stocktake)
+
+To load opening stock or to correct stock after counting, use «شمارش موجودی»: stop sales and adjustments first, count, enter the numbers, review, apply. A gain on an item with no cost needs the cost of the units. Afterwards run the evening check as usual; it should still end with `OK`.
+
 ## What the lines mean
 
 - **PASS**: the numbers agree. **FAIL**: they do not; the rows under it say which table, which id, which field, what is stored, what was expected and the difference (money in whole Rial). Report every FAIL, even a difference of 1.
