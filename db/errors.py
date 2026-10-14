@@ -51,6 +51,7 @@ class ErrorCode(StrEnum):
     PAID_DATE_NOT_ALLOWED            -
     PACKAGING_KIT_NOT_FOUND          packaging_kit_id
     PACKAGING_KIT_INACTIVE           packaging_kit_id
+    BACKUP_FAILED                    reason (disk_full | locked | integrity | folder | unknown)
     STOCKTAKE_STALE                  items: [{item_type, item_id, item_name, expected, actual}] whose live
                                      stock differs from the system_quantity the count was made against
 
@@ -123,6 +124,9 @@ class ErrorCode(StrEnum):
     # Stocktake
     STOCKTAKE_STALE = "STOCKTAKE_STALE"
 
+    # Backups
+    BACKUP_FAILED = "BACKUP_FAILED"
+
 
 DEFAULT_CODES = frozenset({
     ErrorCode.APP_ERROR,
@@ -186,3 +190,14 @@ class ConflictError(AppError):
     """Duplicates, or an invalid state transition (e.g. returning an already-refunded order)."""
 
     default_code = ErrorCode.CONFLICT
+
+
+class BackupError(AppError):
+    """A database backup could not be made (a server-side failure, not bad input: the API answers 500 with the
+    usual envelope). `reason` is one of disk_full, locked, integrity, folder, unknown."""
+
+    default_code = ErrorCode.BACKUP_FAILED
+
+    def __init__(self, message: str, reason: str = "unknown"):
+        super().__init__(message, details={"reason": reason})
+        self.reason = reason

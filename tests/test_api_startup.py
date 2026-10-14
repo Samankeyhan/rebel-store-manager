@@ -154,7 +154,7 @@ def test_startup_on_current_db_is_a_no_op(tmp_path, monkeypatch):
 
     assert _applied(db_path) == ALL_MIGRATIONS
     # init_db only backs up before applying something; nothing was pending.
-    assert not (tmp_path / "backups").exists()
+    assert not list((tmp_path / "backups").glob("shop-*.db"))  # no migration backup; the daily backup is separate
 
 
 def test_startup_refuses_when_migrations_cannot_apply(tmp_path, monkeypatch):

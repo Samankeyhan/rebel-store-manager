@@ -1,7 +1,6 @@
-"""FastAPI app: lifespan runs `init_db` on the served DB (refuses to start if migrations can't apply), CORS, `db/errors.py` → HTTP handlers, `/health`, routers."""
+"""FastAPI app: the lifespan (api/startup.py) runs `init_db` on the served DB (refuses to start if migrations can't apply) and makes the daily backup, CORS, `db/errors.py` → HTTP handlers, `/health`, routers."""
 
 import sqlite3
-from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from pydantic import TypeAdapter
@@ -9,7 +8,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api.deps import db_path, get_db
+from api.deps import get_db
+from api.startup import service_lifespan
 from api.schemas.errors import ErrorEnvelope
 from api.validation import validation_envelope
 from api.routers import (
@@ -35,27 +35,7 @@ from api.routers import (
     stocktake,
     suppliers,
 )
-from db.connection import init_db
 from db.errors import AppError, ConflictError, ErrorCode, InsufficientStockError, NotFoundError, ValidationError
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Bring the database up to date before serving any request.
-
-    Pending migrations are applied (init_db backs the file up first). If that
-    fails — a broken migration, or an applied file whose content changed — the
-    server refuses to start rather than run against a half-migrated schema
-    and 500 on every request.
-    """
-    path = db_path()
-    try:
-        init_db(path)
-    except Exception as exc:
-        raise RuntimeError(
-            f"Could not apply database migrations to {path}; refusing to start: {exc}"
-        ) from exc
-    yield
 
 
 # App errors (db/errors.py) share one body. Declared for 400/404/409/422 so the
@@ -66,7 +46,7 @@ _APP_ERROR_RESPONSES = {
     for status in (400, 404, 409, 422)
 }
 
-app = FastAPI(title="Rebel Store Manager API", lifespan=lifespan, responses=_APP_ERROR_RESPONSES)
+app = FastAPI(title="Rebel Store Manager API", lifespan=service_lifespan, responses=_APP_ERROR_RESPONSES)
 
 
 def _openapi_with_error_code() -> dict:

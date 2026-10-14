@@ -141,6 +141,11 @@ class StocktakeStaleDetails(_Details):
     items: list[StaleItem]
 
 
+class BackupFailedDetails(_Details):
+    # disk_full | locked | integrity | folder | unknown
+    reason: str
+
+
 class NameDuplicateDetails(_Details):
     entity: str
     existing_id: int | None
@@ -183,6 +188,7 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.PACKAGING_KIT_NOT_FOUND: KitRefDetails,
     C.PACKAGING_KIT_INACTIVE: KitRefDetails,
     C.STOCKTAKE_STALE: StocktakeStaleDetails,
+    C.BACKUP_FAILED: BackupFailedDetails,
     C.NAME_DUPLICATE: NameDuplicateDetails,
     C.CATEGORY_DUPLICATE_NAME: NameDuplicateDetails,
     C.PAYMENT_METHOD_DUPLICATE_NAME: NameDuplicateDetails,

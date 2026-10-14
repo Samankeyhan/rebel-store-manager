@@ -78,6 +78,11 @@ def parse_calendar_date(value: str) -> date:
     return datetime.strptime(validate_calendar_date(value), _DATE_FORMAT).date()
 
 
+def now_local(conn: sqlite3.Connection | None = None) -> datetime:
+    """The current moment in the store timezone (an aware datetime): for file names and logs, never for business dates."""
+    return datetime.now(_get_timezone(conn))
+
+
 def today_local(conn: sqlite3.Connection | None = None) -> date:
     """Today's calendar day in the store timezone (the `timezone` setting)."""
     return datetime.now(_get_timezone(conn)).date()
