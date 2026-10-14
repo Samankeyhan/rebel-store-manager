@@ -37,6 +37,11 @@ Do not edit `data\shop.db` by hand (no DB browser, no SQL), and do not delete or
 
 To load opening stock or to correct stock after counting, use «شمارش موجودی»: stop sales and adjustments first, count, enter the numbers, review, apply. A gain on an item with no cost needs the cost of the units. Afterwards run the evening check as usual; it should still end with `OK`.
 
+**Opening stock after the go-live reset** (`docs/RUNNING.md`, section 10): the reset sets all stock to 0 and all product unit costs to "unknown", so enter every item you own here, with its cost.
+- Products: the screen asks for the unit cost of each gain.
+- **Materials: the screen does NOT ask for a cost** (a material always has one, 0 after the reset), so a material gain without a cost silently stays at cost 0. **Type the unit cost on every material gain.** SERVICE materials keep their cost from before the reset.
+- The first evening check after the reset and the opening stock must be all PASS (no WARN, no FAIL; `d3` SKIPPED is normal), with no *implied opening balance* and no *legacy* order lines: those belonged to the test data.
+
 ## What the lines mean
 
 - **PASS**: the numbers agree. **FAIL**: they do not; the rows under it say which table, which id, which field, what is stored, what was expected and the difference (money in whole Rial). Report every FAIL, even a difference of 1.

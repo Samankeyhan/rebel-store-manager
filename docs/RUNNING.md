@@ -153,3 +153,33 @@ Developers can still run the old two-server way (`npm run dev` in `frontend\` pl
 - Do not edit `data\shop.db` by hand, and do not put practice copies directly in `data\`.
 - Do not delete `data\backups` files "to tidy up" (the app keeps the newest 60 itself); the `shop-…` copies are your safety net after updates.
 - Do not run two copies of the app on the same database.
+- Do not run the go-live reset (section 10) on the real database more than once, and never while the app runs.
+
+## 10. Go-live reset (once, before the first real sale)
+
+Turns the test database into a clean one: all test orders, purchases, production, expenses, postage payments, settlements, payouts and stock movements are removed, stock goes to 0, product unit costs become "unknown" (the stocktake asks for them), invoice numbers restart (the first sale is `INV-000001`), the duplicate payment method DigiPay / digipay becomes one, and the audit log is archived and cleared. Products, materials (with their recipes, kits and categories), suppliers, partners, payment methods and settings stay as they are. SERVICE materials keep their unit cost.
+
+**It can be done only once.** Afterwards the tool refuses to erase that database again (it would be real data), and says "already reset" if nothing has been entered yet.
+
+1. **Clear the stocktake draft in every browser you use.** Open the app, go to «شمارش موجودی», and use the clear-draft button (the draft lives in the browser, per address and port; an old draft would come back with old counts, and nothing on the server stops that).
+2. **Move the old invoice PDFs away** (the project's `invoices\` folder and your Downloads folder): the new invoices get the same names (`invoice_INV-000001.pdf` ...). The tool only counts and warns; it never deletes them.
+3. **Stop the app:** `.\stop-rebel.cmd`. The tool refuses to run while it can see the app running (pid file, ports 8000 to 8099) or while the database is locked.
+4. **Look first (changes nothing):**
+
+   ```powershell
+   .venv\Scripts\python -m tools.go_live_reset
+   ```
+
+   It rehearses the reset on a copy in memory and prints, per table, the rows before and after, the payment method merge, the counters and the result of the integrity checks. Nothing is written.
+5. **Do it:**
+
+   ```powershell
+   .venv\Scripts\python -m tools.go_live_reset --apply
+   ```
+
+   It makes a verified backup first (`data\backups\pre-go-live\daily-YYYY-MM-DD-HHMMSS.db`; the app never cleans up that folder), then asks you to type `RESET shop.db`; anything else cancels. Then everything happens in one step: if any part fails, nothing changes. The old audit log is saved as `data\backups\audit-archive-golive-<moment>.jsonl`. At the end it runs the integrity check; the last line must be `OK`, with no `WARN`, `FAIL` or `INFO` lines (`d3` says SKIPPED, as always).
+   Options: `--product-unit-cost zero` (instead of "unknown"), `--reset-service-costs` (also set SERVICE material costs to 0). Exit code 0 = done, 1 = refused or rolled back (nothing changed), 2 = could not run.
+6. **Start the app** (`.\start-rebel.cmd`), enter the opening stock in «شمارش موجودی», then run `.venv\Scripts\python -m tools.integrity_check`. In the stocktake, type the unit cost on **every** gain: for a product the screen asks for it, for a **material it does not**, and a material gain without a cost stays at cost 0.
+7. **If something is wrong** right after: stop the app and restore the `pre-go-live` backup by hand, exactly as in section 4 (copy that file in as `data\shop.db`).
+
+Practice first on a copy in its own folder, for example `data\restore-test\golive\shop.db` (see section 5), with `--db data\restore-test\golive\shop.db`; its backup and archive then go next to the copy, never into your real `data\backups`.

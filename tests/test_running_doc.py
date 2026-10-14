@@ -42,3 +42,17 @@ def test_the_guide_has_the_restore_steps_in_order_and_the_real_numbers():
 def test_the_files_the_guide_says_are_ignored_by_git_are_ignored():
     ignored = (ROOT / ".gitignore").read_text(encoding="utf-8").replace("\r\n", "\n").split("\n")
     assert "data/logs/" in ignored and "data/restore-test/" in ignored and "data/backups/" in ignored
+
+
+def test_the_go_live_section_names_the_tool_its_options_and_the_files_it_makes():
+    section = TEXT.split("## 10. Go-live reset")[1]
+    assert importlib.util.find_spec("tools.go_live_reset") is not None
+    for needle in ("python -m tools.go_live_reset", "--apply", "RESET shop.db", "--product-unit-cost", "--reset-service-costs",
+                   "pre-go-live", "audit-archive-golive-", "clear the stocktake draft", "invoice PDFs", "tools.integrity_check"):
+        assert needle.lower() in section.lower(), needle
+    from tools.go_live_reset.__main__ import main  # noqa: F401  the documented module runs
+
+
+def test_the_real_use_guide_tells_the_owner_to_type_the_cost_on_every_material_gain():
+    text = (ROOT / "docs" / "real-use-test.md").read_text(encoding="utf-8")
+    assert "Type the unit cost on every material gain" in text and "go-live reset" in text
