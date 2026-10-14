@@ -15,6 +15,7 @@ from api.validation import validation_envelope
 from api.routers import (
     adjustments,
     audit,
+    backups,
     catalog,
     categories,
     distributions,
@@ -35,7 +36,7 @@ from api.routers import (
     stocktake,
     suppliers,
 )
-from db.errors import AppError, ConflictError, ErrorCode, InsufficientStockError, NotFoundError, ValidationError
+from db.errors import AppError, BackupError, ConflictError, ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 
 
 # App errors (db/errors.py) share one body. Declared for 400/404/409/422 so the
@@ -106,6 +107,12 @@ def handle_not_found_error(request: Request, exc: NotFoundError) -> JSONResponse
     return _error_response(404, exc)
 
 
+@app.exception_handler(BackupError)
+def handle_backup_error(request: Request, exc: BackupError) -> JSONResponse:
+    # a server-side failure (disk full, locked database …), not bad input: 500 with the usual envelope
+    return _error_response(500, exc)
+
+
 @app.exception_handler(ConflictError)
 def handle_conflict_error(request: Request, exc: ConflictError) -> JSONResponse:
     return _error_response(409, exc)
@@ -143,3 +150,4 @@ app.include_router(categories.router)
 app.include_router(payment_methods.router)
 app.include_router(settlements.router)
 app.include_router(audit.router)
+app.include_router(backups.router)
