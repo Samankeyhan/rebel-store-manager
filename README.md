@@ -30,3 +30,7 @@ Personal accounting and inventory manager for Rebel Store — tracks products, m
    ```
 
    The frontend lives in `frontend/` (`npm run dev`).
+
+## Daily use (Windows)
+
+Double-click `start-rebel.cmd` to start and `stop-rebel.cmd` to stop. Where the data, backups and logs are, how to restore a backup, and how to update after `git pull`: [docs/RUNNING.md](docs/RUNNING.md).

@@ -1,0 +1,2 @@
+# The double-click files must keep Windows line endings whatever git is configured to do.
+*.cmd text eol=crlf

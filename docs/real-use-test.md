@@ -47,3 +47,5 @@ To load opening stock or to correct stock after counting, use «شمارش مو�
 - **Exit code 2** or a line starting `CANNOT RUN` or `ERROR` / `INCOMPLETE`: the tool could not read the database or could not finish. Copy the message exactly, do not run it again and again, and send it. Never "fix" the database yourself.
 
 If the app is open and writing while the check runs, a number can change between two checks and show up as a mismatch that is not real. Run it again once the app is closed before reporting.
+
+Starting, stopping, backups and restoring are in `docs/RUNNING.md`.
