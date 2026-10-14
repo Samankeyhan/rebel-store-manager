@@ -269,7 +269,7 @@ def main(argv=None, *, input_fn=input, out=print, server_check=server_running, b
         typed = input_fn("> ")
     except EOFError:
         typed = ""
-    if typed.strip() != phrase:
+    if typed.replace("﻿", "").strip() != phrase:  # a piped answer from Windows PowerShell can start with a BOM
         out("Cancelled: the confirmation did not match. Nothing was changed.")
         return 1
 

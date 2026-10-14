@@ -132,6 +132,11 @@ def test_apply_with_the_wrong_confirmation_changes_nothing(shop_file):
     assert not (shop_file.parent / "backups").exists()
 
 
+def test_a_piped_confirmation_with_a_byte_order_mark_is_accepted(shop_file):
+    code, _ = run(shop_file, "--apply", answer="﻿RESET shop.db")
+    assert code == 0 and orders(shop_file) == 0
+
+
 def test_apply_without_input_changes_nothing(shop_file):
     before = sha(shop_file)
     code, text = run(shop_file, "--apply", answer=None)
