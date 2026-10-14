@@ -14,6 +14,29 @@ export const S = {
   navShip: "ارسال و کانال‌ها",
   navPost: "تخمین هزینه پست",
   navGeneral: "عمومی", // NEW
+  navBackup: "پشتیبان‌گیری", // NEW
+
+  // [4] backups (docs/RUNNING.md)
+  backupTitle: "پشتیبان‌گیری", // NEW
+  backupNow: "پشتیبان‌گیری اکنون", // NEW
+  backupRunning: "در حال پشتیبان‌گیری…", // NEW
+  backupLast: "آخرین پشتیبان", // NEW
+  backupNever: "هنوز پشتیبانی گرفته نشده.", // NEW
+  backupOk: "موفق", // NEW
+  backupFailed: "ناموفق", // NEW
+  backupFailedTitle: "پشتیبان‌گیری انجام نشد", // NEW
+  backupCode: "کد خطا", // NEW
+  backupKept: "نسخه‌های نگه‌داری‌شده", // NEW
+  backupFolder: "پوشهٔ پشتیبان‌ها", // NEW
+  backupRecent: "تازه‌ترین نسخه‌ها", // NEW
+  backupEmpty: "هنوز نسخه‌ای در این پوشه نیست.", // NEW
+  backupNote: "هر روز یک نسخه خودکار ساخته می‌شود و ۶۰ نسخهٔ آخر می‌ماند. بازیابی دستی است؛ راهنما: docs/RUNNING.md", // NEW
+  backupDone: (name: string) => `پشتیبان ساخته شد: ${name}`, // NEW
+  backupColName: "نام", // NEW
+  backupColSize: "اندازه", // NEW
+  backupColTime: "زمان", // NEW
+  backupLoadError: "فهرست پشتیبان‌ها بارگذاری نشد.", // NEW
+  backupRetry: "تلاش دوباره", // NEW
   navPay: "روش‌های پرداخت", // NEW
 
   // [1] shipping and channels

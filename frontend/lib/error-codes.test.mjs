@@ -110,3 +110,10 @@ test("itemErrorTarget maps items.N.field to a row index and field", async () => 
   assert.deepEqual(itemErrorTarget("items.0.counted"), { index: 0, field: "counted" })
   for (const f of ["items", "note", "items.x.counted", null, undefined]) assert.equal(itemErrorTarget(f), null)
 })
+
+test("backupFailureReason reads BACKUP_FAILED and nothing else", async () => {
+  const { backupFailureReason } = await import("./error-codes.ts")
+  assert.equal(backupFailureReason({ status: 500, code: "BACKUP_FAILED", details: { reason: "disk_full" } }), "disk_full")
+  assert.equal(backupFailureReason({ status: 500, code: "BACKUP_FAILED", details: {} }), "unknown")
+  assert.equal(backupFailureReason({ status: 500, code: "APP_ERROR" }), null)
+})

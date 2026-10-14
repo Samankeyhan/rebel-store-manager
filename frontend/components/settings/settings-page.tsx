@@ -16,6 +16,7 @@ import { ChannelsCard } from "./channels-card"
 import { S, joinList } from "./copy"
 import { changes, fromSettings, saveDraft, validate, type ChannelDraft, type Draft, type MoneyKey } from "./draft"
 import type { MoneyInputError } from "@/lib/money"
+import { BackupCard } from "./backup-card"
 import { GeneralCard } from "./general-card"
 import { PaymentMethodsCard } from "./payment-methods-card"
 import { PostageCard, heroFigure } from "./postage-card"
@@ -26,6 +27,7 @@ const SECTIONS = [
   { hash: "#pay", label: S.navPay },
   { hash: "#post", label: S.navPost },
   { hash: "#general", label: S.navGeneral },
+  { hash: "#backup", label: S.navBackup },
 ] as const
 
 function subscribeHash(onChange: () => void) {
@@ -232,6 +234,7 @@ export function SettingsPage() {
         currencyError={currencyError}
         mobile={mobile}
       />
+      <BackupCard timeZone={settings.timezone} mobile={mobile} onToast={setToast} />
     </>
   )
 

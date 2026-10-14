@@ -90,3 +90,8 @@ export function itemErrorTarget(field: string | null | undefined): { index: numb
   const match = /^items\.(\d+)\.(\w+)$/.exec(field ?? "")
   return match ? { index: Number(match[1]), field: match[2] } : null
 }
+
+/** The reason of a BACKUP_FAILED refusal (500): disk_full | locked | integrity | folder | unknown; null for any other error. */
+export function backupFailureReason(e: CodedError): string | null {
+  return hasCode(e, "BACKUP_FAILED") ? (detailStr(e, "reason") ?? "unknown") : null
+}

@@ -500,6 +500,20 @@ export function applyStocktake(body: StocktakeRequest): Promise<StocktakeResult>
   return apiFetch<StocktakeResult>("/stocktake", { method: "POST", body: JSON.stringify(body) })
 }
 
+export type BackupsOut = Schemas["BackupsOut"]
+export type BackupItem = Schemas["BackupItem"]
+export type BackupCreated = Schemas["BackupCreated"]
+
+/** The backups folder of the served database: path, how many are kept, the last outcome and the newest ten. */
+export function getBackups(): Promise<BackupsOut> {
+  return apiFetch<BackupsOut>("/backups")
+}
+
+/** Back the database up now. A failure is 500 BACKUP_FAILED with details.reason (disk_full | locked | integrity | folder | unknown). */
+export function createBackup(): Promise<BackupCreated> {
+  return apiFetch<BackupCreated>("/backups", { method: "POST" })
+}
+
 export function listSuppliers(): Promise<Supplier[]> {
   return apiFetch<Supplier[]>("/suppliers")
 }
