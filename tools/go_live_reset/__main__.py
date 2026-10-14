@@ -203,6 +203,9 @@ def main(argv=None, *, input_fn=input, out=print, server_check=server_running, b
         finally:
             conn.close()
     except (CannotRun, sqlite3.Error) as exc:
+        if "locked" in str(exc).lower() or "busy" in str(exc).lower():
+            out(f"REFUSED: the database is locked ({exc}). Close every program using it (stop-rebel.cmd), then try again. Nothing was changed.")
+            return 1
         out(f"CANNOT RUN: {exc}")
         return 2
 

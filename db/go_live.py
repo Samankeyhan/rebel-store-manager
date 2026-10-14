@@ -264,6 +264,8 @@ def apply_go_live(
                     "This database already went live and holds data: the reset never erases a live database ("
                     + "; ".join(state["problems"]) + ")"
                 )
+            if state["state"] == "already_reset":
+                raise ConflictError("This database was already reset and nothing is left to reset")
             before = table_counts(conn)
             values_before = value_summary(conn)
             merge = payment_method_merge(conn)
