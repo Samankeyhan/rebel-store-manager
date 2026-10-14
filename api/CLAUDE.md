@@ -14,3 +14,4 @@
 - `PUT /settings/{key}`: only `VALID_SETTING_KEYS`, enforced in `db.settings.set_setting`.
 - Tests: `with TestClient(app)` runs `init_db` on `$REBEL_DB`; the autouse fixture in `tests/conftest.py` points it at a temp file. Keep it.
 - Money fields use `Money` (strict int, bounded ±`MAX_MONEY`); quantities use `WholeQuantity` / `PositiveQuantity` / `Quantity` / `QuantityChange` (`api/schemas/common.py`). Never a bare `int`/`float` for either. Every error, including FastAPI's own 422, is the `{"error": {...}}` envelope (`api/validation.py`); a new `ErrorCode` also needs its details model (`api/schemas/errors.py`).
+- Logging: `api/logsetup.py` writes `logs/app.log` next to the database. Log codes, status and path only: never a body, a name, an amount, a query string or an exception message (`sanitized_traceback`). Unexpected errors become a plain 500 envelope (`catch_unexpected_errors`).

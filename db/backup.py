@@ -12,6 +12,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from db.connection import PROJECT_ROOT
 from db.errors import BackupError, ErrorCode
 from db.timeutil import now_local
 
@@ -27,9 +28,15 @@ BUSY_TIMEOUT_SECONDS = 5
 _NAME = re.compile(r"^daily-(\d{4}-\d{2}-\d{2})-(\d{6})(?:-(\d+))?\.db$")
 
 
+def absolute_db_path(db_path: str | os.PathLike) -> Path:
+    """The database file as init_db sees it: a relative path (the default data/shop.db) is relative to the project folder."""
+    path = Path(db_path)
+    return (path if path.is_absolute() else PROJECT_ROOT / path).resolve()
+
+
 def backups_dir_for(db_path: str | os.PathLike) -> Path:
     """The backups folder of a database file: `backups/` next to it."""
-    return Path(db_path).resolve().parent / "backups"
+    return absolute_db_path(db_path).parent / "backups"
 
 
 def _sort_key(name: str) -> tuple:
@@ -151,7 +158,7 @@ def make_backup(
     now: datetime | None = None,
 ) -> dict:
     """Back the database up now. Returns {name, size, created_at, kept, deleted}; raises BackupError (nothing older is deleted)."""
-    source = Path(db_path).resolve()
+    source = absolute_db_path(db_path)
     folder = Path(backups_dir) if backups_dir is not None else backups_dir_for(source)
     partial: Path | None = None
     try:
@@ -221,7 +228,7 @@ def _cleanup(partial: Path | None) -> None:
 def backup_if_none_today(db_path: str | os.PathLike, backups_dir: str | os.PathLike | None = None, keep: int = DEFAULT_KEEP) -> dict | None:
     """Make a backup unless one named for today (store-local) exists. Returns the result, or None when skipped.
     Raises BackupError when the attempt fails; callers that must not stop (startup, the hourly check) catch it."""
-    source = Path(db_path).resolve()
+    source = absolute_db_path(db_path)
     folder = Path(backups_dir) if backups_dir is not None else backups_dir_for(source)
     if source.is_file():
         probe = sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True, timeout=BUSY_TIMEOUT_SECONDS)

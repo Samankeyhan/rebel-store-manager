@@ -1,5 +1,6 @@
 """FastAPI app: the lifespan (api/startup.py) runs `init_db` on the served DB (refuses to start if migrations can't apply) and makes the daily backup, CORS, `db/errors.py` → HTTP handlers, `/health`, routers."""
 
+import logging
 import sqlite3
 
 from fastapi import Depends, FastAPI, Request
@@ -9,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.deps import get_db
+from api.logsetup import sanitized_traceback
 from api.startup import service_lifespan
 from api.schemas.errors import ErrorEnvelope
 from api.validation import validation_envelope
@@ -47,6 +49,8 @@ _APP_ERROR_RESPONSES = {
     for status in (400, 404, 409, 422)
 }
 
+app_log = logging.getLogger("rebel.app")
+
 app = FastAPI(title="Rebel Store Manager API", lifespan=service_lifespan, responses=_APP_ERROR_RESPONSES)
 
 
@@ -71,8 +75,16 @@ app.add_middleware(
 )
 
 
-def _error_response(status_code: int, exc: AppError) -> JSONResponse:
+def _log_error(request: Request | None, status_code: int, code: str) -> None:
+    """One log line per handled error: code, status and path. Never the message, the query string or the body."""
+    where = request.url.path if request is not None else "-"
+    level = logging.ERROR if status_code >= 500 else logging.INFO
+    app_log.log(level, "handled error code=%s status=%s path=%s", code, status_code, where)
+
+
+def _error_response(status_code: int, exc: AppError, request: Request | None = None) -> JSONResponse:
     """The ErrorEnvelope body: `code` and `details` are what clients act on."""
+    _log_error(request, status_code, str(exc.code))
     return JSONResponse(
         status_code=status_code,
         content={
@@ -89,38 +101,54 @@ def _error_response(status_code: int, exc: AppError) -> JSONResponse:
 
 @app.exception_handler(RequestValidationError)
 def handle_request_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-    return JSONResponse(status_code=422, content=validation_envelope(exc.errors()))
+    body = validation_envelope(exc.errors())
+    _log_error(request, 422, body["error"]["code"])
+    return JSONResponse(status_code=422, content=body)
 
 
 @app.exception_handler(InsufficientStockError)
 def handle_insufficient_stock_error(request: Request, exc: InsufficientStockError) -> JSONResponse:
-    return _error_response(409, exc)
+    return _error_response(409, exc, request)
 
 
 @app.exception_handler(ValidationError)
 def handle_validation_error(request: Request, exc: ValidationError) -> JSONResponse:
-    return _error_response(422, exc)
+    return _error_response(422, exc, request)
 
 
 @app.exception_handler(NotFoundError)
 def handle_not_found_error(request: Request, exc: NotFoundError) -> JSONResponse:
-    return _error_response(404, exc)
+    return _error_response(404, exc, request)
 
 
 @app.exception_handler(BackupError)
 def handle_backup_error(request: Request, exc: BackupError) -> JSONResponse:
     # a server-side failure (disk full, locked database …), not bad input: 500 with the usual envelope
-    return _error_response(500, exc)
+    return _error_response(500, exc, request)
 
 
 @app.exception_handler(ConflictError)
 def handle_conflict_error(request: Request, exc: ConflictError) -> JSONResponse:
-    return _error_response(409, exc)
+    return _error_response(409, exc, request)
 
 
 @app.exception_handler(AppError)
 def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
-    return _error_response(400, exc)
+    return _error_response(400, exc, request)
+
+
+@app.middleware("http")
+async def catch_unexpected_errors(request: Request, call_next):
+    """Anything no handler claimed becomes a plain 500 envelope, logged with a sanitised traceback (class and frames, never the
+    exception's message: it can hold a name or an amount). Nothing is re-raised, so the server prints no traceback either."""
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        app_log.error("unexpected error status=500 path=%s\n%s", request.url.path, sanitized_traceback(exc))
+        return JSONResponse(
+            status_code=500,
+            content={"error": {"type": "InternalError", "code": "APP_ERROR", "message": "Internal error", "field": None, "details": {}}},
+        )
 
 
 @app.get("/health")
