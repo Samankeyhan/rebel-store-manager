@@ -6,6 +6,7 @@ A mounted sub-app's lifespan does not run, so the service lifespan (logging, `in
 checker) belongs to THIS outer app and runs exactly once.
 Run: `python -m uvicorn api.serve:app --host 127.0.0.1 --port 8000` (tools/run_app does it for you)."""
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -16,7 +17,8 @@ from api.main import app as api_app
 from api.startup import service_lifespan
 from db.connection import PROJECT_ROOT
 
-FRONTEND_DIR = PROJECT_ROOT / "frontend" / "out"
+# $REBEL_FRONTEND_DIR lets tests (and a custom install) point at another export folder.
+FRONTEND_DIR = Path(os.environ.get("REBEL_FRONTEND_DIR") or PROJECT_ROOT / "frontend" / "out")
 
 NOT_BUILT = """<!doctype html><meta charset="utf-8"><title>Rebel Store Manager</title>
 <body style="font-family:sans-serif;max-width:40rem;margin:3rem auto;line-height:1.7" dir="ltr">
