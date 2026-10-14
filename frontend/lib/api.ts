@@ -7,15 +7,14 @@
  * (client components only).
  */
 
+import { apiBase, apiUrl } from "@/lib/api-base"
 import type { components } from "@/lib/api-types"
 import type { ErrorCode } from "@/lib/error-codes"
 
 export type Schemas = components["schemas"]
 export type Catalog = Schemas["CatalogOut"]
 
-export const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
-).replace(/\/+$/, "")
+export const API_URL = apiBase(process.env.NEXT_PUBLIC_API_URL)
 
 /**
  * A failed API call. `type` is the backend error class (NotFoundError,
@@ -72,7 +71,7 @@ function toApiError(status: number, body: unknown): ApiError {
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    res = await fetch(apiUrl(API_URL, path), {
       ...init,
       headers: {
         Accept: "application/json",
@@ -116,7 +115,7 @@ export function getRecipe(productId: number): Promise<Recipe> {
 
 /** Direct link to the invoice PDF; the backend sends it as an attachment. */
 export function invoicePdfUrl(orderId: number): string {
-  return `${API_URL}/orders/${orderId}/invoice.pdf`
+  return apiUrl(API_URL, `/orders/${orderId}/invoice.pdf`)
 }
 
 export type OrderListItem = Schemas["OrderListItemOut"]
