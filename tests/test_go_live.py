@@ -29,8 +29,19 @@ def shop(test_db):
     return test_db, ids
 
 
+_ARCHIVES: dict = {}
+
+
+@pytest.fixture(autouse=True)
+def _archive_folder(tmp_path):
+    """Archives go into the test's own folder (the test database itself sits in the shared temp folder)."""
+    _ARCHIVES["dir"] = tmp_path
+    yield
+    _ARCHIVES.clear()
+
+
 def archive(conn, name="a") -> Path:
-    return Path(db_file(conn)).parent / f"{ARCHIVE_PREFIX}test-{name}-{Path(db_file(conn)).stem}.jsonl"
+    return _ARCHIVES["dir"] / f"{ARCHIVE_PREFIX}test-{name}.jsonl"
 
 
 def keep_tables() -> list[str]:
@@ -312,7 +323,7 @@ def test_a_second_run_on_a_reset_database_is_reported_and_changes_nothing(shop):
 
 def test_a_plain_older_audit_reset_does_not_count_as_going_live(shop):
     conn, _ = shop
-    reset_audit_log(conn, archive_path=Path(db_file(conn)).parent / "audit-archive-plain.jsonl")
+    reset_audit_log(conn, archive_path=_ARCHIVES["dir"] / "audit-archive-plain.jsonl")
     assert live_markers(conn) == []
     assert assess(conn)["state"] == "ready"
     apply_go_live(conn, archive(conn))
@@ -324,7 +335,7 @@ def test_a_live_database_with_data_is_refused_even_after_a_later_plain_audit_res
     apply_go_live(conn, archive(conn))
     conn.execute("UPDATE products SET current_stock = 5, unit_cost = 1 WHERE id = ?", (ids["shirt"],))
     record_order(conn, "IN_PERSON", [{"product_id": ids["shirt"], "quantity": 1, "unit_price": 1000000}])
-    reset_audit_log(conn, archive_path=Path(db_file(conn)).parent / "audit-archive-later.jsonl")
+    reset_audit_log(conn, archive_path=_ARCHIVES["dir"] / "audit-archive-later.jsonl")
     assert [r["before_json"] for r in conn.execute("SELECT before_json FROM audit_log")][0].find(ARCHIVE_PREFIX) < 0
     assert live_markers(conn) == ["user_version"]  # the audit tag is gone, the header marker survives
     before = snapshot(conn)
