@@ -113,6 +113,7 @@ class Update:
                     raise Refused("The app could not be stopped (see the message above). Close it by hand, then run the update again.")
             elif ctx.image_of(info["pid"]) is None:
                 ctx.remove_pid_file()  # a leftover file of a server that is gone
+                self.log.line(f"removed the pid file of process {info['pid']}: it is no longer running (the app was not running)")
             else:
                 raise Refused(
                     f"The pid file names process {info['pid']}, which is not this app (not a python process listening on port {info['port']}). "

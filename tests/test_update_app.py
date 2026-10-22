@@ -182,6 +182,8 @@ def test_a_leftover_pid_file_of_a_dead_process_is_removed_and_the_update_goes_on
     ctx.pid_ours = False
     ctx.pid_image = None
     assert update(ctx) == 0 and "remove pid file" in ctx.calls and "stop" not in ctx.calls
+    (log,) = ctx.logs.glob("update-*.log")
+    assert "removed the pid file of process 4242" in log.read_text(encoding="utf-8")
 
 
 def test_a_stop_failure_aborts_before_the_backup(ctx):
