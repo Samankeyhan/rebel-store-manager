@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -143,10 +142,11 @@ def test_already_migrated_db_gets_backup_on_new_pending_migration(tmp_path):
     )
     init_db(str(db_path), migrations_dir=str(migrations_dir))
 
-    backups_dir = tmp_path / "backups"
+    backups_dir = tmp_path / "backups" / "pre-migration"
     assert backups_dir.exists()
-    backups = list(backups_dir.glob("shop-*.db"))
+    backups = list(backups_dir.glob("daily-*.db"))
     assert len(backups) == 1
+    assert not list((tmp_path / "backups").glob("shop-*.db"))
 
     backup_conn = sqlite3.connect(backups[0])
     try:
@@ -162,26 +162,62 @@ def test_already_migrated_db_gets_backup_on_new_pending_migration(tmp_path):
         backup_conn.close()
 
 
-def test_backup_suffixes_avoid_overwriting_existing_file(tmp_path, monkeypatch):
-    class _FixedDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 1, 1, 12, 0, 0)
-
-    monkeypatch.setattr(connection_module, "datetime", _FixedDatetime)
-
+def test_pre_migration_backups_never_overwrite_each_other(tmp_path):
     db_path = tmp_path / "shop.db"
-    db_path.write_bytes(b"first-version")
+    init_db(str(db_path))
     first = connection_module._backup_db(db_path)
-
-    db_path.write_bytes(b"second-version")
     second = connection_module._backup_db(db_path)
 
     assert first != second
-    assert first.name == "shop-20260101-120000.db"
-    assert second.name == "shop-20260101-120000-1.db"
-    assert first.read_bytes() == b"first-version"
-    assert second.read_bytes() == b"second-version"
+    assert first.parent == second.parent == tmp_path / "backups" / "pre-migration"
+    assert first.is_file() and second.is_file()
+
+
+def test_pre_migration_backup_failure_aborts_before_any_migration(tmp_path, monkeypatch):
+    from db.errors import BackupError
+    import db.backup as backup_module
+
+    migrations_dir = tmp_path / "migrations"
+    migrations_dir.mkdir()
+    (migrations_dir / "001_first.sql").write_text("CREATE TABLE widgets (id INTEGER PRIMARY KEY);\n", encoding="utf-8")
+    db_path = tmp_path / "shop.db"
+    init_db(str(db_path), migrations_dir=str(migrations_dir))
+    (migrations_dir / "002_second.sql").write_text("CREATE TABLE gadgets (id INTEGER PRIMARY KEY);\n", encoding="utf-8")
+
+    def failing(*args, **kwargs):
+        raise BackupError("disk full", "disk_full")
+
+    monkeypatch.setattr(backup_module, "make_backup", failing)
+    with pytest.raises(BackupError):
+        init_db(str(db_path), migrations_dir=str(migrations_dir))
+
+    conn = get_connection(str(db_path))
+    try:
+        assert [r["filename"] for r in conn.execute("SELECT filename FROM schema_migrations")] == ["001_first.sql"]
+        assert conn.execute("SELECT name FROM sqlite_master WHERE name = 'gadgets'").fetchall() == []
+    finally:
+        conn.close()
+
+
+def test_pre_migration_backup_is_verified_and_leaves_old_copies_alone(tmp_path):
+    migrations_dir = tmp_path / "migrations"
+    migrations_dir.mkdir()
+    (migrations_dir / "001_first.sql").write_text("CREATE TABLE widgets (id INTEGER PRIMARY KEY);\n", encoding="utf-8")
+    db_path = tmp_path / "shop.db"
+    init_db(str(db_path), migrations_dir=str(migrations_dir))
+    old = tmp_path / "backups"
+    old.mkdir()
+    (old / "shop-20260101-000000.db").write_bytes(b"old copy")
+    (migrations_dir / "002_second.sql").write_text("CREATE TABLE gadgets (id INTEGER PRIMARY KEY);\n", encoding="utf-8")
+    init_db(str(db_path), migrations_dir=str(migrations_dir))
+
+    assert (old / "shop-20260101-000000.db").read_bytes() == b"old copy"
+    (made,) = (old / "pre-migration").glob("daily-*.db")
+    check = sqlite3.connect(made)
+    try:
+        assert check.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    finally:
+        check.close()
 
 
 def test_full_migration_run_has_no_foreign_key_violations(tmp_path):
@@ -309,6 +345,6 @@ def test_upgrade_from_only_001_applies_002_and_003_in_one_run(tmp_path):
     finally:
         conn.close()
 
-    backups_dir = tmp_path / "backups"
+    backups_dir = tmp_path / "backups" / "pre-migration"
     assert backups_dir.exists()
-    assert list(backups_dir.glob("shop-*.db"))
+    assert list(backups_dir.glob("daily-*.db"))

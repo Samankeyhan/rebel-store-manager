@@ -1,5 +1,5 @@
 """Daily database backups: a consistent copy of the SQLite file made with SQLite's online backup API (never a file copy), verified, then rotated.
-The backups folder sits next to the database file in use (`backups/`), so a scratch copy never writes into the real one. Backups are named `daily-YYYY-MM-DD-HHMMSS.db` (store-local time); rotation keeps the newest `DEFAULT_KEEP` of exactly those names and touches nothing else (migration backups `shop-*.db`, audit archives, `backup-status.json`, strangers).
+The backups folder sits next to the database file in use (`backups/`), so a scratch copy never writes into the real one. Backups are named `daily-YYYY-MM-DD-HHMMSS.db` (store-local time); rotation keeps the newest `DEFAULT_KEEP` of exactly those names and touches nothing else (older migration backups `shop-*.db`, the verified pre-migration backups are in their own `pre-migration/` subfolder, audit archives, `backup-status.json`, strangers).
 A backup is written as `.partial`, reopened read-only and checked with PRAGMA integrity_check, and only then renamed and rotated; a failed run removes its partial file, deletes no older backup, records the failure in `backup-status.json` and raises `BackupError`. Nothing here writes to the database itself."""
 
 import errno

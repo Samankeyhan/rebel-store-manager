@@ -5,9 +5,7 @@ Applied migrations are tracked in `schema_migrations` with a content hash; `init
 import contextlib
 import hashlib
 import itertools
-import shutil
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 from db.errors import NotFoundError
@@ -82,21 +80,17 @@ def transaction(conn: sqlite3.Connection):
         raise
 
 
-def _backup_db(path: Path) -> Path:
-    """Copy *path* to a sibling backups/ directory before applying a migration.
+PRE_MIGRATION_FOLDER = "pre-migration"
 
-    Never overwrites an existing backup file — appends a numeric suffix instead.
-    """
-    backups_dir = path.parent / "backups"
-    backups_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    backup_path = backups_dir / f"shop-{stamp}.db"
-    suffix = 1
-    while backup_path.exists():
-        backup_path = backups_dir / f"shop-{stamp}-{suffix}.db"
-        suffix += 1
-    shutil.copy2(path, backup_path)
-    return backup_path
+
+def _backup_db(path: Path) -> Path:
+    """Back *path* up before applying a migration: a verified online backup (db.backup.make_backup) in the
+    `backups/pre-migration/` folder next to the database. If the backup fails, BackupError propagates and no
+    migration runs. That folder is only used for these backups, so rotation (newest 60) never touches other files."""
+    from db.backup import make_backup
+
+    result = make_backup(path, backups_dir=path.parent / "backups" / PRE_MIGRATION_FOLDER)
+    return Path(result["path"])
 
 
 def _apply_migration(
