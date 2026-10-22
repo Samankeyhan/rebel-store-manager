@@ -4,9 +4,28 @@
  */
 
 import type { Material, Product } from "@/lib/api"
+import { lineCost } from "@/lib/costing"
 
-/** The design's unit list (05 §2), stored as Persian text. */
-export const UNITS = ["عدد", "متر", "کیلوگرم", "رول", "لیتر", "نوبت"] as const
+/**
+ * The unit picker's list, stored as Persian text (the API takes any string).
+ * Units already saved on a material that are not here stay as they are.
+ */
+export const UNITS = [
+  "میلی‌لیتر",
+  "لیتر",
+  "گرم",
+  "کیلوگرم",
+  "سانتی‌متر",
+  "متر",
+  "عدد",
+  "برگ",
+  "رول",
+  "بسته",
+  "نوبت",
+] as const
+
+/** What a new material starts with (the list's first entry is not the default). */
+export const DEFAULT_UNIT = "عدد"
 
 /** The API's default unit is the English "piece". */
 export function unitLabel(unit: string): string {
@@ -35,7 +54,7 @@ export function costState(p: Product): CostState {
 /** Inventory value for display (design 05 «ارزش موجودی»); services have none. */
 export function inventoryValue(m: Material): number | null {
   if (m.type === "SERVICE" || m.current_stock == null) return null
-  return Math.round(m.current_stock * m.unit_cost)
+  return lineCost(m.current_stock, m.unit_cost)
 }
 
 /** Folds Arabic ي/ك into Persian ی/ک and lowercases, for search. */

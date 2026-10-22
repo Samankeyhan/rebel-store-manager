@@ -14,7 +14,7 @@ import { Money } from "@/components/common/money"
 import { ApiError, createMaterial, updateMaterial, type CategoryTree, type Material } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
 import { minStockChanged, parseMinStock } from "@/lib/min-stock"
-import { formatQuantity, parseDecimal } from "@/lib/persian-numbers"
+import { formatQuantity, parseDecimal, quantityText } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { TypeBadge } from "./badges"
 import { P } from "./copy"
@@ -22,7 +22,7 @@ import { CategoryPicker } from "./category-picker"
 import { DrawerShell, FieldError, SaveError, textInputClass } from "./drawer-shell"
 import { nameDuplicateMessage } from "@/components/common/copy"
 import { duplicateEntity, isNameDuplicate } from "@/lib/error-codes"
-import { UNITS, unitLabel } from "./figures"
+import { DEFAULT_UNIT, UNITS, unitLabel } from "./figures"
 
 const readOnlyBox = "flex h-10 items-center rounded-lg border border-border bg-surface-2 px-3 text-sm text-text-2 tabular-nums"
 
@@ -59,7 +59,7 @@ export function MaterialDrawer({
   const editing = material != null
   const [name, setName] = React.useState("")
   const [type, setType] = React.useState<"STOCK" | "SERVICE">("STOCK")
-  const [unit, setUnit] = React.useState<string>(UNITS[0])
+  const [unit, setUnit] = React.useState<string>(DEFAULT_UNIT)
   /** Integer Rial; null while MoneyInput holds text that gives no exact amount — blocks save. */
   const [unitCost, setUnitCost] = React.useState<number | null>(0)
   const [stockText, setStockText] = React.useState("")
@@ -81,10 +81,10 @@ export function MaterialDrawer({
     if (target !== null) {
       setName("")
       setType("STOCK")
-      setUnit(UNITS[0])
+      setUnit(DEFAULT_UNIT)
       setUnitCost(0)
       setStockText("")
-      setMinText(material?.min_stock != null ? formatQuantity(material.min_stock) : "")
+      setMinText(material?.min_stock != null ? quantityText(material.min_stock) : "")
       setMinDirty(false)
       setMinRefused(false)
       setCategory(null)
@@ -195,7 +195,7 @@ export function MaterialDrawer({
           }}
           onBlur={() => {
             const p = parseMinStock(minText)
-            if (p.ok && p.value != null) setMinText(formatQuantity(p.value))
+            if (p.ok && p.value != null) setMinText(quantityText(p.value))
           }}
           placeholder={P.minStockPlaceholder}
           className={cn(textInputClass(mobile, minError), "pe-16 tabular-nums")}
@@ -383,7 +383,7 @@ export function MaterialDrawer({
                   onChange={(e) => setStockText(e.target.value)}
                   onBlur={() => {
                     const n = parseDecimal(stockText)
-                    if (n != null) setStockText(formatQuantity(n))
+                    if (n != null) setStockText(quantityText(n))
                   }}
                   placeholder={formatQuantity(0)}
                   className={cn(textInputClass(mobile, stockError), "pe-16 tabular-nums")}

@@ -8,7 +8,7 @@ import { TypeBadge } from "@/components/products/badges"
 import { unitLabel } from "@/components/products/figures"
 import { Alert, Btn } from "@/components/record-sale/primitives"
 import { getProductionBatch, type Material, type ProductionBatchDetail, type ProductionBatchListItem } from "@/lib/api"
-import { roundHalfEven } from "@/lib/costing"
+import { lineCost, roundHalfEven } from "@/lib/costing"
 import { formatJalaliDateTime } from "@/lib/jalali"
 import { formatQuantity } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
@@ -106,7 +106,7 @@ function BatchMaterials({ detail, unitOf }: { detail: ProductionBatchDetail; uni
               {formatMoney(m.unit_cost_at_time)}
             </span>
           </span>
-          <Money value={Math.round(m.quantity_used * m.unit_cost_at_time)} className="shrink-0 font-bold" />
+          <Money value={lineCost(m.quantity_used, m.unit_cost_at_time)} className="shrink-0 font-bold" />
         </div>
       ))}
       <div className="flex items-center justify-between py-3 text-[13.5px] font-bold">

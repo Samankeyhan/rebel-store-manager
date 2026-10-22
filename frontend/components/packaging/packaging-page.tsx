@@ -12,6 +12,7 @@ import { unitLabel } from "@/components/products/figures"
 import { CHANNEL_IDS } from "@/components/record-sale/copy"
 import { Btn, StockPill, cardClass } from "@/components/record-sale/primitives"
 import type { KitDetail, Material, Settings } from "@/lib/api"
+import { lineCost } from "@/lib/costing"
 import { formatQuantity } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
 import { Money } from "@/components/common/money"
@@ -317,7 +318,7 @@ function KitCard({
                 {item.material_name} × {formatQuantity(item.quantity)}
                 {unit !== "عدد" ? ` ${unit}` : ""}
               </span>
-              <Money value={Math.round(item.quantity * item.material_unit_cost)} />
+              <Money value={lineCost(item.quantity, item.material_unit_cost)} />
             </span>
           )
         })}
