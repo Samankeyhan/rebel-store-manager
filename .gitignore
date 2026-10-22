@@ -14,3 +14,7 @@ data/*.jsonl
 data/integrity-*.txt
 data/logs/
 data/restore-test/
+data/*.db-wal
+data/*.db-shm
+data/*.db-journal
+*.lnk
