@@ -17,7 +17,7 @@ import {
   type Product,
   type Supplier,
 } from "@/lib/api"
-import { formatQuantity, parseDecimal } from "@/lib/persian-numbers"
+import { formatQuantity, parseDecimal, quantityText } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { U } from "./copy"
 import { PurchasePreview, type PreviewItem } from "./purchase-preview"
@@ -176,7 +176,7 @@ export const PurchaseForm = React.forwardRef<
             onChange={(e) => setQtyText(e.target.value)}
             onBlur={() => {
               const n = parseDecimal(qtyText)
-              if (n != null) setQtyText(formatQuantity(n))
+              if (n != null) setQtyText(quantityText(n))
             }}
             placeholder={formatQuantity(0)}
             aria-invalid={!!qtyError || undefined}

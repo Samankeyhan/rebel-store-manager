@@ -17,6 +17,33 @@ export function roundHalfEven(x: number): number {
   return floor % 2 === 0 ? floor : floor + 1
 }
 
+/**
+ * quantity × unit cost in whole Rial, exact and rounded half-even once, like
+ * db/costing.py (a REAL quantity counts as the decimal it was entered as:
+ * 0.005 × 120,000,000 = 600,000, never 599,999.99…). For one line's cost;
+ * a recipe or batch total sums its lines before rounding (recipeSums,
+ * batchPreview).
+ */
+export function lineCost(quantity: number, unitCost: number): number {
+  const s = String(Math.abs(quantity))
+  const m = /^(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/.exec(s)
+  if (!m || !Number.isInteger(unitCost)) return roundHalfEven(quantity * unitCost)
+  const fraction = m[2] ?? ""
+  // value = digits × 10^-scale; a negative scale (1e21) multiplies instead.
+  const scale = fraction.length - Number(m[3] ?? 0)
+  const one = BigInt(1)
+  const two = BigInt(2)
+  const power = (k: number) => BigInt("1" + "0".repeat(k)) // a power of ten, without ×10
+  let numerator = BigInt(m[1] + fraction) * BigInt(unitCost)
+  let denominator = one
+  if (scale > 0) denominator = power(scale)
+  else numerator *= power(-scale)
+  let whole = numerator / denominator
+  const twice = (numerator % denominator) * two
+  if (twice > denominator || (twice === denominator && whole % two === one)) whole += one
+  return Number(whole)
+}
+
 /** db/costing.py blend_unit_cost: the weighted average when stock comes in. */
 export function blendUnitCost(
   stockBefore: number | null,

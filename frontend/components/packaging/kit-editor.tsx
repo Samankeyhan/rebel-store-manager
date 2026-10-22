@@ -16,7 +16,8 @@ import {
   type KitDetail,
   type Material,
 } from "@/lib/api"
-import { formatNumber, formatQuantity, parseDecimal } from "@/lib/persian-numbers"
+import { lineCost } from "@/lib/costing"
+import { formatNumber, parseDecimal, quantityText } from "@/lib/persian-numbers"
 import { formatMoneyNumber } from "@/lib/money"
 import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
@@ -163,7 +164,7 @@ export function KitEditor({
         <input
           inputMode="decimal"
           aria-label={`${K.colQty} — ${item.material_name}`}
-          value={drafts[item.material_id] ?? formatQuantity(item.quantity)}
+          value={drafts[item.material_id] ?? quantityText(item.quantity)}
           disabled={!active || rowBusy}
           onChange={(e) => setDrafts((d) => ({ ...d, [item.material_id]: e.target.value }))}
           onBlur={() => saveQty(item)}
@@ -182,7 +183,7 @@ export function KitEditor({
     )
     const unitCost = <span className="text-[13px] text-text-3 tabular-nums">{K.unitCost(item.material_unit_cost, unit)}</span>
     // This line's share only; kit_cost (rounded once over all lines) comes from the API.
-    const lineCost = <Money value={Math.round(item.quantity * item.material_unit_cost)} className="font-bold" />
+    const lineCostCell = <Money value={lineCost(item.quantity, item.material_unit_cost)} className="font-bold" />
     const del = active && (
       <Btn
         variant="ghost"
@@ -206,7 +207,7 @@ export function KitEditor({
             <div className="grid grid-cols-2 items-center gap-2">
               {qty}
               <span className="flex flex-col items-end">
-                {lineCost}
+                {lineCostCell}
                 {unitCost}
               </span>
             </div>
@@ -216,7 +217,7 @@ export function KitEditor({
             {name}
             {qty}
             {unitCost}
-            {lineCost}
+            {lineCostCell}
             <span>{del}</span>
           </div>
         )}

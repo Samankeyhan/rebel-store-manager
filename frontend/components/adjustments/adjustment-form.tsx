@@ -16,7 +16,7 @@ import {
   type Product,
 } from "@/lib/api"
 import { dateToISO } from "@/lib/jalali"
-import { formatQuantity, parseDecimal } from "@/lib/persian-numbers"
+import { formatQuantity, parseDecimal, quantityText } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { A } from "./copy"
@@ -331,7 +331,7 @@ export const AdjustmentForm = React.forwardRef<
           }}
           onBlur={() => {
             const n = parseDecimal(qtyText)
-            if (n != null) setQtyText(formatQuantity(n))
+            if (n != null) setQtyText(quantityText(n))
           }}
           placeholder={formatQuantity(0)}
           aria-invalid={!!qtyError || undefined}

@@ -17,8 +17,8 @@ import {
   type Product,
   type Recipe,
 } from "@/lib/api"
-import { batchPreview, recipeSums } from "@/lib/costing"
-import { formatQuantity, parseDecimal } from "@/lib/persian-numbers"
+import { batchPreview, lineCost, recipeSums } from "@/lib/costing"
+import { formatQuantity, parseDecimal, quantityText } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
@@ -258,7 +258,7 @@ export function RecipeTab({
                 <input
                   inputMode="decimal"
                   aria-label={`${R.colLineQty} — ${item.material_name}`}
-                  value={drafts[item.material_id] ?? formatQuantity(item.quantity_needed)}
+                  value={drafts[item.material_id] ?? quantityText(item.quantity_needed)}
                   disabled={rowBusy}
                   onChange={(e) => setDrafts((d) => ({ ...d, [item.material_id]: e.target.value }))}
                   onBlur={() => saveQty(item)}
@@ -291,8 +291,8 @@ export function RecipeTab({
             const cost = (
               <span className="text-[13px] font-bold tabular-nums">
                 {item.cost_basis === "PER_BATCH"
-                  ? R.lineCostOnce(Math.round(item.quantity_needed * item.material_unit_cost))
-                  : R.lineCostPerUnit(Math.round(item.quantity_needed * item.material_unit_cost))}
+                  ? R.lineCostOnce(lineCost(item.quantity_needed, item.material_unit_cost))
+                  : R.lineCostPerUnit(lineCost(item.quantity_needed, item.material_unit_cost))}
               </span>
             )
             const del = (

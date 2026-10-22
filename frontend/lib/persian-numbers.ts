@@ -61,22 +61,48 @@ const DECIMAL_SEPARATOR = "٫"
 
 /**
  * A quantity that may be fractional (materials): 1.5 → "۱٫۵", 0.06 → "۰٫۰۶",
- * 14 → "۱۴". Up to three decimals; trailing zeros dropped. Not for money.
+ * 14 → "۱۴". Up to six decimals (a recipe may need 0.005 L of ink, and
+ * millilitres come next); trailing zeros dropped. Not for money. For text
+ * that goes back into an input use `quantityText`.
  */
 export function formatQuantity(n: number): string {
   if (!Number.isFinite(n)) {
     console.warn(`formatQuantity: expected a finite number, got ${n}; showing 0`)
     return "۰"
   }
-  const thousandths = Math.round(Math.abs(n) * 1000)
-  const intPart = Math.floor(thousandths / 1000)
-  const frac = String(thousandths % 1000).padStart(3, "0").replace(/0+$/, "")
-  const sign = n < 0 && thousandths > 0 ? MINUS : ""
+  const millionths = Math.round(Math.abs(n) * 1_000_000)
+  const intPart = Math.floor(millionths / 1_000_000)
+  const frac = String(millionths % 1_000_000).padStart(6, "0").replace(/0+$/, "")
+  const sign = n < 0 && millionths > 0 ? MINUS : ""
   return (
     sign +
     formatNumber(intPart) +
     (frac ? DECIMAL_SEPARATOR + toPersianDigits(frac) : "")
   )
+}
+
+/** A finite number as plain decimal digits, never in exponent form (1e-7 → "0.0000001"). */
+function plainDecimal(n: number): string {
+  const s = String(Math.abs(n))
+  const m = /^(\d+)(?:\.(\d+))?e([+-]\d+)$/.exec(s)
+  if (!m) return s
+  const digits = m[1] + (m[2] ?? "")
+  const point = m[1].length + Number(m[3])
+  if (point <= 0) return "0." + "0".repeat(-point) + digits
+  if (point >= digits.length) return digits + "0".repeat(point - digits.length)
+  return digits.slice(0, point) + "." + digits.slice(point)
+}
+
+/**
+ * The text a quantity input shows for `n` — and what it is rewritten to on
+ * blur. Like `formatQuantity`, but only when that reads back (`parseDecimal`)
+ * as exactly `n`; otherwise the full decimal, so a rewrite never changes the
+ * value that was typed or saved (0.0000004 must not become «۰»).
+ */
+export function quantityText(n: number): string {
+  const text = formatQuantity(n)
+  if (parseDecimal(text) === Math.abs(n) && (n >= 0 || text.startsWith(MINUS))) return text
+  return (n < 0 ? MINUS : "") + toPersianDigits(plainDecimal(n).replace(".", DECIMAL_SEPARATOR))
 }
 
 /**
