@@ -214,6 +214,12 @@ class Update:
         ctx.out(f"Log: {self.log.path}")
         return 1
 
+    def rolled_back(self, reason: str, restore_db: bool) -> int:
+        code = roll_back(self.ctx, self.state, self.log, self.moment, reason, restore_db)
+        if code == 1:
+            logmod.clear_state(self.ctx.logs)  # a failed rollback keeps the state file for --recover
+        return code
+
     def run(self) -> int:
         ctx, say = self.ctx, self.ctx.out
         self.log.line(f"update started {self.moment}; old HEAD {self.plan.old_head}")
@@ -235,7 +241,7 @@ class Update:
             if error is not None:
                 self.log.step(number, "FAILED", error)
                 say(f"FAILED at step {number}/9 ({label}): {error}")
-                return roll_back(ctx, self.state, self.log, self.moment, error, restore_db=number >= 6)
+                return self.rolled_back(error, restore_db=number >= 6)
             self.log.step(number, "DONE")
 
         self.enter(9)
@@ -247,7 +253,7 @@ class Update:
             else:
                 self.log.step(9, "FAILED", f"start exit {code}")
                 say("FAILED at step 9/9 (start the app): the new version did not become healthy.")
-                return roll_back(ctx, self.state, self.log, self.moment, "the new version did not start", restore_db=True)
+                return self.rolled_back("the new version did not start", restore_db=True)
         self.log.step(9, "DONE")
         self.state["restarted"] = True
         logmod.write_state(ctx.logs, self.state)

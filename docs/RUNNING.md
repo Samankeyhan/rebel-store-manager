@@ -22,6 +22,9 @@ If something is missing, the start window tells you exactly what and how to fix 
 | **Your data (the database)** | `data\shop.db` |
 | **Backups** (daily, automatic) | `data\backups\daily-YYYY-MM-DD-HHMMSS.db` |
 | Older safety copies made before an update changed the database | `data\backups\shop-YYYYMMDD-HHMMSS.db` (never deleted by the app) |
+| Safety copy made by `update-rebel.cmd` (newest 10 kept) | `data\backups\pre-update\daily-….db`, and `shop-failed-update-….db` after a rolled-back update |
+| Safety copy made before the app changes the database (newest 60 kept) | `data\backups\pre-migration\daily-….db` |
+| What an update did, step by step | `data\logs\update-<moment>.log` (and `update-state.json` while an update runs or was interrupted) |
 | **Application log** (what happened, errors) | `data\logs\app.log` (+ `app.log.1` … `.5`) |
 | What the server printed while starting | `data\logs\server.out.log` |
 | Build log of the screens | `data\logs\build.log` |
@@ -113,17 +116,62 @@ Remove-Item -Recurse -Force data\restore-test
 
 (`Remove-Item Env:REBEL_DB` matters: while that variable is set, the start script uses the practice copy.)
 
-## 6. After an update (`git pull`)
+## 6. Update the app (`update-rebel.cmd`)
 
-The screens you see are built from the code; after new code arrives they must be built again (it takes one to two minutes and needs Node.js):
+Double-click **`update-rebel.cmd`** (or `.\update-rebel.cmd`). One command does everything, and goes back by itself if anything fails. The window stays open at the end (press a key).
+
+It asks you once: *"The app will close now. Is anyone entering data right now? Type YES"* («برنامه بسته می‌شود. الان کسی در حال ثبت اطلاعات است؟ برای ادامه YES بنویسید»). Anything but `YES` cancels and changes nothing. (`--yes` skips the question.)
+
+What it does, in this order, and it stops at the first problem:
+
+1. **Checks the folder:** it is on the branch `main`, no file was changed or added by hand (untracked files count), `.venv` exists, and the internet works. It shows the new commits and the new `migrations\*.sql`. Nothing new: it says "up to date" and ends.
+2. **Checks the database** (`tools.integrity_check`). A `FAIL` or a check that could not run (exit code 1 or 2) stops the update: it will not update a database that already has problems. A `WARN` never stops it.
+3. **Closes the app** (it makes the daily backup first). It refuses if the pid file names something that is not this app, or if the database is locked.
+4. **Makes a verified backup** in `data\backups\pre-update\` (the newest 10 are kept there; nothing else is ever deleted there) and writes the old version, the backup name and its sha256 into `data\logs\update-<moment>.log`.
+5. `git pull --ff-only`. 6. Installs Python packages (only if `requirements.txt` changed), runs `npm ci` (only if `package-lock.json` changed), builds the screens.
+7. **Updates the database** in a fresh process, so the new code does it. 8. Checks the database again.
+9. **Starts the app** and waits until it answers.
+
+If step 5, 6, 7, 8 or 9 fails, it **goes back by itself**: `git reset --hard` to the old version, the pre-update backup is copied over `data\shop.db` and checked (sha256), the old screens are built, the old app is started. A failed `git pull` that changed nothing only starts the app again. If the new version would not start, the failed (already migrated) database is kept as `data\backups\pre-update\shop-failed-update-<moment>.db` for the planning chat. If the app answers healthy anyway (it was only slow), nothing is undone.
+
+Messages end with: «به‌روزرسانی انجام شد» (done), or «چیزی تغییر نکرد؛ اطلاعات شما سالم است» (refused, nothing changed), or «به‌روزرسانی ناموفق بود و برنامه به نسخهٔ قبلی برگشت» (rolled back). Exit code 0 = done, 1 = refused or rolled back, 2 = could not run (for example no internet, or the rollback itself failed: then follow section 6a with the numbers printed in the window).
+
+**Things to know**
+- **The updater that runs is always the previous version:** it is loaded before `git pull` replaces the files. A fix to the updater takes effect on the update after the one that brings it.
+- **Changed or untracked files, or another branch:** it refuses at step 1 and changes nothing (it never stashes, deletes, overwrites or switches branch). Ask the planning chat.
+- **First time on a laptop that has no `update-rebel.cmd` yet** (the old way, once): write down the version first (`git rev-parse HEAD`), then `.\stop-rebel.cmd`, copy `data\shop.db` somewhere safe (for example `Copy-Item data\shop.db data\shop-before-update-tool.db`), `git pull`, `.\start-rebel.cmd --rebuild`, `.venv\Scripts\python -m tools.integrity_check`. If this first update fails: `git reset --hard <the version you wrote down>`, `.\start-rebel.cmd --rebuild`. The database is not touched by that update; the first update that changes the database goes through `update-rebel.cmd`.
+- **Try it first on a copy:** `.venv\Scripts\python -m tools.update_app --rehearse data\restore-test\real\shop.db` copies that database into `data\restore-test\rehearsal-<moment>\`, runs the check, the migrations and the check again, and compares the figures before and after (rows per table, profit and loss, every material and product, settlement totals). Any difference is a failure. It never touches git, the app, `data\shop.db`, `data\backups` or `data\logs`, and it refuses a file inside `data\` (outside `data\restore-test`).
+
+## 6a. Manual rollback (a problem found AFTER the app has been used)
+
+<span style="color:red">**Everything entered since the update is lost.**</span> The backup was made before the update; whatever you typed afterwards (sales, purchases, expenses) exists only in the current database. Do this only if you must. Keep the current file (it is renamed, not deleted), so the planning chat can still look at it.
+
+1. `.\stop-rebel.cmd`
+2. Find the old version and the backup in the update log: `Get-Content (Get-ChildItem data\logs\update-*.log | Sort-Object Name | Select-Object -Last 1).FullName` (lines `old HEAD ...` and `backup ... sha256 ...`).
+3. `Rename-Item data\shop.db shop-after-update-2026-10-22.db` (use today's date)
+4. `Copy-Item data\backups\pre-update\<the backup named in the log> data\shop.db`
+5. `git reset --hard <old HEAD from the log>`
+6. `.\start-rebel.cmd --rebuild`, then `.venv\Scripts\python -m tools.integrity_check` (the last line must be `OK`).
+
+## 6b. The update was interrupted (power cut, closed window)
+
+While an update runs, `data\logs\update-state.json` says how far it got, and the log `data\logs\update-<moment>.log` has one `STEP n/9 ...` line per step. If the state file exists, **a new update refuses to start**; run:
 
 ```powershell
-.\stop-rebel.cmd
-git pull
-.\start-rebel.cmd --rebuild
+.venv\Scripts\python -m tools.update_app --recover
 ```
 
-If you forget `--rebuild`, the start window says "NOTICE: the screens were built from an older version". The database is updated automatically at start (a safety copy `shop-YYYYMMDD-HHMMSS.db` is made first). Afterwards run `.venv\Scripts\python -m tools.integrity_check`.
+It reads the state file and undoes what the update did, then starts the app. The last `STEP` line in the log tells where it stopped:
+
+| Last step reached | What happened | What `--recover` does |
+|---|---|---|
+| 1 or 2 | nothing was changed (no state file) | nothing to recover: start the app with `start-rebel.cmd` |
+| 3 or 4 | the app was closed; maybe a backup was made | only starts the app |
+| 5 | the pull may have run | puts the code back if it moved; the database was not touched; starts the app |
+| 6, 7 or 8 | packages, screens or the database may have changed | restores the database from the pre-update backup (checked), puts the code back, rebuilds the old screens, starts the app |
+| 9 | the new version was starting | if the app answers healthy: nothing to undo; otherwise the same as 6-8 |
+
+`--recover` refuses when the app is running (stop it first), when the update process is still alive, and when the update had **finished** (the app was started and used): then only the manual rollback (6a) is left.
 
 ## 7. What starts how (for the curious)
 
@@ -151,7 +199,7 @@ Developers can still run the old two-server way (`npm run dev` in `frontend\` pl
 ## 9. Do not
 
 - Do not edit `data\shop.db` by hand, and do not put practice copies directly in `data\`.
-- Do not delete `data\backups` files "to tidy up" (the app keeps the newest 60 itself); the `shop-…` copies are your safety net after updates.
+- Do not delete `data\backups` files "to tidy up" (the app keeps the newest 60 itself); the `shop-…` copies and the `pre-update` and `pre-migration` folders are your safety net after updates.
 - Do not run two copies of the app on the same database.
 - Do not run the go-live reset (section 10) on the real database more than once, and never while the app runs.
 

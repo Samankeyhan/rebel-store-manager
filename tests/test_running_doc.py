@@ -56,3 +56,17 @@ def test_the_go_live_section_names_the_tool_its_options_and_the_files_it_makes()
 def test_the_real_use_guide_tells_the_owner_to_type_the_cost_on_every_material_gain():
     text = (ROOT / "docs" / "real-use-test.md").read_text(encoding="utf-8")
     assert "Type the unit cost on every material gain" in text and "go-live reset" in text
+
+
+def test_the_update_section_names_the_command_its_options_the_files_and_the_rollbacks():
+    update = TEXT[TEXT.index("## 6. Update the app"):TEXT.index("## 7.")]
+    assert (ROOT / "update-rebel.cmd").is_file() and importlib.util.find_spec("tools.update_app") is not None
+    for needle in ("update-rebel.cmd", "--rehearse", "--recover", "--yes", "type yes", "pre-update", "update-state.json", "update-<moment>.log",
+                   "shop-failed-update-", "the previous version", "untracked", "git reset --hard", "never touches git, the app",
+                   "WARN` never stops it", "exit code 0 = done, 1 = refused or rolled back, 2 = could not run"):
+        assert needle.lower() in update.lower(), needle
+    manual = update[update.index("## 6a."):update.index("## 6b.")]
+    assert "Everything entered since the update is lost" in manual and "git reset --hard <old HEAD" in manual
+    interrupted = update[update.index("## 6b."):]
+    for step in ("| 1 or 2 |", "| 3 or 4 |", "| 5 |", "| 6, 7 or 8 |", "| 9 |"):
+        assert step in interrupted, step
