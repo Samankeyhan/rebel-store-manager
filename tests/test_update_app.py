@@ -126,6 +126,11 @@ def test_the_question_is_in_english_and_persian_and_yes_continues(ctx):
     assert "Type YES" in ctx.text and "YES بنویسید" in ctx.text
 
 
+def test_yes_typed_through_a_powershell_pipe_still_counts(ctx):
+    ctx.answers = [chr(0xFEFF) + "YES" + chr(13)]
+    assert update(ctx, yes=False) == 0
+
+
 def test_the_yes_flag_skips_the_question(ctx):
     ctx.answers = []
     assert update(ctx, yes=True) == 0 and "ask" not in ctx.calls

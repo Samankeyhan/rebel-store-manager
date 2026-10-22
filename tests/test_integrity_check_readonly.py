@@ -105,8 +105,9 @@ ALLOWED_PRAGMAS = {"integrity_check", "foreign_key_check", "query_only", "table_
 
 
 def _tool_sources():
-    # go_live_reset is a deliberate writer (its own tests prove what it writes); every other tool stays read-only
-    return sorted(p for p in TOOLS.rglob("*.py") if "go_live_reset" not in p.parts)
+    # go_live_reset and update_app are deliberate writers (they reset, migrate or restore a database; their own tests prove what they
+    # write); every other tool stays read-only
+    return sorted(p for p in TOOLS.rglob("*.py") if not {"go_live_reset", "update_app"} & set(p.parts))
 
 
 def _sql_text(node):

@@ -78,7 +78,7 @@ def confirm(ctx: Ctx, args, plan: Plan) -> None:
         answer = ctx.ask("> ")
     except (EOFError, KeyboardInterrupt):
         answer = ""
-    if answer.strip() != CONFIRM_WORD:
+    if answer.strip().lstrip(chr(0xFEFF)).strip() != CONFIRM_WORD:  # a pipe from PowerShell can start with a byte-order mark
         raise Refused("Cancelled. Nothing was changed.")
 
 
