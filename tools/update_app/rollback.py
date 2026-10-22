@@ -105,6 +105,5 @@ def roll_back(ctx: Ctx, state: dict, log: UpdateLog, moment: str, reason: str, r
         return 2
     log.line("ROLLBACK DONE")
     say(f"Rolled back to {old_head[:10]}. " + ("Your data is as it was before the update. " if restore_db else "Nothing in your data changed. "))
-    say("به‌روزرسانی ناموفق بود و برنامه به نسخهٔ قبلی برگشت.")
     say(f"Log: {log.path}")
     return 1

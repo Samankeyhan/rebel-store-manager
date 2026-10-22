@@ -120,7 +120,7 @@ Remove-Item -Recurse -Force data\restore-test
 
 Double-click **`update-rebel.cmd`** (or `.\update-rebel.cmd`). One command does everything, and goes back by itself if anything fails. The window stays open at the end (press a key).
 
-It asks you once: *"The app will close now. Is anyone entering data right now? Type YES"* («برنامه بسته می‌شود. الان کسی در حال ثبت اطلاعات است؟ برای ادامه YES بنویسید»). Anything but `YES` cancels and changes nothing. (`--yes` skips the question.)
+It asks you once: *"The app will close now. Is anyone entering data right now? Type YES to continue; anything else cancels."* Anything but `YES` cancels and changes nothing. (`--yes` skips the question.)
 
 What it does, in this order, and it stops at the first problem:
 
@@ -134,7 +134,7 @@ What it does, in this order, and it stops at the first problem:
 
 If step 5, 6, 7, 8 or 9 fails, it **goes back by itself**: `git reset --hard` to the old version, the pre-update backup is copied over `data\shop.db` and checked (sha256), the old screens are built, the old app is started. A failed `git pull` that changed nothing only starts the app again. If the new version would not start, the failed (already migrated) database is kept as `data\backups\pre-update\shop-failed-update-<moment>.db` for the planning chat. If the app answers healthy anyway (it was only slow), nothing is undone.
 
-Messages end with: «به‌روزرسانی انجام شد» (done), or «چیزی تغییر نکرد؛ اطلاعات شما سالم است» (refused, nothing changed), or «به‌روزرسانی ناموفق بود و برنامه به نسخهٔ قبلی برگشت» (rolled back). Exit code 0 = done, 1 = refused or rolled back, 2 = could not run (for example no internet, or the rollback itself failed: then follow section 6a with the numbers printed in the window).
+The last message says `Updated to <version>` (done), `Nothing was changed` (refused), or `Rolled back to <version>` (rolled back). All messages and the log are in English. Exit code 0 = done, 1 = refused or rolled back, 2 = could not run (for example no internet, or the rollback itself failed: then follow section 6a with the numbers printed in the window).
 
 **Things to know**
 - **The updater that runs is always the previous version:** it is loaded before `git pull` replaces the files. A fix to the updater takes effect on the update after the one that brings it.

@@ -73,7 +73,6 @@ def confirm(ctx: Ctx, args, plan: Plan) -> None:
     if getattr(args, "yes", False):
         return
     say("The app will close now. Is anyone entering data right now? Type YES to continue; anything else cancels.")
-    say("برنامه بسته می‌شود. الان کسی در حال ثبت اطلاعات است؟ برای ادامه YES بنویسید.")
     try:
         answer = ctx.ask("> ")
     except (EOFError, KeyboardInterrupt):
@@ -210,7 +209,6 @@ class Update:
             ctx.out("Starting the app again...")
             self.log.line(f"restart after refusal: exit {ctx.start_app()}")
         logmod.clear_state(ctx.logs)
-        ctx.out("چیزی تغییر نکرد؛ اطلاعات شما سالم است.")
         ctx.out(f"Log: {self.log.path}")
         return 1
 
@@ -260,7 +258,6 @@ class Update:
         self.log.line("UPDATE DONE")
         logmod.clear_state(ctx.logs)
         say(f"Updated to {self.plan.new_head[:10]}. Log: {self.log.path}")
-        say("به‌روزرسانی انجام شد.")
         return 0
 
 
@@ -272,7 +269,6 @@ def run_update(args, ctx: Ctx) -> int:
         plan = preflight(ctx)
         if plan.up_to_date:
             say(f"Already up to date ({plan.old_head[:10]}). Nothing to do.")
-            say("برنامه به‌روز است.")
             return 0
         code, text = ctx.integrity(ctx.db)
         if code != 0:
@@ -283,7 +279,6 @@ def run_update(args, ctx: Ctx) -> int:
         confirm(ctx, args, plan)
     except Refused as exc:
         say(str(exc))
-        say("چیزی تغییر نکرد؛ اطلاعات شما سالم است.")
         return 1
     except CannotRun as exc:
         say(f"The update could not run: {exc}")

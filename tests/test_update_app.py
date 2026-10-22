@@ -12,6 +12,11 @@ from tools.update_app.__main__ import main
 from tools.update_app.recover import recover
 from tools.update_app.steps import run_update
 
+def ar_text(text):
+    """Arabic-script characters in the console output (they print reversed in a Windows console)."""
+    return [c for c in text if "\u0600" <= c <= "\u06ff"]
+
+
 ONE_MIGRATION = "A\tmigrations/014_x.sql\n"
 
 
@@ -120,10 +125,10 @@ def test_end_of_input_counts_as_no(ctx):
     assert update(ctx, yes=False) == 1 and "stop" not in ctx.calls
 
 
-def test_the_question_is_in_english_and_persian_and_yes_continues(ctx):
+def test_the_question_is_english_only_and_yes_continues(ctx):
     ctx.answers = ["YES"]
     assert update(ctx, yes=False) == 0
-    assert "Type YES" in ctx.text and "YES بنویسید" in ctx.text
+    assert "Type YES" in ctx.text and not ar_text(ctx.text)
 
 
 def test_yes_typed_through_a_powershell_pipe_still_counts(ctx):
@@ -148,7 +153,7 @@ def test_the_steps_run_in_order_and_dependencies_only_when_their_files_changed(c
     relevant = [c for c in ctx.calls if not c.startswith("git ") or c.startswith("git pull")]
     assert relevant == ["integrity", "stop", "lock probe", "backup", "git pull --ff-only origin",
                         "pip", "npm ci", "build b", "migrate", "integrity", "start"]
-    assert "Updated to" in ctx.text and "به‌روزرسانی انجام شد" in ctx.text
+    assert "Updated to" in ctx.text and not ar_text(ctx.text)
 
 
 def test_no_pip_or_npm_ci_when_nothing_changed_there(ctx):
@@ -265,7 +270,7 @@ def test_a_failing_dependency_install_restores_database_and_code(ctx):
     assert update(ctx) == 1
     assert ctx.head == OLD and "build a" in ctx.calls and ctx.calls[-1] == "start"
     assert_database_restored(ctx)
-    assert "Rolled back" in ctx.text and "برگشت" in ctx.text
+    assert "Rolled back" in ctx.text and not ar_text(ctx.text)
 
 
 def test_a_failing_migration_restores_the_database_even_if_it_changed_it(ctx):
