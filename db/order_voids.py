@@ -1,7 +1,8 @@
 """Voiding a sale entered by mistake (status VOIDED), docs/accounting-rules.md section 20. Not a customer return: `returns.process_return` stays for those.
 `plan_void` (read-only) lists what a void would put back and every rule that refuses it; `void_order` applies it in one transaction. The order row and its lines stay; only status, `void_reason` and `voided_at` change.
 Stock comes back by reversing the order's own SALE / PACKAGING / PRODUCTION_CONSUMPTION movements (RETURN movements, `reference_order_id` = the order). Each item's cost takes the returned stock at its frozen cost by weighted average (section 2, `costing.blend_unit_cost_exact`; materials treat 0 as "not entered"); a movement with no frozen cost (orders committed before section 20) comes back at the current cost, which then stays. Nothing is written for payment, fee or settlement: VOIDED is in no status list, so the order leaves every figure.
-Refused (in this order): ORDER_ALREADY_VOIDED, ORDER_HAS_RETURN, ORDER_NOT_COMMITTED, ORDER_ALREADY_SETTLED, PERIOD_ALREADY_DISTRIBUTED (the order's local day is closed), STOCKTAKE_AFTER_SALE (a count recorded after the sale covered an affected item)."""
+Refused (in this order): ORDER_ALREADY_VOIDED, ORDER_HAS_RETURN, ORDER_NOT_COMMITTED, ORDER_ALREADY_SETTLED, PERIOD_ALREADY_DISTRIBUTED (the order's local day is closed), STOCKTAKE_AFTER_SALE (a count recorded after the sale covered an affected item).
+`correct_order` voids an order and records the right sale in ONE audit operation and transaction (`orders.record_order`: the day picked, today's costs), then sets the new order's `replaces_order_id`; the new day must not be closed either. Any refusal leaves both as they were."""
 
 import sqlite3
 from fractions import Fraction
@@ -12,7 +13,7 @@ from db.connection import transaction
 from db.costing import blend_unit_cost_exact, exact_quantity
 from db.errors import AppError, ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.names import stored_form
-from db.orders import VOIDED, _fetch_order_items, get_order, replaced_by_order_id
+from db.orders import VOIDED, _fetch_order_items, get_order, record_order, replaced_by_order_id
 from db.payment_methods import PAID_STATUSES
 from db.period_lock import refuse_closed_day
 from db.stocktake import NOTE_PREFIX as STOCKTAKE_NOTE_PREFIX
@@ -318,3 +319,24 @@ def void_order(conn: sqlite3.Connection, order_id: int, reason: str) -> None:
             "UPDATE orders SET status = ?, void_reason = ?, voided_at = ? WHERE id = ?",
             (VOIDED, text, now_utc(), order_id),
         )
+
+
+@audited()
+def correct_order(conn: sqlite3.Connection, order_id: int, reason: str, channel: str, items: list[dict], **order) -> int:
+    """Void `order_id` and record the corrected sale in its place; returns the new order's id.
+    `channel`, `items` and `order` are `record_order`'s arguments (status PENDING, PAID or COMPLETED; a DRAFT
+    would commit nothing). The new order follows every rule of a new or backdated sale; on top, its local
+    day must not be closed (PERIOD_ALREADY_DISTRIBUTED), as the old one's must not."""
+    status = order.get("status", "COMPLETED")
+    if status not in VOIDABLE_STATUSES:
+        raise ValidationError(
+            f"A correction is recorded as PENDING, PAID or COMPLETED, not {status}", field="status"
+        )
+    clean_reason(reason)
+    with transaction(conn):
+        void_order(conn, order_id, reason)
+        new_id = record_order(conn, channel, items, **order)
+        new_day = conn.execute("SELECT order_date FROM orders WHERE id = ?", (new_id,)).fetchone()["order_date"]
+        refuse_closed_day(conn, local_day(new_day, conn))
+        conn.execute("UPDATE orders SET replaces_order_id = ? WHERE id = ?", (order_id, new_id))
+    return new_id
