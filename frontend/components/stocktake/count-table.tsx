@@ -114,6 +114,12 @@ export function CountTable(props: Props) {
             {line}
           </span>
         ))}
+        {state.status === "gain" && row.prefillCost != null && costs[row.key] === row.prefillCost && (
+          <span className="block text-xs text-text-3">{S.costPrefilled}</span>
+        )}
+        {state.status === "gain" && row.costZero && costs[row.key] == null && (
+          <span className="block text-xs font-medium text-warn">{S.costZeroWarning}</span>
+        )}
         {flagged.has(row.key) && (
           <span className="flex items-center gap-2 text-xs font-medium text-warn">
             {S.moved}

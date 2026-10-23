@@ -9,6 +9,7 @@
 import { unitLabel } from "@/components/products/figures"
 import type { Adjustment, AdjustmentItemType, AdjustmentReason, Material, Product } from "@/lib/api"
 import { blendUnitCost, roundHalfEven } from "@/lib/costing"
+import { prefillCost } from "@/lib/product-cost"
 import { A } from "./copy"
 
 export type Kind = "waste" | "correction"
@@ -23,14 +24,16 @@ export type AdjItem = {
   stock: number
   cost: number | null
   unit: string
+  /** A product with no stored cost and a COMPLETE recipe: its recipe cost, to prefill the cost of a gain (editable). */
+  prefill: number | null
 }
 
 export function fromProduct(p: Product): AdjItem {
-  return { kind: "product", id: p.id, name: p.name, stock: p.current_stock, cost: p.unit_cost, unit: "عدد" }
+  return { kind: "product", id: p.id, name: p.name, stock: p.current_stock, cost: p.unit_cost, unit: "عدد", prefill: prefillCost(p) }
 }
 
 export function fromMaterial(m: Material): AdjItem {
-  return { kind: "material", id: m.id, name: m.name, stock: m.current_stock ?? 0, cost: m.unit_cost, unit: unitLabel(m.unit) }
+  return { kind: "material", id: m.id, name: m.name, stock: m.current_stock ?? 0, cost: m.unit_cost, unit: unitLabel(m.unit), prefill: null }
 }
 
 export const reasonOf = (kind: Kind): AdjustmentReason => (kind === "waste" ? "WASTE" : "ADJUSTMENT")
@@ -78,7 +81,7 @@ export function previewOf(item: AdjItem, q: number, sign: 1 | -1, unitCost: numb
     return {
       after,
       value: basis == null ? null : roundHalfEven(q * basis),
-      newCost: unitCost == null ? null : blendUnitCost(item.stock, item.cost, q, unitCost * q),
+      newCost: unitCost == null ? null : blendUnitCost(item.stock, item.cost, q, unitCost * q, item.kind === "material"),
     }
   }
   return { after, value: item.cost == null ? null : -roundHalfEven(q * item.cost), newCost: null }

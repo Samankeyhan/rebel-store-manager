@@ -34,14 +34,47 @@ function StockCell({ m }: { m: Material }) {
   )
 }
 
+/** «متریال‌های بدون بها»: active materials at cost 0 with stock, or that make a recipe «ناقص». Each opens its drawer. */
+function NoCostMaterials({ materials, onEdit }: { materials: Material[]; onEdit: (m: Material) => void }) {
+  if (materials.length === 0) return null
+  return (
+    <section
+      aria-label={P.noCostMaterialsTitle(materials.length)}
+      className="flex flex-col gap-2 rounded-[10px] border border-warn/40 bg-warn-soft px-3.5 py-3 text-[13px] leading-[21px]"
+    >
+      <b>{P.noCostMaterialsTitle(materials.length)}</b>
+      <span className="text-xs text-text-2">{P.noCostMaterialsHelp}</span>
+      <ul className="flex flex-wrap gap-2">
+        {materials.map((m) => (
+          <li key={m.id}>
+            <button
+              type="button"
+              onClick={() => onEdit(m)}
+              className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-ring/30"
+            >
+              <span className="font-semibold">{m.name}</span>
+              {m.current_stock != null && m.current_stock > 0 && (
+                <span className="text-text-3">{P.noCostMaterialStock(`${formatQuantity(m.current_stock)} ${unitLabel(m.unit)}`)}</span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 export function MaterialsTab({
   rows,
+  noCost,
   mobile,
   onEdit,
   onDeactivate,
   onReactivate,
 }: {
   rows: Material[]
+  /** Active materials at cost 0 that hold stock or make a recipe «ناقص» (from all loaded rows, not the search). */
+  noCost: Material[]
   mobile: boolean
   /** Opens the drawer, where the minimum stock is set. */
   onEdit: (m: Material) => void
@@ -51,6 +84,7 @@ export function MaterialsTab({
   if (mobile) {
     return (
       <div className="flex flex-col gap-3">
+        <NoCostMaterials materials={noCost} onEdit={onEdit} />
         {rows.map((m) => {
           const active = m.is_active === 1
           return (
@@ -105,6 +139,7 @@ export function MaterialsTab({
 
   return (
     <div className="flex flex-col gap-4">
+      <NoCostMaterials materials={noCost} onEdit={onEdit} />
       <section className={cn(cardClass, "overflow-hidden")}>
         <div className="overflow-x-auto">
           <table className="w-full border-separate border-spacing-0 text-[13.5px]">

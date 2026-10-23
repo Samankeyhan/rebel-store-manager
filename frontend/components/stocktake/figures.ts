@@ -1,6 +1,7 @@
 import { unitLabel } from "@/components/products/figures"
 import type { Material, Product } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
+import { prefillCost } from "@/lib/product-cost"
 import { itemKey, type ItemKind } from "@/lib/stocktake"
 
 /** An item as the stocktake table sees it. */
@@ -17,6 +18,10 @@ export type StockRow = {
   /** The item has no unit cost yet (a product that was never bought, made or costed). */
   costUnknown: boolean
   unitCost: number | null
+  /** A product with no stored cost and a COMPLETE recipe: the recipe cost to prefill the required cost with (editable). */
+  prefillCost: number | null
+  /** A material whose cost is 0 ("not entered"): a gain counted without a cost keeps it at 0. */
+  costZero: boolean
 }
 
 /** Products, and the materials that hold stock (services have none and are left out). */
@@ -32,6 +37,8 @@ export function buildRows(products: Product[], materials: Material[]): StockRow[
     isActive: p.is_active === 1,
     costUnknown: p.unit_cost == null,
     unitCost: p.unit_cost,
+    prefillCost: prefillCost(p),
+    costZero: false,
   }))
   for (const m of materials) {
     if (m.type !== "STOCK" || m.current_stock == null) continue
@@ -46,6 +53,8 @@ export function buildRows(products: Product[], materials: Material[]): StockRow[
       isActive: m.is_active === 1,
       costUnknown: false,
       unitCost: m.unit_cost,
+      prefillCost: null,
+      costZero: m.unit_cost === 0,
     })
   }
   return rows.sort((a, b) => a.name.localeCompare(b.name, "fa"))

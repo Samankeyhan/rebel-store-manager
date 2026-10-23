@@ -141,6 +141,14 @@ export function StocktakePage() {
     })
     setSeen((s) => ({ ...s, [key]: systemOf[key] }))
     if (text.trim() === "") setCosts((c) => Object.fromEntries(Object.entries(c).filter(([k]) => k !== key)))
+    // A gain on a product with no stored cost: prefill the required cost with its complete recipe cost. Editable, and
+    // still part of the review the owner confirms.
+    const row = rows.find((r) => r.key === key)
+    if (row?.prefillCost != null && text.trim() !== "") {
+      const next = rowState({ kind: row.kind, systemQuantity: row.systemQuantity, countText: text, costUnknown: row.costUnknown, hasCost: false })
+      const prefill = row.prefillCost
+      if (next.status === "gain") setCosts((c) => (key in c ? c : { ...c, [key]: prefill }))
+    }
   }
   const onCost = (key: string, value: CostValue) => setCosts((c) => ({ ...c, [key]: value }))
   const onRecheck = (key: string) => setSeen((s) => ({ ...s, [key]: systemOf[key] }))

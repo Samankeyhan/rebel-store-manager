@@ -37,6 +37,7 @@ import { P } from "./copy"
 import { DeactivateDialog, type DeactivateTarget } from "./deactivate-dialog"
 import { Switch } from "./drawer-shell"
 import { CategoryFilter } from "./category-picker"
+import { materialsWithoutCost } from "@/lib/product-cost"
 import { costState, norm } from "./figures"
 import { MaterialDrawer } from "./material-drawer"
 import { MaterialsTab } from "./materials-tab"
@@ -417,6 +418,7 @@ export function ProductsPage() {
       body = (
         <MaterialsTab
           rows={visibleMaterials}
+          noCost={materialsWithoutCost(materials, products)}
           mobile={mobile}
           onEdit={(m) => setParams({ tab: "materials", material: String(m.id) })}
           onDeactivate={(m) => setDeactivating({ kind: "material", item: m })}

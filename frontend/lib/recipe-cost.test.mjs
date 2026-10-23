@@ -2,7 +2,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { blendUnitCost, recipeBatchTotal, recipeMissing } from "./costing.ts"
-import { costLines, costState, prefillCost } from "./product-cost.ts"
+import { costLines, costState, materialsWithoutCost, prefillCost } from "./product-cost.ts"
 
 const unit = (quantity_needed, material_unit_cost) => ({ quantity_needed, cost_basis: "PER_UNIT", material_unit_cost })
 const batch = (quantity_needed, material_unit_cost) => ({ quantity_needed, cost_basis: "PER_BATCH", material_unit_cost })
@@ -78,4 +78,19 @@ test("prefillCost: only a COMPLETE recipe of a product with no stored cost", () 
   assert.equal(prefillCost(product({ recipe_cost_status: "INCOMPLETE" })), null)
   assert.equal(prefillCost(product({ recipe_cost_status: "NONE" })), null)
   assert.equal(prefillCost(product({ unit_cost: 5, recipe_cost: 900, recipe_cost_status: "COMPLETE" })), null)
+})
+
+test("materialsWithoutCost: active, cost 0, and holding stock or named in a recipe_cost_missing", () => {
+  const m = (id, over = {}) => ({ id, type: "STOCK", is_active: 1, unit_cost: 0, current_stock: 0, ...over })
+  const materials = [
+    m(1, { current_stock: 5 }), // stock at cost 0
+    m(2), // no stock, in no recipe
+    m(3), // no stock but makes a recipe incomplete
+    m(4, { type: "SERVICE", current_stock: null }), // a service in a recipe
+    m(5, { current_stock: 5, unit_cost: 700 }), // costed
+    m(6, { current_stock: 5, is_active: 0 }), // inactive
+    m(7, { current_stock: 2, unit_cost: null }), // no cost recorded
+  ]
+  const products = [{ recipe_cost_missing: [{ id: 3 }, { id: 4 }] }, { recipe_cost_missing: [] }]
+  assert.deepEqual(materialsWithoutCost(materials, products).map((x) => x.id), [1, 3, 4, 7])
 })

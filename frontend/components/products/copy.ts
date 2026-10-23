@@ -27,6 +27,11 @@ export const P = {
   // banner (computed; the design's string for one product, a count for more)
   bannerOne: "۱ محصول بدون بهای تمام‌شده",
   bannerOneRest: (name: string) => ` — «${name}» تا تعیین بها قابل فروش نیست.`,
+  // NEW: materials whose cost is 0 ("not entered"): holding stock, or making a recipe «ناقص».
+  noCostMaterialsTitle: (n: number) => `متریال‌های بدون بها (${fa(n)})`,
+  noCostMaterialsHelp: "بهای این متریال‌ها ثبت نشده (۰) است. با اولین خرید یا تعدیل همراه با بها، بهای آن‌ها ثبت می‌شود.",
+  noCostMaterialStock: (qty: string) => `موجودی ${qty}`,
+  noCostMaterialInRecipe: "در دستور تولید",
   bannerMany: (n: number) => `${fa(n)} محصول بدون بهای تمام‌شده`, // NEW
   bannerManyRest: " — تا تعیین بها قابل فروش نیستند.", // NEW
   // NEW: no endpoint sets a cost; it comes from a purchase or production run.

@@ -71,6 +71,8 @@ export const AdjustmentForm = React.forwardRef<
   const [qtyText, setQtyText] = React.useState("")
   /** Integer Rial; undefined = left empty (keep the current cost); null = typed but not exact (MoneyInput says why) — blocks submit. */
   const [costInput, setCostInput] = React.useState<number | null | undefined>(undefined)
+  /** The item whose cost the owner has typed in; until then a COMPLETE recipe cost is prefilled (editable). */
+  const [costEdited, setCostEdited] = React.useState<string | null>(null)
   const [note, setNote] = React.useState("")
   // null = today, resolved at submission (a session can cross midnight).
   const [pickedDate, setPickedDate] = React.useState<string | null>(null)
@@ -95,8 +97,11 @@ export const AdjustmentForm = React.forwardRef<
   const sign = signOf(kind, dir)
   const showCost = kind === "correction" && dir === "plus"
   const qty = parseDecimal(qtyText)
-  const unitCost = showCost && typeof costInput === "number" ? costInput : null
-  const costInexact = showCost && costInput === null
+  const itemKey = item ? `${item.kind}:${item.id}` : null
+  const prefill = showCost && item ? item.prefill : null
+  const costValue = costEdited === itemKey ? costInput : (prefill ?? costInput)
+  const unitCost = showCost && typeof costValue === "number" ? costValue : null
+  const costInexact = showCost && costValue === null
 
   const clientError = item ? validate(item, qty, sign) : null
   const showQtyError = touched || qtyText.trim() !== ""
@@ -151,6 +156,7 @@ export const AdjustmentForm = React.forwardRef<
       onSaved(item.kind, fresh, A.toastSaved(item.name))
       setQtyText("")
       setCostInput(undefined)
+      setCostEdited(null)
       setNote("")
       setTouched(false)
     } catch (e) {
@@ -357,9 +363,10 @@ export const AdjustmentForm = React.forwardRef<
       <MoneyInput
         id="adj-cost"
         allowEmpty
-        value={costInput}
+        value={costValue}
         onValue={(v) => {
           setCostInput(v)
+          setCostEdited(itemKey)
           if (fieldErrors.cost) setFieldErrors((f) => ({ ...f, cost: undefined }))
         }}
         aria-invalid={!!fieldErrors.cost || undefined}
@@ -371,6 +378,10 @@ export const AdjustmentForm = React.forwardRef<
         <InlineMessage severity="error">{fieldErrors.cost}</InlineMessage>
       ) : unitCost === 0 ? (
         <InlineMessage severity="warn">{A.costZero}</InlineMessage>
+      ) : item?.kind === "material" && item.cost === 0 && unitCost == null ? (
+        <InlineMessage severity="warn">{A.costZeroMaterial}</InlineMessage>
+      ) : prefill != null && unitCost === prefill ? (
+        <Help>{A.costPrefilled}</Help>
       ) : (
         <Help>{A.costHelp(item?.cost ?? null)}</Help>
       )}

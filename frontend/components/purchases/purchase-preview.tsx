@@ -29,9 +29,10 @@ export function PurchasePreview({
 }) {
   const valid = item != null && qty != null && qty > 0
   const unit = valid ? purchaseUnitCost(total, qty) : null
-  const after = valid ? blendUnitCost(item.stock, item.cost, qty, total) : null
+  const after = valid ? blendUnitCost(item.stock, item.cost, qty, total, item.kind === "material") : null
   const afterStock = valid ? item.stock + qty : null
-  const blended = item != null && item.cost != null && item.stock > 0
+  // A material at cost 0 is "not entered" (accounting §2): this purchase sets its cost, nothing is averaged.
+  const blended = item != null && item.cost != null && item.stock > 0 && !(item.kind === "material" && item.cost === 0)
   const delta = after != null && item?.cost != null && blended ? after - item.cost : null
   const derivation =
     !valid || item == null

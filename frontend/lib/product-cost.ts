@@ -68,3 +68,19 @@ export function prefillCost(p: Pick<CostInput, "unit_cost" | "recipe_cost" | "re
   if (p.unit_cost != null) return null
   return p.recipe_cost_status === "COMPLETE" ? p.recipe_cost : null
 }
+
+/**
+ * «متریال‌های بدون بها»: every ACTIVE material with cost 0 ("not entered") that holds stock, or that makes some
+ * product's recipe «ناقص» (`recipe_cost_missing` of the product rows already loaded).
+ */
+export function materialsWithoutCost<
+  M extends { id: number; type: string; is_active: number; unit_cost: number | null; current_stock: number | null },
+>(materials: M[], products: { recipe_cost_missing: { id: number }[] }[]): M[] {
+  const inRecipes = new Set(products.flatMap((p) => p.recipe_cost_missing.map((m) => m.id)))
+  return materials.filter(
+    (m) =>
+      m.is_active === 1 &&
+      !m.unit_cost &&
+      ((m.type === "STOCK" && (m.current_stock ?? 0) > 0) || inRecipes.has(m.id))
+  )
+}

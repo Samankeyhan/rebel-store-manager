@@ -34,7 +34,9 @@ export const S = {
   countedAria: (name: string) => `شمارش ${name}`, // NEW
   costPlaceholderRequired: "بها لازم است", // NEW
   costPlaceholderOptional: "بهای فعلی", // NEW
-  costRequired: "برای موجودی اضافه‌شده بهای واحد لازم است.", // NEW
+  costPrefilled: "بها از دستور تولید پر شده (برآورد)؛ قابل ویرایش است.", // NEW
+  costZeroWarning: "بهای این متریال ثبت نشده (۰) است؛ بدون وارد کردن بها، بهای آن صفر می‌ماند.", // NEW
+  costRequired:"برای موجودی اضافه‌شده بهای واحد لازم است.", // NEW
   costInvalid: "بهای واحد معتبر نیست.", // NEW
   noCost: "بدون بها", // NEW
   inactive: "غیرفعال", // NEW
