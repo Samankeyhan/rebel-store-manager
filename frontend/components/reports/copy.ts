@@ -101,6 +101,8 @@ export const R = {
   get colCost() {
     return `بهای تمام‌شده (${currencyLabel()})`
   },
+  // NEW: display only, next to the frozen cost; never part of a total.
+  colCurrentCost: "بهای فعلی هر واحد (برآورد)",
   get colProfit() {
     return `سود (${currencyLabel()})`
   },

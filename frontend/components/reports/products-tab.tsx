@@ -20,6 +20,8 @@ import {
   type SortDir,
 } from "@/lib/reports"
 import { cn } from "@/lib/utils"
+import { P } from "@/components/products/copy"
+import { costLines, type CostLine } from "@/lib/product-cost"
 import { CheckLines } from "./check-line"
 import { R } from "./copy"
 
@@ -36,6 +38,11 @@ const COLUMNS: { key: ProductSortKey; label: () => string; numeric: boolean }[] 
 const firstDir = (key: ProductSortKey): SortDir => (key === "name" ? "asc" : "desc")
 
 const profitTone = (v: number) => (v > 0 ? "text-profit" : v < 0 ? "text-loss" : "text-text-3")
+
+/** Today's cost per unit, display only next to the frozen total_cost: stored average, else the recipe estimate (Q2: «ناقص» text, never a number). */
+function currentCost(r: ProductPerformance): CostLine {
+  return costLines({ ...r, made_to_order: 0, current_stock: 0 })[0]
+}
 
 function margin(r: ProductPerformance): string {
   const t = ratioTenths(r.total_profit, r.total_revenue)
@@ -148,6 +155,9 @@ export function ProductsTab({
                 {R.sortLabels.cost}: <Money value={r.total_cost} className="text-text-2" />
               </span>
               <span>
+                {R.colCurrentCost}: <span className="text-text-2">{P.costLineText(currentCost(r))}</span>
+              </span>
+              <span>
                 {R.colMargin}: <span className="tabular-nums text-text-2">{margin(r)}</span>
               </span>
             </span>
@@ -183,24 +193,30 @@ export function ProductsTab({
                   const on = sort.key === c.key
                   const Icon = on ? (sort.dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown
                   return (
-                    <th
-                      key={c.key}
-                      scope="col"
-                      aria-sort={on ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
-                      className={cn(c.numeric ? "text-end" : "w-full text-start")}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onSort(c.key)}
-                        className={cn(
-                          "inline-flex h-8 cursor-pointer items-center gap-1 rounded-md outline-none hover:text-heading focus-visible:ring-3 focus-visible:ring-ring/30",
-                          on && "text-heading"
-                        )}
+                    <React.Fragment key={c.key}>
+                      <th
+                        scope="col"
+                        aria-sort={on ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+                        className={cn(c.numeric ? "text-end" : "w-full text-start")}
                       >
-                        {c.label()}
-                        <Icon className={cn("size-3.5", !on && "opacity-50")} aria-hidden />
-                      </button>
-                    </th>
+                        <button
+                          type="button"
+                          onClick={() => onSort(c.key)}
+                          className={cn(
+                            "inline-flex h-8 cursor-pointer items-center gap-1 rounded-md outline-none hover:text-heading focus-visible:ring-3 focus-visible:ring-ring/30",
+                            on && "text-heading"
+                          )}
+                        >
+                          {c.label()}
+                          <Icon className={cn("size-3.5", !on && "opacity-50")} aria-hidden />
+                        </button>
+                      </th>
+                      {c.key === "cost" && (
+                        <th scope="col" className="text-end">
+                          {R.colCurrentCost}
+                        </th>
+                      )}
+                    </React.Fragment>
                   )
                 })}
               </tr>
@@ -219,6 +235,9 @@ export function ProductsTab({
                   <td className="text-end text-text-2">
                     <Money value={r.total_cost} />
                   </td>
+                  <td className={cn("text-end text-xs text-text-2", currentCost(r).tag === "incomplete" && "text-warn")}>
+                    {P.costLineText(currentCost(r))}
+                  </td>
                   <td className={cn("text-end font-bold", profitTone(r.total_profit))}>
                     <Money value={r.total_profit} />
                   </td>
@@ -236,6 +255,7 @@ export function ProductsTab({
                 <td className="text-end">
                   <Money value={sumOf((r) => r.total_cost)} />
                 </td>
+                <td className="text-end text-text-3">{R.nil}</td>
                 <td className={cn("text-end", profitTone(sumOf((r) => r.total_profit)))}>
                   <Money value={sumOf((r) => r.total_profit)} />
                 </td>
