@@ -131,7 +131,7 @@ def test_a_consistent_shop_passes_every_check(shop, test_db, capsys):
     results = run(test_db)
     statuses = {key: r.status for key, r in results.items()}
     assert statuses == {"a": "PASS", "b": "PASS", "c": "PASS", "d1": "PASS", "d2": "PASS", "d3": "SKIPPED",
-                        "e": "PASS", "f": "PASS", "g": "PASS", "h": "PASS"}, text
+                        "e": "PASS", "f": "PASS", "g": "PASS", "h": "PASS", "i": "PASS"}, text
     assert results["b"].summary == "2 settlements checked"
     # The audit log knows what the two materials were created with, so there is nothing to guess.
     assert results["d1"].infos == []
@@ -567,7 +567,7 @@ def _old_database(tmp_path, last):
     return path
 
 
-@pytest.mark.parametrize("last, skipped", [("011", {"d3", "h"}), ("008", {"b", "c", "d3", "e", "g", "h"}), ("002", {"b", "c", "d1", "d2", "d3", "e", "f", "g", "h"})])
+@pytest.mark.parametrize("last, skipped", [("013", {"d3", "i"}), ("011", {"d3", "h", "i"}), ("008", {"b", "c", "d3", "e", "g", "h", "i"}), ("002", {"b", "c", "d1", "d2", "d3", "e", "f", "g", "h", "i"})])
 def test_a_database_at_an_older_schema_skips_what_needs_a_newer_one_and_never_crashes(tmp_path, capsys, last, skipped):
     path = _old_database(tmp_path, last)
     code = cli.main(["--db", path])
@@ -575,10 +575,10 @@ def test_a_database_at_an_older_schema_skips_what_needs_a_newer_one_and_never_cr
     assert code == 0, text
     assert f"(version {int(last)})" in text
     for line in text.splitlines():
-        for key in ("b", "c", "d1", "d2", "d3", "e", "f", "g", "h"):
+        for key in ("b", "c", "d1", "d2", "d3", "e", "f", "g", "h", "i"):
             if line.startswith(("SKIPPED", "PASS", "WARN", "FAIL")) and line.split()[1] == f"{key}.":
                 assert line.startswith("SKIPPED") == (key in skipped), line
-    assert "needs migration 013" in text or last == "013"
+    assert "needs migration 014" in text
     assert text.strip().splitlines()[-1] == "OK"
 
 

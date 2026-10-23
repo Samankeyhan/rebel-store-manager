@@ -1,9 +1,11 @@
 """The figures a migration must not change, read-only, through the functions in `db/` (no formula is repeated here):
-row count per table, the all-time profit and loss, every material and product row (stock, costs ...), the settlement totals.
+row count per table, the all-time profit and loss, every material and product row (stock, costs ...), every order row
+(every column, voided ones included: migration 014 rebuilt the table), the settlement totals.
 `compare` looks only at what exists in BOTH databases (a new migration may add tables and columns) and ignores `schema_migrations`,
 `sqlite_sequence` and time stamps; tables only in the after-database are INFO. Any other difference is a failure."""
 
 from db.materials import list_materials
+from db.orders import list_orders
 from db.products import list_products
 from db.reports import get_profit_and_loss
 from db.settlements import list_settlements
@@ -25,6 +27,7 @@ def collect(path) -> dict:
             "profit_and_loss": get_profit_and_loss(conn),
             "materials": {row["id"]: row for row in list_materials(conn, active_only=False)},
             "products": {row["id"]: row for row in list_products(conn, active_only=False)},
+            "orders": {row["id"]: row for row in list_orders(conn, include_voided=True)},
             "settlements": {
                 "count": len(settlements),
                 "amount_received": sum(s["amount_received"] for s in settlements),
@@ -61,7 +64,7 @@ def compare(before: dict, after: dict, new_files: list[str]) -> tuple[list[str],
     _differences("row count", before["counts"], after["counts"], failures)
     _differences("profit and loss", before["profit_and_loss"], after["profit_and_loss"], failures)
     _differences("settlements", before["settlements"], after["settlements"], failures)
-    for kind in ("materials", "products"):
+    for kind in ("materials", "products", "orders"):
         for item_id in sorted(set(before[kind]) - set(after[kind])):
             failures.append(f"{kind} id {item_id} disappeared")
         for item_id in sorted(set(after[kind]) - set(before[kind])):

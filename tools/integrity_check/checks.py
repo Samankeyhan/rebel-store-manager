@@ -17,8 +17,9 @@ from db import jalali
 from db.costing import exact_quantity, per_unit_cost, recipe_batch_total
 from db.distributions import compute_share_amounts, get_profit_distribution
 from db.name_keys import find_name_collisions
-from db.orders import get_order, list_orders
+from db.orders import REVENUE_ELIGIBLE_STATUSES, get_order, list_orders
 from db.payment_methods import compute_expected_settlement_date, compute_fee, get_payment_method
+from db.reports import get_profit_and_loss
 from db.settlements import get_settlement
 from tools.integrity_check.report import CheckResult, Row
 
@@ -457,6 +458,59 @@ def check_name_collisions(conn: sqlite3.Connection, schema: int) -> CheckResult:
     return result
 
 
+# ------------------------------------------------------------------ i. voided orders
+
+
+def check_voided_orders(conn: sqlite3.Connection, schema: int) -> CheckResult:
+    """Section 20: a VOIDED order has its reason and moment, was committed, is in no settlement, and its stock
+    came back (its movements net to zero per item); a correction points at a voided order; and no voided
+    order is counted: the all-time P&L order count and revenue are those of the PENDING / PAID / COMPLETED
+    orders `list_orders` returns."""
+    result = CheckResult("i", "Voided orders and corrections")
+    every_order = list_orders(conn, include_voided=True)
+    by_id = {order["id"]: order for order in every_order}
+    voided = [order for order in every_order if order["status"] == "VOIDED"]
+    for order in voided:
+        if not (order["void_reason"] or "").strip():
+            result.fails.append(Row("orders", order["id"], "void_reason", order["void_reason"], "a reason"))
+        if order["voided_at"] is None:
+            result.fails.append(Row("orders", order["id"], "voided_at", None, "a moment"))
+        if order["settlement_id"] is not None:
+            result.fails.append(Row("orders", order["id"], "settlement_id", order["settlement_id"], None,
+                                    note="a voided order is in no settlement"))
+        if order["stock_committed"] != 1:
+            result.fails.append(Row("orders", order["id"], "stock_committed", order["stock_committed"], 1))
+        net = defaultdict(Fraction)
+        moved_abs = defaultdict(Fraction)
+        for row in conn.execute(
+            "SELECT item_type, item_id, quantity_change FROM stock_movements WHERE reference_order_id = ?",
+            (order["id"],),
+        ):
+            net[(row["item_type"], row["item_id"])] += _exact(row["quantity_change"])
+            moved_abs[(row["item_type"], row["item_id"])] += abs(_exact(row["quantity_change"]))
+        for (item_type, item_id), total in sorted(net.items()):
+            tolerance = Fraction(0) if item_type == "PRODUCT" else stock_tolerance(0, moved_abs[(item_type, item_id)])
+            if abs(total) > tolerance:
+                result.fails.append(Row("stock_movements", f"order {order['id']}", f"{item_type.lower()} {item_id}",
+                                        total, 0, total, "a voided order's movements must net to zero"))
+    for order in every_order:
+        replaced = order["replaces_order_id"]
+        if replaced is not None and by_id.get(replaced, {}).get("status") != "VOIDED":
+            result.fails.append(Row("orders", order["id"], "replaces_order_id", replaced, "a VOIDED order"))
+    eligible = [order for order in every_order if order["status"] in REVENUE_ELIGIBLE_STATUSES]
+    pnl = get_profit_and_loss(conn)
+    if pnl["order_count"] != len(eligible):
+        result.fails.append(Row("profit_and_loss", "all time", "order_count", pnl["order_count"], len(eligible),
+                                pnl["order_count"] - len(eligible), "PENDING / PAID / COMPLETED orders"))
+    revenue = sum(order["customer_total"] for order in eligible)
+    if pnl["total_revenue"] != revenue:
+        result.fails.append(_money_row("profit_and_loss", "all time", "total_revenue", pnl["total_revenue"], revenue,
+                                       "sum of customer_total over PENDING / PAID / COMPLETED orders"))
+    corrections = sum(1 for order in every_order if order["replaces_order_id"] is not None)
+    result.summary = f"{len(voided)} voided orders, {corrections} corrections checked"
+    return result
+
+
 # ------------------------------------------------------------------ registry
 
 
@@ -480,6 +534,7 @@ CHECKS = [
     Check("f", "Invoice numbers", 3, check_invoice_numbers, "invoice counters exist from migration 003"),
     Check("g", "Partner distributions", 9, check_distributions, "money is stored in Rial from migration 009"),
     Check("h", "Name collisions", 13, check_name_collisions, "name_key exists from migration 013"),
+    Check("i", "Voided orders and corrections", 14, check_voided_orders, "VOIDED exists from migration 014"),
 ]
 
 

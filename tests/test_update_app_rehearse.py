@@ -126,6 +126,7 @@ def test_the_figures_ignore_schema_migrations_and_time_stamps_but_catch_everythi
     base = {
         "migrations": ["001"], "counts": {"a": 1}, "profit_and_loss": {"x": 1}, "settlements": {"count": 0},
         "materials": {1: {"id": 1, "unit_cost": 5, "updated_at": "t1"}}, "products": {},
+        "orders": {1: {"id": 1, "status": "COMPLETED", "customer_total": 100}},
     }
     changed = {**base, "migrations": ["001", "002"], "counts": {"a": 1, "b": 3},
                "materials": {1: {"id": 1, "unit_cost": 5, "updated_at": "t2", "new_column": 9}}}
@@ -135,6 +136,13 @@ def test_the_figures_ignore_schema_migrations_and_time_stamps_but_catch_everythi
     assert any("schema_migrations grew by 0" in f for f in failures)
     failures, _ = invariants.compare(base, {**changed, "profit_and_loss": {"x": 2}}, ["002"])
     assert failures == ["profit and loss.x: 1 -> 2"]
+    # an order row is compared column by column; a column the migration added is not a difference
+    widened = {1: {"id": 1, "status": "COMPLETED", "customer_total": 100, "void_reason": None}}
+    assert invariants.compare(base, {**changed, "orders": widened}, ["002"])[0] == []
+    failures, _ = invariants.compare(base, {**changed, "orders": {1: {**widened[1], "customer_total": 90}}}, ["002"])
+    assert failures == ["orders.1.customer_total: 100 -> 90"]
+    failures, _ = invariants.compare(base, {**changed, "orders": {}}, ["002"])
+    assert failures == ["orders id 1 disappeared"]
 
 
 def test_main_rehearse_goes_through_the_command_line(lab):
