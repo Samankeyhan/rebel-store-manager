@@ -71,7 +71,8 @@ def _build(conn, with_voided: bool) -> None:
     add_expense(conn, add_expense_category(conn, "Rent"), 50_000, expense_date="2026-10-03")
     record_postage_batch(conn, 40_000, 2, paid_date="2026-10-11")
     add_partner(conn, "Solo", 100.0)
-    record_profit_distribution(conn, "2026-09-01", "2026-09-30", 0, allow_exceeding=True)
+    # An explicit day: the two databases are built a moment apart, and "now" would differ between them.
+    record_profit_distribution(conn, "2026-09-01", "2026-09-30", 0, distribution_date="2026-10-01", allow_exceeding=True)
 
     if with_voided:  # recorded last, so every other row keeps the same id in both databases
         voided = sell("WEBSITE", poster, 3, order_date="2026-10-13", payment_method_id=card, packaging_kit_id=kit,
