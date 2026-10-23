@@ -4,6 +4,7 @@ A marker file `frontend/out/.rebel-build.json` {api, git} records what the build
 script only says so (the owner decides: `start-rebel.cmd --rebuild`)."""
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Callable
 
 API_BASE = "/api"
 MARKER = ".rebel-build.json"
+WINDOWS = os.name == "nt"
 
 
 class BuildError(Exception):
@@ -50,9 +52,14 @@ def build_state(out_dir: Path, head: str | None, rebuild: bool) -> tuple[str, st
 
 
 def installed(frontend: Path) -> bool:
-    """True when the dependencies are really there: the `next` launcher exists (a node_modules folder alone can be half-installed)."""
-    bin_dir = frontend / "node_modules" / ".bin"
-    return (bin_dir / "next.cmd").is_file() or (bin_dir / "next").is_file()
+    """True when the build can really run `next`: this system's launcher exists in node_modules/.bin and the `next` package
+    it points to is there. On Windows `npm run build` goes through cmd, which finds only `next.cmd`; npm also leaves a plain
+    `next` file in .bin there, which must not count (it made a missing next.cmd look installed: "'next' is not recognized").
+    Covers a missing node_modules, an empty or partial .bin and a missing `next` package; not other broken packages
+    (the build then fails and the log says which), nor a corrupt `next`."""
+    modules = frontend / "node_modules"
+    launcher = "next.cmd" if WINDOWS else "next"
+    return (modules / ".bin" / launcher).is_file() and (modules / "next" / "package.json").is_file()
 
 
 def build(
@@ -64,7 +71,7 @@ def build(
     run: Callable = subprocess.run,
     env: dict | None = None,
 ) -> None:
-    """`npm ci` (only when node_modules/.bin/next.cmd is missing: an existing but half-installed node_modules is not enough) and `npm run build` with the API address set to /api. Raises BuildError."""
+    """`npm ci` (only when `installed()` says the build tools are not there, which is more than a node_modules folder) and `npm run build` with the API address set to /api. Raises BuildError."""
     npm = which("npm")
     if which("node") is None or npm is None:
         raise BuildError(

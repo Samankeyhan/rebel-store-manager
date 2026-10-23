@@ -217,18 +217,28 @@ def test_building_runs_npm_with_the_api_address_and_writes_the_marker(tmp_path):
     assert [c[0][1:] for c in calls] == [["ci"], ["run", "build"]]  # node_modules missing: npm ci first
     assert all(c[1] == "/api" and c[2] == "p" for c in calls)
     assert frontend.read_marker(tmp_path / "frontend" / "out") == {"api": "/api", "git": "abc"}
-    (tmp_path / "frontend" / "node_modules" / ".bin").mkdir(parents=True)
-    (tmp_path / "frontend" / "node_modules" / ".bin" / "next.cmd").write_text("")
+    _node_modules(tmp_path, cmd=True)
     calls.clear()
     frontend.build(tmp_path, tmp_path / "frontend" / "out", tmp_path / "logs" / "build.log", "abc", which=lambda n: n, run=fake_run, env={})
     assert [c[0][1:] for c in calls] == [["run", "build"]]
 
 
-def test_a_node_modules_folder_without_the_next_launcher_gets_npm_ci(tmp_path):
-    # Seen on a shop laptop: node_modules existed but node_modules\.bin\next.cmd did not.
-    bin_dir = tmp_path / "frontend" / "node_modules" / ".bin"
-    bin_dir.mkdir(parents=True)
-    (bin_dir / "other.cmd").write_text("")
+def _node_modules(tmp_path, *, cmd=False, plain=False, package=True):
+    """A frontend\node_modules in the given state: the `.bin\next.cmd` and plain `.bin\next` launchers, and the `next` package."""
+    modules = tmp_path / "frontend" / "node_modules"
+    (modules / ".bin").mkdir(parents=True, exist_ok=True)
+    if cmd:
+        (modules / ".bin" / "next.cmd").write_text("")
+    if plain:
+        (modules / ".bin" / "next").write_text("")
+    if package:
+        (modules / "next").mkdir(exist_ok=True)
+        (modules / "next" / "package.json").write_text("{}")
+
+
+def _build_steps(tmp_path, monkeypatch, *, windows):
+    # raising=False: the same test must also run against the old code, where there is no WINDOWS to patch.
+    monkeypatch.setattr(frontend, "WINDOWS", windows, raising=False)
     calls = []
 
     def fake_run(command, **kwargs):
@@ -237,23 +247,49 @@ def test_a_node_modules_folder_without_the_next_launcher_gets_npm_ci(tmp_path):
             make_out(tmp_path / "frontend" / "out", api=None)
         return SimpleNamespace(returncode=0)
 
-    assert not frontend.installed(tmp_path / "frontend")
     frontend.build(tmp_path, tmp_path / "frontend" / "out", tmp_path / "b.log", "abc", which=lambda n: n, run=fake_run, env={})
-    assert calls == [["ci"], ["run", "build"]]
+    return calls
+
+
+def test_windows_with_the_plain_next_file_but_no_next_cmd_gets_npm_ci(tmp_path, monkeypatch):
+    # The state seen on a shop laptop: node_modules and .bin\next exist, .bin\next.cmd does not. npm runs the
+    # build through cmd, which only finds next.cmd ("'next' is not recognized"), so the plain file must not count.
+    _node_modules(tmp_path, plain=True)
+    assert _build_steps(tmp_path, monkeypatch, windows=True) == [["ci"], ["run", "build"]]
     assert (tmp_path / "b.log").read_text().startswith("$ ci")
 
 
-def test_an_empty_node_modules_folder_is_not_installed(tmp_path):
-    (tmp_path / "frontend" / "node_modules").mkdir(parents=True)
-    assert not frontend.installed(tmp_path / "frontend")
-    (tmp_path / "frontend" / "node_modules" / ".bin").mkdir()
-    (tmp_path / "frontend" / "node_modules" / ".bin" / "next.cmd").write_text("")
-    assert frontend.installed(tmp_path / "frontend")
+def test_windows_with_next_cmd_only_builds(tmp_path, monkeypatch):
+    _node_modules(tmp_path, cmd=True, plain=True)
+    assert _build_steps(tmp_path, monkeypatch, windows=True) == [["run", "build"]]
+
+
+def test_windows_with_node_modules_missing_gets_npm_ci(tmp_path, monkeypatch):
+    (tmp_path / "frontend").mkdir()
+    assert _build_steps(tmp_path, monkeypatch, windows=True) == [["ci"], ["run", "build"]]
+
+
+def test_windows_with_an_empty_bin_folder_gets_npm_ci(tmp_path, monkeypatch):
+    _node_modules(tmp_path, package=False)
+    assert _build_steps(tmp_path, monkeypatch, windows=True) == [["ci"], ["run", "build"]]
+
+
+def test_a_launcher_without_the_next_package_gets_npm_ci(tmp_path, monkeypatch):
+    # A half-installed node_modules: the .bin shim is there, the package it points to is not.
+    _node_modules(tmp_path, cmd=True, plain=True, package=False)
+    assert _build_steps(tmp_path, monkeypatch, windows=True) == [["ci"], ["run", "build"]]
+    assert _build_steps(tmp_path, monkeypatch, windows=False) == [["ci"], ["run", "build"]]
+
+
+def test_other_systems_use_the_plain_next_file(tmp_path, monkeypatch):
+    _node_modules(tmp_path, cmd=True)  # next.cmd means nothing there
+    assert _build_steps(tmp_path, monkeypatch, windows=False) == [["ci"], ["run", "build"]]
+    (tmp_path / "frontend" / "node_modules" / ".bin" / "next").write_text("")
+    assert _build_steps(tmp_path, monkeypatch, windows=False) == [["run", "build"]]
 
 
 def test_a_failed_build_is_an_error_with_the_step_named(tmp_path):
-    (tmp_path / "frontend" / "node_modules" / ".bin").mkdir(parents=True)
-    (tmp_path / "frontend" / "node_modules" / ".bin" / "next.cmd").write_text("")
+    _node_modules(tmp_path, cmd=True, plain=True)
     with pytest.raises(frontend.BuildError) as exc_info:
         frontend.build(tmp_path, tmp_path / "frontend" / "out", tmp_path / "b.log", "abc", which=lambda n: n, run=lambda *a, **k: SimpleNamespace(returncode=1), env={})
     assert "npm run build" in str(exc_info.value)
