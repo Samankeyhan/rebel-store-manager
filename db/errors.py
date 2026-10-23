@@ -43,8 +43,9 @@ class ErrorCode(StrEnum):
                                      spelling-normalized key already exists (db/names.py)
     PRODUCT_NO_RECIPE                product_id, product_name
     PRODUCT_NO_UNIT_COST             product_id, product_name
+    COST_ALREADY_SET                 item_type (MATERIAL | PRODUCT), item_id, item_name, unit_cost (the cost it has)
     SUPPLIER_NOT_FOUND               supplier_id
-    AMOUNT_TOO_LARGE                 max (MAX_MONEY, db/constants.py); the amount's size is over it,
+    AMOUNT_TOO_LARGE                max (MAX_MONEY, db/constants.py); the amount's size is over it,
                                      above or below zero; field says which amount
     QUANTITY_NOT_WHOLE               -
     QUANTITY_OUT_OF_RANGE            min, max (None when that side has no bound)
@@ -106,6 +107,7 @@ class ErrorCode(StrEnum):
     # Products / suppliers
     PRODUCT_NO_RECIPE = "PRODUCT_NO_RECIPE"
     PRODUCT_NO_UNIT_COST = "PRODUCT_NO_UNIT_COST"
+    COST_ALREADY_SET = "COST_ALREADY_SET"
     SUPPLIER_NOT_FOUND = "SUPPLIER_NOT_FOUND"
 
     # Names

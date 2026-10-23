@@ -1,4 +1,5 @@
 """Finished goods: add/list/get (with `category_name`, `parent_category_name` joined in, and the display-only `recipe_cost*` fields of `recipes.recipe_costs`; `unit_cost` stays the stored weighted average), update prices, move category, deactivate/reactivate.
+`set_product_cost` («ثبت بها»): a product at unit_cost NULL gets its cost, nothing else changes (rules section 2).
 Every product has `category_id`. `products.category` is a legacy column (NULL after migration 005); don't read it — it will be dropped."""
 
 import sqlite3
@@ -7,7 +8,7 @@ from db.audit import audited
 from db.categories import validate_assignable
 from db.connection import transaction
 from db.costing import check_money
-from db.errors import ErrorCode, NotFoundError, ValidationError
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.name_keys import duplicate_guard
 from db.names import name_key, stored_form
 
@@ -124,6 +125,33 @@ def update_product_prices(
             f"UPDATE products SET {', '.join(updates)} WHERE id = ?",
             params,
         )
+
+
+@audited()
+def set_product_cost(conn: sqlite3.Connection, product_id: int, unit_cost: int) -> None:
+    """Gives a product that has no cost yet (unit_cost NULL) its unit cost. Only that: no stock movement, quantity
+    and past rows untouched (accounting rules section 2). Any other cost, 0 included: COST_ALREADY_SET."""
+    from db.materials import validate_set_cost
+
+    validate_set_cost(unit_cost)
+    product = get_product(conn, product_id)
+    if product is None:
+        raise NotFoundError(f"Product with id {product_id} does not exist")
+    with transaction(conn):
+        cursor = conn.execute(
+            "UPDATE products SET unit_cost = ? WHERE id = ? AND unit_cost IS NULL", (unit_cost, product_id)
+        )
+        if cursor.rowcount == 0:
+            raise ConflictError(
+                f"Product '{product['name']}' already has a unit cost",
+                code=ErrorCode.COST_ALREADY_SET,
+                details={
+                    "item_type": "PRODUCT",
+                    "item_id": product_id,
+                    "item_name": product["name"],
+                    "unit_cost": product["unit_cost"],
+                },
+            )
 
 
 @audited()

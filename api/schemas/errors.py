@@ -111,6 +111,13 @@ class ProductRefDetails(_Details):
     product_name: str
 
 
+class CostRefDetails(_Details):
+    item_type: str
+    item_id: int
+    item_name: str
+    unit_cost: int
+
+
 class SupplierRefDetails(_Details):
     supplier_id: int
 
@@ -184,6 +191,7 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.CATEGORY_IN_USE: CategoryInUseDetails,
     C.PRODUCT_NO_RECIPE: ProductRefDetails,
     C.PRODUCT_NO_UNIT_COST: ProductRefDetails,
+    C.COST_ALREADY_SET: CostRefDetails,
     C.SUPPLIER_NOT_FOUND: SupplierRefDetails,
     C.PACKAGING_KIT_NOT_FOUND: KitRefDetails,
     C.PACKAGING_KIT_INACTIVE: KitRefDetails,

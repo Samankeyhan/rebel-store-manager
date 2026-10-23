@@ -9,7 +9,8 @@ or with `min_stock` set and `current_stock <= min_stock` (exact `<=` on REAL; 0 
 minimum). Every row carries it as `is_low_stock` (0/1). `get_low_stock_materials()`
 without a threshold returns those rows, most urgent first; passing `threshold` is the
 legacy flat cut-off (`current_stock <= threshold`, by name) and ignores `min_stock`.
-Products have no minimum."""
+Products have no minimum.
+`set_material_cost` («ثبت بها»): a material at unit_cost 0 gets its cost, nothing else changes (rules section 2)."""
 
 import math
 import sqlite3
@@ -19,7 +20,7 @@ from db.categories import validate_assignable
 from db.connection import transaction
 from db.costing import check_money
 from db.constants import MAX_QUANTITY
-from db.errors import ErrorCode, NotFoundError, ValidationError
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.name_keys import duplicate_guard
 from db.names import name_key, stored_form
 
@@ -192,6 +193,40 @@ def update_material(conn: sqlite3.Connection, material_id: int, **fields) -> Non
             f"UPDATE materials SET {assignments} WHERE id = ?",
             [*fields.values(), material_id],
         )
+
+
+def validate_set_cost(unit_cost) -> None:
+    """The amount of a «ثبت بها»: an integer Rial, at least 1, at most MAX_MONEY (accounting rules section 2)."""
+    if isinstance(unit_cost, bool) or not isinstance(unit_cost, int):
+        raise ValidationError(f"unit_cost must be a whole number of Rial, got {unit_cost!r}", field="unit_cost")
+    check_money(unit_cost, "unit_cost")
+    if unit_cost < 1:
+        raise ValidationError(f"unit_cost must be at least 1 Rial, got {unit_cost}", field="unit_cost")
+
+
+@audited()
+def set_material_cost(conn: sqlite3.Connection, material_id: int, unit_cost: int) -> None:
+    """Gives a material that has no cost yet (unit_cost 0, "not entered") its unit cost. Only that: no stock
+    movement, quantity and past rows untouched (accounting rules section 2). Any other cost: COST_ALREADY_SET."""
+    validate_set_cost(unit_cost)
+    material = get_material(conn, material_id)
+    if material is None:
+        raise NotFoundError(f"Material with id {material_id} does not exist")
+    with transaction(conn):
+        cursor = conn.execute(
+            "UPDATE materials SET unit_cost = ? WHERE id = ? AND unit_cost = 0", (unit_cost, material_id)
+        )
+        if cursor.rowcount == 0:
+            raise ConflictError(
+                f"Material '{material['name']}' already has a unit cost",
+                code=ErrorCode.COST_ALREADY_SET,
+                details={
+                    "item_type": "MATERIAL",
+                    "item_id": material_id,
+                    "item_name": material["name"],
+                    "unit_cost": material["unit_cost"],
+                },
+            )
 
 
 def get_low_stock_materials(
