@@ -427,6 +427,10 @@ export interface paths {
          *     **transaction_fee**: `null` (or omitted) = computed from the payment method
          *     (0 without one); an integer, including 0, overrides it.
          *
+         *     **order_date**: omitted = now; a past day backdates the sale (cost, stock and
+         *     packaging are still frozen as of today); after today = 422 `DATE_IN_FUTURE`,
+         *     field `order_date`.
+         *
          *     **paid_date**: only for a PAID/COMPLETED order; defaults to the local day
          *     of order_date (or today). Never in the future.
          *

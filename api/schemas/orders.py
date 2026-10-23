@@ -111,6 +111,9 @@ class OrderCreate(BaseModel):
     channel: str
     items: list[OrderItemCreate]
     customer_name: str | None = None
+    # The sale day: omitted = now. A past day backdates the sale (cost, stock and
+    # packaging stay as of today, accounting-rules section 7); a day after today is
+    # a 422 DATE_IN_FUTURE on field order_date.
     order_date: DateStr | None = None
     # null = use the channel default; 0 = a real zero override.
     shipping_charge: Money | None = None

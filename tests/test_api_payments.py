@@ -1022,3 +1022,34 @@ def test_patch_huge_integer_is_422_not_500(api, shop, field):
     assert error["field"] == field
     assert error["code"] == "AMOUNT_TOO_LARGE"
     assert error["details"]["max"] == 2**53 - 1
+
+
+def test_future_order_date_is_a_422_date_in_future(api, shop):
+    client, conn = api
+    body = {
+        "channel": "WEBSITE",
+        "items": [{"product_id": shop["product_id"], "quantity": 1, "unit_price": 100000}],
+        "order_date": "2026-10-07",
+        "payment_method_id": shop["card"],
+    }
+    response = client.post("/orders", json=body)
+    assert response.status_code == 422, response.text
+    error = response.json()["error"]
+    assert error["code"] == "DATE_IN_FUTURE"
+    assert error["field"] == "order_date"
+    assert error["details"] == {"today": "2026-10-06"}
+    assert conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0] == 0
+
+
+def test_backdated_order_date_is_created_with_that_day(api, shop):
+    client, _ = api
+    body = {
+        "channel": "WEBSITE",
+        "items": [{"product_id": shop["product_id"], "quantity": 1, "unit_price": 100000}],
+        "order_date": "2026-09-20",
+        "payment_method_id": shop["card"],
+    }
+    response = client.post("/orders", json=body)
+    assert response.status_code == 201, response.text
+    order = response.json()["order"]
+    assert order["paid_date"] == "2026-09-20"
