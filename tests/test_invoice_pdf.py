@@ -367,3 +367,44 @@ def test_invoice_unit_price_column_is_the_list_price(test_db, tmp_path, quantity
     assert (discount_label in text) == bool(discount)          # the discount line, only if any
     for hidden in (88_888, 77_777):
         assert _shown(hidden, "RIAL") not in text
+
+
+# ---------------------------------------------------------------- voided orders (section 20)
+
+
+def test_a_voided_invoice_is_marked_with_its_replacement_and_still_shows_only_customer_amounts(
+    invoice_order_setup, test_db
+):
+    from db.order_voids import correct_order
+
+    order_id = invoice_order_setup["order_id"]
+    new_id = correct_order(
+        test_db, order_id, "wrong quantity", "INSTAGRAM",
+        [{"product_id": invoice_order_setup["product_id"], "quantity": 1, "unit_price": 3000}],
+        shipping_charge=170_000, postage_cost=88_888, transaction_fee=77_777,
+    )
+    detail = get_order(test_db, order_id)
+    replacement = get_order(test_db, new_id)["order"]["invoice_number"]
+
+    text = _invoice_text(test_db, order_id, invoice_order_setup["output_dir"])
+
+    assert invoice_module.prepare_persian("باطل") in text
+    assert replacement in text
+    assert _shown(detail["customer_total"]) in text
+    for hidden in (detail["order"]["postage_cost"], detail["order"]["transaction_fee"]):
+        assert _shown(hidden) not in text
+
+
+def test_a_voided_invoice_without_a_replacement_is_marked_only(invoice_order_setup, test_db):
+    from db.order_voids import void_order
+
+    order_id = invoice_order_setup["order_id"]
+    void_order(test_db, order_id, "entered twice")
+    text = _invoice_text(test_db, order_id, invoice_order_setup["output_dir"])
+    assert invoice_module.prepare_persian("باطل") in text
+    assert invoice_module.prepare_persian("جایگزین") not in text
+
+
+def test_an_ordinary_invoice_has_no_void_mark(invoice_order_setup, test_db):
+    text = _invoice_text(test_db, invoice_order_setup["order_id"], invoice_order_setup["output_dir"])
+    assert invoice_module.prepare_persian("باطل") not in text

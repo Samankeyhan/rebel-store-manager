@@ -1,4 +1,4 @@
-"""Customer-facing Persian RTL A4 invoice for an order (rendered for any status). Shows only what the customer pays: item prices, line discounts, shipping charge, total.
+"""Customer-facing Persian RTL A4 invoice for an order (rendered for any status; a VOIDED order is marked «باطل» with its replacement's number). Shows only what the customer pays: item prices, line discounts, shipping charge, total.
 Never postage, packaging, fees, unit cost or COGS. Amounts are integer Rial, converted for display only via `db/currency.py`."""
 
 import sqlite3
@@ -342,6 +342,14 @@ def generate_invoice_pdf(
         c, right, y, f"شماره فاکتور: {invoice_num}", font="Vazir-Bold", size=11
     )
     y -= LINE_HEIGHT
+
+    if order["status"] == "VOIDED":
+        # A sale entered by mistake (accounting-rules section 20): still printable, clearly marked.
+        mark = "این فاکتور باطل شده است"
+        if order["replaced_by_invoice_number"]:
+            mark += f" — فاکتور جایگزین: {order['replaced_by_invoice_number']}"
+        _draw_persian_right(c, right, y, mark, font="Vazir-Bold", size=11)
+        y -= LINE_HEIGHT
 
     order_date = order["order_date"]
     if " " in order_date:
