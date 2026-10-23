@@ -91,6 +91,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     const body = await res.json().catch(() => null)
     throw toApiError(res.status, body)
   }
+  if (res.status === 204) return undefined as T
   return (await res.json()) as T
 }
 
@@ -622,6 +623,18 @@ export function createPostageBatch(body: PostageBatchCreate): Promise<PostageBat
   return apiFetch<PostageBatch>("/postage/batches", { method: "POST", body: JSON.stringify(body) })
 }
 
+export type PostageBatchUpdate = Schemas["PostageBatchUpdate"]
+
+/** Only the fields present change; `notes: null` clears them. */
+export function updatePostageBatch(id: number, body: PostageBatchUpdate): Promise<PostageBatch> {
+  return apiFetch<PostageBatch>(`/postage/batches/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+}
+
+/** Hard delete (204). 409 PERIOD_ALREADY_DISTRIBUTED on a closed day. */
+export function deletePostageBatch(id: number): Promise<void> {
+  return apiFetch<void>(`/postage/batches/${id}`, { method: "DELETE" })
+}
+
 // ------------------------------------------------------------ expenses
 
 export type Expense = Schemas["ExpenseOut"]
@@ -647,6 +660,18 @@ export function listExpenses(f: ExpenseFilters = {}): Promise<Expense[]> {
  */
 export function createExpense(body: ExpenseCreate): Promise<Expense> {
   return apiFetch<Expense>("/expenses", { method: "POST", body: JSON.stringify(body) })
+}
+
+export type ExpenseUpdate = Schemas["ExpenseUpdate"]
+
+/** Only the fields present change; `description: null` clears it. */
+export function updateExpense(id: number, body: ExpenseUpdate): Promise<Expense> {
+  return apiFetch<Expense>(`/expenses/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+}
+
+/** Hard delete (204). 409 PERIOD_ALREADY_DISTRIBUTED on a closed day. */
+export function deleteExpense(id: number): Promise<void> {
+  return apiFetch<void>(`/expenses/${id}`, { method: "DELETE" })
 }
 
 /** Ordered by name. There is no rename / deactivate / reactivate endpoint. */
