@@ -10,6 +10,7 @@ Money was stored in integer Toman before migration 009, which multiplied every m
 - A date-range filter (start_date, end_date) covers whole local days, inclusive: stored_value >= (start_date 00:00 local, as UTC) AND stored_value < (end_date + 1 day, 00:00 local, as UTC). Either bound may be omitted.
 - Exception: profit_distributions.period_start and period_end are calendar days, not moments. They are stored as local "YYYY-MM-DD" and mean whole local days, exactly like a date-range filter.
 - Also calendar days (local "YYYY-MM-DD"): orders.paid_date, orders.expected_settlement_date and settlements.settled_date (section 14). The paid_date in the moments list above is the postage batch's (section 6). "Today" for any business rule is today_local() in the store timezone.
+- A backdated sale (order_date before today) moves only order_date and what follows from it; the cost, stock and packaging figures are still today's (section 7, Backdated orders).
 - All conversions go through db/timeutil.py. No other module does timezone arithmetic.
 
 ## 2. Inventory costing — weighted average
@@ -95,6 +96,13 @@ Selling a product whose unit_cost is NULL is refused with ValidationError (field
   - CANCELLED: allowed from DRAFT, PENDING, PAID (not shipped). If stock_committed, restore products and packaging materials (reason RETURN). Excluded from all revenue and cost reporting. If transaction_fee > 0 it is a loss (payment gateways rarely refund fees); packaging and postage are not losses, since nothing was shipped.
   - REFUNDED: allowed from PAID, COMPLETED (shipped). Restore products only (RETURN); packaging was used up. packaging_cost + postage_cost + transaction_fee count as refund losses.
   - made-to-order lines follow section 13.
+
+### Backdated orders
+`record_order(order_date=...)` accepts a past day ("YYYY-MM-DD" = local midnight, or "YYYY-MM-DD HH:MM"). A day after today_local() is refused for every status (422, field order_date, code DATE_IN_FUTURE, details {"today"}); only the day is compared, so a time later today is accepted.
+- Follows the chosen day: orders.order_date, the default paid_date (the local day of order_date) and so its Jalali month and expected_settlement_date (section 14).
+- Stays as of today (the moment of saving): the commit freezes unit_cost_at_time from the product's current unit_cost (or the made-to-order recipe at today's material costs), packaging_cost from today's kit cost, and postage_cost from today's estimate; stock is deducted now, and stock_movements.movement_date is the moment of saving, not the order date.
+- Reports, the dashboard and the orders list filter on order_date, so a backdated order changes the figures of the past period it lands in. Partner profit distributions already recorded are not recomputed; the undistributed profit after that date rises.
+- A backdated paid day inside a Jalali month that is already settled for a DAY_OF_NEXT_MONTH method is refused (ConflictError, MONTH_ALREADY_SETTLED).
 
 ## 8. Stock adjustments
 - Product quantities must be whole numbers. Material quantities may be fractional. Size limits: section 17. A physical count is applied as a set of these adjustments: section 19.
@@ -192,7 +200,7 @@ Payment methods are owner-entered data (none are seeded). Each has a fee and a s
 - An order's method: an explicit method, no method, or the channel's default method (channel_settings.default_payment_method_id; none if unset). A new order, and a channel default, require an active method.
 
 ### paid_date
-- The local calendar day the customer's money was paid. Set when the order first becomes PAID or COMPLETED (at creation, or by a status change from DRAFT/PENDING). Default: the local day of order_date (or today, with no order_date). Never in the future. Giving it for an order that does not become paid (DRAFT/PENDING creation, PAID → COMPLETED) is a ValidationError.
+- The local calendar day the customer's money was paid. Set when the order first becomes PAID or COMPLETED (at creation, or by a status change from DRAFT/PENDING). Default: the local day of order_date (or today, with no order_date). Never in the future. For a backdated order the default is the past order day, while cost, stock and packaging were frozen today (section 7, Backdated orders). Giving it for an order that does not become paid (DRAFT/PENDING creation, PAID → COMPLETED) is a ValidationError.
 - Becoming paid freezes, from paid_date: paid_jalali_year / paid_jalali_month (the Jalali month of paid_date), and, with a method, expected_settlement_date per the method's rule. An order with no method still gets paid_date and its Jalali month, but no expected date and is never pending settlement.
 - set_paid_date moves a paid, unsettled order's paid_date and recomputes these fields; the fee stays. It is refused (ConflictError) on an unpaid or settled order.
 
