@@ -725,6 +725,9 @@ def replaced_by_order_id(conn: sqlite3.Connection, order_id: int) -> int | None:
 def _correction_links(conn: sqlite3.Connection, order: sqlite3.Row) -> dict:
     """Both sides of a correction (section 20): the invoice number of the voided order this one
     replaces, and the order (id, invoice number) that replaced this one."""
+    if "replaces_order_id" not in order.keys():
+        # A database before migration 014: the integrity check and the update rehearsal read older ones.
+        return {"replaces_invoice_number": None, "replaced_by_order_id": None, "replaced_by_invoice_number": None}
     replaces = None
     if order["replaces_order_id"] is not None:
         replaces = conn.execute(

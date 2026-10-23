@@ -127,6 +127,8 @@ def test_upgrade_from_013_keeps_every_row_id_and_the_autoincrement_mark(db_at_01
     before = _snapshot(conn)
     conn.close()
     assert before["sequence"][0] == 3 and [o["id"] for o in before["orders"]] == [1, 2]
+    # The update rehearsal runs this code's integrity check on the database BEFORE 014: orders must read.
+    assert integrity_main(["--db", db_at_013]) == 0
 
     init_db(db_at_013)
 
