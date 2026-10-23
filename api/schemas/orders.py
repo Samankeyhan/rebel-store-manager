@@ -71,6 +71,11 @@ class OrderOut(BaseModel):
     void_reason: str | None
     voided_at: str | None
     replaces_order_id: int | None
+    # Both sides of a correction: the invoice number of the order this one replaces,
+    # and the order that replaced this one (None when there is none).
+    replaces_invoice_number: str | None
+    replaced_by_order_id: int | None
+    replaced_by_invoice_number: str | None
 
 
 class OrderItemOut(BaseModel):

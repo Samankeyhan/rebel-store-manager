@@ -57,6 +57,12 @@ class ErrorCode(StrEnum):
     BACKUP_FAILED                    reason (disk_full | locked | integrity | folder | unknown)
     STOCKTAKE_STALE                  items: [{item_type, item_id, item_name, expected, actual}] whose live
                                      stock differs from the system_quantity the count was made against
+    ORDER_ALREADY_VOIDED             order_id, voided_at (UTC), replaced_by_order_id (None when not corrected)
+    ORDER_HAS_RETURN                 order_id, status (CANCELLED | REFUNDED): a return was recorded; no void
+    ORDER_NOT_COMMITTED              order_id, status: a DRAFT committed nothing, so there is nothing to void
+    STOCKTAKE_AFTER_SALE             order_id, item_type, item_id, item_name, stocktake_date (local day): a count
+                                     recorded after the sale already took this item's stock as it was
+    VOID_REASON_REQUIRED             - (field reason)
 
     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
@@ -128,6 +134,13 @@ class ErrorCode(StrEnum):
 
     # Stocktake
     STOCKTAKE_STALE = "STOCKTAKE_STALE"
+
+    # Voided orders and corrections
+    ORDER_ALREADY_VOIDED = "ORDER_ALREADY_VOIDED"
+    ORDER_HAS_RETURN = "ORDER_HAS_RETURN"
+    ORDER_NOT_COMMITTED = "ORDER_NOT_COMMITTED"
+    STOCKTAKE_AFTER_SALE = "STOCKTAKE_AFTER_SALE"
+    VOID_REASON_REQUIRED = "VOID_REASON_REQUIRED"
 
     # Backups
     BACKUP_FAILED = "BACKUP_FAILED"

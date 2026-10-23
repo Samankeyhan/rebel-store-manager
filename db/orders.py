@@ -37,6 +37,7 @@ CREATION_ALLOWED_STATUSES = ("DRAFT", "PENDING", "PAID", "COMPLETED")
 USE_CHANNEL_DEFAULT = object()
 
 _RETURN_STATUSES = ("CANCELLED", "REFUNDED")
+VOIDED = "VOIDED"
 
 SETTLEMENT_STATES = ("pending", "settled")
 
@@ -65,10 +66,10 @@ def _validate_status(status: str) -> None:
 
 
 def _validate_creation_status(status: str) -> None:
-    if status in ("CANCELLED", "REFUNDED"):
+    if status in ("CANCELLED", "REFUNDED", VOIDED):
         raise ValidationError(
             f"Cannot create an order with status '{status}'. "
-            f"CANCELLED and REFUNDED are only set via process_return.",
+            f"CANCELLED and REFUNDED are only set via process_return, VOIDED via void_order.",
             field="status",
         )
     if status not in CREATION_ALLOWED_STATUSES:
@@ -715,10 +716,34 @@ def list_unit_price(item) -> int:
     return item["list_price"] // item["quantity"]
 
 
+def replaced_by_order_id(conn: sqlite3.Connection, order_id: int) -> int | None:
+    """The id of the order that replaced this voided one (a correction), or None."""
+    row = conn.execute("SELECT id FROM orders WHERE replaces_order_id = ?", (order_id,)).fetchone()
+    return row["id"] if row else None
+
+
+def _correction_links(conn: sqlite3.Connection, order: sqlite3.Row) -> dict:
+    """Both sides of a correction (section 20): the invoice number of the voided order this one
+    replaces, and the order (id, invoice number) that replaced this one."""
+    replaces = None
+    if order["replaces_order_id"] is not None:
+        replaces = conn.execute(
+            "SELECT invoice_number FROM orders WHERE id = ?", (order["replaces_order_id"],)
+        ).fetchone()
+    replaced_by = conn.execute(
+        "SELECT id, invoice_number FROM orders WHERE replaces_order_id = ?", (order["id"],)
+    ).fetchone()
+    return {
+        "replaces_invoice_number": replaces["invoice_number"] if replaces else None,
+        "replaced_by_order_id": replaced_by["id"] if replaced_by else None,
+        "replaced_by_invoice_number": replaced_by["invoice_number"] if replaced_by else None,
+    }
+
+
 def get_order(conn: sqlite3.Connection, order_id: int) -> dict:
     """The order, its items and totals. Each item carries `list_unit_price`
     (what customers see); its `unit_price` is the legacy floored discounted
-    value and must not be shown."""
+    value and must not be shown. The order carries the correction links both ways."""
     order = conn.execute(
         """
         SELECT orders.*, payment_methods.name AS payment_method_name
@@ -732,8 +757,10 @@ def get_order(conn: sqlite3.Connection, order_id: int) -> dict:
         raise NotFoundError(f"Order with id {order_id} does not exist")
 
     items = _fetch_order_items(conn, order_id)
+    order_dict = dict(order)
+    order_dict.update(_correction_links(conn, order))
     return {
-        "order": dict(order),
+        "order": order_dict,
         "items": [{**item, "list_unit_price": list_unit_price(item)} for item in map(dict, items)],
         "customer_total": compute_order_revenue(order, items),
         "profit": compute_order_profit(order, items),
@@ -748,9 +775,11 @@ def list_orders(
     end_date: str | None = None,
     payment_method_id: int | None = None,
     settlement_state: str | None = None,
+    include_voided: bool = False,
 ) -> list[dict]:
     """settlement_state 'pending': paid, has a method, not yet settled;
-    'settled': in a settlement."""
+    'settled': in a settlement. VOIDED orders are left out unless include_voided
+    (or status='VOIDED') asks for them (accounting-rules section 20)."""
     if channel is not None:
         _validate_channel(channel)
     if status is not None:
@@ -769,7 +798,7 @@ def list_orders(
             COALESCE(SUM(order_items.list_price - order_items.discount_amount), 0)
                 + orders.shipping_charge AS customer_total,
             CASE
-                WHEN orders.status IN ('DRAFT', 'CANCELLED') THEN NULL
+                WHEN orders.status IN ('DRAFT', 'CANCELLED', 'VOIDED') THEN NULL
                 ELSE
                     COALESCE(SUM(order_items.list_price - order_items.discount_amount), 0)
                     + orders.shipping_charge
@@ -803,6 +832,8 @@ def list_orders(
     if status is not None:
         query += " AND orders.status = ?"
         params.append(status)
+    elif not include_voided:
+        query += " AND orders.status <> 'VOIDED'"
     start_utc, end_exclusive_utc = to_utc_range(start_date, end_date, conn)
     if start_utc is not None:
         query += " AND orders.order_date >= ?"
@@ -878,6 +909,8 @@ def update_order_status(
             f"Use process_return to mark an order as {new_status} — "
             f"that restores stock and records RETURN movements."
         )
+    if new_status == VOIDED:
+        raise ConflictError("Use void_order (db/order_voids.py) to void an order entered by mistake.")
 
     current_status = order["status"]
     allowed_targets = _ALLOWED_TRANSITIONS.get(current_status, set())

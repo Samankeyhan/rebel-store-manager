@@ -113,7 +113,7 @@ def check_orders(conn: sqlite3.Connection, schema: int) -> CheckResult:
         return methods[method_id]
 
     legacy_unpaid_date: list[int] = []
-    orders = list_orders(conn)
+    orders = list_orders(conn, include_voided=True)
     for order in orders:
         order_id = order["id"]
         detail = get_order(conn, order_id)

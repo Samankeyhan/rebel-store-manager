@@ -23,6 +23,7 @@ VALID_STATUSES = (
     "COMPLETED",
     "CANCELLED",
     "REFUNDED",
+    "VOIDED",  # a sale entered by mistake (db/order_voids.py); never set by a status change
 )
 
 # The largest amount of money on the wire or in a stored column, in integer Rial: the largest

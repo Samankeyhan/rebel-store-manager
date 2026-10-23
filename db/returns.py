@@ -5,8 +5,8 @@ import sqlite3
 from db.audit import audited
 from db.connection import transaction
 from db.costing import blend_unit_cost, exact_quantity
-from db.errors import ConflictError, NotFoundError, ValidationError
-from db.orders import _fetch_order_items
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
+from db.orders import _fetch_order_items, replaced_by_order_id as _replaced_by
 from db.products import get_product
 
 RETURN_STATUSES = ("CANCELLED", "REFUNDED")
@@ -38,6 +38,16 @@ def process_return(
             raise NotFoundError(f"Order with id {order_id} does not exist")
 
         current_status = order["status"]
+        if current_status == "VOIDED":
+            raise ConflictError(
+                f"Order #{order_id} was voided (entered by mistake); it has nothing to return.",
+                code=ErrorCode.ORDER_ALREADY_VOIDED,
+                details={
+                    "order_id": order_id,
+                    "voided_at": order["voided_at"],
+                    "replaced_by_order_id": _replaced_by(conn, order_id),
+                },
+            )
         if current_status in RETURN_STATUSES:
             raise ConflictError(
                 f"Order #{order_id} is already {current_status}."

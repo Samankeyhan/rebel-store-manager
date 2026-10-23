@@ -2253,7 +2253,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            code: "APP_ERROR" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CONFLICT" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_PERIOD_ORDER" | "NOT_FOUND" | "PAID_DATE_NOT_ALLOWED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_NOT_MONTHLY" | "SETTLEMENT_RACED" | "SETTLEMENT_WHOLE_MONTHS_ONLY";
+            code: "APP_ERROR" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CONFLICT" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_PERIOD_ORDER" | "NOT_FOUND" | "PAID_DATE_NOT_ALLOWED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_NOT_MONTHLY" | "SETTLEMENT_RACED" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "VOID_REASON_REQUIRED";
             details: components["schemas"]["NoDetails"];
         };
         /** ErrorBodyInsufficientStock */
@@ -2373,7 +2373,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            code: "ORDER_NOT_PAID";
+            code: "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "ORDER_NOT_PAID";
             details: components["schemas"]["OrderNotPaidDetails"];
         };
         /** ErrorBodyOrderRef */
@@ -2405,6 +2405,21 @@ export interface components {
              */
             code: "ORDER_ALREADY_SETTLED";
             details: components["schemas"]["OrderSettledDetails"];
+        };
+        /** ErrorBodyOrderVoided */
+        ErrorBodyOrderVoided: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "ORDER_ALREADY_VOIDED";
+            details: components["schemas"]["OrderVoidedDetails"];
         };
         /** ErrorBodyPaymentMethodRef */
         ErrorBodyPaymentMethodRef: {
@@ -2481,6 +2496,21 @@ export interface components {
             code: "PAYMENT_METHOD_RULE_PENDING";
             details: components["schemas"]["RulePendingDetails"];
         };
+        /** ErrorBodyStocktakeAfterSale */
+        ErrorBodyStocktakeAfterSale: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "STOCKTAKE_AFTER_SALE";
+            details: components["schemas"]["StocktakeAfterSaleDetails"];
+        };
         /** ErrorBodyStocktakeStale */
         ErrorBodyStocktakeStale: {
             /** Type */
@@ -2529,7 +2559,7 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             /** Error */
-            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyBackupFailed"];
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodyBackupFailed"];
         };
         /**
          * ErrorItem
@@ -3164,6 +3194,12 @@ export interface components {
             voided_at: string | null;
             /** Replaces Order Id */
             replaces_order_id: number | null;
+            /** Replaces Invoice Number */
+            replaces_invoice_number: string | null;
+            /** Replaced By Order Id */
+            replaced_by_order_id: number | null;
+            /** Replaced By Invoice Number */
+            replaced_by_invoice_number: string | null;
         };
         /** OrderPaidDateUpdate */
         OrderPaidDateUpdate: {
@@ -3198,6 +3234,15 @@ export interface components {
             status: string;
             /** Paid Date */
             paid_date?: string | null;
+        };
+        /** OrderVoidedDetails */
+        OrderVoidedDetails: {
+            /** Order Id */
+            order_id: number;
+            /** Voided At */
+            voided_at: string;
+            /** Replaced By Order Id */
+            replaced_by_order_id: number | null;
         };
         /** PartnerCreate */
         PartnerCreate: {
@@ -4334,6 +4379,19 @@ export interface components {
             /** Actual */
             actual: number;
         };
+        /** StocktakeAfterSaleDetails */
+        StocktakeAfterSaleDetails: {
+            /** Order Id */
+            order_id: number;
+            /** Item Type */
+            item_type: string;
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
+            /** Stocktake Date */
+            stocktake_date: string;
+        };
         /** StocktakeCorrection */
         StocktakeCorrection: {
             /** Item Type */
@@ -4541,13 +4599,19 @@ export interface components {
          *     BACKUP_FAILED                    reason (disk_full | locked | integrity | folder | unknown)
          *     STOCKTAKE_STALE                  items: [{item_type, item_id, item_name, expected, actual}] whose live
          *                                      stock differs from the system_quantity the count was made against
+         *     ORDER_ALREADY_VOIDED             order_id, voided_at (UTC), replaced_by_order_id (None when not corrected)
+         *     ORDER_HAS_RETURN                 order_id, status (CANCELLED | REFUNDED): a return was recorded; no void
+         *     ORDER_NOT_COMMITTED              order_id, status: a DRAFT committed nothing, so there is nothing to void
+         *     STOCKTAKE_AFTER_SALE             order_id, item_type, item_id, item_name, stocktake_date (local day): a count
+         *                                      recorded after the sale already took this item's stock as it was
+         *     VOID_REASON_REQUIRED             - (field reason)
          *
          *     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
          *     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "BACKUP_FAILED";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "BACKUP_FAILED";
     };
     responses: never;
     parameters: never;

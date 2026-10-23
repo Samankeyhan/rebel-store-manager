@@ -154,6 +154,20 @@ class StocktakeStaleDetails(_Details):
     items: list[StaleItem]
 
 
+class OrderVoidedDetails(_Details):
+    order_id: int
+    voided_at: str
+    replaced_by_order_id: int | None
+
+
+class StocktakeAfterSaleDetails(_Details):
+    order_id: int
+    item_type: str
+    item_id: int
+    item_name: str
+    stocktake_date: str
+
+
 class BackupFailedDetails(_Details):
     # disk_full | locked | integrity | folder | unknown
     reason: str
@@ -174,7 +188,7 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
         C.DISTRIBUTION_NO_ACTIVE_PARTNERS, C.DISTRIBUTION_PERCENT_SUM, C.DISTRIBUTION_EXCEEDS_UNDISTRIBUTED,
         C.DISTRIBUTION_PERIOD_ORDER,
         C.CATEGORY_HAS_SUBCATEGORIES, C.CATEGORY_PARENT_INACTIVE,
-        C.PAID_DATE_NOT_ALLOWED,
+        C.PAID_DATE_NOT_ALLOWED, C.VOID_REASON_REQUIRED,
     )},
     C.VALIDATION_FAILED: ValidationFailedDetails,
     C.QUANTITY_NOT_WHOLE: ValidationFailedDetails,
@@ -203,6 +217,10 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.PACKAGING_KIT_NOT_FOUND: KitRefDetails,
     C.PACKAGING_KIT_INACTIVE: KitRefDetails,
     C.STOCKTAKE_STALE: StocktakeStaleDetails,
+    C.ORDER_ALREADY_VOIDED: OrderVoidedDetails,
+    C.ORDER_HAS_RETURN: OrderNotPaidDetails,
+    C.ORDER_NOT_COMMITTED: OrderNotPaidDetails,
+    C.STOCKTAKE_AFTER_SALE: StocktakeAfterSaleDetails,
     C.BACKUP_FAILED: BackupFailedDetails,
     C.NAME_DUPLICATE: NameDuplicateDetails,
     C.CATEGORY_DUPLICATE_NAME: NameDuplicateDetails,

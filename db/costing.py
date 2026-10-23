@@ -67,7 +67,17 @@ def blend_unit_cost(
     """Weighted-average unit cost when stock comes in (accounting rules section 2).
     `zero_is_unknown` (materials only): a cost of 0 means "not entered", like NULL, so the incoming value sets the cost
     instead of averaging with the old stock at 0, and that old stock is re-priced with it."""
-    qty = exact_quantity(qty_in)
+    return blend_unit_cost_exact(stock_before, cost_before, exact_quantity(qty_in), value_in, zero_is_unknown)
+
+
+def blend_unit_cost_exact(
+    stock_before: float | None,
+    cost_before: int | None,
+    qty: Fraction,
+    value_in: int | Fraction,
+    zero_is_unknown: bool = False,
+) -> int:
+    """`blend_unit_cost` for an incoming quantity that is already exact (a sum of several stored quantities)."""
     if zero_is_unknown and cost_before == 0:
         cost_before = None
     if cost_before is None or stock_before is None or stock_before <= 0:

@@ -33,7 +33,7 @@ def _public_writers():
     for module_name in sorted(
         m for m in (
             "adjustments", "categories", "connection", "distributions", "expenses", "materials",
-            "orders", "packaging", "partners", "payment_methods", "postage", "production",
+            "order_voids", "orders", "packaging", "partners", "payment_methods", "postage", "production",
             "products", "purchases", "recipes", "returns", "settings", "settlements", "stocktake", "suppliers",
             "audit",
         )
