@@ -461,3 +461,9 @@
 - The `init_db` verified-backup change stays minimal, and the migration aborts if that backup fails.
 
 **Slice 1 (A + B1) scope:** frontend only; two-line options in both pickers; `formatQuantity` up to 6 decimals; no quantity input reformats on blur unless the text parses back to exactly the same number; half-even line cost and `inventoryValue`; new unit list (میلی‌لیتر، لیتر، گرم، کیلوگرم، سانتی‌متر، متر، عدد، برگ، رول، بسته، نوبت).
+
+---
+
+## Renumbering after the sale-correction slice (2026-10-23)
+- Migration 014 is now `014_order_void.sql` (voided orders and corrections) and integrity check "i" is "Voided orders and corrections".
+- So D (supplier payables) takes migration **015** and its integrity check becomes **"j"**; B2 (unit conversion) moves to **016**.
