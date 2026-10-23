@@ -302,7 +302,7 @@ def test_an_existing_archive_file_is_never_overwritten_or_deleted(shop):
 def test_the_result_passes_every_integrity_check(shop):
     conn, _ = shop
     apply_go_live(conn, archive(conn), verify=integrity_verifier)
-    results = run_checks(conn, 13)
+    results = run_checks(conn, 14)
     assert [(r.key, r.status) for r in results if r.status not in ("PASS", "SKIPPED")] == []
     assert [r.key for r in results if r.status == "SKIPPED"] == ["d3"]
     assert all(not r.infos for r in results)
