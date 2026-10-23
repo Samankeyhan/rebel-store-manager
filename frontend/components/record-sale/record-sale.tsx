@@ -2,9 +2,11 @@
 
 import * as React from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { ApiError, createOrder, getCatalog, listPaymentMethods, type Catalog, type PaymentMethod } from "@/lib/api"
 import { refusedProductId } from "@/lib/error-codes"
-import { isFutureOrderDateError } from "@/lib/sale-date"
+import { formatJalali } from "@/lib/jalali"
+import { isFutureOrderDateError, isStaleSaleDay } from "@/lib/sale-date"
 import { classifyPaymentError } from "@/lib/payment-methods"
 import { DEFAULT_TZ, storeToday } from "@/lib/store-day"
 import { paymentErrorText } from "@/components/payment-methods/copy"
@@ -12,6 +14,7 @@ import { T, type Channel } from "./copy"
 import { derive, orderTotal } from "./derive"
 import type { PaymentUi } from "./payment-fields"
 import { useFeePreview } from "./use-fee-preview"
+import { Btn } from "./primitives"
 import { ChannelCard, InternalCostsCard, ShippingCard, StatusCard } from "./form-cards"
 import { ItemsCard } from "./items-card"
 import { MobileSummarySheet, SummaryPanel } from "./summary-panel"
@@ -19,6 +22,7 @@ import {
   buildOrderBody,
   initialState,
   moneyBlocked,
+  orderDay,
   productMap,
   reducer,
   resolveMethod,
@@ -204,7 +208,19 @@ function SaleForm({
 
   // Never once saved: the success screen keeps this component mounted.
   const canSave = !d.saveDisabled && !state.saving && !state.result
+  // A sale dated more than 31 days back asks once before it is saved (the day, shown in Jalali).
+  const [staleDay, setStaleDay] = React.useState<string | null>(null)
   const save = async () => {
+    if (!canSave) return
+    const now = currentStoreDay(timeZone)
+    const day = orderDay(state, now)
+    if (isStaleSaleDay(day, now)) {
+      setStaleDay(day)
+      return
+    }
+    await submit()
+  }
+  const submit = async () => {
     if (!canSave) return
     dispatch({ type: "submitStart" })
     try {
@@ -238,6 +254,35 @@ function SaleForm({
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [])
+
+  const staleDialog = (
+    <Dialog open={staleDay != null} onOpenChange={(o) => !o && setStaleDay(null)}>
+      <DialogContent
+        showCloseButton={false}
+        style={{ maxWidth: "min(440px, calc(100% - 2rem))" }}
+        className="w-full gap-0 overflow-hidden rounded-[14px] border border-border bg-card p-0 ring-0 sm:max-w-none"
+      >
+        <div className="flex flex-col gap-2 px-6 py-5">
+          <DialogTitle className="text-base font-bold text-heading">{T.staleTitle}</DialogTitle>
+          <DialogDescription className="text-sm text-text-2">
+            {staleDay ? T.staleBody(formatJalali(staleDay, "yyyy/MM/dd")) : null}
+          </DialogDescription>
+        </div>
+        <div className="flex justify-start gap-2 border-t border-border bg-surface-2 px-6 py-4">
+          <Btn
+            variant="primary"
+            onClick={() => {
+              setStaleDay(null)
+              void submit()
+            }}
+          >
+            {T.staleConfirm}
+          </Btn>
+          <Btn onClick={() => setStaleDay(null)}>{T.staleBack}</Btn>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 
   const closeToast = React.useCallback(() => setToast(null), [])
   const toastNode = toast ? <Toast invoice={toast} onClose={closeToast} /> : null
@@ -299,6 +344,7 @@ function SaleForm({
           {...saveProps}
         />
         {toastNode}
+        {staleDialog}
       </div>
     )
   }
@@ -318,6 +364,7 @@ function SaleForm({
         {...saveProps}
       />
       {toastNode}
+      {staleDialog}
     </div>
   )
 }

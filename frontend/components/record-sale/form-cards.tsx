@@ -9,7 +9,7 @@ import { formatMoney } from "@/lib/money"
 import { CHANNEL_IDS, CHANNELS, STATUS_IDS, STATUSES, T, type Channel, type SaleStatus } from "./copy"
 import { channelSummaryLine, resolveKit, type Summary } from "./derive"
 import { moneyProps } from "./money-field"
-import { FeeField, PaidDateField, PaymentMethodField, ReferenceField, type PaymentUi } from "./payment-fields"
+import { FeeField, PaidDateField, PaymentMethodField, ReferenceField, SaleDateField, type PaymentUi } from "./payment-fields"
 import { Help, Label, MoneyInput, OptionTile, PostageBadge, SectionCard, cardClass } from "./primitives"
 import type { Action, FormState, KitChoice } from "./state"
 
@@ -25,7 +25,7 @@ type CardProps = {
 
 // ── [1] کانال فروش و مشتری ──────────────────────────────────────────────
 
-export function ChannelCard({ state, catalog, dispatch, onChannel, mobile }: CardProps) {
+export function ChannelCard({ state, catalog, dispatch, onChannel, mobile, payment }: CardProps) {
   const radios = (
     <div
       role="radiogroup"
@@ -97,6 +97,7 @@ export function ChannelCard({ state, catalog, dispatch, onChannel, mobile }: Car
         {radios}
         <p className="text-xs leading-[19px] text-text-3">{channelSummaryLine(state, catalog)}</p>
         {customer}
+        <SaleDateField state={state} dispatch={dispatch} payment={payment} mobile />
       </section>
     )
   }
@@ -106,6 +107,7 @@ export function ChannelCard({ state, catalog, dispatch, onChannel, mobile }: Car
       {radios}
       <p className="text-xs leading-[19px] text-text-3">{T.channelHelp}</p>
       {customer}
+      <SaleDateField state={state} dispatch={dispatch} payment={payment} mobile={false} />
     </SectionCard>
   )
 }

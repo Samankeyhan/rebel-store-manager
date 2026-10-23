@@ -271,6 +271,33 @@ export function ReferenceField({ state, dispatch, mobile }: Omit<Props, "payment
 }
 
 /**
+ * «تاریخ فروش», for every status: the sale day (default today; omitted from the
+ * body then). A past day backdates the sale, and one line says what stays as
+ * of today. Future days (after the store's today) can't be picked.
+ */
+export function SaleDateField({ state, dispatch, payment, mobile }: Props) {
+  const today = payment.today
+  const day = orderDay(state, today)
+  const issue = state.serverIssue
+  const serverError = issue?.kind === "orderDate" ? issue.message : null
+  return (
+    <div className={cn("flex flex-col gap-1.5", !mobile && "max-w-[360px]")}>
+      <Label htmlFor="sale-order-date">{T.orderDateLabel}</Label>
+      <DateField
+        id="sale-order-date"
+        value={day}
+        today={today}
+        onChange={(d) => dispatch({ type: "orderDate", value: d, today })}
+        todayLabel={T.today}
+        mobile={mobile}
+      />
+      {serverError ? <InlineMessage severity="error">{serverError}</InlineMessage> : null}
+      {day !== today ? <Help>{T.orderDateBackdatedHint}</Help> : null}
+    </div>
+  )
+}
+
+/**
  * «تاریخ پرداخت», only for PAID / COMPLETED. Shows exactly the day the server
  * will store: the picked day, else the order's own day (paidDay). Future days
  * (after the store's today) can't be picked.
