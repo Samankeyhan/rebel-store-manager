@@ -17,6 +17,7 @@ import { CHANNEL_IDS, CHANNELS } from "@/components/record-sale/copy"
 import { Btn, btnClass } from "@/components/record-sale/primitives"
 import { Segment } from "@/components/common/segment"
 import { ApiError, listOrders, listPaymentMethods, type OrderListItem, type PaymentMethod } from "@/lib/api"
+import { listedUnder } from "@/lib/order-correction"
 import { useStoreTimeZone } from "@/components/dashboard/use-dashboard-data"
 import { last30Range } from "@/lib/default-range"
 import { isoToDate, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
@@ -169,6 +170,8 @@ export function OrdersList() {
           end_date: to,
           payment_method_id: method || null,
           settlement_state: (settlement || null) as "pending" | "settled" | null,
+          // VOIDED rows come too, for their own tab; «همه» leaves them out (listedUnder).
+          include_voided: true,
         })
         // An empty result needs one unfiltered look to tell "no orders at
         // all" (empty state) from "nothing matches" (filtered-empty).
@@ -187,13 +190,11 @@ export function OrdersList() {
 
   const rows = React.useMemo(() => (load.status === "ready" ? load.rows : []), [load])
   const counts = React.useMemo(() => {
-    const c: Record<string, number> = { "": rows.length }
+    const c: Record<string, number> = { "": rows.filter((r) => listedUnder(r.status, "")).length }
     for (const r of rows) c[r.status] = (c[r.status] ?? 0) + 1
     return c
   }, [rows])
-  const visible = rows.filter(
-    (r) => (!filters.status || r.status === filters.status) && matchesSearch(r, filters.q, toLatinDigits)
-  )
+  const visible = rows.filter((r) => listedUnder(r.status, filters.status) && matchesSearch(r, filters.q, toLatinDigits))
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
   const page = Math.min(filters.page, pageCount)
 
@@ -203,8 +204,8 @@ export function OrdersList() {
       ? L.emptySubtitle
       : load.status === "ready"
         ? month
-          ? L.subtitleMonth(rows.length, month)
-          : L.subtitleRange(rows.length)
+          ? L.subtitleMonth(counts[""], month)
+          : L.subtitleRange(counts[""])
         : null
 
   const storeEmpty = load.status === "ready" && !load.storeHasOrders

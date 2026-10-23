@@ -157,7 +157,11 @@ export function OrdersTable({
                   // The whole row opens the order; the invoice link is the
                   // keyboard/screen-reader target.
                   onClick={() => router.push(orderHref(o.id))}
-                  className="cursor-pointer hover:[&>td]:bg-surface-2 [&>td]:h-[52px] [&>td]:border-b [&>td]:border-border [&>td]:px-4 [&>td]:whitespace-nowrap last:[&>td]:border-b-0"
+                  className={cn(
+                    "cursor-pointer hover:[&>td]:bg-surface-2 [&>td]:h-[52px] [&>td]:border-b [&>td]:border-border [&>td]:px-4 [&>td]:whitespace-nowrap last:[&>td]:border-b-0",
+                    // A voided order (entered by mistake) stays readable but steps back.
+                    o.status === "VOIDED" && "[&>td]:text-text-3 [&>td]:opacity-75"
+                  )}
                 >
                   <td>
                     <Link

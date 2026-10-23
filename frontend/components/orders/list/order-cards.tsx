@@ -65,7 +65,8 @@ export function OrderCards({
           href={orderHref(o.id)}
           className={cn(
             cardClass,
-            "flex flex-col gap-1.5 px-3.5 py-3 text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+            "flex flex-col gap-1.5 px-3.5 py-3 text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+            o.status === "VOIDED" && "text-text-3 opacity-75"
           )}
         >
           <span className="flex items-center justify-between gap-2">
