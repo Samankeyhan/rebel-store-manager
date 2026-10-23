@@ -7,7 +7,7 @@ import pytest
 
 import db.orders
 import db.settlements
-from db.errors import ConflictError, NotFoundError, ValidationError
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.orders import (
     get_order,
     list_orders,
@@ -188,10 +188,10 @@ def test_today_paid_date_accepted(test_db, setup):
     assert _row(test_db, order_id)["paid_date"] == "2026-10-06"
 
 
-def test_future_order_date_gives_future_paid_date_error(test_db, setup):
+def test_future_order_date_is_refused_on_order_date(test_db, setup):
     with pytest.raises(ValidationError) as exc_info:
         _order(test_db, setup, setup["card"], order_date="2026-10-07")
-    assert exc_info.value.field == "paid_date"
+    assert exc_info.value.field == "order_date"
 
 
 @pytest.mark.parametrize("bad", ["2026-13-01", "06/10/2026", "yesterday"])
@@ -583,3 +583,28 @@ def test_editing_the_cap_later_never_changes_old_orders(test_db, setup):
     assert _row(test_db, old)["transaction_fee"] == 165_000
     assert _row(test_db, lowered)["transaction_fee"] == 105_000
     assert _row(test_db, uncapped)["transaction_fee"] == 479_500
+
+
+# ------------------------------------------------------- backdated order_date
+
+
+@pytest.mark.parametrize("status", ["COMPLETED", "PENDING", "DRAFT"])
+def test_future_order_date_rejected_for_every_status(test_db, setup, status):
+    with pytest.raises(ValidationError) as exc_info:
+        _order(test_db, setup, setup["card"], status=status, order_date="2026-10-07")
+    assert exc_info.value.field == "order_date"
+    assert exc_info.value.code == ErrorCode.DATE_IN_FUTURE
+    assert exc_info.value.details == {"today": "2026-10-06"}
+    assert test_db.execute("SELECT COUNT(*) FROM orders").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("day", ["2026-10-06", "2026-09-01"])
+def test_today_and_past_order_date_accepted(test_db, setup, day):
+    order_id = _order(test_db, setup, setup["card"], order_date=day)
+    order = _row(test_db, order_id)
+    assert order["paid_date"] == day
+
+
+def test_time_later_today_is_accepted(test_db, setup):
+    order_id = _order(test_db, setup, setup["card"], order_date="2026-10-06 23:59")
+    assert _row(test_db, order_id)["paid_date"] == "2026-10-06"

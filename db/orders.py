@@ -513,7 +513,9 @@ def record_order(
 ) -> int:
     """transaction_fee None means computed from the payment method (0 with no
     method); an int, including 0, overrides it. paid_date is only for an order
-    created PAID/COMPLETED and defaults to the local day of order_date."""
+    created PAID/COMPLETED and defaults to the local day of order_date.
+    order_date may be in the past (a backdated sale, accounting-rules section 7)
+    but its local day may not be after today (DATE_IN_FUTURE, field order_date)."""
     _validate_channel(channel)
     _validate_creation_status(status)
     if shipping_charge is not None:
@@ -550,6 +552,15 @@ def record_order(
         order_date = normalize_record_date(order_date, conn)
         # Valid by now, so its first 10 characters are the local calendar day.
         order_local_day = parse_calendar_date(raw_order_date.strip()[:10])
+        today = today_local(conn)
+        if order_local_day > today:
+            raise ValidationError(
+                f"order_date {order_local_day.isoformat()} is in the future (today is "
+                f"{today.isoformat()})",
+                field="order_date",
+                code=ErrorCode.DATE_IN_FUTURE,
+                details={"today": today.isoformat()},
+            )
 
     paid_fields: dict = {}
     if status in PAID_STATUSES:
