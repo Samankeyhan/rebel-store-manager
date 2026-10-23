@@ -126,6 +126,7 @@ def record_stock_adjustment(
         new_unit_cost = blend_unit_cost(
             current_stock, item["unit_cost"], quantity_change,
             exact_quantity(quantity_change) * unit_cost,
+            zero_is_unknown=item_type == "MATERIAL",
         )
     else:
         new_unit_cost = item["unit_cost"]

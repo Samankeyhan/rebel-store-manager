@@ -22,6 +22,7 @@ Applies to:
 - product purchase: value_in = total_paid
 - production output: value_in = batch_total_cost
 - positive ADJUSTMENT with a unit_cost supplied: value_in = unit_cost × qty_in
+For a MATERIAL, a cost of 0 means "not entered" (go-live sets every stock material to 0) and counts as NULL: a material purchase, or a positive ADJUSTMENT / stocktake gain with a unit_cost, sets new_cost = round(value_in / qty_in) instead of averaging with the old stock at 0. The existing cost-0 stock is therefore re-priced at the new cost from then on, so the stock value rises; this is intended. A purchase at price 0 into a cost-0 material leaves the cost 0. Past rows (movements, purchases, frozen order costs) are never touched. A product's cost of 0 is a real cost and averages as usual.
 A positive ADJUSTMENT without unit_cost leaves unit_cost unchanged (NULL stays NULL).
 Stock going out (sales, production consumption, packaging, waste, negative adjustments) never changes unit_cost.
 Rounding: exact half-even to the Rial (a REAL quantity counts as the decimal it was entered as, section 8), applied once at the end of a calculation — never per line, never on floats. Where later sections write round(...), this is what it means.
@@ -163,6 +164,7 @@ Order invoices INV-000001..., purchase invoices PUR-000001... (one sequence shar
   where make_cost is the recipe cost for to_make units per section 3. When from_stock is 0, this is simply the per-unit manufacturing cost.
 - A made-to-order product whose unit_cost is NULL is still sellable when to_make covers the whole line, since its cost comes from the recipe. The section 7 NULL-cost refusal applies only to units taken from finished stock.
 - Manufacturing at sale time does not change the product's own unit_cost: no finished units are added to stock.
+- Recipe cost (display only): the cost of one unit from the recipe today is section 3 for a batch of 1. A recipe line whose material has unit_cost 0 or NULL ("not entered", section 2) makes the recipe INCOMPLETE and it has no recipe cost: the screens name the missing materials and never show a partial sum as a cost. It is never written to products.unit_cost; a stored weighted average is never replaced by it. A sale of a made-to-order product is not blocked by an incomplete recipe: it commits with the material costs as they are, so its frozen cost is too low until the missing costs are entered.
 - On CANCELLED (section 7), materials consumed for this order are restored by reversing its own PRODUCTION_CONSUMPTION movements (reference_order_id = the order), exactly as packaging is. On REFUNDED, returned units are added back to product stock as finished goods at the line's unit_cost_at_time, blended in by weighted average (section 2), since a returned made item is now finished stock.
 
 ## 14. Payment methods, fees and settlements

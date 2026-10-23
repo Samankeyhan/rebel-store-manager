@@ -1,4 +1,4 @@
-"""Exact money arithmetic for costs. `blend_unit_cost`: weighted-average unit cost when stock comes in (accounting rules section 2), exact and rounded half-even once at the end; with no prior stock or cost, the incoming value ÷ quantity.
+"""Exact money arithmetic for costs. `blend_unit_cost`: weighted-average unit cost when stock comes in (accounting rules section 2), exact and rounded half-even once at the end; with no prior stock or cost (for a material, also a cost of 0: "not entered"), the incoming value ÷ quantity.
 `recipe_batch_total` (sections 3 and 13: Σ needed × unit cost, rounded once) and `per_unit_cost` (a total ÷ a quantity) are the shared recipe and purchase formulas. `exact_quantity` reads a stored REAL quantity as the decimal it was entered as; `round_half_even` rounds an exact value to the Rial (and refuses a result over MAX_MONEY, so every computed amount is bounded). `check_money` is the bound itself. Money never goes through float."""
 
 from decimal import Decimal
@@ -62,9 +62,14 @@ def blend_unit_cost(
     cost_before: int | None,
     qty_in: float,
     value_in: int | Fraction,
+    zero_is_unknown: bool = False,
 ) -> int:
-    """Weighted-average unit cost when stock comes in (accounting rules section 2)."""
+    """Weighted-average unit cost when stock comes in (accounting rules section 2).
+    `zero_is_unknown` (materials only): a cost of 0 means "not entered", like NULL, so the incoming value sets the cost
+    instead of averaging with the old stock at 0, and that old stock is re-priced with it."""
     qty = exact_quantity(qty_in)
+    if zero_is_unknown and cost_before == 0:
+        cost_before = None
     if cost_before is None or stock_before is None or stock_before <= 0:
         return round_half_even(Fraction(value_in) / qty)
     before = exact_quantity(stock_before)

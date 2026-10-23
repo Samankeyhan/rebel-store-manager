@@ -71,7 +71,8 @@ def record_material_purchase(
 
     unit_cost = _compute_unit_cost(total_paid, quantity_bought)
     new_material_unit_cost = blend_unit_cost(
-        material["current_stock"], material["unit_cost"], quantity_bought, total_paid
+        material["current_stock"], material["unit_cost"], quantity_bought, total_paid,
+        zero_is_unknown=True,
     )
     if purchase_date is not None:
         purchase_date = normalize_record_date(purchase_date, conn)
