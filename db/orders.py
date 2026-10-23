@@ -1,7 +1,8 @@
 """Sales orders and line items (a line quantity is a whole number): record, decrement product stock, order total/profit, revenue summary; valid channels and statuses.
 Payment side: method (explicit, none, or channel default via `USE_CHANNEL_DEFAULT`); `transaction_fee=None` means computed from the method, any int overrides.
 `shipping_charge`/`postage_cost` None = channel default, 0 = real zero.
-`paid_date` freezes `expected_settlement_date` and `paid_jalali_year/month`; `set_paid_date`; closed-month guard; filters `payment_method_id`, `settlement_state`."""
+`paid_date` freezes `expected_settlement_date` and `paid_jalali_year/month`; `set_paid_date`; closed-month guard; filters `payment_method_id`, `settlement_state`.
+The commit freezes each SALE / PACKAGING / PRODUCTION_CONSUMPTION movement's `unit_cost_at_time` (the item's unit cost at that moment), so a void can return the stock at it (section 20)."""
 
 import sqlite3
 from datetime import date
@@ -290,6 +291,8 @@ def _commit_order(
         products_by_id: dict[int, dict] = {}
         made_to_order_plan: dict[int, dict] = {}
         material_needed: dict[int, float] = {}
+        # Each material's unit_cost at this moment, frozen on its movement (a void returns at it).
+        material_costs: dict[int, int] = {}
 
         for product_id, needed in needed_by_product.items():
             product = get_product(conn, product_id)
@@ -334,6 +337,7 @@ def _commit_order(
                                 material_needed.get(req["material_id"], 0)
                                 + req["needed"]
                             )
+                            material_costs[req["material_id"]] = req["unit_cost"]
 
                 unit_cost_at_time = round_half_even(
                     (exact_quantity(from_stock) * (product["unit_cost"] or 0) + make_cost)
@@ -415,10 +419,11 @@ def _commit_order(
                     conn.execute(
                         """
                         INSERT INTO stock_movements
-                            (item_type, item_id, quantity_change, reason, reference_order_id)
-                        VALUES ('PRODUCT', ?, ?, 'SALE', ?)
+                            (item_type, item_id, quantity_change, reason, reference_order_id,
+                             unit_cost_at_time)
+                        VALUES ('PRODUCT', ?, ?, 'SALE', ?, ?)
                         """,
-                        (item["product_id"], -line_from_stock, order_id),
+                        (item["product_id"], -line_from_stock, order_id, product["unit_cost"]),
                     )
 
                 conn.execute(
@@ -433,10 +438,11 @@ def _commit_order(
                 conn.execute(
                     """
                     INSERT INTO stock_movements
-                        (item_type, item_id, quantity_change, reason, reference_order_id)
-                    VALUES ('PRODUCT', ?, ?, 'SALE', ?)
+                        (item_type, item_id, quantity_change, reason, reference_order_id,
+                         unit_cost_at_time)
+                    VALUES ('PRODUCT', ?, ?, 'SALE', ?, ?)
                     """,
-                    (item["product_id"], -item["quantity"], order_id),
+                    (item["product_id"], -item["quantity"], order_id, product["unit_cost"]),
                 )
                 conn.execute(
                     "UPDATE order_items SET unit_cost_at_time = ? WHERE id = ?",
@@ -451,10 +457,11 @@ def _commit_order(
             conn.execute(
                 """
                 INSERT INTO stock_movements
-                    (item_type, item_id, quantity_change, reason, reference_order_id)
-                VALUES ('MATERIAL', ?, ?, 'PRODUCTION_CONSUMPTION', ?)
+                    (item_type, item_id, quantity_change, reason, reference_order_id,
+                     unit_cost_at_time)
+                VALUES ('MATERIAL', ?, ?, 'PRODUCTION_CONSUMPTION', ?, ?)
                 """,
-                (material_id, -needed_qty, order_id),
+                (material_id, -needed_qty, order_id, material_costs[material_id]),
             )
 
         packaging_cost = 0
@@ -467,10 +474,14 @@ def _commit_order(
                 conn.execute(
                     """
                     INSERT INTO stock_movements
-                        (item_type, item_id, quantity_change, reason, reference_order_id)
-                    VALUES ('MATERIAL', ?, ?, 'PACKAGING', ?)
+                        (item_type, item_id, quantity_change, reason, reference_order_id,
+                         unit_cost_at_time)
+                    VALUES ('MATERIAL', ?, ?, 'PACKAGING', ?, ?)
                     """,
-                    (kit_item["material_id"], -kit_item["quantity"], order_id),
+                    (
+                        kit_item["material_id"], -kit_item["quantity"], order_id,
+                        kit_item["material_unit_cost"],
+                    ),
                 )
             packaging_cost = calculate_kit_cost(conn, order["packaging_kit_id"])
 
