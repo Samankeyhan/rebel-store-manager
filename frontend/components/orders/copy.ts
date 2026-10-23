@@ -289,8 +289,9 @@ export const D = {
   voidNothingBack: "این سفارش کالا یا متریالی از موجودی کم نکرده بود؛ چیزی برنمی‌گردد.", // NEW
   voidCostLead: "بهای واحد تغییر می‌کند:", // NEW
   voidCost: (name: string, before: number, after: number) => `«${name}» از ${formatMoney(before)} به ${formatMoney(after)}`, // NEW
-  voidLegacyCost: (name: string) =>
-    `«${name}» با بهای فعلی برمی‌گردد؛ این سفارش پیش از ثبت بهای زمان فروش روی موجودی ثبت شده است.`, // NEW
+  voidLegacyLead: "با بهای فعلی برمی‌گردند:", // NEW
+  voidLegacyCost: (names: string) =>
+    `${names}؛ این سفارش پیش از ثبت بهای زمان فروش روی موجودی ثبت شده، پس بهای این اقلام تغییر نمی‌کند.`, // NEW
   voidReportsBody: (month: string, total: number, profit: number) =>
     `از فروش و سود ${month} حذف می‌شود: مبلغ ${formatMoney(total)}، سود ${formatMoney(profit)}.`, // NEW
   voidFeeLead: "کارمزد زیان حساب نمی‌شود:", // NEW

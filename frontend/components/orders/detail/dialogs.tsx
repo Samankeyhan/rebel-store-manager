@@ -334,11 +334,11 @@ export function VoidEffects({ preview }: { preview: VoidPreview }) {
           </span>
         </Effect>
       )}
-      {legacy.map((i) => (
-        <Effect key={`legacy-${i.name}`} tone="flat" icon={History}>
-          {D.voidLegacyCost(i.name)}
+      {legacy.length > 0 && (
+        <Effect tone="flat" icon={History} lead={D.voidLegacyLead}>
+          {D.voidLegacyCost(joinLines(legacy.map((i) => `«${i.name}»`)))}
         </Effect>
-      ))}
+      )}
       <Effect tone="flat" icon={ChartColumn} lead={D.effReportsLead}>
         <span className="tabular-nums">{D.voidReportsBody(month, preview.customer_total, preview.profit)}</span>
       </Effect>
