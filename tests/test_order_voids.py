@@ -343,8 +343,8 @@ def test_the_plan_lists_every_blocker(test_db):
 def test_the_plan_says_when_the_order_waits_for_settlement(test_db):
     method = add_payment_method(test_db, "Card", "IMMEDIATE")
     product = stocked_product(test_db)
-    assert plan_void(test_db, _sell(test_db, product, payment_method_id=method))["pending_settlement"] is True
-    assert plan_void(test_db, _sell(test_db, product, payment_method_id=None))["pending_settlement"] is False
+    assert plan_void(test_db, _sell(test_db, product, payment_method_id=method))["pending_settlement"] == 1
+    assert plan_void(test_db, _sell(test_db, product, payment_method_id=None))["pending_settlement"] == 0
 
 
 # ------------------------------------------------------------------ VOIDED and the other rules

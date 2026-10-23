@@ -8,12 +8,15 @@ from fastapi.responses import Response
 from api.deps import get_db
 from api.schemas.common import DateStr
 from api.schemas.orders import (
+    OrderCorrection,
     OrderCreate,
     OrderDetailOut,
     OrderListItemOut,
     OrderPaidDateUpdate,
     OrderReturn,
     OrderStatusUpdate,
+    OrderVoid,
+    VoidPreviewOut,
 )
 from db.orders import (
     USE_CHANNEL_DEFAULT,
@@ -23,6 +26,7 @@ from db.orders import (
     set_paid_date,
     update_order_status,
 )
+from db.order_voids import correct_order, plan_void, void_order
 from db.returns import process_return
 from pdf.invoice import generate_invoice_pdf
 
@@ -37,10 +41,12 @@ def read_orders(
     end_date: DateStr | None = None,
     payment_method_id: int | None = None,
     settlement_state: str | None = None,
+    include_voided: bool = False,
     conn: sqlite3.Connection = Depends(get_db),
 ) -> list[OrderListItemOut]:
     """settlement_state: "pending" (paid, has a payment method, not yet
-    settled) or "settled" (in a settlement); anything else is a 422."""
+    settled) or "settled" (in a settlement); anything else is a 422.
+    VOIDED orders are left out unless include_voided=true or status=VOIDED."""
     orders = list_orders(
         conn,
         channel=channel,
@@ -49,6 +55,7 @@ def read_orders(
         end_date=end_date,
         payment_method_id=payment_method_id,
         settlement_state=settlement_state,
+        include_voided=include_voided,
     )
     return [OrderListItemOut.model_validate(o) for o in orders]
 
@@ -93,32 +100,54 @@ def create_order(
 
     DRAFT orders commit no stock and freeze no costs until they leave DRAFT.
     """
-    if body.packaging_kit_id == "default":
-        packaging_kit_id = USE_CHANNEL_DEFAULT
-    else:
-        packaging_kit_id = body.packaging_kit_id
-    if body.payment_method_id == "default":
-        payment_method_id = USE_CHANNEL_DEFAULT
-    else:
-        payment_method_id = body.payment_method_id
-
-    order_id = record_order(
-        conn,
-        channel=body.channel,
-        items=[item.model_dump() for item in body.items],
-        customer_name=body.customer_name,
-        order_date=body.order_date,
-        shipping_charge=body.shipping_charge,
-        packaging_kit_id=packaging_kit_id,
-        postage_cost=body.postage_cost,
-        transaction_fee=body.transaction_fee,
-        notes=body.notes,
-        status=body.status,
-        payment_method_id=payment_method_id,
-        payment_reference=body.payment_reference,
-        paid_date=body.paid_date,
-    )
+    order_id = record_order(conn, **_record_args(body))
     return OrderDetailOut.model_validate(get_order(conn, order_id))
+
+
+def _record_args(body: OrderCreate) -> dict:
+    """record_order's arguments from a POST /orders body ("default" = the channel default)."""
+    return {
+        "channel": body.channel,
+        "items": [item.model_dump() for item in body.items],
+        "customer_name": body.customer_name,
+        "order_date": body.order_date,
+        "shipping_charge": body.shipping_charge,
+        "packaging_kit_id": USE_CHANNEL_DEFAULT if body.packaging_kit_id == "default" else body.packaging_kit_id,
+        "postage_cost": body.postage_cost,
+        "transaction_fee": body.transaction_fee,
+        "notes": body.notes,
+        "status": body.status,
+        "payment_method_id": USE_CHANNEL_DEFAULT if body.payment_method_id == "default" else body.payment_method_id,
+        "payment_reference": body.payment_reference,
+        "paid_date": body.paid_date,
+    }
+
+
+@router.get("/orders/{order_id}/void-preview", response_model=VoidPreviewOut)
+def read_void_preview(order_id: int, conn: sqlite3.Connection = Depends(get_db)) -> VoidPreviewOut:
+    """Read-only: what voiding this order would put back (stock, each unit cost before and after) and take
+    out of the figures, and every rule that refuses it now (`blockers`: the ErrorCode and details a void
+    would answer with). Accounting rules section 20."""
+    return VoidPreviewOut.model_validate(plan_void(conn, order_id))
+
+
+@router.post("/orders/{order_id}/void", response_model=OrderDetailOut)
+def void(order_id: int, body: OrderVoid, conn: sqlite3.Connection = Depends(get_db)) -> OrderDetailOut:
+    """Void a PENDING / PAID / COMPLETED order entered by mistake (status VOIDED, reason required): its
+    stock comes back and it leaves every figure. 409 with the codes of `void-preview`; 422
+    VOID_REASON_REQUIRED for a blank reason."""
+    void_order(conn, order_id, body.reason)
+    return OrderDetailOut.model_validate(get_order(conn, order_id))
+
+
+@router.post("/orders/{order_id}/correct", response_model=OrderDetailOut, status_code=201)
+def correct(order_id: int, body: OrderCorrection, conn: sqlite3.Connection = Depends(get_db)) -> OrderDetailOut:
+    """Void this order and record `order` (a POST /orders body; PENDING, PAID or COMPLETED) in its place, in
+    one operation; returns the NEW order, whose replaces_order_id is this one. Every refusal of either part
+    (the void's, the new sale's, a closed new day) leaves both as they were."""
+    args = _record_args(body.order)
+    new_id = correct_order(conn, order_id, body.reason, args.pop("channel"), args.pop("items"), **args)
+    return OrderDetailOut.model_validate(get_order(conn, new_id))
 
 
 @router.post("/orders/{order_id}/status", response_model=OrderDetailOut)

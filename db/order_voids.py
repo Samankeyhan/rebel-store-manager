@@ -211,7 +211,7 @@ def _plan_items(conn: sqlite3.Connection, order_id: int, movements: list[sqlite3
             "quantity": int(total) if item_type == "PRODUCT" else float(total),
             "unit_cost_before": cost_before,
             "unit_cost_after": cost_after,
-            "frozen_cost_known": not unknown,
+            "frozen_cost_known": 0 if unknown else 1,
             "movements": group["movements"],
         }
         if is_material:
@@ -252,7 +252,7 @@ def plan_void(conn: sqlite3.Connection, order_id: int) -> dict:
         "customer_total": detail["customer_total"],
         "profit": detail["profit"],
         "transaction_fee": order["transaction_fee"],
-        "pending_settlement": (
+        "pending_settlement": int(
             order["payment_method_id"] is not None
             and order["status"] in PAID_STATUSES
             and order["settlement_id"] is None

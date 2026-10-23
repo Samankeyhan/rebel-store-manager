@@ -401,6 +401,7 @@ export interface paths {
          * Read Orders
          * @description settlement_state: "pending" (paid, has a payment method, not yet
          *     settled) or "settled" (in a settlement); anything else is a 422.
+         *     VOIDED orders are left out unless include_voided=true or status=VOIDED.
          */
         get: operations["read_orders_orders_get"];
         put?: never;
@@ -454,6 +455,72 @@ export interface paths {
         get: operations["read_order_orders__order_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{order_id}/void-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Void Preview
+         * @description Read-only: what voiding this order would put back (stock, each unit cost before and after) and take
+         *     out of the figures, and every rule that refuses it now (`blockers`: the ErrorCode and details a void
+         *     would answer with). Accounting rules section 20.
+         */
+        get: operations["read_void_preview_orders__order_id__void_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{order_id}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Void
+         * @description Void a PENDING / PAID / COMPLETED order entered by mistake (status VOIDED, reason required): its
+         *     stock comes back and it leaves every figure. 409 with the codes of `void-preview`; 422
+         *     VOID_REASON_REQUIRED for a blank reason.
+         */
+        post: operations["void_orders__order_id__void_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{order_id}/correct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct
+         * @description Void this order and record `order` (a POST /orders body; PENDING, PAID or COMPLETED) in its place, in
+         *     one operation; returns the NEW order, whose replaces_order_id is this one. Every refusal of either part
+         *     (the void's, the new sale's, a closed new day) leaves both as they were.
+         */
+        post: operations["correct_orders__order_id__correct_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2941,6 +3008,12 @@ export interface components {
          * @description The code carries no details: `details` is {}.
          */
         NoDetails: Record<string, never>;
+        /** OrderCorrection */
+        OrderCorrection: {
+            /** Reason */
+            reason: string;
+            order: components["schemas"]["OrderCreate"];
+        };
         /** OrderCreate */
         OrderCreate: {
             /** Channel */
@@ -3234,6 +3307,11 @@ export interface components {
             status: string;
             /** Paid Date */
             paid_date?: string | null;
+        };
+        /** OrderVoid */
+        OrderVoid: {
+            /** Reason */
+            reason: string;
         };
         /** OrderVoidedDetails */
         OrderVoidedDetails: {
@@ -4530,6 +4608,95 @@ export interface components {
         ValidationFailedDetails: {
             /** Errors */
             errors?: components["schemas"]["ErrorItem"][] | null;
+        };
+        /**
+         * VoidBlockerOut
+         * @description A rule that refuses the void now: the ErrorCode the void would answer with, and its details.
+         */
+        VoidBlockerOut: {
+            /** Code */
+            code: string;
+            /** Details */
+            details: {
+                [key: string]: string | number | null;
+            };
+        };
+        /** VoidMaterialOut */
+        VoidMaterialOut: {
+            /** Item Id */
+            item_id: number;
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string;
+            /** Quantity */
+            quantity: number;
+            /** Reasons */
+            reasons: {
+                [key: string]: number;
+            };
+            /** Unit Cost Before */
+            unit_cost_before: number | null;
+            /** Unit Cost After */
+            unit_cost_after: number | null;
+            /** Frozen Cost Known */
+            frozen_cost_known: number;
+        };
+        /**
+         * VoidPreviewOut
+         * @description What voiding the order would put back and take out of the figures; `blockers` is empty when it may be voided.
+         */
+        VoidPreviewOut: {
+            /** Order Id */
+            order_id: number;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Status */
+            status: string;
+            /** Blockers */
+            blockers: components["schemas"]["VoidBlockerOut"][];
+            /** Products */
+            products: components["schemas"]["VoidProductOut"][];
+            /** Materials */
+            materials: components["schemas"]["VoidMaterialOut"][];
+            /**
+             * Customer Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            customer_total: number;
+            /**
+             * Profit
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            profit: number;
+            /**
+             * Transaction Fee
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            transaction_fee: number;
+            /** Pending Settlement */
+            pending_settlement: number;
+            /** Order Day */
+            order_day: string;
+            /** Order Jalali Year */
+            order_jalali_year: number;
+            /** Order Jalali Month */
+            order_jalali_month: number;
+        };
+        /** VoidProductOut */
+        VoidProductOut: {
+            /** Item Id */
+            item_id: number;
+            /** Name */
+            name: string;
+            /** Quantity */
+            quantity: number;
+            /** Unit Cost Before */
+            unit_cost_before: number | null;
+            /** Unit Cost After */
+            unit_cost_after: number | null;
+            /** Frozen Cost Known */
+            frozen_cost_known: number;
         };
         /** WasteReportOut */
         WasteReportOut: {
@@ -6184,6 +6351,7 @@ export interface operations {
                 end_date?: string | null;
                 payment_method_id?: number | null;
                 settlement_state?: string | null;
+                include_voided?: boolean;
             };
             header?: never;
             path?: never;
@@ -6311,6 +6479,188 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    read_void_preview_orders__order_id__void_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoidPreviewOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    void_orders__order_id__void_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderVoid"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    correct_orders__order_id__correct_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderCorrection"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

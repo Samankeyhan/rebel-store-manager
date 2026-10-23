@@ -171,3 +171,73 @@ class OrderReturn(BaseModel):
 
     status: Literal["CANCELLED", "REFUNDED"]
     reason: str | None = None
+
+
+class OrderVoid(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Required; why the sale was entered by mistake (stored form, at most 500 characters).
+    reason: str
+
+
+class OrderCorrection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str
+    # The corrected sale, exactly as POST /orders takes it (status PENDING, PAID or COMPLETED).
+    order: OrderCreate
+
+
+class VoidBlockerOut(BaseModel):
+    """A rule that refuses the void now: the ErrorCode the void would answer with, and its details."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    details: dict[str, str | int | None]
+
+
+class VoidProductOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item_id: int
+    name: str
+    quantity: int
+    unit_cost_before: Rial | None
+    unit_cost_after: Rial | None
+    # 1 = every unit comes back at its frozen cost; 0 = some at today's cost (an order from before section 20).
+    frozen_cost_known: int
+
+
+class VoidMaterialOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item_id: int
+    name: str
+    unit: str
+    quantity: float
+    # PACKAGING / PRODUCTION_CONSUMPTION -> quantity put back for that reason.
+    reasons: dict[str, float]
+    unit_cost_before: Rial | None
+    unit_cost_after: Rial | None
+    frozen_cost_known: int
+
+
+class VoidPreviewOut(BaseModel):
+    """What voiding the order would put back and take out of the figures; `blockers` is empty when it may be voided."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    order_id: int
+    invoice_number: str | None
+    status: str
+    blockers: list[VoidBlockerOut]
+    products: list[VoidProductOut]
+    materials: list[VoidMaterialOut]
+    customer_total: Rial
+    profit: Rial
+    transaction_fee: Rial
+    pending_settlement: int
+    order_day: str
+    order_jalali_year: int
+    order_jalali_month: int
