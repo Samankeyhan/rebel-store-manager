@@ -154,6 +154,10 @@ export const T = {
   madeToOrder: "ساخت هنگام فروش",
   recipeChecking: "در حال بررسی دستور تولید…",
   estimatedCost: (n: number) => `بهای تخمینی ${formatMoney(n)}`,
+  // NEW: a recipe material has cost 0 ("not entered"). A warning only: the sale is still saved.
+  recipeIncompleteMeta: "بهای تخمینی ناقص",
+  recipeIncomplete: (name: string, materials: string[]) =>
+    `بهای «${name}» ناقص است: بهای ${materials.map((m) => `‹${m}›`).join("، ")} ثبت نشده. فروش ثبت می‌شود، ولی بهای تمام‌شدهٔ آن کمتر از واقعیت ذخیره می‌شود.`,
 
   // picker
   pickerSearchPlaceholder: "جستجوی نام یا دسته…",

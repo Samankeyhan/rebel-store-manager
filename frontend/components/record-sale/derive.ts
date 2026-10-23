@@ -10,6 +10,7 @@
 
 import type { Catalog } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
+import { recipeBatchTotal, type RecipeLine } from "@/lib/costing"
 import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
 import { CHANNELS, T } from "./copy"
 import { channelPrice, defaultShipping, moneyBlocked, orderTotal, type FormState, type Kit, type Line, type Product, type ResolvedMethod } from "./state"
@@ -17,7 +18,8 @@ import type { FeePreview } from "./use-fee-preview"
 
 export type RecipeState =
   | { status: "loading" }
-  | { status: "ok"; unitCost: number }
+  /** The recipe lines; `missing` = materials with cost 0 ("not entered"), which make the cost incomplete (a warning, never a block). */
+  | { status: "ok"; lines: RecipeLine[]; missing: { id: number; name: string }[] }
   | { status: "missing" }
   /** Couldn't check (network/server). Not a block: the API decides. */
   | { status: "failed" }
@@ -165,7 +167,7 @@ export function derive(
           pending = true
           meta += ` · ${T.recipeChecking}`
         } else if (recipe?.status === "ok") {
-          meta += ` · ${T.estimatedCost(recipe.unitCost)}`
+          meta += ` · ${recipe.missing.length > 0 ? T.recipeIncompleteMeta : T.estimatedCost(recipeBatchTotal(recipe.lines, 1))}`
         }
         // With no finished units the help line already says «ساخت هنگام فروش».
         stockPill = stock === 0 ? null : { text: T.stockPill(stock), tone: "neutral" }
@@ -194,8 +196,13 @@ export function derive(
           else cost += fromStock * product.unit_cost
         }
         if (toMake > 0) {
-          if (recipe?.status === "ok") cost += toMake * recipe.unitCost
+          // The backend's recipe_batch_total for the units to make: PER_BATCH lines count once per sale, not per unit.
+          if (recipe?.status === "ok" && recipe.missing.length === 0) cost += recipeBatchTotal(recipe.lines, toMake)
           else costKnown = false
+          // Q5: an incomplete recipe is a warning only; POST /orders makes the real decision and the sale is not blocked.
+          if (recipe?.status === "ok" && recipe.missing.length > 0) {
+            messages.push({ severity: "warn", text: T.recipeIncomplete(product.name, recipe.missing.map((m) => m.name)), icon: "info" })
+          }
         }
       } else {
         meta = categoryPath(product)

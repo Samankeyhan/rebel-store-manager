@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { ApiError, getRecipe } from "@/lib/api"
+import { recipeMissing } from "@/lib/costing"
 import type { RecipeState } from "./derive"
 
 /**
@@ -32,7 +33,7 @@ export function useRecipes(productIds: number[]) {
             [id]:
               recipe.items.length === 0
                 ? { status: "missing" }
-                : { status: "ok", unitCost: recipe.unit_cost_at_qty_1 },
+                : { status: "ok", lines: recipe.items, missing: recipeMissing(recipe.items) },
           }))
         },
         (error: unknown) => {
