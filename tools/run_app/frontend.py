@@ -49,6 +49,12 @@ def build_state(out_dir: Path, head: str | None, rebuild: bool) -> tuple[str, st
     return "ok", "the screens are up to date"
 
 
+def installed(frontend: Path) -> bool:
+    """True when the dependencies are really there: the `next` launcher exists (a node_modules folder alone can be half-installed)."""
+    bin_dir = frontend / "node_modules" / ".bin"
+    return (bin_dir / "next.cmd").is_file() or (bin_dir / "next").is_file()
+
+
 def build(
     root: Path,
     out_dir: Path,
@@ -58,7 +64,7 @@ def build(
     run: Callable = subprocess.run,
     env: dict | None = None,
 ) -> None:
-    """`npm ci` (only when node_modules is missing) and `npm run build` with the API address set to /api. Raises BuildError."""
+    """`npm ci` (only when node_modules/.bin/next.cmd is missing: an existing but half-installed node_modules is not enough) and `npm run build` with the API address set to /api. Raises BuildError."""
     npm = which("npm")
     if which("node") is None or npm is None:
         raise BuildError(
@@ -70,7 +76,7 @@ def build(
     full_env = dict(env or {})
     full_env["NEXT_PUBLIC_API_URL"] = API_BASE
     steps = []
-    if not (frontend / "node_modules").is_dir():
+    if not installed(frontend):
         steps.append([npm, "ci"])
     steps.append([npm, "run", "build"])
     with open(log_path, "wb") as log:

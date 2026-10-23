@@ -128,7 +128,7 @@ What it does, in this order, and it stops at the first problem:
 2. **Checks the database** (`tools.integrity_check`). A `FAIL` or a check that could not run (exit code 1 or 2) stops the update: it will not update a database that already has problems. A `WARN` never stops it.
 3. **Closes the app** (it makes the daily backup first). It refuses if the pid file names something that is not this app, or if the database is locked.
 4. **Makes a verified backup** in `data\backups\pre-update\` (the newest 10 are kept there; nothing else is ever deleted there) and writes the old version, the backup name and its sha256 into `data\logs\update-<moment>.log`.
-5. `git pull --ff-only`. 6. Installs Python packages (only if `requirements.txt` changed), runs `npm ci` (only if `package-lock.json` changed), builds the screens.
+5. `git pull --ff-only`. 6. Installs Python packages (only if `requirements.txt` changed), runs `npm ci` (only if `package-lock.json` changed), builds the screens (the build also runs `npm ci` itself when `frontend\node_modules\.bin\next.cmd` is missing, so a half-installed `node_modules` is repaired).
 7. **Updates the database** in a fresh process, so the new code does it. 8. Checks the database again.
 9. **Starts the app** and waits until it answers.
 

@@ -217,14 +217,43 @@ def test_building_runs_npm_with_the_api_address_and_writes_the_marker(tmp_path):
     assert [c[0][1:] for c in calls] == [["ci"], ["run", "build"]]  # node_modules missing: npm ci first
     assert all(c[1] == "/api" and c[2] == "p" for c in calls)
     assert frontend.read_marker(tmp_path / "frontend" / "out") == {"api": "/api", "git": "abc"}
-    (tmp_path / "frontend" / "node_modules").mkdir()
+    (tmp_path / "frontend" / "node_modules" / ".bin").mkdir(parents=True)
+    (tmp_path / "frontend" / "node_modules" / ".bin" / "next.cmd").write_text("")
     calls.clear()
     frontend.build(tmp_path, tmp_path / "frontend" / "out", tmp_path / "logs" / "build.log", "abc", which=lambda n: n, run=fake_run, env={})
     assert [c[0][1:] for c in calls] == [["run", "build"]]
 
 
-def test_a_failed_build_is_an_error_with_the_step_named(tmp_path):
+def test_a_node_modules_folder_without_the_next_launcher_gets_npm_ci(tmp_path):
+    # Seen on a shop laptop: node_modules existed but node_modules\.bin\next.cmd did not.
+    bin_dir = tmp_path / "frontend" / "node_modules" / ".bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "other.cmd").write_text("")
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command[1:])
+        if command[1:] == ["run", "build"]:
+            make_out(tmp_path / "frontend" / "out", api=None)
+        return SimpleNamespace(returncode=0)
+
+    assert not frontend.installed(tmp_path / "frontend")
+    frontend.build(tmp_path, tmp_path / "frontend" / "out", tmp_path / "b.log", "abc", which=lambda n: n, run=fake_run, env={})
+    assert calls == [["ci"], ["run", "build"]]
+    assert (tmp_path / "b.log").read_text().startswith("$ ci")
+
+
+def test_an_empty_node_modules_folder_is_not_installed(tmp_path):
     (tmp_path / "frontend" / "node_modules").mkdir(parents=True)
+    assert not frontend.installed(tmp_path / "frontend")
+    (tmp_path / "frontend" / "node_modules" / ".bin").mkdir()
+    (tmp_path / "frontend" / "node_modules" / ".bin" / "next.cmd").write_text("")
+    assert frontend.installed(tmp_path / "frontend")
+
+
+def test_a_failed_build_is_an_error_with_the_step_named(tmp_path):
+    (tmp_path / "frontend" / "node_modules" / ".bin").mkdir(parents=True)
+    (tmp_path / "frontend" / "node_modules" / ".bin" / "next.cmd").write_text("")
     with pytest.raises(frontend.BuildError) as exc_info:
         frontend.build(tmp_path, tmp_path / "frontend" / "out", tmp_path / "b.log", "abc", which=lambda n: n, run=lambda *a, **k: SimpleNamespace(returncode=1), env={})
     assert "npm run build" in str(exc_info.value)
