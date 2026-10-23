@@ -5,7 +5,7 @@ import sqlite3
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from db.errors import ValidationError
+from db.errors import ErrorCode, ValidationError
 
 DEFAULT_TIMEZONE = "Asia/Tehran"
 UTC = timezone.utc
@@ -86,6 +86,24 @@ def now_local(conn: sqlite3.Connection | None = None) -> datetime:
 def today_local(conn: sqlite3.Connection | None = None) -> date:
     """Today's calendar day in the store timezone (the `timezone` setting)."""
     return datetime.now(_get_timezone(conn)).date()
+
+
+def local_day(moment_utc: str, conn: sqlite3.Connection | None = None) -> date:
+    """The store-local calendar day of a stored UTC moment ("YYYY-MM-DD HH:MM:SS")."""
+    moment = datetime.strptime(moment_utc, _STORED_FORMAT).replace(tzinfo=UTC)
+    return moment.astimezone(_get_timezone(conn)).date()
+
+
+def refuse_future_day(conn: sqlite3.Connection, day: date, field: str) -> None:
+    """A record date after today_local() is refused: 422 DATE_IN_FUTURE, details {"today"}, `field` = the date."""
+    today = today_local(conn)
+    if day > today:
+        raise ValidationError(
+            f"{field} {day.isoformat()} is in the future (today is {today.isoformat()})",
+            field=field,
+            code=ErrorCode.DATE_IN_FUTURE,
+            details={"today": today.isoformat()},
+        )
 
 
 def to_utc_range(

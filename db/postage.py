@@ -1,4 +1,5 @@
 """Postage payments in batches: `record_postage_batch` (total_paid >= 0, order_count > 0), `get_postage_batch`, `list_postage_batches`.
+`update_postage_batch` / `delete_postage_batch` fix a mistaken payment (hard delete: the audit log keeps the old row; they change the estimate for future orders only, never frozen `postage_cost`); a paid_date after today is refused (DATE_IN_FUTURE); changing total_paid or paid_date, or deleting, on a closed day is refused (`db/period_lock.py`).
 `get_current_postage_estimate`: total_paid ÷ order_count over the newest `postage_estimate_window` batches, rounded half-even; `default_postage_estimate` when there are none."""
 
 import sqlite3
@@ -7,9 +8,10 @@ from fractions import Fraction
 from db.audit import audited
 from db.connection import transaction
 from db.costing import check_money, round_half_even
-from db.errors import ValidationError
+from db.errors import NotFoundError, ValidationError
+from db.period_lock import refuse_closed_day
 from db.settings import get_setting
-from db.timeutil import normalize_record_date, to_utc_range
+from db.timeutil import local_day, normalize_record_date, refuse_future_day, to_utc_range
 
 
 def _validate_total_paid(total_paid: int) -> None:
@@ -36,6 +38,7 @@ def record_postage_batch(
 
     if paid_date is not None:
         paid_date = normalize_record_date(paid_date, conn)
+        refuse_future_day(conn, local_day(paid_date, conn), "paid_date")
 
     with transaction(conn):
         if paid_date is not None:
@@ -55,6 +58,69 @@ def record_postage_batch(
                 (total_paid, order_count, notes),
             )
     return cursor.lastrowid
+
+
+_EDITABLE = ("total_paid", "order_count", "paid_date", "notes")
+
+
+@audited()
+def update_postage_batch(conn: sqlite3.Connection, batch_id: int, **fields) -> None:
+    """Partial update: only the keys given change (`notes=None` clears them; the others cannot be None).
+    A new `paid_date` may not be after today (DATE_IN_FUTURE). A change of `total_paid` or `paid_date` is refused on a
+    day on or before the latest profit distribution's period_end, old or new (PERIOD_ALREADY_DISTRIBUTED);
+    `order_count` and `notes` changes are always allowed (they move the estimate, not the P&L)."""
+    unknown = sorted(set(fields) - set(_EDITABLE))
+    if unknown:
+        raise ValidationError(f"Cannot update: {', '.join(unknown)}", field=unknown[0])
+    old = get_postage_batch(conn, batch_id)
+    if old is None:
+        raise NotFoundError(f"Postage batch with id {batch_id} does not exist")
+    for name in ("total_paid", "order_count", "paid_date"):
+        if name in fields and fields[name] is None:
+            raise ValidationError(f"{name} cannot be empty", field=name)
+
+    changes: dict = {}
+    if "total_paid" in fields:
+        _validate_total_paid(fields["total_paid"])
+        if fields["total_paid"] != old["total_paid"]:
+            changes["total_paid"] = fields["total_paid"]
+    if "order_count" in fields:
+        _validate_order_count(fields["order_count"])
+        if fields["order_count"] != old["order_count"]:
+            changes["order_count"] = fields["order_count"]
+    if "notes" in fields and fields["notes"] != old["notes"]:
+        changes["notes"] = fields["notes"]
+
+    old_day = local_day(old["paid_date"], conn)
+    new_day = old_day
+    if "paid_date" in fields:
+        moment = normalize_record_date(fields["paid_date"], conn)
+        new_day = local_day(moment, conn)
+        if new_day != old_day:  # the same day keeps the stored time of day
+            refuse_future_day(conn, new_day, "paid_date")
+            changes["paid_date"] = moment
+
+    if "total_paid" in changes or "paid_date" in changes:
+        refuse_closed_day(conn, old_day)
+        refuse_closed_day(conn, new_day)
+
+    if not changes:
+        return
+    with transaction(conn):
+        assignments = ", ".join(f"{name} = ?" for name in changes)
+        conn.execute(f"UPDATE postage_batches SET {assignments} WHERE id = ?", (*changes.values(), batch_id))
+
+
+@audited()
+def delete_postage_batch(conn: sqlite3.Connection, batch_id: int) -> None:
+    """Hard delete; the audit log keeps the whole old row. Refused on a day on or before the latest profit
+    distribution's period_end (PERIOD_ALREADY_DISTRIBUTED). Changes the postage estimate for future orders only."""
+    old = get_postage_batch(conn, batch_id)
+    if old is None:
+        raise NotFoundError(f"Postage batch with id {batch_id} does not exist")
+    refuse_closed_day(conn, local_day(old["paid_date"], conn))
+    with transaction(conn):
+        conn.execute("DELETE FROM postage_batches WHERE id = ?", (batch_id,))
 
 
 def get_postage_batch(conn: sqlite3.Connection, batch_id: int) -> dict | None:

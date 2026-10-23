@@ -102,6 +102,12 @@ class DistributionOverlapDetails(_Details):
     period_end: str
 
 
+class PeriodDistributedDetails(_Details):
+    distribution_id: int
+    period_end: str
+    date: str
+
+
 class CategoryInUseDetails(_Details):
     item_count: int
 
@@ -188,6 +194,7 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.PAYMENT_METHOD_NOT_FOUND: PaymentMethodRefDetails,
     C.PAYMENT_METHOD_RULE_PENDING: RulePendingDetails,
     C.DISTRIBUTION_PERIOD_OVERLAP: DistributionOverlapDetails,
+    C.PERIOD_ALREADY_DISTRIBUTED: PeriodDistributedDetails,
     C.CATEGORY_IN_USE: CategoryInUseDetails,
     C.PRODUCT_NO_RECIPE: ProductRefDetails,
     C.PRODUCT_NO_UNIT_COST: ProductRefDetails,

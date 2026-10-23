@@ -34,6 +34,8 @@ class ErrorCode(StrEnum):
     DISTRIBUTION_PERCENT_SUM         -
     DISTRIBUTION_EXCEEDS_UNDISTRIBUTED -
     DISTRIBUTION_PERIOD_ORDER        -
+    PERIOD_ALREADY_DISTRIBUTED       distribution_id, period_end (the LATEST distribution's), date (the day that
+                                     hit it: on or before period_end)
     CATEGORY_IN_USE                  item_count
     CATEGORY_HAS_SUBCATEGORIES       -
     CATEGORY_PARENT_INACTIVE         -
@@ -97,6 +99,7 @@ class ErrorCode(StrEnum):
     DISTRIBUTION_PERCENT_SUM = "DISTRIBUTION_PERCENT_SUM"
     DISTRIBUTION_EXCEEDS_UNDISTRIBUTED = "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED"
     DISTRIBUTION_PERIOD_ORDER = "DISTRIBUTION_PERIOD_ORDER"
+    PERIOD_ALREADY_DISTRIBUTED = "PERIOD_ALREADY_DISTRIBUTED"
 
     # Categories
     CATEGORY_IN_USE = "CATEGORY_IN_USE"
