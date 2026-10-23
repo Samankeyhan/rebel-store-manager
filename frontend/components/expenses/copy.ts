@@ -77,6 +77,20 @@ export const E = {
   amountRequired: "مبلغ باید بیشتر از صفر باشد.", // NEW
   toastSaved: (amount: string, category: string) => `هزینه ${amount} در «${category}» ثبت شد`, // NEW; amount is a formatMoney string
 
+  // edit and delete
+  editTitle: "ویرایش هزینه", // NEW
+  save: "ذخیره", // NEW
+  nothingChanged: "تغییری برای ذخیره نیست.", // NEW
+  futureDate: "تاریخ هزینه نمی‌تواند بعد از امروز باشد.", // NEW
+  gone: "این هزینه یا دستهٔ آن دیگر وجود ندارد؛ فهرست را تازه کنید.", // NEW
+  toastUpdated: (amount: string, category: string) => `هزینه ${amount} در «${category}» ذخیره شد`, // NEW; amount is a formatMoney string
+  deleteTitle: "حذف هزینه", // NEW
+  deleteConfirm: "حذف هزینه", // NEW
+  deleteLineDate: (date: string) => `تاریخ: ${date}`, // NEW
+  deleteLineCategory: (name: string) => `دسته: ${name}`, // NEW
+  deleteLineDescription: (text: string) => `شرح: ${text}`, // NEW
+  toastDeleted: (amount: string) => `هزینه ${amount} حذف شد`, // NEW; amount is a formatMoney string
+
   // mobile
   mobileTotal: (label: string) => `جمع ${label}`,
   mobileTotalRange: "جمع این بازه", // NEW

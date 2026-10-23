@@ -14,11 +14,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ErrorBlock, LoadingBlock, StateShell } from "@/components/common/screen-states"
+import { ConfirmDeleteDialog } from "@/components/common/confirm-delete-dialog"
+import { closedDayMessage, RowActions } from "@/components/common/copy"
+import { RowMenu } from "@/components/common/row-menu"
 import { Toast } from "@/components/common/toast"
 import { DateRangePopover, rangeLabel } from "@/components/orders/list/date-range-popover"
 import { norm } from "@/components/products/figures"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
-import type { Expense, ExpenseCategory } from "@/lib/api"
+import { ApiError, deleteExpense, type Expense, type ExpenseCategory } from "@/lib/api"
+import { closedDay } from "@/lib/expense-edit"
 import { dateToISO, formatJalali, jalaliMonthRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
 import { Money } from "@/components/common/money"
 import { formatMoney } from "@/lib/money"
@@ -96,6 +100,10 @@ export function ExpensesPage() {
   const { categories, list, breakdown } = data
 
   const [formOpen, setFormOpen] = React.useState(false)
+  const [editing, setEditing] = React.useState<Expense | null>(null)
+  const [deleting, setDeleting] = React.useState<Expense | null>(null)
+  const [deleteBusy, setDeleteBusy] = React.useState(false)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [newCategoryOpen, setNewCategoryOpen] = React.useState(false)
   const [toast, setToast] = React.useState<string | null>(null)
   const closeToast = React.useCallback(() => setToast(null), [])
@@ -104,10 +112,35 @@ export function ExpensesPage() {
   const activeCategories = allCategories.filter((c) => c.is_active === 1)
   const filterCategory = categoryId != null ? (allCategories.find((c) => c.id === categoryId) ?? null) : null
 
+  // The edit dialog also lists the expense's own category when it has since been deactivated.
+  const editCategories = editing
+    ? allCategories.filter((c) => c.is_active === 1 || c.id === editing.expense_category_id)
+    : activeCategories
   const onSaved = (e: Expense) => {
+    setToast((editing ? E.toastUpdated : E.toastSaved)(formatMoney(e.amount), e.category_name))
     setFormOpen(false)
-    setToast(E.toastSaved(formatMoney(e.amount), e.category_name))
+    setEditing(null)
     data.refreshList()
+  }
+  const confirmDelete = async () => {
+    if (!deleting) return
+    setDeleteBusy(true)
+    setDeleteError(null)
+    try {
+      await deleteExpense(deleting.id)
+      setToast(E.toastDeleted(formatMoney(deleting.amount)))
+      setDeleting(null)
+      data.refreshList()
+    } catch (e) {
+      const closed = e instanceof ApiError ? closedDay(e) : null
+      if (closed) setDeleteError(closedDayMessage(formatJalali(closed.periodEnd, "yyyy/MM/dd")))
+      else if (e instanceof ApiError && e.status === 404) {
+        setDeleting(null)
+        data.refreshList()
+      } else setDeleteError(e instanceof ApiError ? e.message : String(e))
+    } finally {
+      setDeleteBusy(false)
+    }
   }
   const onCategoryCreated = (c: ExpenseCategory) => {
     data.addCategory(c)
@@ -134,15 +167,42 @@ export function ExpensesPage() {
   const dialogs = (
     <>
       <ExpenseDialog
-        open={formOpen}
+        open={formOpen || editing != null}
         mobile={mobile}
         today={today}
-        categories={activeCategories}
+        categories={editCategories}
         initialCategoryId={categoryId}
-        onClose={() => setFormOpen(false)}
+        expense={editing}
+        timeZone={data.timeZone}
+        onClose={() => {
+          setFormOpen(false)
+          setEditing(null)
+        }}
         onSaved={onSaved}
         onCategoryCreated={data.addCategory}
         refreshCategories={data.refreshCategories}
+      />
+      <ConfirmDeleteDialog
+        open={deleting != null}
+        title={E.deleteTitle}
+        lines={
+          deleting
+            ? [
+                E.deleteLineDate(shortDate(deleting.expense_date, data.timeZone)),
+                E.deleteLineCategory(deleting.category_name),
+                ...(deleting.description ? [E.deleteLineDescription(deleting.description)] : []),
+                <Money key="amount" value={deleting.amount} />,
+              ]
+            : []
+        }
+        confirmLabel={E.deleteConfirm}
+        busy={deleteBusy}
+        error={deleteError}
+        onConfirm={confirmDelete}
+        onClose={() => {
+          setDeleting(null)
+          setDeleteError(null)
+        }}
       />
       <NewCategoryDialog
         open={newCategoryOpen}
@@ -264,7 +324,10 @@ export function ExpensesPage() {
                       {shortDate(r.expense_date, data.timeZone)} · {r.category_name}
                     </span>
                   </span>
-                  <Money value={r.amount} className="shrink-0 text-sm font-bold" />
+                  <span className="flex shrink-0 items-center gap-1">
+                    <Money value={r.amount} className="text-sm font-bold" />
+                    <RowMenu onEdit={() => setEditing(r)} onDelete={() => setDeleting(r)} />
+                  </span>
                 </li>
               ))}
             </ul>
@@ -361,6 +424,9 @@ export function ExpensesPage() {
                   <th scope="col" className="text-end!">
                     {E.colAmount}
                   </th>
+                  <th scope="col">
+                    <span className="sr-only">{RowActions.menuAria}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -377,6 +443,9 @@ export function ExpensesPage() {
                     <td className="text-end font-bold">
                       <Money value={r.amount} />
                     </td>
+                    <td className="w-12 px-2!">
+                      <RowMenu onEdit={() => setEditing(r)} onDelete={() => setDeleting(r)} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -386,6 +455,7 @@ export function ExpensesPage() {
                   <td className="text-end">
                     <Money value={total} />
                   </td>
+                  <td />
                 </tr>
               </tfoot>
             </table>

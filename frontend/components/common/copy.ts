@@ -37,3 +37,21 @@ export function nameDuplicateMessage(entity: string | null): string {
   const what = (entity != null && NAME_TAKEN_BY[entity]) || "موردی" // NEW
   return `${what} با این نام (یا نوشتاری مشابه، مثلاً «ي» و «ی») از قبل وجود دارد. نام دیگری انتخاب کنید.` // NEW
 }
+
+/** Row actions and the delete confirmation shared by the expenses and postage screens. */
+export const RowActions = {
+  menuAria: "عملیات ردیف", // NEW
+  edit: "ویرایش", // NEW
+  remove: "حذف", // NEW
+  cancel: "انصراف", // NEW
+  deleting: "در حال حذف…", // NEW
+  deleteNote: "حذف دائمی است و برگرداندن ندارد؛ فقط سابقهٔ آن در گزارش تغییرات می‌ماند.", // NEW
+}
+
+/**
+ * The refusal for a change or delete on a day closed by a profit payout (409 PERIOD_ALREADY_DISTRIBUTED).
+ * `periodEnd` is a formatted Jalali day. No way out is promised: there is no undo for a payout.
+ */
+export function closedDayMessage(periodEnd: string): string {
+  return `این روز با تقسیم سود تا تاریخ ${periodEnd} بسته شده است؛ مبلغ یا تاریخ آن را نمی‌شود تغییر داد و خودِ ردیف را هم نمی‌شود حذف کرد.` // NEW
+}

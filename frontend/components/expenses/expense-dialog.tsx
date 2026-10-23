@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { DrawerShell, SaveError, textInputClass } from "@/components/products/drawer-shell"
 import { Btn, Help, InlineMessage, Label, MoneyInput } from "@/components/record-sale/primitives"
-import { ApiError, createExpense, type Expense, type ExpenseCategory } from "@/lib/api"
+import { closedDayMessage } from "@/components/common/copy"
+import { ApiError, createExpense, updateExpense, type Expense, type ExpenseCategory } from "@/lib/api"
+import { closedDay, expensePatch, isFutureDateError } from "@/lib/expense-edit"
+import { formatJalali, utcToLocal } from "@/lib/jalali"
 import { cn } from "@/lib/utils"
 import { E } from "./copy"
 import { expenseSubmittable } from "./guard"
@@ -25,7 +28,9 @@ import { NewCategoryDialog } from "./new-category-dialog"
  * «ثبت هزینه» (design 11 Expenses-Form): تاریخ + دسته, شرح, مبلغ. Desktop: a
  * centred 500px dialog. Mobile: a bottom sheet (not designed; record-sale
  * precedent). No preview — an expense changes no item's cost; it only adds
- * to the P&L's operating_expenses for its day.
+ * to the P&L's operating_expenses for its day. With `expense` it is «ویرایش هزینه»:
+ * prefilled, and only the changed fields are sent (PATCH). `categories` must then
+ * include the expense's own category even if it is inactive.
  */
 export function ExpenseDialog({
   open,
@@ -33,6 +38,8 @@ export function ExpenseDialog({
   today,
   categories,
   initialCategoryId,
+  expense = null,
+  timeZone = "Asia/Tehran",
   onClose,
   onSaved,
   onCategoryCreated,
@@ -44,6 +51,9 @@ export function ExpenseDialog({
   /** Active categories only. */
   categories: ExpenseCategory[]
   initialCategoryId: number | null
+  /** Edit this expense instead of creating one. */
+  expense?: Expense | null
+  timeZone?: string
   onClose: () => void
   onSaved: (expense: Expense) => void
   onCategoryCreated: (category: ExpenseCategory) => void
@@ -63,10 +73,11 @@ export function ExpenseDialog({
   const [wasOpen, setWasOpen] = React.useState(false)
   if (open && !wasOpen) {
     setWasOpen(true)
-    setDate(today)
-    setCategoryId(initialCategoryId != null && categories.some((c) => c.id === initialCategoryId) ? initialCategoryId : null)
-    setDescription("")
-    setAmount(0)
+    setDate(expense ? (utcToLocal(expense.expense_date, timeZone)?.iso ?? today) : today)
+    const startCategory = expense ? expense.expense_category_id : initialCategoryId
+    setCategoryId(startCategory != null && categories.some((c) => c.id === startCategory) ? startCategory : null)
+    setDescription(expense?.description ?? "")
+    setAmount(expense ? expense.amount : 0)
     setTouched(false)
     setError(null)
     setFieldErrors({})
@@ -90,16 +101,41 @@ export function ExpenseDialog({
     if (!expenseSubmittable({ categoryId: category?.id ?? null, amount, busy }) || category == null || amount === null) return
     setBusy(true)
     try {
-      const saved = await createExpense({
-        expense_category_id: category.id,
-        amount,
-        // Today: the server stamps the current time. Another day: that day.
-        expense_date: date === today ? null : date,
-        description: description.trim() || null,
-      })
+      let saved: Expense
+      if (expense) {
+        const patch = expensePatch(
+          {
+            categoryId: expense.expense_category_id,
+            amount: expense.amount,
+            description: expense.description ?? "",
+            day: utcToLocal(expense.expense_date, timeZone)?.iso ?? date,
+          },
+          { categoryId: category.id, amount, description, day: date }
+        )
+        if (!patch) {
+          setError({ message: E.nothingChanged, code: "NO_CHANGE" })
+          return
+        }
+        saved = await updateExpense(expense.id, patch)
+      } else {
+        saved = await createExpense({
+          expense_category_id: category.id,
+          amount,
+          // Today: the server stamps the current time. Another day: that day.
+          expense_date: date === today ? null : date,
+          description: description.trim() || null,
+        })
+      }
       onSaved(saved)
     } catch (e) {
-      if (e instanceof ApiError && e.status === 404) {
+      const closed = e instanceof ApiError ? closedDay(e) : null
+      if (closed) {
+        setError({ message: closedDayMessage(formatJalali(closed.periodEnd, "yyyy/MM/dd")), code: "PERIOD_ALREADY_DISTRIBUTED" })
+      } else if (e instanceof ApiError && isFutureDateError(e, "expense_date")) {
+        setFieldErrors({ expense_date: E.futureDate })
+      } else if (e instanceof ApiError && e.status === 404 && expense) {
+        setError({ message: E.gone, code: "EXPENSES_404" })
+      } else if (e instanceof ApiError && e.status === 404) {
         // The category vanished since the list loaded: make them pick again.
         setCategoryId(null)
         setFieldErrors({ expense_category_id: E.categoryGone })
@@ -216,7 +252,7 @@ export function ExpenseDialog({
       onClick={submit}
     >
       {busy && <Loader2 className="size-4 animate-spin" />}
-      {E.submit}
+      {expense ? E.save : E.submit}
     </Btn>
   )
   const cancelBtn = (
@@ -246,7 +282,7 @@ export function ExpenseDialog({
           open={open}
           onOpenChange={(o) => !o && close()}
           mobile
-          title={E.formTitle}
+          title={expense ? E.editTitle : E.formTitle}
           busy={busy}
           footer={
             <>
@@ -273,7 +309,7 @@ export function ExpenseDialog({
         >
           <div className="flex items-center justify-between border-b border-border px-6 py-4">
             <DialogTitle id="ef" className="text-base font-bold text-heading">
-              {E.formTitle}
+              {expense ? E.editTitle : E.formTitle}
             </DialogTitle>
             <DialogDescription className="sr-only">{E.amountHelp}</DialogDescription>
             <Btn variant="ghost" size="sm" className="size-8 px-0" aria-label={E.close} disabled={busy} onClick={close}>
