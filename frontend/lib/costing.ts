@@ -49,12 +49,64 @@ export function blendUnitCost(
   stockBefore: number | null,
   costBefore: number | null,
   qtyIn: number,
-  valueIn: number
+  valueIn: number,
+  /** Materials only (accounting rules §2): a cost of 0 means "not entered", like null. */
+  zeroIsUnknown = false
 ): number {
+  if (zeroIsUnknown && costBefore === 0) costBefore = null
   if (costBefore == null || stockBefore == null || stockBefore <= 0) {
     return roundHalfEven(valueIn / qtyIn)
   }
   return roundHalfEven((stockBefore * costBefore + valueIn) / (stockBefore + qtyIn))
+}
+
+/** A number as the decimal it was entered as: digits × 10^-scale (scale >= 0), like db/costing.py exact_quantity. */
+function decimalOf(x: number): { digits: bigint; scale: number } {
+  const m = /^(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/.exec(String(Math.abs(x)))
+  if (!m) throw new Error(`not a plain number: ${x}`)
+  const fraction = m[2] ?? ""
+  const scale = fraction.length - Number(m[3] ?? 0)
+  const digits = BigInt(m[1] + fraction)
+  if (scale >= 0) return { digits, scale }
+  return { digits: digits * BigInt("1" + "0".repeat(-scale)), scale: 0 }
+}
+
+/**
+ * db/costing.py recipe_batch_total: Σ needed × unit cost, exact, rounded half-even once. A PER_UNIT line needs
+ * quantity_needed × batchQty, a PER_BATCH line quantity_needed once — so a sale of n units counts PER_BATCH lines
+ * once, never n times. Preview only; the saved cost comes from the API.
+ */
+export function recipeBatchTotal(
+  lines: { quantity_needed: number; cost_basis: string; material_unit_cost: number }[],
+  batchQty: number
+): number {
+  const batch = decimalOf(batchQty)
+  const terms = lines.map((line) => {
+    const needed = decimalOf(line.quantity_needed)
+    let digits = needed.digits * BigInt(line.material_unit_cost)
+    let scale = needed.scale
+    if (line.cost_basis !== "PER_BATCH") {
+      digits *= batch.digits
+      scale += batch.scale
+    }
+    return { digits, scale }
+  })
+  const scale = terms.reduce((s, t) => Math.max(s, t.scale), 0)
+  const one = BigInt(1)
+  const two = BigInt(2)
+  const denominator = BigInt("1" + "0".repeat(scale))
+  const numerator = terms.reduce((sum, t) => sum + t.digits * BigInt("1" + "0".repeat(scale - t.scale)), BigInt(0))
+  let whole = numerator / denominator
+  const twice = (numerator % denominator) * two
+  if (twice > denominator || (twice === denominator && whole % two === one)) whole += one
+  return Number(whole)
+}
+
+/** The recipe's materials whose cost is 0 or missing ("not entered"): the recipe cost is then incomplete. */
+export function recipeMissing(
+  lines: { material_id: number; material_name: string; material_unit_cost: number | null }[]
+): { id: number; name: string }[] {
+  return lines.filter((l) => !l.material_unit_cost).map((l) => ({ id: l.material_id, name: l.material_name }))
 }
 
 /** db/purchases.py _compute_unit_cost: this purchase's own unit cost. */

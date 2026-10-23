@@ -32,24 +32,10 @@ export function unitLabel(unit: string): string {
   return unit === "piece" ? "عدد" : unit
 }
 
-export type CostState =
-  | { kind: "known"; cost: number }
-  /** Made-to-order with no finished stock: cost comes from the recipe at sale time. */
-  | { kind: "fromRecipe" }
-  /** Can't be sold until a cost exists (accounting §7 / §13). */
-  | { kind: "missing" }
-
-/**
- * A normal product with no cost can't be sold. A made-to-order product with
- * no cost is fine while it has no finished stock — each sale is costed from
- * its recipe — but its finished units can't be sold without a cost, which is
- * what the backend refuses too (same rule as record-sale's V3-MTO-stock).
- */
-export function costState(p: Product): CostState {
-  if (p.unit_cost != null) return { kind: "known", cost: p.unit_cost }
-  if (p.made_to_order && p.current_stock === 0) return { kind: "fromRecipe" }
-  return { kind: "missing" }
-}
+// Which cost a product shows (stored average, recipe estimate, «ناقص», «نامشخص») lives in lib/product-cost.ts, where
+// `npm test` covers it. Same rule as record-sale's V3-MTO-stock for what can't be sold.
+export { costLines, costState } from "@/lib/product-cost"
+export type { CostLine, CostState } from "@/lib/product-cost"
 
 /** Inventory value for display (design 05 «ارزش موجودی»); services have none. */
 export function inventoryValue(m: Material): number | null {

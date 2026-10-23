@@ -5,6 +5,7 @@
  */
 
 import { currencyLabel, formatMoney } from "@/lib/money"
+import type { CostLine } from "@/lib/product-cost"
 import { formatNumber, toPersianDigits } from "@/lib/persian-numbers"
 
 const fa = toPersianDigits
@@ -51,8 +52,19 @@ export const P = {
   stockUnits: (n: number) => `${formatNumber(n)} عدد`,
   noCost: "بدون بهای تمام‌شده",
   fromRecipe: "هنگام فروش از دستور تولید", // NEW
-  // NEW: an estimate only — the real cost is frozen again at the moment of sale.
-  recipeEstimate: (n: number) => `برآورد: ${formatMoney(n)} (بر اساس بهای فعلی متریال)`,
+  // NEW: which cost a product shows. The estimate is display only — the real cost is frozen again at the moment of sale.
+  tagAvg: "میانگین موجودی",
+  tagEstimate: "برآورد از دستور تولید",
+  costUnknown: "نامشخص",
+  costIncomplete: (names: string[]) => `ناقص: بهای ${names.map((n) => `‹${n}›`).join("، ")} ثبت نشده`,
+  costLineText: (line: CostLine): string =>
+    line.tag === "avg"
+      ? `${formatMoney(line.cost)} · ${P.tagAvg}`
+      : line.tag === "estimate"
+        ? `${formatMoney(line.cost)} · ${P.tagEstimate}`
+        : line.tag === "incomplete"
+          ? P.costIncomplete(line.missing)
+          : P.costUnknown,
   madeToOrder: "ساخت هنگام فروش", // NEW
   active: "فعال",
   inactive: "غیرفعال",

@@ -20,7 +20,7 @@ import { DrawerShell, FieldError, SaveError, Switch, textInputClass } from "./dr
 import { nameDuplicateMessage } from "@/components/common/copy"
 import { duplicateEntity, isNameDuplicate } from "@/lib/error-codes"
 import { CategoryPicker } from "./category-picker"
-import { costState } from "./figures"
+import { costLines, costState } from "./figures"
 
 function errorOf(error: unknown): { message: string; code: string } {
   if (error instanceof ApiError) {
@@ -56,7 +56,6 @@ export function ProductDrawer({
   onSaved,
   onDeactivate,
   onReactivate,
-  estimate,
   tree,
 }: {
   open: boolean
@@ -68,8 +67,6 @@ export function ProductDrawer({
   onSaved: (p: Product, toast: string, close?: boolean) => void
   onDeactivate: (p: Product) => void
   onReactivate: (p: Product) => void
-  /** Recipe cost per unit for a made-to-order product with no stock, if known. */
-  estimate?: number
   /** The PRODUCT category tree (inactive nodes included; the picker hides them). */
   tree: CategoryTree[]
 }) {
@@ -303,13 +300,20 @@ export function ProductDrawer({
             <Lock className="size-3.5" aria-hidden />
             {P.fieldCost}
           </span>
-          <span className={cn("font-bold tabular-nums", cost.kind === "missing" && "text-loss")}>
-            {cost.kind === "known" ? formatMoney(cost.cost) : cost.kind === "fromRecipe"
-                ? estimate == null
-                  ? P.fromRecipe
-                  : P.recipeEstimate(estimate)
-                : P.noCost}
-          </span>
+          {costLines({ ...product, made_to_order: madeToOrder ? 1 : 0 }).map((line, i) => (
+            <span
+              key={i}
+              className={cn(
+                "tabular-nums",
+                i === 0 ? "font-bold" : "text-sm text-text-2",
+                cost.kind === "missing" && line.tag === "unknown" && "text-loss",
+                line.tag === "incomplete" && "text-warn"
+              )}
+            >
+              {cost.kind === "missing" && line.tag === "unknown" ? P.noCost : P.costLineText(line)}
+            </span>
+          ))}
+          {cost.kind === "fromRecipe" && <span className="text-xs text-text-3">{P.fromRecipe}</span>}
           {cost.kind === "missing" && (
             <span className="flex items-start gap-1.5 text-xs font-medium text-loss">
               <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />

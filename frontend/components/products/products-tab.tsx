@@ -10,7 +10,7 @@ import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { ActiveBadge, Chip, NoCostBadge } from "./badges"
 import { P } from "./copy"
-import { costState } from "./figures"
+import { costLines, costState } from "./figures"
 
 /** Zero stock is a warning for a normal product, but the usual state of a made-to-order one. */
 function stockPill(p: Product, mobile = false) {
@@ -48,17 +48,28 @@ function MissingCostBanner({ missing }: { missing: Product[] }) {
   )
 }
 
-/** Made-to-order cost text: the recipe estimate when known, else the plain note. */
-export function fromRecipeText(p: Product, estimates: Record<number, number>): string {
-  const estimate = estimates[p.id]
-  return estimate == null ? P.fromRecipe : P.recipeEstimate(estimate)
-}
-
-function CostCell({ p, estimates }: { p: Product; estimates: Record<number, number> }) {
+/** The stored average («میانگین موجودی») or else the recipe estimate, «ناقص: …» or «نامشخص» (lib/product-cost.ts). */
+function CostCell({ p }: { p: Product }) {
   const c = costState(p)
-  if (c.kind === "known") return <Money value={c.cost} />
-  if (c.kind === "fromRecipe") return <span className="text-xs text-text-3 tabular-nums">{fromRecipeText(p, estimates)}</span>
-  return <NoCostBadge />
+  const lines = costLines(p)
+  return (
+    <span className="flex flex-col gap-0.5">
+      {lines.map((line, i) =>
+        line.tag === "avg" ? (
+          <span key={i} className="flex items-baseline gap-1.5">
+            <Money value={line.cost} />
+            <span className="text-xs text-text-3">{P.tagAvg}</span>
+          </span>
+        ) : line.tag === "unknown" && c.kind === "missing" ? (
+          <NoCostBadge key={i} />
+        ) : (
+          <span key={i} className={cn("text-xs tabular-nums", line.tag === "incomplete" ? "text-warn" : "text-text-3")}>
+            {P.costLineText(line)}
+          </span>
+        )
+      )}
+    </span>
+  )
 }
 
 export function ProductsTab({
@@ -68,7 +79,6 @@ export function ProductsTab({
   onEdit,
   onDeactivate,
   onReactivate,
-  estimates,
 }: {
   rows: Product[]
   /** Visible active products that can't be sold for lack of a cost. */
@@ -77,8 +87,6 @@ export function ProductsTab({
   onEdit: (p: Product) => void
   onDeactivate: (p: Product) => void
   onReactivate: (p: Product) => void
-  /** Recipe cost per unit for made-to-order products with no stock (an estimate). */
-  estimates: Record<number, number>
 }) {
   if (mobile) {
     return (
@@ -116,7 +124,11 @@ export function ProductsTab({
                     c.kind === "missing" ? "font-bold text-loss" : "text-text-3"
                   )}
                 >
-                  {c.kind === "known" ? P.costLine(c.cost) : c.kind === "fromRecipe" ? fromRecipeText(p, estimates) : P.costLineMissing}
+                  {c.kind === "missing" && c.estimate == null
+                    ? P.costLineMissing
+                    : costLines(p)
+                        .map((line) => (line.tag === "avg" ? `${P.costLine(line.cost)} · ${P.tagAvg}` : P.costLineText(line)))
+                        .join(" · ")}
                 </span>
                 <ActiveBadge active={p.is_active === 1} />
               </span>
@@ -175,7 +187,7 @@ export function ProductsTab({
                       <StockPill {...stockPill(p)} />
                     </td>
                     <td>
-                      <CostCell p={p} estimates={estimates} />
+                      <CostCell p={p} />
                     </td>
                     <td className="font-bold">
                       <Money value={p.retail_price} />

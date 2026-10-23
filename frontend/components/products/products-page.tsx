@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { CircleCheck, Plus, Search, X } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Alert, Btn } from "@/components/record-sale/primitives"
-import { useRecipes } from "@/components/record-sale/use-recipes"
 import { Segment } from "@/components/common/segment"
 import { CategoriesTab, type CategoryActions } from "@/components/categories/categories-tab"
 import { CategoryDialog, type CategoryForm } from "@/components/categories/category-dialog"
@@ -284,18 +283,6 @@ export function ProductsPage() {
   const editing = panel.kind === "editProduct" ? products.find((p) => p.id === panel.id) ?? null : null
   const editingMaterial = materialById(materials, materialParam)
 
-  // Made-to-order products with no stock: estimate their cost from the recipe
-  // (record-sale's lazy, cached fetch). No recipe or a failed call → no
-  // estimate, and the plain «هنگام فروش از دستور تولید» note stays.
-  const recipeIds = [...visibleProducts, ...(editing ? [editing] : [])]
-    .filter((p) => costState(p).kind === "fromRecipe")
-    .map((p) => p.id)
-  const recipes = useRecipes(recipeIds)
-  const estimates: Record<number, number> = {}
-  for (const [id, r] of Object.entries(recipes)) {
-    if (r.status === "ok") estimates[Number(id)] = r.unitCost
-  }
-
   /** Not destructive, so no confirmation: flips is_active back to 1. */
   const reactivate = async (target: DeactivateTarget) => {
     try {
@@ -420,7 +407,6 @@ export function ProductsPage() {
           onEdit={(p) => setPanel({ kind: "editProduct", id: p.id })}
           onDeactivate={(p) => setDeactivating({ kind: "product", item: p })}
           onReactivate={(p) => reactivate({ kind: "product", item: p })}
-          estimates={estimates}
         />
       )
   } else {
@@ -521,7 +507,6 @@ export function ProductsPage() {
         }}
         onDeactivate={(p) => setDeactivating({ kind: "product", item: p })}
         onReactivate={(p) => reactivate({ kind: "product", item: p })}
-        estimate={editing ? estimates[editing.id] : undefined}
         tree={productTree}
       />
       <MaterialDrawer
