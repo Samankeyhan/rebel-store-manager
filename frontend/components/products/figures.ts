@@ -3,7 +3,7 @@
  * numbers only re-state what the API returned.
  */
 
-import type { Material, Product } from "@/lib/api"
+import type { Material } from "@/lib/api"
 import { lineCost } from "@/lib/costing"
 
 /**

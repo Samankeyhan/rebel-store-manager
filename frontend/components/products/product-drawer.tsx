@@ -13,7 +13,6 @@ import {
   type CategoryTree,
   type Product,
 } from "@/lib/api"
-import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { P } from "./copy"
 import { DrawerShell, FieldError, SaveError, Switch, textInputClass } from "./drawer-shell"
