@@ -39,6 +39,15 @@ class MaterialCreate(BaseModel):
     min_stock: Quantity | None = None
 
 
+class MaterialCostSet(BaseModel):
+    """«ثبت بها»: the unit cost of a material that is still at 0, in Rial (at least 1).
+    A material that already has a cost is a 409 COST_ALREADY_SET; 0 or less is a 422 (field "unit_cost")."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    unit_cost: Money
+
+
 class MaterialUpdate(BaseModel):
     """Only min_stock is editable: omitted = unchanged, null = clear.
     Negative, non-number or a minimum on a SERVICE material: 422 (field "min_stock")."""

@@ -6,6 +6,7 @@ from api.deps import get_db
 from api.schemas.categories import CategoryAssign
 from api.schemas.products import (
     MadeToOrderUpdate,
+    ProductCostSet,
     ProductCreate,
     ProductOut,
     ProductPricesUpdate,
@@ -19,6 +20,7 @@ from db.products import (
     reactivate_product,
     set_made_to_order,
     set_product_category,
+    set_product_cost,
     update_product_prices,
 )
 
@@ -74,6 +76,17 @@ def update_prices(
         retail_price=body.retail_price,
         wholesale_price=body.wholesale_price,
     )
+    return build_product(conn, product_id)
+
+
+@router.post("/products/{product_id}/cost", response_model=ProductOut)
+def set_cost(
+    product_id: int,
+    body: ProductCostSet,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> ProductOut:
+    """«ثبت بها»: only while the product's unit_cost is NULL; no stock movement."""
+    set_product_cost(conn, product_id, body.unit_cost)
     return build_product(conn, product_id)
 
 

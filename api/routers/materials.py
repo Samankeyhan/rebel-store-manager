@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 
 from api.deps import get_db
 from api.schemas.categories import CategoryAssign
-from api.schemas.materials import MaterialCreate, MaterialOut, MaterialUpdate
+from api.schemas.materials import MaterialCostSet, MaterialCreate, MaterialOut, MaterialUpdate
 from db.errors import NotFoundError
 from db.materials import (
     add_material,
@@ -14,6 +14,7 @@ from db.materials import (
     list_materials,
     reactivate_material,
     set_material_category,
+    set_material_cost,
     update_material,
 )
 
@@ -77,6 +78,17 @@ def patch_material(
     conn: sqlite3.Connection = Depends(get_db),
 ) -> MaterialOut:
     update_material(conn, material_id, **body.model_dump(exclude_unset=True))
+    return build_material(conn, material_id)
+
+
+@router.post("/materials/{material_id}/cost", response_model=MaterialOut)
+def set_cost(
+    material_id: int,
+    body: MaterialCostSet,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> MaterialOut:
+    """«ثبت بها»: only while the material's unit_cost is 0; no stock movement."""
+    set_material_cost(conn, material_id, body.unit_cost)
     return build_material(conn, material_id)
 
 

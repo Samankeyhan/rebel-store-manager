@@ -76,6 +76,26 @@ export interface paths {
         patch: operations["update_prices_products__product_id__prices_patch"];
         trace?: never;
     };
+    "/products/{product_id}/cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Cost
+         * @description «ثبت بها»: only while the product's unit_cost is NULL; no stock movement.
+         */
+        post: operations["set_cost_products__product_id__cost_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products/{product_id}/deactivate": {
         parameters: {
             query?: never;
@@ -258,6 +278,26 @@ export interface paths {
         head?: never;
         /** Patch Material */
         patch: operations["patch_material_materials__material_id__patch"];
+        trace?: never;
+    };
+    "/materials/{material_id}/cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Cost
+         * @description «ثبت بها»: only while the material's unit_cost is 0; no stock movement.
+         */
+        post: operations["set_cost_materials__material_id__cost_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/materials/{material_id}/deactivate": {
@@ -1907,6 +1947,17 @@ export interface components {
             /** Default Payment Method Id */
             default_payment_method_id?: number | null;
         };
+        /** CostRefDetails */
+        CostRefDetails: {
+            /** Item Type */
+            item_type: string;
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
+            /** Unit Cost */
+            unit_cost: number;
+        };
         /** DateInFutureDetails */
         DateInFutureDetails: {
             /** Today */
@@ -2092,6 +2143,21 @@ export interface components {
              */
             code: "CATEGORY_IN_USE";
             details: components["schemas"]["CategoryInUseDetails"];
+        };
+        /** ErrorBodyCostRef */
+        ErrorBodyCostRef: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "COST_ALREADY_SET";
+            details: components["schemas"]["CostRefDetails"];
         };
         /** ErrorBodyDateInFuture */
         ErrorBodyDateInFuture: {
@@ -2396,7 +2462,7 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             /** Error */
-            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyBackupFailed"];
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyBackupFailed"];
         };
         /**
          * ErrorItem
@@ -2592,6 +2658,18 @@ export interface components {
         MadeToOrderUpdate: {
             /** Made To Order */
             made_to_order: boolean;
+        };
+        /**
+         * MaterialCostSet
+         * @description «ثبت بها»: the unit cost of a material that is still at 0, in Rial (at least 1).
+         *     A material that already has a cost is a 409 COST_ALREADY_SET; 0 or less is a 422 (field "unit_cost").
+         */
+        MaterialCostSet: {
+            /**
+             * Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            unit_cost: number;
         };
         /** MaterialCreate */
         MaterialCreate: {
@@ -3389,6 +3467,18 @@ export interface components {
             estimate: number;
             /** Window */
             window: number;
+        };
+        /**
+         * ProductCostSet
+         * @description «ثبت بها»: the unit cost of a product that has none yet (NULL), in Rial (at least 1).
+         *     A product that already has a cost is a 409 COST_ALREADY_SET; 0 or less is a 422 (field "unit_cost").
+         */
+        ProductCostSet: {
+            /**
+             * Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            unit_cost: number;
         };
         /** ProductCreate */
         ProductCreate: {
@@ -4317,8 +4407,9 @@ export interface components {
          *                                      spelling-normalized key already exists (db/names.py)
          *     PRODUCT_NO_RECIPE                product_id, product_name
          *     PRODUCT_NO_UNIT_COST             product_id, product_name
+         *     COST_ALREADY_SET                 item_type (MATERIAL | PRODUCT), item_id, item_name, unit_cost (the cost it has)
          *     SUPPLIER_NOT_FOUND               supplier_id
-         *     AMOUNT_TOO_LARGE                 max (MAX_MONEY, db/constants.py); the amount's size is over it,
+         *     AMOUNT_TOO_LARGE                max (MAX_MONEY, db/constants.py); the amount's size is over it,
          *                                      above or below zero; field says which amount
          *     QUANTITY_NOT_WHOLE               -
          *     QUANTITY_OUT_OF_RANGE            min, max (None when that side has no bound)
@@ -4334,7 +4425,7 @@ export interface components {
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "BACKUP_FAILED";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "BACKUP_FAILED";
     };
     responses: never;
     parameters: never;
@@ -4590,6 +4681,68 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ProductPricesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    set_cost_products__product_id__cost_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCostSet"];
             };
         };
         responses: {
@@ -5370,6 +5523,68 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["MaterialUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    set_cost_materials__material_id__cost_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterialCostSet"];
             };
         };
         responses: {

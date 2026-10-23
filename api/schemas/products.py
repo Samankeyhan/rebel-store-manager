@@ -57,6 +57,15 @@ class ProductPricesUpdate(BaseModel):
     wholesale_price: Money | None = None
 
 
+class ProductCostSet(BaseModel):
+    """«ثبت بها»: the unit cost of a product that has none yet (NULL), in Rial (at least 1).
+    A product that already has a cost is a 409 COST_ALREADY_SET; 0 or less is a 422 (field "unit_cost")."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    unit_cost: Money
+
+
 class MadeToOrderUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
