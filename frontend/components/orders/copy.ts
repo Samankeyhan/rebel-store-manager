@@ -5,7 +5,9 @@
  * didn't draw, or replace design copy that would be untrue (see the report).
  */
 
+import { formatJalali } from "@/lib/jalali"
 import { currencyLabel, formatMoney, formatMoneyNumber } from "@/lib/money"
+import type { VoidRefusal } from "@/lib/order-correction"
 import { formatNumber, toPersianDigits } from "@/lib/persian-numbers"
 
 const fa = toPersianDigits
@@ -147,6 +149,9 @@ export const D = {
   terminalCompleted: "سفارش تکمیل شده است.",
   terminalCancelled: "سفارش لغو شده؛ عملیاتی باقی نمانده.",
   terminalRefunded: "مرجوعی ثبت شده؛ عملیاتی باقی نمانده.",
+  terminalVoided: "این سفارش باطل شده؛ عملیاتی باقی نمانده.", // NEW
+  voidOrder: "باطل‌کردن سفارش", // NEW
+  correctOrder: "اصلاح سفارش", // NEW
 
   // ── detail: items ──
   itemsCard: "اقلام سفارش",
@@ -252,6 +257,7 @@ export const D = {
   effReportsBody: (month: string) =>
     `این سفارش از فروش و سود ${month} حذف می‌شود و وضعیت آن «لغوشده» می‌شود.`,
   effReportsDraft: "این پیش‌نویس در گزارش‌ها نبود؛ فقط وضعیت آن «لغوشده» می‌شود.", // NEW
+  cancelWrongEntry: "اگر این فروش اشتباه ثبت شده، از «باطل‌کردن سفارش» استفاده کنید.", // NEW
   cancelReasonLabel: "دلیل لغو",
   cancelReasonPlaceholder: "مثلاً: مشتری منصرف شد",
   // NEW: the API stores the reason in the stock-movement notes, not a history.
@@ -271,6 +277,63 @@ export const D = {
   refundReasonLabel: "دلیل مرجوعی",
   refundReasonPlaceholder: "مثلاً: کالا آسیب‌دیده رسید",
   optional: "(اختیاری)",
+
+  // ── void dialog (NEW: accounting-rules section 20) ──
+  voidFirstLine: "برای فروشی که اشتباه ثبت شده. اگر مشتری سفارش را لغو کرده، از «لغو سفارش» استفاده کنید.", // NEW
+  voidTitle: (inv: string) => `باطل‌کردن سفارش ${inv}؟`, // NEW
+  voidSubtitle: "با باطل‌کردن:", // NEW
+  voidProductsLead: "کالا به موجودی برمی‌گردد:", // NEW
+  voidMaterialsLead: "متریال به موجودی برمی‌گردد:", // NEW
+  voidReasonMade: "تولید سفارشی", // NEW
+  voidReasonPack: "بسته‌بندی", // NEW
+  voidNothingBack: "این سفارش کالا یا متریالی از موجودی کم نکرده بود؛ چیزی برنمی‌گردد.", // NEW
+  voidCostLead: "بهای واحد تغییر می‌کند:", // NEW
+  voidCost: (name: string, before: number, after: number) => `«${name}» از ${formatMoney(before)} به ${formatMoney(after)}`, // NEW
+  voidLegacyCost: (name: string) =>
+    `«${name}» با بهای فعلی برمی‌گردد؛ این سفارش پیش از ثبت بهای زمان فروش روی موجودی ثبت شده است.`, // NEW
+  voidReportsBody: (month: string, total: number, profit: number) =>
+    `از فروش و سود ${month} حذف می‌شود: مبلغ ${formatMoney(total)}، سود ${formatMoney(profit)}.`, // NEW
+  voidFeeLead: "کارمزد زیان حساب نمی‌شود:", // NEW
+  voidFeeBody: (fee: number) => `${formatMoney(fee)}؛ این فروش انجام نشده بوده است.`, // NEW
+  voidPendingLead: "تسویه:", // NEW
+  voidPendingBody: "از تسویه‌های در انتظار خارج می‌شود.", // NEW
+  voidKeptLead: "سابقه:", // NEW
+  voidKeptBody: "وضعیت سفارش «باطل‌شده» می‌شود؛ خودِ سفارش، اقلام و شماره فاکتورش برای سابقه می‌مانند.", // NEW
+  voidReasonLabel: "دلیل باطل‌کردن", // NEW
+  voidReasonPlaceholder: "مثلاً: محصول اشتباه ثبت شد", // NEW
+  voidReasonHelp: "روی سفارش ذخیره می‌شود.", // NEW
+  voidLoading: "در حال بررسی اثر باطل‌کردن…", // NEW
+  voidPreviewFailed: "اثر باطل‌کردن خوانده نشد؛ دوباره تلاش کنید.", // NEW
+  toastVoided: "سفارش باطل شد", // NEW
+  voidRefusal: (r: VoidRefusal): string => {
+    switch (r.kind) {
+      case "voided":
+        return "این سفارش قبلاً باطل شده است."
+      case "returned":
+        return "برای این سفارش لغو یا مرجوعی ثبت شده؛ باطل‌کردن آن ممکن نیست."
+      case "draft":
+        return "پیش‌نویس چیزی ثبت نکرده؛ برای کنار گذاشتن آن «لغو سفارش» را بزنید."
+      case "settled":
+        return r.settlementId == null
+          ? "این سفارش در یک تسویه آمده و پولش دریافت شده؛ باطل‌کردن آن ممکن نیست."
+          : `این سفارش در تسویهٔ شمارهٔ ${formatNumber(r.settlementId)} آمده و پولش دریافت شده؛ باطل‌کردن آن ممکن نیست.`
+      case "closed":
+        return `سود تا ${formatJalali(r.periodEnd)} بین شرکا تقسیم شده؛ فروش‌های این روزها دیگر تغییر نمی‌کند.`
+      case "stocktake":
+        return `پس از این فروش، «${r.itemName}» در شمارش ${formatJalali(r.stocktakeDate)} شمرده شده؛ برگرداندن آن شمارش را به‌هم می‌زند.`
+      case "reason":
+        return "دلیل باطل‌کردن را بنویسید."
+    }
+  }, // NEW
+
+  // ── voided order and its correction (NEW) ──
+  voidedTitle: "این سفارش باطل شده است", // NEW
+  voidedWhen: (when: string) => `باطل‌شده در ${when}`, // NEW
+  voidedReason: (reason: string) => `دلیل: ${reason}`, // NEW
+  voidedNote: "در هیچ گزارش، سود، تسویه یا سهم شرکا حساب نمی‌شود؛ کالای آن به موجودی برگشته است.", // NEW
+  replacedByLead: "سفارش جایگزین:", // NEW
+  replacesLead: "این سفارش اصلاحِ این فاکتور است:", // NEW
+  replacesVoided: "(باطل‌شده)", // NEW
 
   // ── states ──
   notFoundTitle: (inv: string | null) => (inv ? `سفارش ${inv} پیدا نشد` : "سفارش پیدا نشد"),

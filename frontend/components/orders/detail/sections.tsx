@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Ban, CircleUserRound, Info, Lock, Printer, Undo2 } from "lucide-react"
+import Link from "next/link"
+import { Ban, CircleUserRound, Eraser, Info, Lock, PencilLine, Printer, Undo2 } from "lucide-react"
 import { ChannelBadge, StatusBadge, statusName } from "@/components/common/status"
 import { Btn, btnClass, cardClass } from "@/components/record-sale/primitives"
 import { categoryPath } from "@/lib/category-path"
@@ -30,6 +31,7 @@ const TERMINAL_NOTE: Record<string, string> = {
   COMPLETED: D.terminalCompleted,
   CANCELLED: D.terminalCancelled,
   REFUNDED: D.terminalRefunded,
+  VOIDED: D.terminalVoided,
 }
 
 function Row({ label, value, className }: { label: React.ReactNode; value: React.ReactNode; className?: string }) {
@@ -52,6 +54,12 @@ export type Actions = {
   onRefund: () => void
   /** «تغییر تاریخ پرداخت» (only offered for a paid order not yet in a settlement). */
   onChangePaidDate: () => void
+  /** «باطل‌کردن سفارش» and «اصلاح سفارش»: offered for a committed PENDING / PAID / COMPLETED order. */
+  canVoid: boolean
+  /** Why the void-preview refuses it now (Persian), or null; both buttons are then disabled. */
+  voidBlocked: string | null
+  onVoid: () => void
+  onCorrect: () => void
 }
 
 const PAID_STATUSES = new Set(["PAID", "COMPLETED"])
@@ -201,15 +209,92 @@ export function HeaderCard({
             {D.refundOrder}
           </Btn>
         )}
+        {actions.canVoid && <VoidButtons actions={actions} />}
       </div>
+      {actions.canVoid && actions.voidBlocked && <VoidBlockedNote text={actions.voidBlocked} />}
     </section>
   )
+}
+
+/** «اصلاح سفارش» and «باطل‌کردن سفارش»: a sale entered by mistake (accounting-rules section 20). */
+function VoidButtons({ actions, mobile = false }: { actions: Actions; mobile?: boolean }) {
+  const disabled = actions.busy || actions.voidBlocked != null
+  return (
+    <>
+      <Btn size={mobile ? "lg" : "md"} className={mobile ? "w-full" : undefined} disabled={disabled} onClick={actions.onCorrect}>
+        <PencilLine className="size-4" />
+        {D.correctOrder}
+      </Btn>
+      <Btn
+        size={mobile ? "lg" : "md"}
+        className={cn("border-loss-border text-loss hover:bg-loss-soft", mobile && "w-full")}
+        disabled={disabled}
+        onClick={actions.onVoid}
+      >
+        <Eraser className="size-4" />
+        {D.voidOrder}
+      </Btn>
+    </>
+  )
+}
+
+function VoidBlockedNote({ text }: { text: string }) {
+  return (
+    <p className="flex items-start gap-1.5 text-[12.5px] leading-5 text-text-3">
+      <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+      <span>{text}</span>
+    </p>
+  )
+}
+
+/**
+ * A voided order (when, why, its replacement) and a correction (the order it replaces): both sides of
+ * the link, so either detail screen leads to the other.
+ */
+export function CorrectionBanner({ detail, timeZone }: { detail: OrderDetail; timeZone: string }) {
+  const { order } = detail
+  if (order.status === "VOIDED") {
+    return (
+      <section role="status" className={cn(cardClass, "flex flex-col gap-1.5 border-border-strong bg-surface-2 px-5 py-4")}>
+        <div className="flex items-center gap-2 text-[14px] font-bold text-heading">
+          <Eraser className="size-4 text-text-3" aria-hidden />
+          {D.voidedTitle}
+        </div>
+        <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[13px] text-text-2">
+          {order.voided_at && <span className="tabular-nums">{D.voidedWhen(formatJalaliDateTime(order.voided_at, timeZone))}</span>}
+          {order.void_reason && <span dir="auto">{D.voidedReason(order.void_reason)}</span>}
+        </div>
+        <p className="text-[12.5px] text-text-3">{D.voidedNote}</p>
+        {order.replaced_by_order_id != null && (
+          <p className="text-[13px]">
+            {D.replacedByLead}{" "}
+            <Link href={`/orders/view/?id=${order.replaced_by_order_id}`} className="font-semibold text-heading underline">
+              <span dir="ltr">{order.replaced_by_invoice_number ?? ""}</span>
+            </Link>
+          </p>
+        )}
+      </section>
+    )
+  }
+  if (order.replaces_order_id != null) {
+    return (
+      <section role="status" className={cn(cardClass, "flex flex-wrap items-center gap-1.5 px-5 py-3 text-[13px]")}>
+        <PencilLine className="size-4 text-text-3" aria-hidden />
+        <span>{D.replacesLead}</span>
+        <Link href={`/orders/view/?id=${order.replaces_order_id}`} className="font-semibold text-heading underline">
+          <span dir="ltr">{order.replaces_invoice_number ?? ""}</span>
+        </Link>
+        <span className="text-text-3">{D.replacesVoided}</span>
+      </section>
+    )
+  }
+  return null
 }
 
 /** Mobile «عملیات حساس»: the destructive pair in its own section. */
 export function SensitiveActions({ detail, actions }: { detail: OrderDetail; actions: Actions }) {
   const s = detail.order.status
-  if (!CAN_CANCEL.has(s) && !CAN_REFUND.has(s)) return null
+  if (!CAN_CANCEL.has(s) && !CAN_REFUND.has(s) && !actions.canVoid) return null
   return (
     <section className="flex flex-col gap-2 border-t border-dashed border-border-strong pt-3.5">
       <h2 className="text-xs font-bold text-text-3">{D.sensitive}</h2>
@@ -235,6 +320,8 @@ export function SensitiveActions({ detail, actions }: { detail: OrderDetail; act
           {D.refundOrder}
         </Btn>
       )}
+      {actions.canVoid && <VoidButtons actions={actions} mobile />}
+      {actions.canVoid && actions.voidBlocked && <VoidBlockedNote text={actions.voidBlocked} />}
     </section>
   )
 }
@@ -464,10 +551,12 @@ export function InternalCard({
   const draft = status === "DRAFT"
   const cancelled = status === "CANCELLED"
   const refunded = status === "REFUNDED"
+  const voided = status === "VOIDED"
 
   // A draft froze nothing; a cancelled order's packaging came back and it
-  // was never posted — neither has real costs to show (only the fee).
-  const noCosts = draft || cancelled
+  // was never posted — neither has real costs to show (only the fee). A
+  // voided order was never a sale: no cost, and not even the fee is a loss.
+  const noCosts = draft || cancelled || voided
   const costRows = (
     <>
       {!mobile && <Row label={D.revenue} value={<Money value={detail.customer_total} />} />}
@@ -489,12 +578,19 @@ export function InternalCard({
         }
         value={noCosts ? "—" : neg(order.postage_cost)}
       />
-      <Row label={D.fee} value={neg(order.transaction_fee)} />
+      <Row label={D.fee} value={voided ? "—" : neg(order.transaction_fee)} />
     </>
   )
 
   let bottom: React.ReactNode
-  if (draft) {
+  if (voided) {
+    bottom = (
+      <>
+        <ProfitBand label={mobile ? D.profitMobile : D.profit} value={null} tone="nil" />
+        <Note>{D.voidedNote}</Note>
+      </>
+    )
+  } else if (draft) {
     bottom = (
       <>
         <ProfitBand label={mobile ? D.profitMobile : D.profit} value={null} tone="nil" />

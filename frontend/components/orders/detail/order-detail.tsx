@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { CircleCheck, Info, RotateCw, TriangleAlert, X } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,8 +15,10 @@ import {
   changeOrderStatus,
   getCatalog,
   getOrder,
+  getVoidPreview,
   returnOrder,
   setOrderPaidDate,
+  voidOrder,
   type Catalog,
   type OrderDetail as Detail,
 } from "@/lib/api"
@@ -28,8 +30,18 @@ import { refusedProductId } from "@/lib/error-codes"
 import { classifyPaymentError } from "@/lib/payment-methods"
 import { DEFAULT_TZ, storeToday } from "@/lib/store-day"
 import { paymentErrorText } from "@/components/payment-methods/copy"
-import { CancelDialog, ChangePaidDateDialog, CommitConfirm, PaidConfirm, RefundDialog } from "./dialogs"
-import { HeaderCard, InternalCard, ItemsCard, SensitiveActions, type Actions } from "./sections"
+import { canVoid, voidRefusal } from "@/lib/order-correction"
+import {
+  CancelDialog,
+  ChangePaidDateDialog,
+  CommitConfirm,
+  PaidConfirm,
+  RefundDialog,
+  VoidDialog,
+  voidBlockerTexts,
+  type PreviewLoad,
+} from "./dialogs"
+import { CorrectionBanner, HeaderCard, InternalCard, ItemsCard, SensitiveActions, type Actions } from "./sections"
 import { useCurrency } from "@/lib/use-currency"
 
 
@@ -47,6 +59,7 @@ type Dialog =
   /** PENDING → PAID / COMPLETED: asks for the payment day. */
   | { kind: "paid"; target: string }
   | { kind: "paidDate" }
+  | { kind: "void" }
   | null
 
 const PAID = new Set(["PAID", "COMPLETED"])
@@ -65,6 +78,7 @@ export function OrderDetail() {
   // Re-render the whole screen when the display currency switches (lib/money.ts).
   useCurrency()
   const params = useSearchParams()
+  const router = useRouter()
   const raw = params.get("id") ?? ""
   const id = /^\d+$/.test(raw) ? Number(raw) : null
   const mobile = useIsMobile()
@@ -108,6 +122,28 @@ export function OrderDetail() {
   }, [id, attempt])
 
   const detail = load.status === "ready" ? load.detail : null
+
+  // The void-preview of an order that may be voided: what a void would do, and every rule that refuses it
+  // now (the buttons say so before a dialog opens). Read again after any change to the order.
+  const [previewAttempt, setPreviewAttempt] = React.useState(0)
+  const [loadedPreview, setLoadedPreview] = React.useState<{ key: string; load: PreviewLoad } | null>(null)
+  const voidable = detail != null && canVoid(detail.order)
+  const previewKey =
+    detail && voidable ? `${detail.order.id}|${detail.order.status}|${detail.order.settlement_id}|${previewAttempt}` : null
+  React.useEffect(() => {
+    if (previewKey == null || id == null) return
+    let cancelled = false
+    getVoidPreview(id).then(
+      (p) => !cancelled && setLoadedPreview({ key: previewKey, load: { status: "ready", preview: p } }),
+      () => !cancelled && setLoadedPreview({ key: previewKey, load: { status: "error" } })
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [previewKey, id])
+  const preview: PreviewLoad | null =
+    previewKey == null ? null : loadedPreview?.key === previewKey ? loadedPreview.load : { status: "loading" }
+
   usePageCrumb(
     detail?.order.invoice_number
       ? { parentHref: backHref, parentLabel: D.crumbParent, title: detail.order.invoice_number }
@@ -127,6 +163,14 @@ export function OrderDetail() {
 
   /** Maps an action failure to what the screen shows; the API decides. */
   const handleError = async (error: unknown, d: Detail) => {
+    const refusal = error instanceof ApiError ? voidRefusal(error) : null
+    if (refusal && dialog?.kind === "void") {
+      setDialog(null)
+      setBanner({ tone: "err", title: D.actionFailed, text: D.voidRefusal(refusal) })
+      await refetch()
+      setPreviewAttempt((a) => a + 1)
+      return
+    }
     // A refused payment day stays in its dialog, in Persian, so it can be corrected.
     const payment = error instanceof ApiError ? classifyPaymentError(error) : null
     if (payment && dialog && (dialog.kind === "commit" || dialog.kind === "paid" || dialog.kind === "paidDate")) {
@@ -240,6 +284,14 @@ export function OrderDetail() {
     onCancel: () => setDialog({ kind: "cancel" }),
     onRefund: () => setDialog({ kind: "refund" }),
     onChangePaidDate: () => openWithDay({ kind: "paidDate" }, d.order.paid_date ?? today()),
+    canVoid: canVoid(d.order),
+    voidBlocked:
+      preview?.status === "ready" && preview.preview.blockers.length > 0 ? voidBlockerTexts(preview.preview)[0] : null,
+    onVoid: () => {
+      setPreviewAttempt((a) => a + 1)
+      setDialog({ kind: "void" })
+    },
+    onCorrect: () => router.push(`/sales/new/?correct=${d.order.id}`),
   }
   const pick = {
     value: pickedDay,
@@ -312,6 +364,12 @@ export function OrderDetail() {
         paid={pick}
         onConfirm={() => dialog?.kind === "paid" && forward(dialog.target, pickedDay)}
       />
+      <VoidDialog
+        {...dialogProps}
+        open={dialog?.kind === "void"}
+        load={preview ?? { status: "loading" }}
+        onConfirm={(reason) => run(d, () => voidOrder(d.order.id, reason), () => D.toastVoided)}
+      />
       <ChangePaidDateDialog
         {...dialogProps}
         open={dialog?.kind === "paidDate"}
@@ -327,6 +385,7 @@ export function OrderDetail() {
     return (
       <div className="flex flex-col gap-3.5 pb-24">
         {bannerNode}
+        <CorrectionBanner detail={d} timeZone={timeZone} />
         <HeaderCard detail={d} catalog={catalog} timeZone={timeZone} actions={actions} mobile />
         <ItemsCard detail={d} catalog={catalog} mobile />
         <InternalCard detail={d} catalog={catalog} mobile actions={actions} />
@@ -339,6 +398,7 @@ export function OrderDetail() {
   return (
     <div className="flex flex-col gap-5">
       {bannerNode}
+      <CorrectionBanner detail={d} timeZone={timeZone} />
       <HeaderCard detail={d} catalog={catalog} timeZone={timeZone} actions={actions} mobile={false} />
       <div className="flex flex-col items-stretch gap-6 xl:flex-row xl:items-start">
         <div className="flex min-w-0 grow flex-col gap-5">

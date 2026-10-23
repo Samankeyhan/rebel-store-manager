@@ -50,11 +50,11 @@ export type ProfitView =
   | { kind: "refund"; original: number; loss: number }
 
 /**
- * DRAFT has frozen nothing and CANCELLED left the reports, so neither has a
- * profit (the detail endpoint returns a number for both; it isn't one).
+ * DRAFT has frozen nothing, CANCELLED left the reports and VOIDED was never a
+ * sale, so none has a profit (the detail endpoint returns a number; it isn't one).
  */
 export function profitView(status: string, profit: number | null, order: CostFields): ProfitView {
-  if (status === "DRAFT" || status === "CANCELLED") return { kind: "none" }
+  if (status === "DRAFT" || status === "CANCELLED" || status === "VOIDED") return { kind: "none" }
   if (status === "REFUNDED") {
     return { kind: "refund", original: profit ?? 0, loss: refundLoss(order) }
   }

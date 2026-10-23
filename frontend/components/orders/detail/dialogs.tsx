@@ -5,6 +5,9 @@ import {
   Ban,
   Box,
   ChartColumn,
+  Eraser,
+  History,
+  Info,
   Package,
   PackageCheck,
   Percent,
@@ -17,9 +20,10 @@ import { DateField } from "@/components/common/date-field"
 import { InlineMessage, Label, Help } from "@/components/record-sale/primitives"
 import { statusName } from "@/components/common/status"
 import { cn } from "@/lib/utils"
-import type { Catalog, OrderDetail } from "@/lib/api"
+import type { Catalog, OrderDetail, VoidPreview } from "@/lib/api"
 import { formatJalali, utcToLocal } from "@/lib/jalali"
-import { formatNumber } from "@/lib/persian-numbers"
+import { blockerRefusal } from "@/lib/order-correction"
+import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
 import { D } from "../copy"
 import { refundLoss } from "../order-figures"
@@ -57,6 +61,7 @@ function ReasonField({
   label,
   placeholder,
   optional,
+  help = D.reasonHelp,
   value,
   onChange,
   mobile,
@@ -65,6 +70,7 @@ function ReasonField({
   label: string
   placeholder: string
   optional?: boolean
+  help?: string
   value: string
   onChange: (v: string) => void
   mobile: boolean
@@ -84,7 +90,7 @@ function ReasonField({
           mobile ? "h-11" : "h-10"
         )}
       />
-      <span className="text-xs text-text-3">{D.reasonHelp}</span>
+      <span className="text-xs text-text-3">{help}</span>
     </div>
   )
 }
@@ -136,6 +142,7 @@ export function CancelDialog({
       confirmIcon={Ban}
       onConfirm={() => onConfirm(committed && reason.trim() ? reason.trim() : null)}
     >
+      <WhichAction>{D.cancelWrongEntry}</WhichAction>
       {committed ? (
         <>
           {normalLines.length > 0 && (
@@ -266,6 +273,154 @@ export function RefundDialog({
         onChange={setReason}
         mobile={p.mobile}
       />
+      <Irreversible />
+    </ConfirmShell>
+  )
+}
+
+/** The first line of the cancel and void dialogs: which of the two the owner wants. */
+function WhichAction({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex items-start gap-2 rounded-lg border border-border bg-card px-3 py-2.5 text-[13px] leading-[21px] font-semibold text-heading">
+      <Info className="mt-0.5 size-4 shrink-0 text-text-3" aria-hidden />
+      <span>{children}</span>
+    </p>
+  )
+}
+
+export type PreviewLoad = { status: "loading" } | { status: "error" } | { status: "ready"; preview: VoidPreview }
+
+/** Units of a material for a line («۰٫۵ لیتر»); "piece" is shown as «عدد», as everywhere. */
+function unitText(unit: string): string {
+  return unit === "piece" ? "عدد" : unit
+}
+
+/** The effect rows of a void, all from the void-preview (what the server will do), nothing computed here. */
+export function VoidEffects({ preview }: { preview: VoidPreview }) {
+  const month = formatJalali(preview.order_day, "MMMM yyyy")
+  const costChanges = [...preview.products, ...preview.materials].filter(
+    (i) => i.unit_cost_before != null && i.unit_cost_after != null && i.unit_cost_after !== i.unit_cost_before
+  )
+  const legacy = [...preview.products, ...preview.materials].filter((i) => i.frozen_cost_known === 0)
+  return (
+    <>
+      {preview.products.length > 0 && (
+        <Effect tone="up" icon={Package} lead={D.voidProductsLead}>
+          {joinLines(preview.products.map((p) => `${formatNumber(p.quantity)} «${p.name}»`))}.
+        </Effect>
+      )}
+      {preview.materials.length > 0 && (
+        <Effect tone="up" icon={Box} lead={D.voidMaterialsLead}>
+          {joinLines(
+            preview.materials.map((m) => {
+              const why = Object.keys(m.reasons)
+                .map((r) => (r === "PACKAGING" ? D.voidReasonPack : D.voidReasonMade))
+                .join("، ")
+              return `${formatQuantity(m.quantity)} ${unitText(m.unit)} «${m.name}» (${why})`
+            })
+          )}
+          .
+        </Effect>
+      )}
+      {preview.products.length === 0 && preview.materials.length === 0 && (
+        <Effect tone="flat" icon={Package}>
+          {D.voidNothingBack}
+        </Effect>
+      )}
+      {costChanges.length > 0 && (
+        <Effect tone="flat" icon={History} lead={D.voidCostLead}>
+          <span className="tabular-nums">
+            {joinLines(costChanges.map((i) => D.voidCost(i.name, i.unit_cost_before as number, i.unit_cost_after as number)))}.
+          </span>
+        </Effect>
+      )}
+      {legacy.map((i) => (
+        <Effect key={`legacy-${i.name}`} tone="flat" icon={History}>
+          {D.voidLegacyCost(i.name)}
+        </Effect>
+      ))}
+      <Effect tone="flat" icon={ChartColumn} lead={D.effReportsLead}>
+        <span className="tabular-nums">{D.voidReportsBody(month, preview.customer_total, preview.profit)}</span>
+      </Effect>
+      {preview.transaction_fee > 0 && (
+        <Effect tone="flat" icon={Percent} lead={D.voidFeeLead}>
+          <span className="tabular-nums">{D.voidFeeBody(preview.transaction_fee)}</span>
+        </Effect>
+      )}
+      {preview.pending_settlement === 1 && (
+        <Effect tone="flat" icon={Wallet} lead={D.voidPendingLead}>
+          {D.voidPendingBody}
+        </Effect>
+      )}
+      <Effect tone="flat" icon={Eraser} lead={D.voidKeptLead}>
+        {D.voidKeptBody}
+      </Effect>
+    </>
+  )
+}
+
+/** The blockers of a void-preview, in Persian; empty when the order may be voided. */
+export function voidBlockerTexts(preview: VoidPreview): string[] {
+  return preview.blockers.map((b) => {
+    const refusal = blockerRefusal(b)
+    return refusal ? D.voidRefusal(refusal) : b.code
+  })
+}
+
+/**
+ * «باطل‌کردن سفارش»: for a sale entered by mistake (accounting-rules section 20). States exactly what the
+ * void-preview says comes back and leaves the figures; a reason is required.
+ */
+export function VoidDialog({
+  onConfirm,
+  load,
+  ...p
+}: DialogProps & { load: PreviewLoad; onConfirm: (reason: string) => void }) {
+  const [reason, setReason] = React.useState("")
+  const inv = p.detail.order.invoice_number ?? ""
+  const blockers = load.status === "ready" ? voidBlockerTexts(load.preview) : []
+  return (
+    <ConfirmShell
+      open={p.open}
+      onOpenChange={(o) => {
+        if (!o) setReason("")
+        p.onOpenChange(o)
+      }}
+      mobile={p.mobile}
+      busy={p.busy}
+      icon={Eraser}
+      title={D.voidTitle(inv)}
+      subtitle={D.voidSubtitle}
+      confirmLabel={D.voidOrder}
+      confirmIcon={Eraser}
+      confirmDisabled={load.status !== "ready" || blockers.length > 0 || !reason.trim()}
+      onConfirm={() => onConfirm(reason.trim())}
+      width={580}
+    >
+      <WhichAction>{D.voidFirstLine}</WhichAction>
+      {load.status === "loading" && <p className="text-[13px] text-text-3">{D.voidLoading}</p>}
+      {load.status === "error" && <InlineMessage severity="error">{D.voidPreviewFailed}</InlineMessage>}
+      {load.status === "ready" &&
+        (blockers.length > 0 ? (
+          blockers.map((text) => (
+            <InlineMessage key={text} severity="error">
+              {text}
+            </InlineMessage>
+          ))
+        ) : (
+          <>
+            <VoidEffects preview={load.preview} />
+            <ReasonField
+              id="void-reason"
+              label={D.voidReasonLabel}
+              placeholder={D.voidReasonPlaceholder}
+              help={D.voidReasonHelp}
+              value={reason}
+              onChange={setReason}
+              mobile={p.mobile}
+            />
+          </>
+        ))}
       <Irreversible />
     </ConfirmShell>
   )

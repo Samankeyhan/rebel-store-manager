@@ -144,6 +144,7 @@ export function MobileFilterSheet({
     COMPLETED: "ring-profit",
     CANCELLED: "ring-cancel-bg",
     REFUNDED: "ring-violet",
+    VOIDED: "ring-text-3",
   }
 
   return (

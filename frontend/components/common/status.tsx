@@ -13,6 +13,7 @@ export const ORDER_STATUS_IDS = [
   "COMPLETED",
   "CANCELLED",
   "REFUNDED",
+  "VOIDED",
 ] as const
 export type OrderStatus = (typeof ORDER_STATUS_IDS)[number]
 
@@ -26,6 +27,8 @@ export const ORDER_STATUSES: Record<OrderStatus, { name: string; badge: string }
   COMPLETED: { name: "تکمیل‌شده", badge: "bg-profit-soft text-profit" },
   CANCELLED: { name: "لغوشده", badge: "bg-cancel-bg text-cancel-fg" },
   REFUNDED: { name: "مرجوعی", badge: "bg-violet-soft text-violet" },
+  // NEW: a sale entered by mistake (accounting-rules section 20); in no figure.
+  VOIDED: { name: "باطل‌شده", badge: "bg-surface-3 text-text-3" },
 }
 
 export function statusName(status: string): string {
