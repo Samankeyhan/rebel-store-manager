@@ -109,6 +109,7 @@ export function ServerAlert({
       </Alert>
     )
   }
+  if (issue.kind === "orderDate") return <Alert tone="err">{issue.message}</Alert>
   if (issue.kind === "payment") return <Alert tone="err">{issue.message}</Alert>
   if (issue.kind === "generic") {
     return (

@@ -59,6 +59,8 @@ export type ServerIssue =
   | { kind: "generic"; message: string; code: string }
   /** A payment error the screen places next to its field (closed month, future paid date, inactive method…). */
   | { kind: "payment"; field: "paid_date" | "payment_method_id" | "transaction_fee"; message: string }
+  /** The sale day itself was refused (DATE_IN_FUTURE on order_date); shown under «تاریخ فروش». */
+  | { kind: "orderDate"; message: string }
 
 /**
  * A money field whose typed text gives no exact Rial amount (MoneyInput
@@ -90,9 +92,9 @@ export type FormState = {
   /** Receipt / tracking number (optional). */
   reference: string
   /**
-   * When the order is recorded. null = now. This screen has no order-date
-   * field yet, so it stays null here; the body builder still handles a
-   * backdated order correctly (paid_date follows it).
+   * The sale day (Gregorian "YYYY-MM-DD", store day). null = today, and the
+   * body then omits order_date. A past day backdates the sale; paid_date
+   * follows it unless a payment day was picked.
    */
   orderDate: string | null
   /** The picked payment day; null = the order's own day (what the server stores by default). */
@@ -180,6 +182,8 @@ export type Action =
   | { type: "feeMode"; mode: "auto" | "manual"; fee?: number }
   | { type: "reference"; value: string }
   | { type: "paidDate"; value: string | null }
+  /** `value` is the picked sale day; `today` is the store's day (picking today stores null). */
+  | { type: "orderDate"; value: string; today: string }
   | { type: "moneyInvalid"; field: MoneyField; invalid: boolean }
   | { type: "status"; status: SaleStatus }
   | { type: "submitStart" }
@@ -284,6 +288,13 @@ export function reducer(state: FormState, action: Action): FormState {
       return edit(state, { reference: action.value })
     case "paidDate":
       return edit(state, { paidDate: action.value })
+    case "orderDate": {
+      const orderDate = action.value === action.today ? null : action.value
+      // A payment day picked before the new sale day no longer makes sense:
+      // fall back to "follow the order" (the server rule stays as it was).
+      const paidDate = state.paidDate != null && action.value > state.paidDate ? null : state.paidDate
+      return edit(state, { orderDate, paidDate })
+    }
     case "moneyInvalid": {
       const has = state.invalidMoney.includes(action.field)
       if (has === action.invalid) return state

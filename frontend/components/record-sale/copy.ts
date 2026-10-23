@@ -224,6 +224,13 @@ export const T = {
   paidDateLabel: "تاریخ پرداخت", // NEW
   paidDateHelp: "روزی که مشتری پول را پرداخت کرد؛ تاریخ آینده مجاز نیست.", // NEW
   today: "امروز", // NEW
+  orderDateLabel: "تاریخ فروش", // NEW
+  orderDateFuture: "تاریخ فروش نمی‌تواند در آینده باشد.", // NEW
+  orderDateBackdatedHint: "بهای تمام‌شده و موجودی بر اساس امروز ثبت می‌شود", // NEW
+  staleTitle: "تاریخ فروش بیش از ۳۱ روز قبل است", // NEW
+  staleBody: (date: string) => `این تاریخ بیش از ۳۱ روز قبل است؛ مطمئنی؟ (${date})`, // NEW
+  staleConfirm: "بله، ثبت کن", // NEW
+  staleBack: "بازگشت به فرم", // NEW
   successMethod: (name: string) => `روش پرداخت: ${name}`, // NEW
   successFee: (fee: string) => `کارمزد ثبت‌شده: ${fee}`, // NEW
   successRef: (ref: string) => `پیگیری: ${ref}`, // NEW

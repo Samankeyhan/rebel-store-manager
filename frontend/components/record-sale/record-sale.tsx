@@ -4,6 +4,7 @@ import * as React from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { ApiError, createOrder, getCatalog, listPaymentMethods, type Catalog, type PaymentMethod } from "@/lib/api"
 import { refusedProductId } from "@/lib/error-codes"
+import { isFutureOrderDateError } from "@/lib/sale-date"
 import { classifyPaymentError } from "@/lib/payment-methods"
 import { DEFAULT_TZ, storeToday } from "@/lib/store-day"
 import { paymentErrorText } from "@/components/payment-methods/copy"
@@ -56,6 +57,8 @@ function classifyOrderError(
   if (!(error instanceof ApiError)) {
     return { kind: "generic", message: String(error), code: "UNKNOWN" }
   }
+  // The sale day itself, before the generic payment-day mapping below.
+  if (isFutureOrderDateError(error)) return { kind: "orderDate", message: T.orderDateFuture }
   // Payment errors go next to their field, in Persian (closed month, future paid date, inactive method…).
   const payment = classifyPaymentError(error)
   if (payment) {
