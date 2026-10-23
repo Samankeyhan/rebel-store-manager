@@ -280,6 +280,14 @@ def get_product_performance(
     """
 
     rows = conn.execute(query, params).fetchall()
+    # Display only, next to the frozen cost: today's stored cost and recipe estimate. Never part of the totals.
+    from db.recipes import recipe_costs
+
+    current = recipe_costs(conn, [row["product_id"] for row in rows])
+    stored = {
+        r["id"]: r["unit_cost"]
+        for r in conn.execute("SELECT id, unit_cost FROM products")
+    }
     return [
         {
             "product_id": row["product_id"],
@@ -288,6 +296,8 @@ def get_product_performance(
             "total_revenue": row["total_revenue"],
             "total_cost": row["total_cost"],
             "total_profit": row["total_revenue"] - row["total_cost"],
+            "unit_cost": stored.get(row["product_id"]),
+            **current[row["product_id"]],
         }
         for row in rows
     ]

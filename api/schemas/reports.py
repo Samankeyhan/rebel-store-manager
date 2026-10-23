@@ -1,6 +1,9 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 from api.schemas.common import Rial
+from api.schemas.products import MissingMaterialOut
 
 
 class ProfitAndLossOut(BaseModel):
@@ -34,6 +37,11 @@ class ProductPerformanceOut(BaseModel):
     total_revenue: Rial
     total_cost: Rial
     total_profit: Rial
+    # Display only, next to the frozen total_cost: today's stored cost and recipe estimate (not in any total).
+    unit_cost: Rial | None
+    recipe_cost: Rial | None
+    recipe_cost_status: Literal["NONE", "INCOMPLETE", "COMPLETE"]
+    recipe_cost_missing: list[MissingMaterialOut]
 
 
 class ChannelBreakdownOut(BaseModel):

@@ -1,6 +1,17 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 from api.schemas.common import Money, NamedOut, Rial
+
+
+class MissingMaterialOut(BaseModel):
+    """A recipe material whose cost is 0 ("not entered"): why a recipe cost is incomplete."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    name: str
 
 
 class ProductOut(NamedOut):
@@ -19,6 +30,10 @@ class ProductOut(NamedOut):
     wholesale_price: Rial
     current_stock: int
     unit_cost: Rial | None
+    # Display only: what one unit costs to make from the recipe today (NULL unless COMPLETE). Never stored.
+    recipe_cost: Rial | None
+    recipe_cost_status: Literal["NONE", "INCOMPLETE", "COMPLETE"]
+    recipe_cost_missing: list[MissingMaterialOut]
     is_active: int
     made_to_order: int
     created_at: str

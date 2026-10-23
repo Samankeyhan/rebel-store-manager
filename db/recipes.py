@@ -144,6 +144,58 @@ def get_recipe(conn: sqlite3.Connection, product_id: int) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def recipe_costs(conn: sqlite3.Connection, product_ids: list[int] | None = None) -> dict[int, dict]:
+    """What one unit of each product costs to make from its recipe today, for display only (accounting rules section 13).
+
+    One query. Per product id: `recipe_cost` (int Rial, `recipe_batch_total` for a batch of 1), `recipe_cost_status`
+    (NONE: no recipe; INCOMPLETE: some line's material has unit_cost 0 or NULL, meaning "not entered", section 2;
+    COMPLETE) and `recipe_cost_missing` (a list of {id, name} of those materials). INCOMPLETE gives `recipe_cost` None,
+    never a cheap-looking number. Never written anywhere: products.unit_cost is only ever the stored weighted average.
+    `product_ids=None` is every product; an id that does not exist is absent from the result."""
+    query = """
+        SELECT products.id AS product_id,
+               product_recipe.quantity_needed,
+               product_recipe.cost_basis,
+               materials.id AS material_id,
+               materials.name AS material_name,
+               materials.unit_cost AS material_unit_cost
+        FROM products
+        LEFT JOIN product_recipe ON product_recipe.product_id = products.id
+        LEFT JOIN materials ON materials.id = product_recipe.material_id
+    """
+    params: list = []
+    if product_ids is not None:
+        ids = sorted(set(product_ids))
+        if not ids:
+            return {}
+        query += f" WHERE products.id IN ({', '.join('?' * len(ids))})"
+        params = ids
+    query += " ORDER BY products.id, materials.name"
+
+    lines: dict[int, list] = {}
+    for row in conn.execute(query, params):
+        bucket = lines.setdefault(row["product_id"], [])
+        if row["material_id"] is not None:
+            bucket.append(row)
+
+    result = {}
+    for product_id, rows in lines.items():
+        missing = [
+            {"id": r["material_id"], "name": r["material_name"]} for r in rows if not r["material_unit_cost"]
+        ]
+        if not rows:
+            status, cost = "NONE", None
+        elif missing:
+            status, cost = "INCOMPLETE", None
+        else:
+            status = "COMPLETE"
+            cost = recipe_batch_total(
+                [(r["quantity_needed"], r["cost_basis"], r["material_unit_cost"]) for r in rows], 1
+            )
+        result[product_id] = {"recipe_cost": cost, "recipe_cost_status": status, "recipe_cost_missing": missing}
+    return result
+
+
 def calculate_recipe_cost(
     conn: sqlite3.Connection, product_id: int, batch_qty: float = 1
 ) -> int:

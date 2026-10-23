@@ -2710,6 +2710,16 @@ export interface components {
             /** Min Stock */
             min_stock?: number | null;
         };
+        /**
+         * MissingMaterialOut
+         * @description A recipe material whose cost is 0 ("not entered"): why a recipe cost is incomplete.
+         */
+        MissingMaterialOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
         /** MonthEndDetails */
         MonthEndDetails: {
             /** Jalali Year */
@@ -3432,6 +3442,15 @@ export interface components {
             current_stock: number;
             /** Unit Cost */
             unit_cost: number | null;
+            /** Recipe Cost */
+            recipe_cost: number | null;
+            /**
+             * Recipe Cost Status
+             * @enum {string}
+             */
+            recipe_cost_status: "NONE" | "INCOMPLETE" | "COMPLETE";
+            /** Recipe Cost Missing */
+            recipe_cost_missing: components["schemas"]["MissingMaterialOut"][];
             /** Is Active */
             is_active: number;
             /** Made To Order */
@@ -3464,6 +3483,17 @@ export interface components {
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
             total_profit: number;
+            /** Unit Cost */
+            unit_cost: number | null;
+            /** Recipe Cost */
+            recipe_cost: number | null;
+            /**
+             * Recipe Cost Status
+             * @enum {string}
+             */
+            recipe_cost_status: "NONE" | "INCOMPLETE" | "COMPLETE";
+            /** Recipe Cost Missing */
+            recipe_cost_missing: components["schemas"]["MissingMaterialOut"][];
         };
         /** ProductPricesUpdate */
         ProductPricesUpdate: {

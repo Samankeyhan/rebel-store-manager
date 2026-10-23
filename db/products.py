@@ -1,4 +1,4 @@
-"""Finished goods: add/list/get (with `category_name`, `parent_category_name` joined in), update prices, move category, deactivate/reactivate.
+"""Finished goods: add/list/get (with `category_name`, `parent_category_name` joined in, and the display-only `recipe_cost*` fields of `recipes.recipe_costs`; `unit_cost` stays the stored weighted average), update prices, move category, deactivate/reactivate.
 Every product has `category_id`. `products.category` is a legacy column (NULL after migration 005); don't read it — it will be dropped."""
 
 import sqlite3
@@ -65,6 +65,16 @@ def add_product(
     return cursor.lastrowid
 
 
+def _with_recipe_costs(conn: sqlite3.Connection, products: list[dict]) -> list[dict]:
+    """Adds recipe_cost, recipe_cost_status, recipe_cost_missing (display only, `recipes.recipe_costs`) to each row."""
+    from db.recipes import recipe_costs  # db.recipes imports this module
+
+    costs = recipe_costs(conn, [p["id"] for p in products])
+    for product in products:
+        product.update(costs[product["id"]])
+    return products
+
+
 def list_products(
     conn: sqlite3.Connection, active_only: bool = True
 ) -> list[dict]:
@@ -74,12 +84,12 @@ def list_products(
         ).fetchall()
     else:
         rows = conn.execute(f"{_SELECT} ORDER BY products.name").fetchall()
-    return [dict(row) for row in rows]
+    return _with_recipe_costs(conn, [dict(row) for row in rows])
 
 
 def get_product(conn: sqlite3.Connection, product_id: int) -> dict | None:
     row = conn.execute(f"{_SELECT} WHERE products.id = ?", (product_id,)).fetchone()
-    return dict(row) if row is not None else None
+    return _with_recipe_costs(conn, [dict(row)])[0] if row is not None else None
 
 
 @audited()
