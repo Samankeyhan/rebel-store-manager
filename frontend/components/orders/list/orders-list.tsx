@@ -16,8 +16,11 @@ import { ORDER_STATUS_IDS } from "@/components/common/status"
 import { CHANNEL_IDS, CHANNELS } from "@/components/record-sale/copy"
 import { Btn, btnClass } from "@/components/record-sale/primitives"
 import { Segment } from "@/components/common/segment"
-import { ApiError, getSettings, listOrders, listPaymentMethods, type OrderListItem, type PaymentMethod } from "@/lib/api"
-import { jalaliMonthRange, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
+import { ApiError, listOrders, listPaymentMethods, type OrderListItem, type PaymentMethod } from "@/lib/api"
+import { useStoreTimeZone } from "@/components/dashboard/use-dashboard-data"
+import { last30Range } from "@/lib/default-range"
+import { isoToDate, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
+import { storeToday } from "@/lib/store-day"
 import { toLatinDigits } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { L } from "../copy"
@@ -85,8 +88,12 @@ export function OrdersList() {
   const params = useSearchParams()
   const mobile = useIsMobile()
   const [sheetOpen, setSheetOpen] = React.useState(false)
-  const [today] = React.useState(() => new Date())
-  const defaultRange = React.useMemo(() => jalaliMonthRange(today), [today])
+  // The default period is the last 30 days of the store's day (settings.timezone).
+  const storeTimeZone = useStoreTimeZone()
+  const [now] = React.useState(() => new Date())
+  const todayIso = React.useMemo(() => storeToday(now, storeTimeZone ?? DEFAULT_TZ), [now, storeTimeZone])
+  const today = React.useMemo(() => isoToDate(todayIso), [todayIso])
+  const defaultRange = React.useMemo(() => last30Range(todayIso), [todayIso])
   const filters = readFilters(new URLSearchParams(params.toString()), defaultRange)
 
   // Filters live in the URL so they survive opening an order and coming back.
@@ -132,13 +139,7 @@ export function OrdersList() {
     return () => window.clearTimeout(t)
   }, [search, filters.q, setFilters])
 
-  const [timeZone, setTimeZone] = React.useState(DEFAULT_TZ)
-  React.useEffect(() => {
-    getSettings().then(
-      (s) => setTimeZone(s.timezone || DEFAULT_TZ),
-      () => {}
-    )
-  }, [])
+  const timeZone = storeTimeZone ?? DEFAULT_TZ
 
   // Payment methods name the filter's options (inactive ones too: old orders use them).
   const [methods, setMethods] = React.useState<PaymentMethod[]>([])

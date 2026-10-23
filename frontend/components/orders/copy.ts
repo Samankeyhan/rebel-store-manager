@@ -104,6 +104,7 @@ export const L = {
   sheetChannel: "کانال",
   sheetDate: "بازه تاریخ",
   segLast7: "۷ روز",
+  segLast30: "۳۰ روز اخیر", // NEW
   segThisMonth: "این ماه",
   segCustom: "دلخواه",
   sheetFrom: "از ",

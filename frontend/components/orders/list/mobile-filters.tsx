@@ -7,7 +7,7 @@ import { JalaliDatePicker } from "@/components/jalali-date-picker"
 import { ORDER_STATUS_IDS, ORDER_STATUSES, badgeBase, statusName } from "@/components/common/status"
 import { CHANNEL_IDS, CHANNELS } from "@/components/record-sale/copy"
 import { Btn } from "@/components/record-sale/primitives"
-import { presetRange, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
+import { jalaliMonthRange, presetRange, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
 import { toPersianDigits } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
 import { L } from "../copy"
@@ -15,7 +15,7 @@ import { rangeLabel } from "./date-range-popover"
 import type { PaymentMethod } from "@/lib/api"
 import { SETTLEMENT_OPTIONS, methodName, type Filters, type SettlementFilter } from "./orders-list"
 
-type DateMode = "last7" | "thisMonth" | "custom"
+type DateMode = "last30" | "last7" | "thisMonth" | "custom"
 
 function activeCount(filters: Filters, defaultRange: IsoRange): number {
   let n = 0
@@ -26,6 +26,8 @@ function activeCount(filters: Filters, defaultRange: IsoRange): number {
   if (filters.range.from !== defaultRange.from || filters.range.to !== defaultRange.to) n++
   return n
 }
+
+const isSameRange = (a: IsoRange, b: IsoRange) => a.from === b.from && a.to === b.to
 
 const chipBase =
   "inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-border-strong bg-card px-3 text-[13px] font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
@@ -57,7 +59,7 @@ export function MobileFilterChips({
         )}
       </button>
       <button type="button" onClick={onOpen} className={cn(chipBase, "tabular-nums")}>
-        {wholeMonthLabel(filters.range) ?? rangeLabel(filters.range)}
+        {isSameRange(filters.range, defaultRange) ? L.segLast30 : (wholeMonthLabel(filters.range) ?? rangeLabel(filters.range))}
       </button>
       <button type="button" onClick={onOpen} className={chipBase}>
         {filters.status ? statusName(filters.status) : L.allStatuses}
@@ -108,14 +110,13 @@ export function MobileFilterSheet({
   const [method, setMethod] = React.useState(filters.method)
   const [settlement, setSettlement] = React.useState<SettlementFilter>(filters.settlement)
   const [range, setRange] = React.useState<IsoRange>(filters.range)
-  const [mode, setMode] = React.useState<DateMode>("thisMonth")
+  const [mode, setMode] = React.useState<DateMode>("last30")
 
-  const modeOf = (r: IsoRange): DateMode => {
-    const last7 = presetRange("last7", today)
-    if (r.from === last7.from && r.to === last7.to) return "last7"
-    if (r.from === defaultRange.from && r.to === defaultRange.to) return "thisMonth"
-    return "custom"
-  }
+  // «۳۰ روز اخیر» is the default; «این ماه» is a real preset of its own.
+  const presetOf = (m: Exclude<DateMode, "custom">): IsoRange =>
+    m === "last30" ? defaultRange : m === "last7" ? presetRange("last7", today) : jalaliMonthRange(today)
+  const modeOf = (r: IsoRange): DateMode =>
+    (["last30", "last7", "thisMonth"] as const).find((m) => isSameRange(r, presetOf(m))) ?? "custom"
 
   // Each time the sheet opens, seed the draft from the current filters.
   const [seededFor, setSeededFor] = React.useState(false)
@@ -133,8 +134,7 @@ export function MobileFilterSheet({
 
   const pickMode = (m: DateMode) => {
     setMode(m)
-    if (m === "last7") setRange(presetRange("last7", today))
-    if (m === "thisMonth") setRange(defaultRange)
+    if (m !== "custom") setRange(presetOf(m))
   }
 
   const statusRing: Record<string, string> = {
@@ -274,9 +274,10 @@ export function MobileFilterSheet({
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-[13px] font-semibold">{L.sheetDate}</legend>
-          <div className="grid grid-cols-3 gap-0.5 rounded-[10px] border border-border bg-surface-2 p-[3px]">
+          <div className="grid grid-cols-2 gap-0.5 rounded-[10px] border border-border bg-surface-2 p-[3px]">
             {(
               [
+                ["last30", L.segLast30],
                 ["last7", L.segLast7],
                 ["thisMonth", L.segThisMonth],
                 ["custom", L.segCustom],

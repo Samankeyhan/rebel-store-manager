@@ -31,7 +31,7 @@ function rangeText(range: IsoRange): string {
  * خانه (design/screens/01-dashboard.md). Read-only: KPIs from the P&L for the
  * selected period, «فروش امروز» for the store's today, shipping economics,
  * stock warnings and the newest orders. Each card loads (and fails)
- * on its own. The period lives in the URL (?from=&to=; none = this month).
+ * on its own. The period lives in the URL (?from=&to=; none = the last 30 days).
  */
 export function Dashboard() {
   // Re-render the whole screen when the display currency switches (lib/money.ts).
@@ -60,7 +60,7 @@ export function Dashboard() {
     data.orders.status === "ready" &&
     data.orders.data.length === 0
 
-  const periodWord = period ? D.periodWord[period.kind] : D.periodWord.thisMonth
+  const periodWord = period ? D.periodWord[period.kind] : D.periodWord.last30
 
   return (
     <div className={cn("flex flex-col", mobile ? "gap-4 pb-28" : "gap-6")}>
@@ -137,6 +137,7 @@ export function Dashboard() {
 const PRESET_LABELS: Record<PeriodKind, string> = {
   today: D.periodToday,
   last7: D.periodLast7,
+  last30: D.periodLast30,
   thisMonth: D.periodThisMonth,
   lastMonth: D.periodLastMonth,
   custom: D.periodCustom,

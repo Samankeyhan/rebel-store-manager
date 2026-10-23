@@ -21,6 +21,7 @@ export const D = {
   periodAria: "بازه گزارش", // NEW
   periodToday: "امروز", // NEW
   periodLast7: "۷ روز اخیر", // NEW
+  periodLast30: "۳۰ روز اخیر", // NEW
   periodThisMonth: "این ماه", // NEW
   periodLastMonth: "ماه گذشته", // NEW
   periodCustom: "بازه دلخواه", // NEW
@@ -30,6 +31,7 @@ export const D = {
   periodWord: {
     today: "امروز",
     last7: "۷ روز اخیر",
+    last30: "۳۰ روز اخیر", // NEW
     thisMonth: "این ماه",
     lastMonth: "ماه گذشته",
     custom: "بازه انتخابی",
