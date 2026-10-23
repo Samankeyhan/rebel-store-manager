@@ -244,6 +244,11 @@ export function setMadeToOrder(productId: number, madeToOrder: boolean): Promise
   })
 }
 
+/** «ثبت بها»: a product with no cost gets one (integer Rial). Refused with COST_ALREADY_SET (409) when it has one. */
+export function setProductCost(productId: number, unitCost: number): Promise<Product> {
+  return apiFetch<Product>(`/products/${productId}/cost`, { method: "POST", body: JSON.stringify({ unit_cost: unitCost }) })
+}
+
 export function deactivateProduct(productId: number): Promise<Product> {
   return apiFetch<Product>(`/products/${productId}/deactivate`, { method: "POST" })
 }
@@ -258,6 +263,11 @@ export function createMaterial(body: MaterialCreate): Promise<Material> {
  */
 export function updateMaterial(materialId: number, body: MaterialUpdate): Promise<Material> {
   return apiFetch<Material>(`/materials/${materialId}`, { method: "PATCH", body: JSON.stringify(body) })
+}
+
+/** «ثبت بها»: a material at cost 0 gets its cost (integer Rial). Refused with COST_ALREADY_SET (409) when it has one. */
+export function setMaterialCost(materialId: number, unitCost: number): Promise<Material> {
+  return apiFetch<Material>(`/materials/${materialId}/cost`, { method: "POST", body: JSON.stringify({ unit_cost: unitCost }) })
 }
 
 /**

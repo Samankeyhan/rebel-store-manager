@@ -64,6 +64,11 @@ export function isAmountTooLarge(e: CodedError): boolean {
   return e.status === 422 && hasCode(e, "AMOUNT_TOO_LARGE")
 }
 
+/** «ثبت بها» refused because the item already has a cost (409 COST_ALREADY_SET; details item_type, item_id, item_name, unit_cost). */
+export function isCostAlreadySet(e: CodedError): boolean {
+  return e.status === 409 && hasCode(e, "COST_ALREADY_SET")
+}
+
 /** A quantity that is not a whole number, or outside its range (details `min`, `max`: the bound crossed). */
 export function isQuantityRefusal(e: CodedError): boolean {
   return e.status === 422 && hasCode(e, "QUANTITY_NOT_WHOLE", "QUANTITY_OUT_OF_RANGE")

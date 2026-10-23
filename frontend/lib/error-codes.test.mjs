@@ -93,6 +93,13 @@ test("isAmountTooLarge and isQuantityRefusal read the 422 codes only", async () 
   assert.equal(isQuantityRefusal({ status: 422, code: "AMOUNT_TOO_LARGE" }), false)
 })
 
+test("isCostAlreadySet reads the 409 COST_ALREADY_SET only", async () => {
+  const { isCostAlreadySet } = await import("./error-codes.ts")
+  assert.equal(isCostAlreadySet({ status: 409, code: "COST_ALREADY_SET", details: { item_id: 3, unit_cost: 500 } }), true)
+  assert.equal(isCostAlreadySet({ status: 422, code: "COST_ALREADY_SET" }), false)
+  assert.equal(isCostAlreadySet({ status: 409, code: "CONFLICT" }), false)
+})
+
 test("staleItems reads a STOCKTAKE_STALE refusal and nothing else", async () => {
   const { staleItems } = await import("./error-codes.ts")
   const e = { status: 409, code: "STOCKTAKE_STALE", details: { items: [

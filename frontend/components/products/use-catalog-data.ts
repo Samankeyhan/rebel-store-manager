@@ -86,6 +86,19 @@ export function useCatalogData() {
   }, [])
 
   /**
+   * Refetch the products only. A material's new cost changes its products' recipe cost («ناقص» → complete), which the
+   * material row does not carry. Failures are left to the next full load.
+   */
+  const refreshProducts = React.useCallback(async () => {
+    try {
+      const products = await listProducts()
+      setState((s) => (s.status === "ready" ? { ...s, products } : s))
+    } catch {
+      /* the saved cost stays; the products refresh with the next load */
+    }
+  }, [])
+
+  /**
    * Refetch one category tree after a category write. A rename changes the
    * children's parent_name too, so this is simpler than patching nodes.
    * Products/materials carry their category's name, so a rename also needs
@@ -110,5 +123,5 @@ export function useCatalogData() {
     })
   }, [])
 
-  return { state, reload, reloadTree, upsertProduct, upsertMaterial }
+  return { state, reload, reloadTree, upsertProduct, upsertMaterial, refreshProducts }
 }
