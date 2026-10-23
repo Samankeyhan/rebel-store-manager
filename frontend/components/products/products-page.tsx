@@ -24,7 +24,9 @@ import {
   reactivateMaterial,
   reactivateProduct,
   setMaterialCategory,
+  setMaterialCost,
   setProductCategory,
+  setProductCost,
   type CategoryKind,
   type CategoryTree,
   type Material,
@@ -127,7 +129,7 @@ export function ProductsPage() {
     return () => window.clearTimeout(t)
   }, [search, q, setParams])
 
-  const { state, reload, reloadTree, upsertProduct, upsertMaterial } = useCatalogData()
+  const { state, reload, reloadTree, upsertProduct, upsertMaterial, refreshItems } = useCatalogData()
   const [panel, setPanel] = React.useState<Panel>({ kind: "none" })
   const [deactivating, setDeactivating] = React.useState<DeactivateTarget | null>(null)
   const [deactivateBusy, setDeactivateBusy] = React.useState(false)
@@ -301,6 +303,29 @@ export function ProductsPage() {
     }
   }
 
+  /**
+   * «ثبت بها»: the API returns the priced row; the material leaves «متریال‌های بدون بها» at once, and the products are
+   * refetched because their recipe costs («ناقص» → complete) depend on it. Errors go back to the field that asked.
+   */
+  const setMaterialCostNow = async (m: Material, cost: number) => {
+    const updated = await setMaterialCost(m.id, cost)
+    upsertMaterial(updated)
+    setToast(P.toastCostSet(updated.name))
+    void refreshItems()
+  }
+
+  const setProductCostNow = async (p: Product, cost: number) => {
+    const updated = await setProductCost(p.id, cost)
+    upsertProduct(updated)
+    setToast(P.toastCostSet(updated.name))
+  }
+
+  /** Another screen priced the item first: show the lists as they are now. */
+  const costAlreadySet = () => {
+    setToast(P.costAlreadySet)
+    void refreshItems()
+  }
+
   const clearFilters = () => {
     setSearch("")
     setParams({ q: null, category: null, matCategory: null })
@@ -423,6 +448,8 @@ export function ProductsPage() {
           onEdit={(m) => setParams({ tab: "materials", material: String(m.id) })}
           onDeactivate={(m) => setDeactivating({ kind: "material", item: m })}
           onReactivate={(m) => reactivate({ kind: "material", item: m })}
+          onSetCost={setMaterialCostNow}
+          onCostAlreadySet={costAlreadySet}
         />
       )
   }
@@ -509,6 +536,8 @@ export function ProductsPage() {
         }}
         onDeactivate={(p) => setDeactivating({ kind: "product", item: p })}
         onReactivate={(p) => reactivate({ kind: "product", item: p })}
+        onSetCost={setProductCostNow}
+        onCostAlreadySet={costAlreadySet}
         tree={productTree}
       />
       <MaterialDrawer
@@ -526,6 +555,8 @@ export function ProductsPage() {
           setPanel({ kind: "none" })
           clearMaterialParam()
         }}
+        onSetCost={setMaterialCostNow}
+        onCostAlreadySet={costAlreadySet}
       />
       <CategoryDialog
         form={catForm}

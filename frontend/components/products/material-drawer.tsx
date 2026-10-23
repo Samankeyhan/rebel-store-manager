@@ -25,6 +25,8 @@ import { DrawerShell, FieldError, SaveError, textInputClass } from "./drawer-she
 import { nameDuplicateMessage } from "@/components/common/copy"
 import { duplicateEntity, isNameDuplicate } from "@/lib/error-codes"
 import { DEFAULT_UNIT, UNITS, unitLabel } from "./figures"
+import { canSetMaterialCost } from "@/lib/set-cost"
+import { SetCostField } from "./set-cost"
 
 const readOnlyBox = "flex h-10 items-center rounded-lg border border-border bg-surface-2 px-3 text-sm text-text-2 tabular-nums"
 
@@ -48,6 +50,8 @@ export function MaterialDrawer({
   mobile,
   onClose,
   onSaved,
+  onSetCost,
+  onCostAlreadySet,
 }: {
   open: boolean
   /** null = add; a material = edit its minimum stock. */
@@ -57,6 +61,9 @@ export function MaterialDrawer({
   mobile: boolean
   onClose: () => void
   onSaved: (m: Material, toast: string) => void
+  /** «ثبت بها» (cost 0 only): saves on its own and leaves the drawer open, with the typed minimum kept. */
+  onSetCost: (m: Material, cost: number) => Promise<void>
+  onCostAlreadySet: () => void
 }) {
   const editing = material != null
   const [name, setName] = React.useState("")
@@ -258,6 +265,18 @@ export function MaterialDrawer({
               <Money value={material.unit_cost} />
             </ReadOnly>
           </div>
+          {canSetMaterialCost(material) && (
+            <div className="flex flex-col gap-2 rounded-[10px] bg-warn-soft p-3">
+              <span className="text-[13px] font-semibold">{P.setCost}</span>
+              <SetCostField
+                mobile={mobile}
+                item={{ kind: "material", id: material.id, name: material.name, type: material.type, unit: shownUnit, current_stock: material.current_stock }}
+                onSave={(cost) => onSetCost(material, cost)}
+                onAlreadySet={onCostAlreadySet}
+              />
+              <span className="text-xs text-text-3">{P.setCostDrawerHelp}</span>
+            </div>
+          )}
           {isStock && material.current_stock != null && (
             <div className="flex flex-col gap-1.5">
               <ReadOnly label={P.fieldStock}>

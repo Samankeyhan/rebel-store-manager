@@ -86,15 +86,16 @@ export function useCatalogData() {
   }, [])
 
   /**
-   * Refetch the products only. A material's new cost changes its products' recipe cost («ناقص» → complete), which the
-   * material row does not carry. Failures are left to the next full load.
+   * Refetch the products and materials (not the trees). A material's new cost changes its products' recipe cost
+   * («ناقص» → complete), which the material row does not carry; a refused «ثبت بها» means another screen priced the
+   * item first. Failures are left to the next full load.
    */
-  const refreshProducts = React.useCallback(async () => {
+  const refreshItems = React.useCallback(async () => {
     try {
-      const products = await listProducts()
-      setState((s) => (s.status === "ready" ? { ...s, products } : s))
+      const [products, materials] = await Promise.all([listProducts(), listMaterials()])
+      setState((s) => (s.status === "ready" ? { ...s, products, materials } : s))
     } catch {
-      /* the saved cost stays; the products refresh with the next load */
+      /* what was saved stays; the lists refresh with the next load */
     }
   }, [])
 
@@ -123,5 +124,5 @@ export function useCatalogData() {
     })
   }, [])
 
-  return { state, reload, reloadTree, upsertProduct, upsertMaterial, refreshProducts }
+  return { state, reload, reloadTree, upsertProduct, upsertMaterial, refreshItems }
 }

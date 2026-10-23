@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 import { ActiveBadge, Chip, TypeBadge } from "./badges"
 import { P } from "./copy"
 import { inventoryValue, unitLabel } from "./figures"
+import { SetCostField } from "./set-cost"
 
 const pillClass = "inline-flex h-[22px] items-center rounded-md px-2 text-[11.5px] font-semibold whitespace-nowrap tabular-nums"
 
@@ -37,7 +38,19 @@ function StockCell({ m }: { m: Material }) {
 }
 
 /** «متریال‌های بدون بها»: active materials at cost 0 with stock, or that make a recipe «ناقص». Each opens its drawer. */
-function NoCostMaterials({ materials, onEdit }: { materials: Material[]; onEdit: (m: Material) => void }) {
+function NoCostMaterials({
+  materials,
+  mobile,
+  onEdit,
+  onSetCost,
+  onCostAlreadySet,
+}: {
+  materials: Material[]
+  mobile: boolean
+  onEdit: (m: Material) => void
+  onSetCost: (m: Material, cost: number) => Promise<void>
+  onCostAlreadySet: () => void
+}) {
   if (materials.length === 0) return null
   return (
     <section
@@ -46,24 +59,33 @@ function NoCostMaterials({ materials, onEdit }: { materials: Material[]; onEdit:
     >
       <b>{P.noCostMaterialsTitle(materials.length)}</b>
       <span className="text-xs text-text-2">{P.noCostMaterialsHelp}</span>
-      <ul className="flex flex-wrap gap-2">
+      <ul className="flex flex-col gap-2">
         {materials.map((m) => (
-          <li key={m.id} className="flex items-center gap-1">
+          <li key={m.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 rounded-lg border border-border bg-card p-2.5">
             <button
               type="button"
               onClick={() => onEdit(m)}
-              className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-ring/30"
+              className="inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-xs outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-ring/30"
             >
               <span className="font-semibold">{m.name}</span>
               {m.current_stock != null && m.current_stock > 0 && (
                 <span className="text-text-3">{P.noCostMaterialStock(`${formatQuantity(m.current_stock)} ${unitLabel(m.unit)}`)}</span>
               )}
             </button>
-            {m.type === "STOCK" && (
-              <Link href={stocktakeMaterialHref(m.id)} className={btnClass("outline", "sm")}>
-                {P.setCostInStocktake}
-              </Link>
-            )}
+            <div className="flex flex-wrap items-start gap-2">
+              <SetCostField
+                compact
+                mobile={mobile}
+                item={{ kind: "material", id: m.id, name: m.name, type: m.type, unit: unitLabel(m.unit), current_stock: m.current_stock }}
+                onSave={(cost) => onSetCost(m, cost)}
+                onAlreadySet={onCostAlreadySet}
+              />
+              {m.type === "STOCK" && (
+                <Link href={stocktakeMaterialHref(m.id)} className={cn(btnClass("outline", mobile ? "md" : "sm"), mobile && "h-11")}>
+                  {P.setCostInStocktake}
+                </Link>
+              )}
+            </div>
           </li>
         ))}
       </ul>
@@ -78,6 +100,8 @@ export function MaterialsTab({
   onEdit,
   onDeactivate,
   onReactivate,
+  onSetCost,
+  onCostAlreadySet,
 }: {
   rows: Material[]
   /** Active materials at cost 0 that hold stock or make a recipe «ناقص» (from all loaded rows, not the search). */
@@ -87,11 +111,18 @@ export function MaterialsTab({
   onEdit: (m: Material) => void
   onDeactivate: (m: Material) => void
   onReactivate: (m: Material) => void
+  /** «ثبت بها»: saves the cost (integer Rial); the caller updates the lists, so the material leaves the list above. */
+  onSetCost: (m: Material, cost: number) => Promise<void>
+  /** The cost turned out to be set already: refetch. */
+  onCostAlreadySet: () => void
 }) {
+  const noCostList = (
+    <NoCostMaterials materials={noCost} mobile={mobile} onEdit={onEdit} onSetCost={onSetCost} onCostAlreadySet={onCostAlreadySet} />
+  )
   if (mobile) {
     return (
       <div className="flex flex-col gap-3">
-        <NoCostMaterials materials={noCost} onEdit={onEdit} />
+        {noCostList}
         {rows.map((m) => {
           const active = m.is_active === 1
           return (
@@ -146,7 +177,7 @@ export function MaterialsTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <NoCostMaterials materials={noCost} onEdit={onEdit} />
+      {noCostList}
       <section className={cn(cardClass, "overflow-hidden")}>
         <div className="overflow-x-auto">
           <table className="w-full border-separate border-spacing-0 text-[13.5px]">

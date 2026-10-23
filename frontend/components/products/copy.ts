@@ -29,10 +29,30 @@ export const P = {
   bannerOneRest: (name: string) => ` — «${name}» تا تعیین بها قابل فروش نیست.`,
   // NEW: materials whose cost is 0 ("not entered"): holding stock, or making a recipe «ناقص».
   noCostMaterialsTitle: (n: number) => `متریال‌های بدون بها (${fa(n)})`,
-  noCostMaterialsHelp: "بهای این متریال‌ها ثبت نشده (۰) است. با اولین خرید یا تعدیل همراه با بها، بهای آن‌ها ثبت می‌شود.",
+  noCostMaterialsHelp: "بهای این متریال‌ها ثبت نشده (۰) است. بها را همین‌جا ثبت کنید، یا با اولین خرید یا انبارگردانی همراه با بها ثبت می‌شود.",
   // NEW: opens the stocktake page on this material (its count and cost are entered there, not here).
   setCostInStocktake: "ثبت بها در انبارگردانی",
   noCostMaterialStock: (qty: string) => `موجودی ${qty}`,
+  // NEW: «ثبت بها» prices stock that is already there, without a purchase or a count. Once only: the cost is not
+  // editable afterwards, so a confirmation shows the price in both units and the resulting stock value first.
+  setCost: "ثبت بها",
+  setCostInputAria: (name: string) => `بهای واحد «${name}»`,
+  setCostPer: (unit: string) => `به ازای هر ${unit}`,
+  setCostPrefilled: "برآورد از دستور تولید — قابل ویرایش",
+  setCostDrawerHelp: "بها فقط یک بار ثبت می‌شود و بعد از آن قابل ویرایش نیست. موجودی تغییر نمی‌کند.",
+  costConfirmTitle: "تأیید ثبت بها",
+  costConfirmMaterial: "متریال",
+  costConfirmProduct: "محصول",
+  costConfirmUnitPrice: (unit: string) => `بهای هر ${unit}`,
+  costConfirmStored: "مبلغ ذخیره‌شده",
+  costConfirmStockValue: (qty: string) => `ارزش موجودی (${qty})`,
+  costConfirmService: "این متریال خدماتی است و موجودی ندارد؛ فقط بهای واحد ثبت می‌شود.",
+  costConfirmWarn: "مبلغ و واحد پول را بررسی کنید؛ پس از تأیید بها قابل ویرایش نیست.",
+  costConfirmOk: "تأیید",
+  costConfirmCancel: "انصراف",
+  costAlreadySet: "برای این مورد بها قبلاً ثبت شده بود؛ اطلاعات به‌روز شد.",
+  costTooLarge: "این مبلغ بیش از حد مجاز است.",
+  toastCostSet: (name: string) => `بهای «${name}» ثبت شد`,
   noCostMaterialInRecipe: "در دستور تولید",
   bannerMany: (n: number) => `${fa(n)} محصول بدون بهای تمام‌شده`, // NEW
   bannerManyRest: " — تا تعیین بها قابل فروش نیستند.", // NEW

@@ -20,6 +20,9 @@ import { nameDuplicateMessage } from "@/components/common/copy"
 import { duplicateEntity, isNameDuplicate } from "@/lib/error-codes"
 import { CategoryPicker } from "./category-picker"
 import { costLines, costState } from "./figures"
+import { prefillCost } from "@/lib/product-cost"
+import { canSetProductCost } from "@/lib/set-cost"
+import { SetCostField } from "./set-cost"
 
 function errorOf(error: unknown): { message: string; code: string } {
   if (error instanceof ApiError) {
@@ -55,6 +58,8 @@ export function ProductDrawer({
   onSaved,
   onDeactivate,
   onReactivate,
+  onSetCost,
+  onCostAlreadySet,
   tree,
 }: {
   open: boolean
@@ -66,6 +71,9 @@ export function ProductDrawer({
   onSaved: (p: Product, toast: string, close?: boolean) => void
   onDeactivate: (p: Product) => void
   onReactivate: (p: Product) => void
+  /** «ثبت بها» (no cost, stock held): saves on its own and leaves the drawer open. */
+  onSetCost: (p: Product, cost: number) => Promise<void>
+  onCostAlreadySet: () => void
   /** The PRODUCT category tree (inactive nodes included; the picker hides them). */
   tree: CategoryTree[]
 }) {
@@ -318,6 +326,20 @@ export function ProductDrawer({
               <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
               {P.costMissingErr}
             </span>
+          )}
+          {cost.kind === "missing" && canSetProductCost(product) && (
+            <div className="flex flex-col gap-2 border-t border-border pt-3">
+              <span className="text-[13px] font-semibold">{P.setCost}</span>
+              <SetCostField
+                key={product.id}
+                mobile={mobile}
+                item={{ kind: "product", id: product.id, name: product.name, unit: "عدد", current_stock: product.current_stock }}
+                prefill={prefillCost(product)}
+                onSave={(cost) => onSetCost(product, cost)}
+                onAlreadySet={onCostAlreadySet}
+              />
+              <span className="text-xs text-text-3">{P.setCostDrawerHelp}</span>
+            </div>
           )}
           <span className="text-xs text-text-3">{cost.kind === "fromRecipe" ? P.costFromRecipeHelp : P.costHelp}</span>
           {cost.kind === "missing" && (
