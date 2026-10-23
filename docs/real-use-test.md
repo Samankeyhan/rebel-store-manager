@@ -35,7 +35,7 @@ Do not edit `data\shop.db` by hand (no DB browser, no SQL), and do not delete or
 
 ## Counting the shelves (stocktake)
 
-To load opening stock or to correct stock after counting, use «شمارش موجودی»: stop sales and adjustments first, count, enter the numbers, review, apply. A gain on an item with no cost needs the cost of the units. Afterwards run the evening check as usual; it should still end with `OK`.
+To load opening stock or to correct stock after counting, use «شمارش موجودی»: stop sales and adjustments first, count, enter the numbers, review, apply. A gain on an item with no cost needs the cost of the units. To price stock that is already counted, without a purchase or a count, use «ثبت بها» (a material at cost 0 under «متریال‌های بدون بها» or in its drawer; a product without a cost in its drawer): it asks for a confirmation, sets the cost once, and changes no quantity. A cost that is already set can only be replaced through a count (down to 0, then back up with a cost). Afterwards run the evening check as usual; it should still end with `OK`.
 
 **Opening stock after the go-live reset** (`docs/RUNNING.md`, section 10): the reset sets all stock to 0 and all product unit costs to "unknown", so enter every item you own here, with its cost.
 - Products: the screen asks for the unit cost of each gain.
