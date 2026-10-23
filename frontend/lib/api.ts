@@ -130,12 +130,14 @@ export type OrderListParams = {
   payment_method_id?: string | null
   /** "pending": paid, has a method, not yet settled; "settled": in a settlement. */
   settlement_state?: "pending" | "settled" | null
+  /** VOIDED orders are left out unless asked (or status is "VOIDED"). */
+  include_voided?: boolean
 }
 
 export function listOrders(params: OrderListParams = {}): Promise<OrderListItem[]> {
   const qs = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
-    if (value) qs.set(key, value)
+    if (value) qs.set(key, value === true ? "true" : String(value))
   }
   const query = qs.toString()
   return apiFetch<OrderListItem[]>(`/orders${query ? `?${query}` : ""}`)
@@ -178,6 +180,26 @@ export function returnOrder(
   return apiFetch<OrderDetail>(`/orders/${orderId}/return`, {
     method: "POST",
     body: JSON.stringify({ status, reason }),
+  })
+}
+
+export type VoidPreview = Schemas["VoidPreviewOut"]
+
+/** What voiding the order would put back and take out of the figures, and every rule that refuses it now. */
+export function getVoidPreview(orderId: number): Promise<VoidPreview> {
+  return apiFetch<VoidPreview>(`/orders/${orderId}/void-preview`)
+}
+
+/** Void a sale entered by mistake (reason required): 409 with a void-preview code, 422 VOID_REASON_REQUIRED. */
+export function voidOrder(orderId: number, reason: string): Promise<OrderDetail> {
+  return apiFetch<OrderDetail>(`/orders/${orderId}/void`, { method: "POST", body: JSON.stringify({ reason }) })
+}
+
+/** Void the order and record `order` in its place, in one operation; returns the NEW order. */
+export function correctOrder(orderId: number, reason: string, order: OrderCreate): Promise<OrderDetail> {
+  return apiFetch<OrderDetail>(`/orders/${orderId}/correct`, {
+    method: "POST",
+    body: JSON.stringify({ reason, order }),
   })
 }
 
