@@ -5,14 +5,18 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Check, Loader2, Plus, Truck } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { ConfirmDeleteDialog } from "@/components/common/confirm-delete-dialog"
+import { closedDayMessage, RowActions } from "@/components/common/copy"
+import { RowMenu } from "@/components/common/row-menu"
 import { ErrorBlock, LoadingBlock, StateShell } from "@/components/common/screen-states"
 import { badgeBase } from "@/components/common/status"
 import { Toast } from "@/components/common/toast"
 import { DateRangePopover } from "@/components/orders/list/date-range-popover"
 import { CHANNEL_IDS, CHANNELS } from "@/components/record-sale/copy"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
-import type { PostageBatch, Settings } from "@/lib/api"
-import { formatJalali, presetRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
+import { ApiError, deletePostageBatch, type PostageBatch, type Settings } from "@/lib/api"
+import { closedDay } from "@/lib/expense-edit"
+import { dateToISO, formatJalali, presetRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
 import { formatNumber } from "@/lib/persian-numbers"
 import { formatMoneyNumber } from "@/lib/money"
 import { Money } from "@/components/common/money"
@@ -20,6 +24,7 @@ import { readUrlRange, writeUrlRange } from "@/lib/url-range"
 import { cn } from "@/lib/utils"
 import { T } from "./copy"
 import { rateOf, sums, windowOf } from "./figures"
+import { EditPaymentDialog } from "./edit-payment-dialog"
 import { PaymentForm, type PaymentFormHandle } from "./payment-form"
 import { usePostageData } from "./use-postage-data"
 import { useCurrency } from "@/lib/use-currency"
@@ -56,6 +61,10 @@ export function PostagePage() {
   const [toast, setToast] = React.useState<string | null>(null)
   const closeToast = React.useCallback(() => setToast(null), [])
   const formRef = React.useRef<PaymentFormHandle>(null)
+  const [editing, setEditing] = React.useState<PostageBatch | null>(null)
+  const [deleting, setDeleting] = React.useState<PostageBatch | null>(null)
+  const [deleteBusy, setDeleteBusy] = React.useState(false)
+  const [deleteError, setDeleteError] = React.useState<string | null>(null)
 
   if (state.status === "loading") return <LoadingBlock mobile={mobile} label={T.loadingAria} />
   if (state.status === "error")
@@ -157,6 +166,73 @@ export function PostagePage() {
     />
   )
 
+  // ------------------------------------------------------- edit and delete
+  const confirmDelete = async () => {
+    if (!deleting) return
+    setDeleteBusy(true)
+    setDeleteError(null)
+    try {
+      await deletePostageBatch(deleting.id)
+      setDeleting(null)
+      const next = await refresh().catch(() => {
+        reload()
+        return null
+      })
+      if (next) setToast(T.toastDeleted(next.estimate))
+    } catch (e) {
+      const closed = e instanceof ApiError ? closedDay(e) : null
+      if (closed) setDeleteError(closedDayMessage(formatJalali(closed.periodEnd, "yyyy/MM/dd")))
+      else if (e instanceof ApiError && e.status === 404) {
+        setDeleting(null)
+        reload()
+      } else setDeleteError(e instanceof ApiError ? e.message : String(e))
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+  const dialogs = (
+    <>
+      <EditPaymentDialog
+        batch={editing}
+        today={dateToISO(now)}
+        timeZone={tz}
+        mobile={mobile}
+        onClose={() => setEditing(null)}
+        onSaved={async () => {
+          setEditing(null)
+          const next = await refresh().catch(() => {
+            reload()
+            return null
+          })
+          if (next) setToast(T.toastUpdated(next.estimate))
+        }}
+      />
+      <ConfirmDeleteDialog
+        open={deleting != null}
+        title={T.deleteTitle}
+        lines={
+          deleting
+            ? [
+                T.deleteLineDate(day(deleting.paid_date)),
+                <Money key="total" value={deleting.total_paid} />,
+                T.deleteLineOrders(deleting.order_count),
+                ...(deleting.notes ? [T.deleteLineNote(deleting.notes)] : []),
+                T.deleteEstimateNote,
+              ]
+            : []
+        }
+        confirmLabel={T.deleteConfirm}
+        busy={deleteBusy}
+        error={deleteError}
+        onConfirm={confirmDelete}
+        onClose={() => {
+          setDeleting(null)
+          setDeleteError(null)
+        }}
+      />
+    </>
+  )
+
   // ---------------------------------------------------------------- ledger
   const rows = batches.filter((b) => {
     const local = utcToLocal(b.paid_date, tz)?.iso
@@ -202,7 +278,10 @@ export function PostagePage() {
                   </b>
                   <span className="text-xs text-text-3 tabular-nums">{T.recentMeta(day(b.paid_date), b.order_count)}</span>
                 </span>
-                <span className="text-sm tabular-nums">{T.recentRate(rateOf(b.total_paid, b.order_count))}</span>
+                <span className="flex items-center gap-1">
+                  <span className="text-sm tabular-nums">{T.recentRate(rateOf(b.total_paid, b.order_count))}</span>
+                  <RowMenu onEdit={() => setEditing(b)} onDelete={() => setDeleting(b)} />
+                </span>
               </div>
             ))}
           </>
@@ -214,6 +293,7 @@ export function PostagePage() {
           </Btn>
         </div>
         {toast && <Toast title={toast} onClose={closeToast} closeLabel={T.close} />}
+        {dialogs}
       </div>
     )
   }
@@ -248,6 +328,9 @@ export function PostagePage() {
                 <th scope="col" className="w-full">
                   <span className="sr-only">{T.inWindow}</span>
                 </th>
+                <th scope="col">
+                  <span className="sr-only">{RowActions.menuAria}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -273,6 +356,9 @@ export function PostagePage() {
                         {b.notes && <span className="truncate text-xs text-text-3">{b.notes}</span>}
                       </span>
                     </td>
+                    <td className="w-12 px-2!">
+                      <RowMenu onEdit={() => setEditing(b)} onDelete={() => setDeleting(b)} />
+                    </td>
                   </tr>
                 )
               })}
@@ -288,6 +374,7 @@ export function PostagePage() {
                   <Money value={rateOf(footer.total, footer.orders)} />
                 </td>
                 <td className="text-xs font-normal text-text-3">{T.footerNote}</td>
+                <td />
               </tr>
             </tfoot>
           </table>
@@ -317,6 +404,7 @@ export function PostagePage() {
         {empty ? <div className="min-w-0 grow">{ledgerEmpty}</div> : ledger}
       </div>
       {toast && <Toast title={toast} onClose={closeToast} closeLabel={T.close} />}
+      {dialogs}
     </div>
   )
 }

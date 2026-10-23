@@ -70,6 +70,23 @@ export const T = {
   recentMeta: (date: string, n: number) => `${date} · ${fa(n)} سفارش`,
   recentRate: (rate: number) => `${formatMoney(rate)} / سفارش`,
 
+  // edit and delete
+  editTitle: "ویرایش پرداخت به پست", // NEW
+  save: "ذخیره", // NEW
+  cancel: "انصراف", // NEW
+  nothingChanged: "تغییری برای ذخیره نیست.", // NEW
+  futureDate: "تاریخ پرداخت نمی‌تواند بعد از امروز باشد.", // NEW
+  gone: "این پرداخت دیگر وجود ندارد؛ فهرست را تازه کنید.", // NEW
+  editNote: "سفارش‌های قبلی تغییر نمی‌کنند؛ فقط تخمین پست برای سفارش‌های جدید عوض می‌شود.", // NEW
+  toastUpdated: (estimate: number) => `پرداخت ذخیره شد · تخمین جدید: ${formatMoney(estimate)} / سفارش`, // NEW
+  deleteTitle: "حذف پرداخت به پست", // NEW
+  deleteConfirm: "حذف پرداخت", // NEW
+  deleteLineDate: (date: string) => `تاریخ: ${date}`, // NEW
+  deleteLineOrders: (n: number) => `تعداد سفارش: ${fa(n)}`, // NEW
+  deleteLineNote: (text: string) => `یادداشت: ${text}`, // NEW
+  deleteEstimateNote: "با حذف، تخمین پست برای سفارش‌های جدید دوباره حساب می‌شود؛ سفارش‌های قبلی تغییر نمی‌کنند.", // NEW
+  toastDeleted: (estimate: number) => `پرداخت حذف شد · تخمین جدید: ${formatMoney(estimate)} / سفارش`, // NEW
+
   // states
   emptyTitle: "هنوز پرداختی به پست ثبت نشده",
   emptyTitleMobile: "هنوز پرداختی ثبت نشده",

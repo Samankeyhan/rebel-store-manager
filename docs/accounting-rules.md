@@ -10,6 +10,7 @@ Money was stored in integer Toman before migration 009, which multiplied every m
 - A date-range filter (start_date, end_date) covers whole local days, inclusive: stored_value >= (start_date 00:00 local, as UTC) AND stored_value < (end_date + 1 day, 00:00 local, as UTC). Either bound may be omitted.
 - Exception: profit_distributions.period_start and period_end are calendar days, not moments. They are stored as local "YYYY-MM-DD" and mean whole local days, exactly like a date-range filter.
 - Also calendar days (local "YYYY-MM-DD"): orders.paid_date, orders.expected_settlement_date and settlements.settled_date (section 14). The paid_date in the moments list above is the postage batch's (section 6). "Today" for any business rule is today_local() in the store timezone.
+- An expense_date or postage paid_date after today_local() is refused when recording and when editing (422 DATE_IN_FUTURE, field = that date; only the day is compared). An edit that leaves the local day unchanged keeps the stored time of day and is not re-checked.
 - A backdated sale (order_date before today) moves only order_date and what follows from it; the cost, stock and packaging figures are still today's (section 7, Backdated orders).
 - All conversions go through db/timeutil.py. No other module does timezone arithmetic.
 
@@ -71,6 +72,7 @@ channel_settings:
 ## 6. Postage
 - A postage batch records a bulk payment to the post office: paid_date, total_paid, order_count (> 0), notes.
 - Current postage estimate = round(sum(total_paid) / sum(order_count)) over the most recent N batches by paid_date (N = postage_estimate_window). With no batches: default_postage_estimate.
+- A postage batch can be corrected: `update_postage_batch` (total_paid, order_count, paid_date, notes) and `delete_postage_batch` (hard delete; the audit log keeps the whole old row). A paid_date after today_local() is refused (422, field paid_date, code DATE_IN_FUTURE), also when recording. Editing or deleting a batch changes the current estimate for FUTURE orders only; postage_cost frozen on existing orders never changes. Closed days: section 11.
 - When an order commits stock, postage_cost = the explicit override if one was given; otherwise the current estimate if its channel applies_postage; otherwise 0. The value is frozen on the order.
 
 ## 7. Orders
@@ -130,6 +132,7 @@ Profit & loss for a date range:
 - refund_losses = refund_fee_losses + sum(packaging_cost + postage_cost) over REFUNDED orders in range
 - waste_cost = section 8: the sum of the per-item rounded waste costs, WASTE movements in range
 - operating_expenses = sum(expenses) in range
+  (An expense can be corrected with `update_expense` (category, amount, expense_date, description) or removed with `delete_expense`, a hard delete whose old row stays in the audit log; there is no payment method on an expense. The P&L is computed live, so it follows. Dates and closed days: sections 1 and 11.)
 - net_profit = gross_profit − postage_variance − refund_losses − waste_cost − operating_expenses
 - order_count = number of eligible orders
 
@@ -159,6 +162,9 @@ Order invoices INV-000001..., purchase invoices PUR-000001... (one sequence shar
 - Periods of distributions must not overlap: recording a distribution whose period overlaps an existing one raises ConflictError.
 - Undistributed profit as of a date = sum of net_profit over every distributed or undistributed period up to that date (i.e. net_profit from the first recorded activity through that date) − sum of total_amount_distributed of distributions with period_end on or before that date.
 - total_amount_distributed may not exceed the undistributed profit as of period_end unless the caller passes allow_exceeding=True; otherwise ValidationError (field "total_amount_distributed").
+- Closed days. A day on or before the period_end of the LATEST recorded distribution (the greatest period_end; one lookup, no range search, so a gap before it counts as closed) is closed. On a closed day these are refused with 409 `PERIOD_ALREADY_DISTRIBUTED` (details distribution_id, period_end, date = the day that hit it): editing an expense's amount or date, editing a postage batch's total_paid or paid_date (the old day AND the new day are both checked), and deleting any expense or postage batch. Not refused: an expense's category or description, a postage batch's order_count or notes (they do not change net_profit), and any change on a day after period_end. There is no way to reopen a payout yet, so the refusal promises none. Reason: net_profit of a paid-out period must not change under a recorded distribution (total_profit_available is a snapshot, and undistributed profit is cumulative).
+- Known difference, to revisit with a reopen-payout feature: RECORDING a new expense or postage batch on a closed day is not refused (existing behaviour); it raises that period's net cost after the payout was made.
+- Editing or deleting an expense or postage batch never touches `profit_distributions` or `distribution_shares`.
 - Shares: amount = round(total × percentage / 100) per active partner; the rounding leftover goes to the partner with the highest percentage (ties: lowest id), so shares sum exactly to the total. Percentages are snapshotted per share.
 
 ## 12. Customer invoices
