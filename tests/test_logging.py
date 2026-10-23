@@ -31,7 +31,7 @@ def test_the_log_sits_in_a_logs_folder_next_to_the_database_with_the_documented_
     assert lines and all(LINE.match(line) for line in lines), lines
     text = "\n".join(lines)
     assert "INFO rebel.app starting; database file: " in text and "rebel_db_guard.db" in text
-    assert "schema: 013_name_keys.sql" in text or "schema: 0" in text
+    assert "schema: 014_order_void.sql" in text or "schema: 0" in text
     assert "migrations applied now: " in text
     assert "INFO rebel.backup daily backup made (startup): daily-" in text
     assert text.rstrip().endswith("stopped")

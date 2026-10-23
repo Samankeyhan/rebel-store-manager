@@ -96,12 +96,13 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
     assert LATEST not in _applied(db_path)
 
     # Without the startup event (no `with`), nothing applies the newest
-    # migration: it is not recorded, and there is no name_key yet (013).
+    # migration: it is not recorded, and orders has no void_reason yet (014).
     # (Earlier migrations added the columns /products and /production
     # need, and reads 500'd without them.)
     assert _applied(db_path) == ALL_MIGRATIONS[:-1]
     assert "audit_log" in _tables(db_path)
-    assert "name_key" not in _columns(db_path, "products")
+    assert "name_key" in _columns(db_path, "products")
+    assert "void_reason" not in _columns(db_path, "orders")
     assert "min_stock" in _columns(db_path, "materials")
     assert "fee_cap" in _columns(db_path, "payment_methods")
     assert _setting(db_path, "default_shipping_charge") == "1800000"
@@ -130,11 +131,12 @@ def test_startup_applies_pending_migration(tmp_path, monkeypatch):
         assert material.status_code == 201, material.text
         assert material.json()["min_stock"] is None
 
-    # Startup applied and recorded the newest migration (013 adds name_key and the startup
-    # backfill keys the existing product; it touches no setting; money has been integer Rial since 009).
+    # Startup applied and recorded the newest migration (014 rebuilds orders with the void
+    # columns); the startup backfill keys the product added after 013; no setting is touched
+    # (money has been integer Rial since 009).
     assert _applied(db_path) == ALL_MIGRATIONS
     assert LATEST in _applied(db_path)
-    assert "name_key" in _columns(db_path, "products")
+    assert {"void_reason", "voided_at", "replaces_order_id"} <= _columns(db_path, "orders")
     conn = get_connection(str(db_path))
     try:
         assert conn.execute("SELECT name_key FROM products").fetchone()[0] == "startup vinyl"

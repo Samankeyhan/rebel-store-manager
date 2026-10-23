@@ -3081,6 +3081,12 @@ export interface components {
             settlement_id: number | null;
             /** Payment Method Name */
             payment_method_name: string | null;
+            /** Void Reason */
+            void_reason: string | null;
+            /** Voided At */
+            voided_at: string | null;
+            /** Replaces Order Id */
+            replaces_order_id: number | null;
             /**
              * Customer Total
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
@@ -3152,6 +3158,12 @@ export interface components {
             settlement_id: number | null;
             /** Payment Method Name */
             payment_method_name: string | null;
+            /** Void Reason */
+            void_reason: string | null;
+            /** Voided At */
+            voided_at: string | null;
+            /** Replaces Order Id */
+            replaces_order_id: number | null;
         };
         /** OrderPaidDateUpdate */
         OrderPaidDateUpdate: {

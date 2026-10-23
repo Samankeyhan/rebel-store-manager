@@ -31,6 +31,11 @@ class OrderListItemOut(BaseModel):
     paid_jalali_month: int | None
     settlement_id: int | None
     payment_method_name: str | None
+    # Migration 014: a VOIDED order's reason and moment (UTC), and on a correction the
+    # voided order it replaces. NULL otherwise.
+    void_reason: str | None
+    voided_at: str | None
+    replaces_order_id: int | None
     customer_total: Rial
     profit: Rial | None
 
@@ -61,6 +66,11 @@ class OrderOut(BaseModel):
     paid_jalali_month: int | None
     settlement_id: int | None
     payment_method_name: str | None
+    # Migration 014: a VOIDED order's reason and moment (UTC), and on a correction the
+    # voided order it replaces. NULL otherwise.
+    void_reason: str | None
+    voided_at: str | None
+    replaces_order_id: int | None
 
 
 class OrderItemOut(BaseModel):
