@@ -755,6 +755,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/expenses/{expense_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Expense
+         * @description Hard delete (the audit log keeps the old row). 409 PERIOD_ALREADY_DISTRIBUTED on a closed day.
+         */
+        delete: operations["remove_expense_expenses__expense_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Expense
+         * @description Only the fields present in the body change. 404 unknown expense or category.
+         */
+        patch: operations["patch_expense_expenses__expense_id__patch"];
+        trace?: never;
+    };
     "/packaging/kits": {
         parameters: {
             query?: never;
@@ -899,6 +923,30 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/postage/batches/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Postage Batch
+         * @description Hard delete (the audit log keeps the old row). 409 PERIOD_ALREADY_DISTRIBUTED on a closed day.
+         */
+        delete: operations["remove_postage_batch_postage_batches__batch_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Postage Batch
+         * @description Only the fields present in the body change. Moves the postage estimate for future orders (frozen order postage is untouched).
+         */
+        patch: operations["patch_postage_batch_postage_batches__batch_id__patch"];
         trace?: never;
     };
     "/partners": {
@@ -2373,6 +2421,21 @@ export interface components {
             code: "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND";
             details: components["schemas"]["PaymentMethodRefDetails"];
         };
+        /** ErrorBodyPeriodDistributed */
+        ErrorBodyPeriodDistributed: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PERIOD_ALREADY_DISTRIBUTED";
+            details: components["schemas"]["PeriodDistributedDetails"];
+        };
         /** ErrorBodyProductRef */
         ErrorBodyProductRef: {
             /** Type */
@@ -2466,7 +2529,7 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             /** Error */
-            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyBackupFailed"];
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyBackupFailed"];
         };
         /**
          * ErrorItem
@@ -2543,6 +2606,22 @@ export interface components {
             description: string | null;
             /** Category Name */
             category_name: string;
+        };
+        /**
+         * ExpenseUpdate
+         * @description Only the fields present in the body change. `description: null` clears it; null on any other field is a 422.
+         *     A new `expense_date` after today is a 422 DATE_IN_FUTURE; a change of `amount` or `expense_date` on a closed day
+         *     (on or before the latest profit distribution's period_end) is a 409 PERIOD_ALREADY_DISTRIBUTED.
+         */
+        ExpenseUpdate: {
+            /** Expense Category Id */
+            expense_category_id?: number | null;
+            /** Amount */
+            amount?: number | null;
+            /** Expense Date */
+            expense_date?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /** FeePreviewOut */
         FeePreviewOut: {
@@ -3430,6 +3509,15 @@ export interface components {
             /** Payment Reference */
             payment_reference: string | null;
         };
+        /** PeriodDistributedDetails */
+        PeriodDistributedDetails: {
+            /** Distribution Id */
+            distribution_id: number;
+            /** Period End */
+            period_end: string;
+            /** Date */
+            date: string;
+        };
         /** PostageBatchCreate */
         PostageBatchCreate: {
             /**
@@ -3461,6 +3549,22 @@ export interface components {
             notes: string | null;
             /** Created At */
             created_at: string;
+        };
+        /**
+         * PostageBatchUpdate
+         * @description Only the fields present in the body change. `notes: null` clears them; null on any other field is a 422.
+         *     A new `paid_date` after today is a 422 DATE_IN_FUTURE; a change of `total_paid` or `paid_date` on a closed day is
+         *     a 409 PERIOD_ALREADY_DISTRIBUTED (`order_count` and `notes` are always allowed).
+         */
+        PostageBatchUpdate: {
+            /** Total Paid */
+            total_paid?: number | null;
+            /** Order Count */
+            order_count?: number | null;
+            /** Paid Date */
+            paid_date?: string | null;
+            /** Notes */
+            notes?: string | null;
         };
         /** PostageEstimateOut */
         PostageEstimateOut: {
@@ -4402,6 +4506,8 @@ export interface components {
          *     DISTRIBUTION_PERCENT_SUM         -
          *     DISTRIBUTION_EXCEEDS_UNDISTRIBUTED -
          *     DISTRIBUTION_PERIOD_ORDER        -
+         *     PERIOD_ALREADY_DISTRIBUTED       distribution_id, period_end (the LATEST distribution's), date (the day that
+         *                                      hit it: on or before period_end)
          *     CATEGORY_IN_USE                  item_count
          *     CATEGORY_HAS_SUBCATEGORIES       -
          *     CATEGORY_PARENT_INACTIVE         -
@@ -4429,7 +4535,7 @@ export interface components {
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "BACKUP_FAILED";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "BACKUP_FAILED";
     };
     responses: never;
     parameters: never;
@@ -7491,6 +7597,124 @@ export interface operations {
             };
         };
     };
+    remove_expense_expenses__expense_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                expense_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    patch_expense_expenses__expense_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                expense_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     read_kits_packaging_kits_get: {
         parameters: {
             query?: {
@@ -8099,6 +8323,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PostageEstimateOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    remove_postage_batch_postage_batches__batch_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    patch_postage_batch_postage_batches__batch_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostageBatchUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostageBatchOut"];
                 };
             };
             /** @description App error (see ErrorBody.code) */
