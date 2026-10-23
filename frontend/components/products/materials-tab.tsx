@@ -8,10 +8,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Btn, cardClass } from "@/components/record-sale/primitives"
+import Link from "next/link"
+import { Btn, btnClass, cardClass } from "@/components/record-sale/primitives"
 import type { Material } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
 import { formatQuantity } from "@/lib/persian-numbers"
+import { stocktakeMaterialHref } from "@/lib/stocktake-link"
 import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { ActiveBadge, Chip, TypeBadge } from "./badges"
@@ -46,7 +48,7 @@ function NoCostMaterials({ materials, onEdit }: { materials: Material[]; onEdit:
       <span className="text-xs text-text-2">{P.noCostMaterialsHelp}</span>
       <ul className="flex flex-wrap gap-2">
         {materials.map((m) => (
-          <li key={m.id}>
+          <li key={m.id} className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => onEdit(m)}
@@ -57,6 +59,11 @@ function NoCostMaterials({ materials, onEdit }: { materials: Material[]; onEdit:
                 <span className="text-text-3">{P.noCostMaterialStock(`${formatQuantity(m.current_stock)} ${unitLabel(m.unit)}`)}</span>
               )}
             </button>
+            {m.type === "STOCK" && (
+              <Link href={stocktakeMaterialHref(m.id)} className={btnClass("outline", "sm")}>
+                {P.setCostInStocktake}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

@@ -30,6 +30,8 @@ export const P = {
   // NEW: materials whose cost is 0 ("not entered"): holding stock, or making a recipe «ناقص».
   noCostMaterialsTitle: (n: number) => `متریال‌های بدون بها (${fa(n)})`,
   noCostMaterialsHelp: "بهای این متریال‌ها ثبت نشده (۰) است. با اولین خرید یا تعدیل همراه با بها، بهای آن‌ها ثبت می‌شود.",
+  // NEW: opens the stocktake page on this material (its count and cost are entered there, not here).
+  setCostInStocktake: "ثبت بها در انبارگردانی",
   noCostMaterialStock: (qty: string) => `موجودی ${qty}`,
   noCostMaterialInRecipe: "در دستور تولید",
   bannerMany: (n: number) => `${fa(n)} محصول بدون بهای تمام‌شده`, // NEW

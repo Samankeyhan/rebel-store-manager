@@ -9,12 +9,14 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Btn, MoneyInput } from "@/components/record-sale/primitives"
+import Link from "next/link"
+import { Btn, MoneyInput, btnClass } from "@/components/record-sale/primitives"
 import { Money } from "@/components/common/money"
 import { ApiError, createMaterial, updateMaterial, type CategoryTree, type Material } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
 import { minStockChanged, parseMinStock } from "@/lib/min-stock"
 import { formatQuantity, parseDecimal, quantityText } from "@/lib/persian-numbers"
+import { stocktakeMaterialHref } from "@/lib/stocktake-link"
 import { cn } from "@/lib/utils"
 import { TypeBadge } from "./badges"
 import { P } from "./copy"
@@ -262,6 +264,9 @@ export function MaterialDrawer({
                 {formatQuantity(material.current_stock)} {shownUnit}
               </ReadOnly>
               <span className="text-xs text-text-3">{P.matStockHelp}</span>
+              <Link href={stocktakeMaterialHref(material.id)} className={cn(btnClass("outline", "sm"), "self-start")}>
+                {P.setCostInStocktake}
+              </Link>
             </div>
           )}
           <span className="text-xs text-text-3">{isStock ? P.matReadOnlyNote : P.serviceNoMinStock}</span>

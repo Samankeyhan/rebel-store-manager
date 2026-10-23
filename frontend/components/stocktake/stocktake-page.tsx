@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useSearchParams } from "next/navigation"
 import { ClipboardList, Loader2 } from "lucide-react"
 import { DateField } from "@/components/common/date-field"
 import { ErrorBlock, LoadingBlock, StateShell } from "@/components/common/screen-states"
@@ -25,6 +26,7 @@ import {
   type StorageLike,
 } from "@/lib/stocktake"
 import { useCurrency } from "@/lib/use-currency"
+import { materialFromParams } from "@/lib/stocktake-link"
 import { CountTable, type CostValue } from "./count-table"
 import { S } from "./copy"
 import { buildRows, type StockRow } from "./figures"
@@ -77,10 +79,25 @@ export function StocktakePage() {
   const [result, setResult] = React.useState<StocktakeResult | null>(null)
   const [restored, setRestored] = React.useState(0)
   const [confirmClear, setConfirmClear] = React.useState(false)
+  // ?material=<id> (the materials tab links here): open on that material, found by name and highlighted. Only the view
+  // changes: counts, costs and a stored draft are never read or written because of the link.
+  const linkedMaterial = materialFromParams(useSearchParams())
+  const [highlightKey, setHighlightKey] = React.useState<string | null>(null)
+  const [linkApplied, setLinkApplied] = React.useState(false)
 
   const products = catalog.status === "ready" ? catalog.products : null
   const materials = catalog.status === "ready" ? catalog.materials : null
   const rows = React.useMemo(() => (products && materials ? buildRows(products, materials) : []), [products, materials])
+  if (!linkApplied && linkedMaterial != null && rows.length > 0) {
+    setLinkApplied(true)
+    const target = rows.find((r) => r.kind === "MATERIAL" && r.id === linkedMaterial)
+    if (target) {
+      setTab("MATERIAL")
+      setQuery(target.name)
+      if (!target.isActive) setShowInactive(true)
+      setHighlightKey(target.key)
+    }
+  }
   const systemOf = React.useMemo(() => Object.fromEntries(rows.map((r) => [r.key, r.systemQuantity])), [rows])
 
   // ---- the draft: read once, when the items are first loaded (state adjusted while rendering, as elsewhere in the app);
@@ -427,6 +444,7 @@ export function StocktakePage() {
           onCount={onCount}
           onCost={onCost}
           onRecheck={onRecheck}
+          highlightKey={highlightKey}
         />
       )}
 

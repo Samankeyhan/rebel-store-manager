@@ -32,6 +32,8 @@ type Props = {
   onCount: (key: string, text: string) => void
   onCost: (key: string, value: CostValue) => void
   onRecheck: (key: string) => void
+  /** The row a link pointed at (?material=): outlined so it is easy to find. */
+  highlightKey?: string | null
 }
 
 function DifferenceText({ state }: { state: RowState }) {
@@ -48,7 +50,7 @@ function DifferenceText({ state }: { state: RowState }) {
 
 /** The count table (desktop) or cards (phone). Enter / ↓ moves to the next visible row's count, Shift+Enter / ↑ to the previous. */
 export function CountTable(props: Props) {
-  const { rows, states, counts, costs, flagged, rowErrors, attempted, mobile, onCount, onCost, onRecheck } = props
+  const { rows, states, counts, costs, flagged, rowErrors, attempted, mobile, onCount, onCost, onRecheck, highlightKey } = props
   const refs = React.useRef(new Map<string, HTMLInputElement>())
   const keys = React.useMemo(() => rows.map((r) => r.key), [rows])
 
@@ -138,7 +140,7 @@ export function CountTable(props: Props) {
         {rows.map((row) => {
           const state = states.get(row.key) as RowState
           return (
-            <div key={row.key} className={cn(cardClass, "flex flex-col gap-2 px-3.5 py-3", !row.isActive && "opacity-60")}>
+            <div key={row.key} className={cn(cardClass, "flex flex-col gap-2 px-3.5 py-3", !row.isActive && "opacity-60", row.key === highlightKey && "ring-2 ring-primary/60")}>
               <div className="flex items-start justify-between gap-2">
                 <span className="font-bold">{row.name}</span>
                 <span className="text-xs whitespace-nowrap text-text-3">{row.category}</span>
@@ -182,7 +184,7 @@ export function CountTable(props: Props) {
             const state = states.get(row.key) as RowState
             const extra = message(row, state)
             return (
-              <tr key={row.key} className={cn("border-b border-border/70 align-top last:border-b-0", !row.isActive && "opacity-60", flagged.has(row.key) && "bg-warn-soft/40")}>
+              <tr key={row.key} className={cn("border-b border-border/70 align-top last:border-b-0", !row.isActive && "opacity-60", flagged.has(row.key) && "bg-warn-soft/40", row.key === highlightKey && "bg-primary/10")}>
                 <td className="px-3 py-2 font-semibold">
                   {row.name}
                   {!row.isActive && <span className="ms-2 text-xs font-medium text-text-3">{S.inactive}</span>}
