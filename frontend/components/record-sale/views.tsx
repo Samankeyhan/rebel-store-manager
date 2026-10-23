@@ -15,7 +15,8 @@ import type { ServerIssue } from "./state"
 
 // ── Blocking / soft banners at the top of the form ──────────────────────
 
-export function Banners({ banners, onDraft }: { banners: Banner[]; onDraft: () => void }) {
+/** `onDraft` is left out in correction mode: a correction is never a draft. */
+export function Banners({ banners, onDraft }: { banners: Banner[]; onDraft?: () => void }) {
   // One banner per product and kind, as in the design.
   const seen = new Set<string>()
   const unique = banners.filter((b) => {
@@ -30,11 +31,11 @@ export function Banners({ banners, onDraft }: { banners: Banner[]; onDraft: () =
       <ExternalLink className="size-3.5" />
     </Link>
   )
-  const draftBtn = (
+  const draftBtn = onDraft ? (
     <Btn variant="ghost" size="sm" onClick={onDraft}>
       {T.saveAsDraft}
     </Btn>
-  )
+  ) : null
   return (
     <>
       {unique.map((b) => {
@@ -81,7 +82,7 @@ export function ServerAlert({
   compact,
 }: {
   issue: ServerIssue | null
-  onDraft: () => void
+  onDraft?: () => void
   /** Also summarise issues shown on a line (for the mobile sheet, which covers the lines). */
   compact?: boolean
 }) {
@@ -99,13 +100,15 @@ export function ServerAlert({
     return (
       <Alert tone="err">
         <div>{text}</div>
-        <button
-          type="button"
-          className="mt-1 cursor-pointer text-xs font-bold text-heading hover:text-primary"
-          onClick={onDraft}
-        >
-          {T.saveAsDraft}
-        </button>
+        {onDraft && (
+          <button
+            type="button"
+            className="mt-1 cursor-pointer text-xs font-bold text-heading hover:text-primary"
+            onClick={onDraft}
+          >
+            {T.saveAsDraft}
+          </button>
+        )}
       </Alert>
     )
   }

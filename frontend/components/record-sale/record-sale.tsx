@@ -1,11 +1,27 @@
 "use client"
 
 import * as React from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
-import { ApiError, createOrder, getCatalog, listPaymentMethods, type Catalog, type PaymentMethod } from "@/lib/api"
+import {
+  ApiError,
+  correctOrder,
+  createOrder,
+  getCatalog,
+  getOrder,
+  getVoidPreview,
+  listPaymentMethods,
+  type Catalog,
+  type OrderDetail,
+  type PaymentMethod,
+  type VoidPreview,
+} from "@/lib/api"
 import { refusedProductId } from "@/lib/error-codes"
-import { formatJalali } from "@/lib/jalali"
+import { formatJalali, utcToLocal } from "@/lib/jalali"
+import { canVoid, catalogAfterVoid, correctionPrefill, voidRefusal } from "@/lib/order-correction"
+import { D as OrderCopy } from "@/components/orders/copy"
+import { voidBlockerTexts } from "@/components/orders/detail/dialogs"
 import { isFutureOrderDateError, isStaleSaleDay } from "@/lib/sale-date"
 import { classifyPaymentError } from "@/lib/payment-methods"
 import { DEFAULT_TZ, storeToday } from "@/lib/store-day"
@@ -18,8 +34,10 @@ import { Btn } from "./primitives"
 import { ChannelCard, InternalCostsCard, ShippingCard, StatusCard } from "./form-cards"
 import { ItemsCard } from "./items-card"
 import { MobileSummarySheet, SummaryPanel } from "./summary-panel"
+import { CorrectionBlocked, CorrectionCard } from "./correction-card"
 import {
   buildOrderBody,
+  correctionState,
   initialState,
   moneyBlocked,
   orderDay,
@@ -33,11 +51,14 @@ import { useRecipes } from "./use-recipes"
 import { Banners, EmptyView, LoadErrorView, LoadingView, ServerAlert, SuccessView, Toast } from "./views"
 import { useCurrency } from "@/lib/use-currency"
 
+/** «اصلاح سفارش»: the order being corrected and what voiding it does (`/sales/new/?correct=<id>`). */
+type Correction = { detail: OrderDetail; preview: VoidPreview }
+
 type Load =
   | { status: "loading" }
   | { status: "error"; code: string }
   /** methods: every payment method (inactive included), or null when that request failed. */
-  | { status: "ready"; catalog: Catalog; methods: PaymentMethod[] | null }
+  | { status: "ready"; catalog: Catalog; methods: PaymentMethod[] | null; correction: Correction | null }
 
 function loadErrorCode(error: unknown): string {
   if (error instanceof ApiError && error.status > 0) return `CATALOG_${error.status}`
@@ -61,6 +82,9 @@ function classifyOrderError(
   if (!(error instanceof ApiError)) {
     return { kind: "generic", message: String(error), code: "UNKNOWN" }
   }
+  // A correction's void refused (settled meanwhile, a closed day, a stocktake…): say why, in Persian.
+  const refusal = voidRefusal(error)
+  if (refusal) return { kind: "generic", message: OrderCopy.voidRefusal(refusal), code: error.code ?? `ORDERS_${error.status}` }
   // The sale day itself, before the generic payment-day mapping below.
   if (isFutureOrderDateError(error)) return { kind: "orderDate", message: T.orderDateFuture }
   // Payment errors go next to their field, in Persian (closed month, future paid date, inactive method…).
@@ -111,19 +135,26 @@ export function RecordSale() {
   const [load, setLoad] = React.useState<Load>({ status: "loading" })
   const [attempt, setAttempt] = React.useState(0)
   const mobile = useIsMobile()
+  const params = useSearchParams()
+  const raw = params.get("correct") ?? ""
+  const correctId = /^\d+$/.test(raw) ? Number(raw) : null
 
   React.useEffect(() => {
     let cancelled = false
     // The methods list failing doesn't stop a sale: resolveMethod blocks only
     // when the channel has a default method (see PaymentMethodField's retry).
-    Promise.all([getCatalog(), listPaymentMethods(true).catch(() => null)]).then(
-      ([catalog, methods]) => !cancelled && setLoad({ status: "ready", catalog, methods }),
+    const correction: Promise<Correction | null> =
+      correctId == null
+        ? Promise.resolve(null)
+        : Promise.all([getOrder(correctId), getVoidPreview(correctId)]).then(([detail, preview]) => ({ detail, preview }))
+    Promise.all([getCatalog(), listPaymentMethods(true).catch(() => null), correction]).then(
+      ([catalog, methods, c]) => !cancelled && setLoad({ status: "ready", catalog, methods, correction: c }),
       (error: unknown) => !cancelled && setLoad({ status: "error", code: loadErrorCode(error) })
     )
     return () => {
       cancelled = true
     }
-  }, [attempt])
+  }, [attempt, correctId])
 
   const reload = React.useCallback(() => {
     setLoad({ status: "loading" })
@@ -133,24 +164,53 @@ export function RecordSale() {
   if (load.status === "loading") return <LoadingView mobile={mobile} />
   if (load.status === "error") return <LoadErrorView code={load.code} onRetry={reload} mobile={mobile} />
   if (load.catalog.products.length === 0) return <EmptyView mobile={mobile} />
-  return <SaleForm catalog={load.catalog} initialMethods={load.methods} mobile={mobile} onNewSale={reload} />
+  const c = load.correction
+  if (c && (!canVoid(c.detail.order) || c.preview.blockers.length > 0)) {
+    const reasons = c.preview.blockers.length > 0 ? voidBlockerTexts(c.preview) : [T.correctNotVoidable]
+    return <CorrectionBlocked orderId={c.detail.order.id} reasons={reasons} mobile={mobile} />
+  }
+  return (
+    <SaleForm
+      key={c ? `correct-${c.detail.order.id}` : "new"}
+      baseCatalog={load.catalog}
+      initialMethods={load.methods}
+      correction={c}
+      mobile={mobile}
+      onNewSale={reload}
+    />
+  )
 }
 
 const currentStoreDay = (timeZone: string) => storeToday(new Date(), timeZone)
 
 function SaleForm({
-  catalog,
+  baseCatalog,
   initialMethods,
+  correction,
   mobile,
   onNewSale,
 }: {
-  catalog: Catalog
+  baseCatalog: Catalog
   initialMethods: PaymentMethod[] | null
+  /** «اصلاح سفارش»: the order this sale replaces; null for a new sale. */
+  correction: Correction | null
   mobile: boolean
   /** Refetches the catalog so the next sale sees fresh stock and costs. */
   onNewSale: () => void
 }) {
-  const [state, dispatch] = React.useReducer(reducer, undefined, () => initialState(nextLineKey()))
+  const router = useRouter()
+  // A correction voids the old order first, in the same operation: its stock is available to this sale.
+  const catalog = React.useMemo(
+    () => (correction ? catalogAfterVoid(baseCatalog, correction.preview) : baseCatalog),
+    [baseCatalog, correction]
+  )
+  const [state, dispatch] = React.useReducer(reducer, undefined, () => {
+    if (!correction) return initialState(nextLineKey())
+    const tz = baseCatalog.settings.timezone || DEFAULT_TZ
+    const today = currentStoreDay(tz)
+    const day = utcToLocal(correction.detail.order.order_date, tz)?.iso ?? today
+    return correctionState(correctionPrefill(correction.detail, day), correction.detail.order.id, nextLineKey, today)
+  })
   const [openPicker, setOpenPicker] = React.useState<number | null>(null)
   const [toast, setToast] = React.useState<string | null>(null)
   const topRef = React.useRef<HTMLDivElement>(null)
@@ -202,6 +262,10 @@ function SaleForm({
     setOpenPicker(key)
   }
   const cancel = () => {
+    if (correction) {
+      router.push(`/orders/view/?id=${correction.detail.order.id}`)
+      return
+    }
     setOpenPicker(null)
     dispatch({ type: "reset", firstLineKey: nextLineKey() })
   }
@@ -225,7 +289,17 @@ function SaleForm({
     dispatch({ type: "submitStart" })
     try {
       // Read the store's day now: a session can cross midnight.
-      const result = await createOrder(buildOrderBody(state, resolved, currentStoreDay(timeZone)))
+      const body = buildOrderBody(state, resolved, currentStoreDay(timeZone))
+      if (correction) {
+        // The old order's notes go with it (this form has no notes field).
+        const result = await correctOrder(correction.detail.order.id, state.correctionReason.trim(), {
+          ...body,
+          notes: correction.detail.order.notes,
+        })
+        router.push(`/orders/view/?id=${result.order.id}`)
+        return
+      }
+      const result = await createOrder(body)
       dispatch({ type: "submitSuccess", result })
       setToast(result.order.invoice_number ?? "")
       window.scrollTo({ top: 0 })
@@ -297,13 +371,29 @@ function SaleForm({
   }
 
   const cardProps = { state, catalog, dispatch, onChannel, summary: d.summary, mobile, payment }
-  const saveProps = { status: state.status, disabled: d.saveDisabled, saving: state.saving, onSave: save }
-  const serverAlert = <ServerAlert issue={state.serverIssue} onDraft={toDraft} />
+  const draft = correction ? undefined : toDraft
+  const saveProps = {
+    status: state.status,
+    disabled: d.saveDisabled,
+    saving: state.saving,
+    onSave: save,
+    label: correction ? T.saveCorrection : undefined,
+  }
+  const serverAlert = <ServerAlert issue={state.serverIssue} onDraft={draft} />
 
   const form = (
     <div ref={topRef} className={mobile ? "flex scroll-mt-20 flex-col gap-3.5" : "flex min-w-0 grow scroll-mt-20 flex-col gap-5"}>
       {mobile && serverAlert}
-      <Banners banners={d.banners} onDraft={toDraft} />
+      {correction && (
+        <CorrectionCard
+          invoice={correction.detail.order.invoice_number ?? ""}
+          preview={correction.preview}
+          state={state}
+          dispatch={dispatch}
+          mobile={mobile}
+        />
+      )}
+      <Banners banners={d.banners} onDraft={draft} />
       <ChannelCard {...cardProps} />
       <ItemsCard
         lines={d.lines}
@@ -340,7 +430,7 @@ function SaleForm({
           summary={d.summary}
           catalog={catalog}
           errors={d.errors}
-          serverAlert={<ServerAlert issue={state.serverIssue} onDraft={toDraft} compact />}
+          serverAlert={<ServerAlert issue={state.serverIssue} onDraft={draft} compact />}
           {...saveProps}
         />
         {toastNode}

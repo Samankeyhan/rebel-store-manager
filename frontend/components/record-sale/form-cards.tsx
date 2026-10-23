@@ -294,7 +294,7 @@ export function StatusCard({ state, dispatch, mobile, payment }: CardProps) {
         mobile ? "grid grid-cols-2" : "flex"
       )}
     >
-      {STATUS_IDS.map((id) => (
+      {STATUS_IDS.filter((id) => id !== "DRAFT" || state.correctionOf == null).map((id) => (
         <button
           key={id}
           type="button"

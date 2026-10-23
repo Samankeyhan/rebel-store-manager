@@ -115,3 +115,35 @@ export function listedUnder(status: string, filter: string): boolean {
 export function canVoid(order: { status: string; stock_committed: number }): boolean {
   return CORRECTION_STATUSES.includes(order.status) && order.stock_committed === 1
 }
+
+/** The void-preview figures the form preview needs (VoidPreviewOut, only these fields). */
+export type VoidReturns = {
+  products: { item_id: number; quantity: number; unit_cost_after: number | null }[]
+  materials: { item_id: number; quantity: number; unit_cost_after: number | null }[]
+}
+
+/**
+ * The catalog as the corrected sale will meet it: the void runs first, in the same operation, so the
+ * stock it returns is available and each item's cost is the one after the void (what the server reports
+ * in the void-preview). Only the form's preview reads this; the server checks stock itself.
+ */
+export function catalogAfterVoid<
+  P extends { id: number; current_stock: number | null; unit_cost: number | null },
+  M extends { id: number; current_stock: number | null; unit_cost: number },
+  C extends { products: P[]; materials: M[] },
+>(catalog: C, returns: VoidReturns): C {
+  const back = (rows: VoidReturns["products"]) => new Map(rows.map((r) => [r.item_id, r]))
+  const products = back(returns.products)
+  const materials = back(returns.materials)
+  return {
+    ...catalog,
+    products: catalog.products.map((p) => {
+      const r = products.get(p.id)
+      return r ? { ...p, current_stock: (p.current_stock ?? 0) + r.quantity, unit_cost: r.unit_cost_after ?? p.unit_cost } : p
+    }),
+    materials: catalog.materials.map((m) => {
+      const r = materials.get(m.id)
+      return r ? { ...m, current_stock: (m.current_stock ?? 0) + r.quantity, unit_cost: r.unit_cost_after ?? m.unit_cost } : m
+    }),
+  }
+}

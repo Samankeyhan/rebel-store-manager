@@ -1,7 +1,7 @@
 // Run with `npm test`. Voiding / correcting a sale: the record-sale prefill, the refusals, the list filter.
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { blockerRefusal, canVoid, correctionPrefill, listedUnder, voidRefusal } from "./order-correction.ts"
+import { blockerRefusal, canVoid, catalogAfterVoid, correctionPrefill, listedUnder, voidRefusal } from "./order-correction.ts"
 
 const detail = {
   order: {
@@ -98,4 +98,20 @@ test("canVoid: committed PENDING / PAID / COMPLETED orders only", () => {
   assert.equal(canVoid({ status: "PENDING", stock_committed: 1 }), true)
   for (const status of ["DRAFT", "CANCELLED", "REFUNDED", "VOIDED"]) assert.equal(canVoid({ status, stock_committed: 1 }), false)
   assert.equal(canVoid({ status: "PAID", stock_committed: 0 }), false)
+})
+
+test("catalogAfterVoid: the returned stock is available and costs are the ones after the void", () => {
+  const catalog = {
+    settings: { x: 1 },
+    products: [{ id: 1, current_stock: 0, unit_cost: 150 }, { id: 2, current_stock: 5, unit_cost: null }],
+    materials: [{ id: 7, current_stock: 46.5, unit_cost: 1_625 }, { id: 8, current_stock: 3, unit_cost: 0 }],
+  }
+  const after = catalogAfterVoid(catalog, {
+    products: [{ item_id: 1, quantity: 2, unit_cost_after: 144 }],
+    materials: [{ item_id: 7, quantity: 4, unit_cost_after: null }],
+  })
+  assert.deepEqual(after.products, [{ id: 1, current_stock: 2, unit_cost: 144 }, { id: 2, current_stock: 5, unit_cost: null }])
+  assert.deepEqual(after.materials, [{ id: 7, current_stock: 50.5, unit_cost: 1_625 }, { id: 8, current_stock: 3, unit_cost: 0 }])
+  assert.equal(after.settings, catalog.settings)
+  assert.equal(catalog.products[0].current_stock, 0) // the input is not changed
 })

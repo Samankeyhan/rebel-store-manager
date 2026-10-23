@@ -4,6 +4,7 @@
  */
 
 import type { Catalog, OrderCreate, OrderDetail, PaymentMethod, Schemas } from "@/lib/api"
+import type { CorrectionPrefill } from "@/lib/order-correction"
 import type { Channel, SaleStatus } from "./copy"
 
 export type Product = Schemas["ProductOut"]
@@ -104,6 +105,10 @@ export type FormState = {
   saving: boolean
   serverIssue: ServerIssue | null
   result: OrderDetail | null
+  /** Correction mode («اصلاح سفارش»): the order this sale replaces, else null. Never a DRAFT then. */
+  correctionOf: number | null
+  /** Why the replaced order was wrong; required to save a correction. */
+  correctionReason: string
 }
 
 export function emptyLine(key: number): Line {
@@ -137,6 +142,44 @@ export function initialState(firstLineKey: number): FormState {
     saving: false,
     serverIssue: null,
     result: null,
+    correctionOf: null,
+    correctionReason: "",
+  }
+}
+
+/**
+ * The form for «اصلاح سفارش»: every field of the order being corrected (lib/order-correction.ts
+ * correctionPrefill). Prices count as typed, so a channel change keeps them; the fee is computed again.
+ * `today` is the store's day: the old order's day is kept as the sale day (null when it is today).
+ */
+export function correctionState(
+  prefill: CorrectionPrefill,
+  correctionOf: number,
+  nextKey: () => number,
+  today: string
+): FormState {
+  return {
+    ...initialState(nextKey()),
+    channel: prefill.channel as Channel,
+    customerName: prefill.customerName,
+    lines: prefill.lines.map((l) => ({
+      key: nextKey(),
+      productId: l.productId,
+      qty: l.qty,
+      unitPrice: l.unitPrice,
+      priceEdited: true,
+      discountOpen: l.discount > 0,
+      discount: l.discount,
+      discountReason: l.discountReason,
+    })),
+    shipping: prefill.shipping,
+    kit: prefill.kit,
+    payment: prefill.payment,
+    reference: prefill.reference,
+    orderDate: prefill.orderDate === today ? null : prefill.orderDate,
+    paidDate: prefill.paidDate,
+    status: prefill.status,
+    correctionOf,
   }
 }
 
@@ -186,6 +229,7 @@ export type Action =
   | { type: "orderDate"; value: string; today: string }
   | { type: "moneyInvalid"; field: MoneyField; invalid: boolean }
   | { type: "status"; status: SaleStatus }
+  | { type: "correctionReason"; value: string }
   | { type: "submitStart" }
   | { type: "submitError"; issue: ServerIssue }
   | { type: "submitSuccess"; result: OrderDetail }
@@ -303,8 +347,12 @@ export function reducer(state: FormState, action: Action): FormState {
       })
     }
     case "status":
+      // A correction is recorded as a sale, never a draft (the server refuses one).
+      if (action.status === "DRAFT" && state.correctionOf != null) return state
       // DRAFT and PENDING aren't paid: no payment day.
       return edit(state, { status: action.status, paidDate: PAID.includes(action.status) ? state.paidDate : null })
+    case "correctionReason":
+      return edit(state, { correctionReason: action.value })
     case "submitStart":
       return { ...state, saving: true, serverIssue: null }
     case "submitError":

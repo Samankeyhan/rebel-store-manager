@@ -326,8 +326,15 @@ export function derive(
   const profit = costKnown && fee !== null ? total - cost - kitCost - postage - fee : null
   const shipCost = kitCost + postage
 
+  // A correction is never saved as a draft, so no message offers it.
+  const correcting = state.correctionOf != null
+  if (correcting && !state.correctionReason.trim()) errors.push(T.correctReasonMissing)
+  const shownLines = correcting
+    ? lines.map((v) => ({ ...v, messages: v.messages.map((m) => ({ ...m, toDraft: false })) }))
+    : lines
+
   return {
-    lines,
+    lines: shownLines,
     errors,
     banners,
     pending,

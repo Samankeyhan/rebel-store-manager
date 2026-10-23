@@ -143,9 +143,11 @@ type SaveProps = {
   disabled: boolean
   saving: boolean
   onSave: () => void
+  /** Replaces «ثبت فروش» (correction mode: «ثبت اصلاح»). */
+  label?: string
 }
 
-function SaveButton({ status, disabled, saving, onSave, className }: SaveProps & { className?: string }) {
+function SaveButton({ status, disabled, saving, onSave, label, className }: SaveProps & { className?: string }) {
   return (
     <Btn
       variant="primary"
@@ -160,7 +162,7 @@ function SaveButton({ status, disabled, saving, onSave, className }: SaveProps &
       ) : (
         <Check className="size-[18px]" />
       )}
-      {saving ? T.saving : status === "DRAFT" ? T.saveDraft : T.saveSale}
+      {saving ? T.saving : label ?? (status === "DRAFT" ? T.saveDraft : T.saveSale)}
     </Btn>
   )
 }

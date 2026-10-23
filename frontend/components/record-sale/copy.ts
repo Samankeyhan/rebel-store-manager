@@ -266,6 +266,20 @@ export const T = {
   shipEcon: "ارسال این سفارش: دریافتی",
   shipEconCost: "− هزینه",
   saveSale: "ثبت فروش",
+  saveCorrection: "ثبت اصلاح", // NEW
+  correctTitle: "اصلاح سفارش", // NEW
+  correctBody:
+    "با ثبت اصلاح، سفارش قبلی باطل می‌شود و این فروش به‌جای آن ثبت می‌شود. تاریخ فروش همان روز سفارش قبلی است و قابل تغییر؛ بهای تمام‌شده، بسته‌بندی، پست و کارمزد با مقادیر امروز حساب می‌شوند.", // NEW
+  correctEffectsLead: "با باطل‌شدن سفارش قبلی:", // NEW
+  correctStockNote: "موجودی این فرم، کالا و متریالی را که با باطل‌شدن سفارش قبلی برمی‌گردند حساب کرده است.", // NEW
+  correctReasonLabel: "دلیل اصلاح", // NEW
+  correctReasonPlaceholder: "مثلاً: قیمت اشتباه ثبت شده بود", // NEW
+  correctReasonHelp: "روی سفارش باطل‌شده ذخیره می‌شود.", // NEW
+  correctReasonMissing: "دلیل اصلاح را بنویسید.", // NEW
+  correctBlockedTitle: "این سفارش را نمی‌توان اصلاح کرد", // NEW
+  correctNotVoidable: "فقط سفارش‌های در انتظار، پرداخت‌شده یا تکمیل‌شده که کالایشان کسر شده اصلاح می‌شوند.", // NEW
+  correctBackToOrder: "بازگشت به سفارش", // NEW
+  correctLoadFailed: "سفارشی که باید اصلاح شود خوانده نشد.", // NEW
   saveDraft: "ذخیره پیش‌نویس",
   saving: "در حال ثبت…",
   cancel: "انصراف",
