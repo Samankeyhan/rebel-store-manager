@@ -391,7 +391,8 @@ def test_nothing_else_in_the_repo_uses_user_version():
         for p in (root / folder).rglob("*")
         if p.suffix in {".py", ".sql"} and "user_version" in p.read_text(encoding="utf-8")
     ]
-    assert sorted(users) == ["db\\go_live.py"] or sorted(users) == ["db/go_live.py"]
+    # db/go_live.py reads and writes the header; the CLI only prints the word (facts and the marker list)
+    assert sorted(u.replace("\\", "/") for u in users) == ["db/go_live.py", "tools/go_live_reset/__main__.py"]
 
 
 def test_assess_of_a_fresh_shop_is_ready_and_lists_nothing_to_hide(shop):
