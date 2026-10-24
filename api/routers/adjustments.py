@@ -3,11 +3,12 @@ import sqlite3
 from fastapi import APIRouter, Depends
 
 from api.deps import get_db
-from api.schemas.adjustments import AdjustmentCreate, AdjustmentOut
+from api.schemas.adjustments import AdjustmentCreate, AdjustmentOut, ServiceWasteCreate
 from api.schemas.common import DateStr
 from db.adjustments import (
     get_stock_movement,
     list_stock_adjustments,
+    record_service_waste,
     record_stock_adjustment,
 )
 
@@ -40,6 +41,23 @@ def create_adjustment(
         body.item_id,
         body.quantity_change,
         body.reason,
+        unit_cost=body.unit_cost,
+        notes=body.notes,
+        movement_date=body.movement_date,
+    )
+    return AdjustmentOut.model_validate(get_stock_movement(conn, movement_id))
+
+
+@router.post("/adjustments/service-waste", response_model=AdjustmentOut, status_code=201)
+def create_service_waste(
+    body: ServiceWasteCreate, conn: sqlite3.Connection = Depends(get_db)
+) -> AdjustmentOut:
+    """Waste of a SERVICE material (a failed print job): a WASTE movement valued at `unit_cost`
+    (default: the material's cost), no stock change. A material with no cost yet is 422 MATERIAL_NO_UNIT_COST."""
+    movement_id = record_service_waste(
+        conn,
+        body.material_id,
+        body.quantity,
         unit_cost=body.unit_cost,
         notes=body.notes,
         movement_date=body.movement_date,

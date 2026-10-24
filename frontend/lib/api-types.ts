@@ -745,6 +745,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/adjustments/service-waste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Service Waste
+         * @description Waste of a SERVICE material (a failed print job): a WASTE movement valued at `unit_cost`
+         *     (default: the material's cost), no stock change. A material with no cost yet is 422 MATERIAL_NO_UNIT_COST.
+         */
+        post: operations["create_service_waste_adjustments_service_waste_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stocktake/preview": {
         parameters: {
             query?: never;
@@ -2383,6 +2404,21 @@ export interface components {
             code: "SETTLEMENT_DATE_BEFORE_PAID";
             details: components["schemas"]["LatestPaidDetails"];
         };
+        /** ErrorBodyMaterialRef */
+        ErrorBodyMaterialRef: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "MATERIAL_NO_UNIT_COST";
+            details: components["schemas"]["MaterialRefDetails"];
+        };
         /** ErrorBodyMonthEnd */
         ErrorBodyMonthEnd: {
             /** Type */
@@ -2626,7 +2662,7 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             /** Error */
-            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodyBackupFailed"];
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodyMaterialRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodyBackupFailed"];
         };
         /**
          * ErrorItem
@@ -2958,6 +2994,13 @@ export interface components {
             material_name: string;
             /** Supplier Name */
             supplier_name: string | null;
+        };
+        /** MaterialRefDetails */
+        MaterialRefDetails: {
+            /** Material Id */
+            material_id: number;
+            /** Material Name */
+            material_name: string;
         };
         /**
          * MaterialUpdate
@@ -4163,6 +4206,23 @@ export interface components {
             /** Pending Count */
             pending_count: number;
         };
+        /**
+         * ServiceWasteCreate
+         * @description Waste of a SERVICE material: `quantity` units, no stock change. `unit_cost` = the price per unit to
+         *     store (integer Rial, at least 1); omitted = the material's current cost.
+         */
+        ServiceWasteCreate: {
+            /** Material Id */
+            material_id: number;
+            /** Quantity */
+            quantity: number;
+            /** Unit Cost */
+            unit_cost?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Movement Date */
+            movement_date?: string | null;
+        };
         /** SettingUpdate */
         SettingUpdate: {
             /** Value */
@@ -4754,6 +4814,7 @@ export interface components {
          *                                      spelling-normalized key already exists (db/names.py)
          *     PRODUCT_NO_RECIPE                product_id, product_name
          *     PRODUCT_NO_UNIT_COST             product_id, product_name
+         *     MATERIAL_NO_UNIT_COST            material_id, material_name: a service waste needs the material's unit cost first («ثبت بها»)
          *     COST_ALREADY_SET                 item_type (MATERIAL | PRODUCT), item_id, item_name, unit_cost (the cost it has)
          *     SUPPLIER_NOT_FOUND               supplier_id
          *     AMOUNT_TOO_LARGE                max (MAX_MONEY, db/constants.py); the amount's size is over it,
@@ -4778,7 +4839,7 @@ export interface components {
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "BACKUP_FAILED";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "MATERIAL_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "BACKUP_FAILED";
     };
     responses: never;
     parameters: never;
@@ -7615,6 +7676,66 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AdjustmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdjustmentOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_service_waste_adjustments_service_waste_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceWasteCreate"];
             };
         };
         responses: {
