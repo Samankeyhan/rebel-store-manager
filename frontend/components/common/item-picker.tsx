@@ -22,7 +22,8 @@ function norm(s: string): string {
 /**
  * A `.select`-styled trigger with a searchable list (the record-sale product
  * picker's pattern, generic): search by name or sub-line; ↑/↓ move, Enter
- * picks, Esc closes.
+ * picks, Esc closes. The popover is modal so its list scrolls with the
+ * mouse wheel inside a drawer too.
  */
 export function ItemPicker({
   id,
@@ -77,7 +78,9 @@ export function ItemPicker({
   }
 
   return (
+    // modal: the list is portaled out of any drawer, whose scroll lock would otherwise swallow the mouse wheel on it
     <Popover
+      modal
       open={open}
       onOpenChange={(o) => {
         setOpen(o)
