@@ -36,6 +36,7 @@ from api.routers import (
     settings,
     settlements,
     stocktake,
+    supplier_payments,
     suppliers,
 )
 from db.errors import AppError, BackupError, ConflictError, ErrorCode, InsufficientStockError, NotFoundError, ValidationError
@@ -164,6 +165,7 @@ app.include_router(production.router)
 app.include_router(orders.router)
 app.include_router(suppliers.router)
 app.include_router(purchases.router)
+app.include_router(supplier_payments.router)
 app.include_router(adjustments.router)
 app.include_router(stocktake.router)
 app.include_router(expenses.router)

@@ -16,6 +16,7 @@ from db.materials import add_material
 from db.orders import record_order
 from db.partners import add_partner
 from db.payment_methods import add_payment_method
+from db.suppliers import add_supplier
 from tests.helpers import cat, stocked_product
 
 TOO_BIG = [MAX_MONEY + 1, 2**63 - 1, 2**63, 2**64, 10**30]
@@ -34,6 +35,7 @@ def world(tmp_path):
         "expense_category": add_expense_category(conn, "Bounds Rent"),
         "method": add_payment_method(conn, "Bounds Pay", "IMMEDIATE", fee_bps=100),
         "category": cat(conn, "VINYL"),
+        "supplier": add_supplier(conn, "Bounds Supplier"),
     }
     add_partner(conn, "Bounds Partner", 100)
     order = record_order(
@@ -85,6 +87,13 @@ CASES = {
                                      lambda i, v: {"material_id": i["material"], "quantity_bought": 1, "total_paid": v}, "total_paid"),
     "purchase.product.total_paid": ("post", lambda i: "/purchases/products",
                                     lambda i, v: {"product_id": i["product"], "quantity_bought": 1, "total_paid": v}, "total_paid"),
+    "purchase.payment.amount": ("post", lambda i: "/purchases/materials",
+                                lambda i, v: {"material_id": i["material"], "quantity_bought": 1, "total_paid": 1000,
+                                              "supplier_id": i["supplier"], "payment": {"mode": "PARTIAL", "amount": v}},
+                                "payment.amount"),
+    "supplier_payment.amount": ("post", lambda i: "/supplier-payments",
+                                lambda i, v: {"supplier_id": i["supplier"], "payment_date": "2026-01-01", "amount": v,
+                                              "method": "CASH"}, "amount"),
     "adjustment.unit_cost": ("post", lambda i: "/adjustments",
                              lambda i, v: {"item_type": "MATERIAL", "item_id": i["material"], "quantity_change": 1,
                                            "reason": "ADJUSTMENT", "unit_cost": v}, "unit_cost"),
