@@ -10,7 +10,7 @@ import pytest
 
 import db.orders
 import db.settlements
-from db.adjustments import record_stock_adjustment
+from db.adjustments import record_service_waste, record_stock_adjustment
 from db.connection import MIGRATIONS_DIR, get_connection, init_db
 from db.distributions import compute_share_amounts, record_profit_distribution
 from db.materials import add_material
@@ -131,7 +131,7 @@ def test_a_consistent_shop_passes_every_check(shop, test_db, capsys):
     results = run(test_db)
     statuses = {key: r.status for key, r in results.items()}
     assert statuses == {"a": "PASS", "b": "PASS", "c": "PASS", "d1": "PASS", "d2": "PASS", "d3": "SKIPPED",
-                        "e": "PASS", "f": "PASS", "g": "PASS", "h": "PASS", "i": "PASS"}, text
+                        "d4": "PASS", "e": "PASS", "f": "PASS", "g": "PASS", "h": "PASS", "i": "PASS"}, text
     assert results["b"].summary == "2 settlements checked"
     # The audit log knows what the two materials were created with, so there is nothing to guess.
     assert results["d1"].infos == []
@@ -567,7 +567,7 @@ def _old_database(tmp_path, last):
     return path
 
 
-@pytest.mark.parametrize("last, skipped", [("013", {"d3", "i"}), ("011", {"d3", "h", "i"}), ("008", {"b", "c", "d3", "e", "g", "h", "i"}), ("002", {"b", "c", "d1", "d2", "d3", "e", "f", "g", "h", "i"})])
+@pytest.mark.parametrize("last, skipped", [("013", {"d3", "i"}), ("011", {"d3", "h", "i"}), ("008", {"b", "c", "d3", "e", "g", "h", "i"}), ("002", {"b", "c", "d1", "d2", "d3", "d4", "e", "f", "g", "h", "i"})])
 def test_a_database_at_an_older_schema_skips_what_needs_a_newer_one_and_never_crashes(tmp_path, capsys, last, skipped):
     path = _old_database(tmp_path, last)
     code = cli.main(["--db", path])
@@ -575,7 +575,7 @@ def test_a_database_at_an_older_schema_skips_what_needs_a_newer_one_and_never_cr
     assert code == 0, text
     assert f"(version {int(last)})" in text
     for line in text.splitlines():
-        for key in ("b", "c", "d1", "d2", "d3", "e", "f", "g", "h", "i"):
+        for key in ("b", "c", "d1", "d2", "d3", "d4", "e", "f", "g", "h", "i"):
             if line.startswith(("SKIPPED", "PASS", "WARN", "FAIL")) and line.split()[1] == f"{key}.":
                 assert line.startswith("SKIPPED") == (key in skipped), line
     assert "needs migration 014" in text
@@ -596,3 +596,46 @@ def test_a_database_without_migration_013_still_reports_the_real_shape(tmp_path)
 def test_the_audit_opening_is_read_from_the_json_the_audit_log_holds(shop, test_db):
     row = test_db.execute("SELECT after_json FROM audit_log WHERE entity_type = 'materials' AND entity_id = ? AND action = 'INSERT'", (str(shop["box"]),)).fetchone()
     assert json.loads(row["after_json"])["current_stock"] == 100
+
+
+# ------------------------------------------------------------------ d4. service waste
+
+
+def test_a_service_waste_passes_d4_and_leaves_d1_alone(shop, test_db):
+    record_service_waste(test_db, shop["print"], 2, movement_date="2026-10-01")
+    record_service_waste(test_db, shop["print"], 0.5, unit_cost=333)
+    test_db.commit()
+    results = run(test_db)
+    assert results["d4"].status == "PASS"
+    assert results["d4"].summary.endswith("2 service movements checked")
+    assert results["d1"].status == "PASS"
+    assert all(r.status in ("PASS", "SKIPPED") for r in results.values())
+
+
+def test_a_service_holding_stock_fails_d4(shop, test_db):
+    raw = writable(test_db)
+    raw.execute("UPDATE materials SET current_stock = 3 WHERE id = ?", (shop["print"],))
+    raw.close()
+    lines = fails(run(test_db), "d4")
+    assert any(f"materials id={shop['print']} field=current_stock" in line for line in lines)
+
+
+def test_a_service_adjustment_movement_fails_d4(shop, test_db):
+    movement = record_service_waste(test_db, shop["print"], 1)
+    test_db.commit()
+    raw = writable(test_db)
+    raw.execute("UPDATE stock_movements SET reason = 'ADJUSTMENT' WHERE id = ?", (movement,))
+    raw.close()
+    lines = fails(run(test_db), "d4")
+    assert any(f"stock_movements id={movement} field=reason" in line and "ADJUSTMENT" in line for line in lines)
+
+
+@pytest.mark.parametrize("column, value", [("unit_cost_at_time", "NULL"), ("unit_cost_at_time", "0"), ("quantity_change", "1")])
+def test_a_service_waste_without_a_price_or_with_the_wrong_sign_fails_d4(shop, test_db, column, value):
+    movement = record_service_waste(test_db, shop["print"], 1)
+    test_db.commit()
+    raw = writable(test_db)
+    raw.execute(f"UPDATE stock_movements SET {column} = {value} WHERE id = ?", (movement,))
+    raw.close()
+    lines = fails(run(test_db), "d4")
+    assert any(f"stock_movements id={movement} field={column}" in line for line in lines)

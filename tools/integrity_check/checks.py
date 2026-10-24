@@ -311,6 +311,31 @@ def check_stock_documents(conn: sqlite3.Connection, schema: int) -> CheckResult:
     return result
 
 
+def check_service_waste(conn: sqlite3.Connection, schema: int) -> CheckResult:
+    result = CheckResult("d4", "Service waste")
+    services = conn.execute("SELECT id, current_stock FROM materials WHERE type = 'SERVICE' ORDER BY id").fetchall()
+    for service in services:
+        if service["current_stock"] not in (None, 0):
+            result.fails.append(Row("materials", service["id"], "current_stock", service["current_stock"], "NULL or 0",
+                                    note="a SERVICE holds no stock"))
+    count = 0
+    for row in conn.execute(
+        "SELECT sm.id, sm.reason, sm.quantity_change, sm.unit_cost_at_time FROM stock_movements sm "
+        "JOIN materials m ON m.id = sm.item_id WHERE sm.item_type = 'MATERIAL' AND m.type = 'SERVICE' ORDER BY sm.id"
+    ):
+        count += 1
+        if row["reason"] != "WASTE":
+            result.fails.append(Row("stock_movements", row["id"], "reason", row["reason"], "WASTE",
+                                    note="WASTE is the only movement a SERVICE can have"))
+        elif row["quantity_change"] >= 0:
+            result.fails.append(Row("stock_movements", row["id"], "quantity_change", row["quantity_change"], "< 0"))
+        elif row["unit_cost_at_time"] is None or row["unit_cost_at_time"] < 1:
+            result.fails.append(Row("stock_movements", row["id"], "unit_cost_at_time", row["unit_cost_at_time"], ">= 1",
+                                    note="a service waste is valued at its price per unit"))
+    result.summary = f"{len(services)} services and {count} service movements checked"
+    return result
+
+
 def check_stock_orders(conn: sqlite3.Connection, schema: int) -> CheckResult:
     result = CheckResult("d3", "Stock movements per order (SALE / RETURN / PACKAGING)")
     result.skipped = ("not checked: what each order should move is the order-commit logic (made-to-order split, kits, "
@@ -530,6 +555,7 @@ CHECKS = [
     Check("d1", "Stock vs movement history", 3, check_stock_replay, "stock movements are complete from migration 003"),
     Check("d2", "Stock movements vs purchases and production batches", 3, check_stock_documents, "stock movements are complete from migration 003"),
     Check("d3", "Stock movements per order (SALE / RETURN / PACKAGING)", 0, check_stock_orders, ""),
+    Check("d4", "Service waste", 3, check_service_waste, "stock movements are complete from migration 003"),
     Check("e", "Unit costs vs purchases and production batches", 9, check_costs, "money is stored in Rial from migration 009"),
     Check("f", "Invoice numbers", 3, check_invoice_numbers, "invoice counters exist from migration 003"),
     Check("g", "Partner distributions", 9, check_distributions, "money is stored in Rial from migration 009"),
