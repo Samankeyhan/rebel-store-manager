@@ -70,3 +70,13 @@ def test_the_update_section_names_the_command_its_options_the_files_and_the_roll
     interrupted = update[update.index("## 6b."):]
     for step in ("| 1 or 2 |", "| 3 or 4 |", "| 5 |", "| 6, 7 or 8 |", "| 9 |"):
         assert step in interrupted, step
+
+
+def test_the_mark_live_subsection_names_the_command_the_phrase_and_the_steps_in_order():
+    section = TEXT.split("### Mark a database live")[1]
+    steps = [".\stop-rebel.cmd", "-m tools.go_live_reset --mark-live\n", "-m tools.go_live_reset --mark-live --apply", "MARK LIVE shop.db", ".\start-rebel.cmd"]
+    position = 0
+    for step in steps:
+        found = section.find(step, position)
+        assert found >= 0, step
+        position = found

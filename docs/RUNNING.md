@@ -231,3 +231,24 @@ Turns the test database into a clean one: all test orders, purchases, production
 7. **If something is wrong** right after: stop the app and restore the `pre-go-live` backup by hand, exactly as in section 4 (copy that file in as `data\shop.db`).
 
 Practice first on a copy in its own folder, for example `data\restore-test\golive\shop.db` (see section 5), with `--db data\restore-test\golive\shop.db`; its backup and archive then go next to the copy, never into your real `data\backups`.
+
+### Mark a database live (when the go-live reset was never run on it)
+
+Use this only on a database that is already in real use (it has orders) but never went through the reset above. It writes a "this is a real shop" mark into the database, so the reset tool can never erase it by mistake. It changes none of your orders, stock, money or settings. (A database that was reset keeps its mark by itself; the app also puts the mark back at start-up if part of it went missing.)
+
+1. **Stop the app:** `.\stop-rebel.cmd`
+2. **Look first (changes nothing):**
+
+   ```powershell
+   .venv\Scripts\python -m tools.go_live_reset --mark-live
+   ```
+
+   It shows how many orders there are, the first and last order day, and which marks exist. If it says "no orders" or "already marked", stop here: nothing to do.
+3. **Do it:**
+
+   ```powershell
+   .venv\Scripts\python -m tools.go_live_reset --mark-live --apply
+   ```
+
+   It makes a checked backup first (in `data\backups\pre-go-live`), then asks you to type `MARK LIVE shop.db`; anything else cancels. Then it sets the mark and prints `DONE`.
+4. **Start the app:** `.\start-rebel.cmd`
