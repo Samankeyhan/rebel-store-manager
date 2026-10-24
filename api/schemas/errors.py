@@ -189,13 +189,11 @@ class SupplierRequiredForCreditDetails(_Details):
 
 
 class PurchaseRefDetails(_Details):
-    # MATERIAL | PRODUCT
-    purchase_kind: str
+    # the purchase invoice
     purchase_id: int
 
 
 class PurchaseDueDetails(_Details):
-    purchase_kind: str
     purchase_id: int
     outstanding: int
 
@@ -207,7 +205,6 @@ class SupplierBalanceDetails(_Details):
 
 
 class PurchaseSupplierDetails(_Details):
-    purchase_kind: str
     purchase_id: int
     # the purchase's own supplier
     supplier_id: int | None
@@ -219,7 +216,6 @@ class AllocationMismatchDetails(_Details):
 
 
 class PaymentBeforePurchaseDetails(_Details):
-    purchase_kind: str
     purchase_id: int
     # the purchase's local day
     purchase_date: str
@@ -227,6 +223,20 @@ class PaymentBeforePurchaseDetails(_Details):
 
 class SupplierPaymentRefDetails(_Details):
     payment_id: int
+
+
+class PurchaseDuplicateItemDetails(_Details):
+    # the 0-based line that repeats an item
+    index: int
+    # MATERIAL | PRODUCT
+    item_type: str
+    item_id: int
+
+
+class ServicePurchaseNeedsTotalDetails(_Details):
+    index: int
+    material_id: int
+    material_name: str
 
 
 C = ErrorCode
@@ -285,6 +295,8 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.SUPPLIER_PAYMENT_BEFORE_PURCHASE: PaymentBeforePurchaseDetails,
     C.SUPPLIER_PAYMENT_NOT_FOUND: SupplierPaymentRefDetails,
     C.PURCHASE_NOT_FOUND: PurchaseRefDetails,
+    C.PURCHASE_DUPLICATE_ITEM: PurchaseDuplicateItemDetails,
+    C.SERVICE_PURCHASE_NEEDS_TOTAL: ServicePurchaseNeedsTotalDetails,
 }
 
 

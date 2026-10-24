@@ -1,5 +1,6 @@
-"""What the shop owes its suppliers (docs/accounting-rules.md section 21). A purchase's `total_paid` is its invoice total;
-a supplier payment (`supplier_payments`) is money paid to one supplier, split over that supplier's purchases by
+"""What the shop owes its suppliers (docs/accounting-rules.md section 21). A purchase is a purchase invoice
+(`purchase_invoices`, section 22); its `total` is the sum of its line totals, computed on read (`total_sql`). A supplier
+payment (`supplier_payments`) is money paid to one supplier, split over that supplier's purchase invoices by
 `supplier_payment_allocations`. `paid` (Σ allocations), `outstanding` (total − paid) and `payment_status` (UNPAID,
 PARTIAL, PAID) are computed on read, never stored. Only ACTIVE purchases owe anything.
 `record_supplier_payment` (allocations given, or oldest first by `allocate_oldest_first`), `update_supplier_payment`
@@ -22,20 +23,40 @@ UNPAID, PARTIAL, PAID = "UNPAID", "PARTIAL", "PAID"
 UPDATABLE_FIELDS = ("payment_date", "method", "reference", "note")
 ACTIVE = "ACTIVE"
 
-# purchase_kind -> (purchase table, item table, item column, allocation column)
-KINDS = {
-    "MATERIAL": ("material_purchases", "materials", "material_id", "material_purchase_id"),
-    "PRODUCT": ("product_purchases", "products", "product_id", "product_purchase_id"),
-}
+
+def total_sql(alias: str = "purchase_invoices") -> str:
+    """SQL for a purchase invoice's total: Σ its line totals (the invoice row in scope is `alias`)."""
+    return (
+        f"((SELECT COALESCE(SUM(l.total_paid), 0) FROM material_purchases AS l WHERE l.purchase_invoice_id = {alias}.id)"
+        f" + (SELECT COALESCE(SUM(l.total_paid), 0) FROM product_purchases AS l WHERE l.purchase_invoice_id = {alias}.id))"
+    )
 
 
-def paid_sql(kind: str) -> str:
-    """SQL for Σ allocations of the purchase row in scope (its table name qualifies the id)."""
-    table, _, _, column = KINDS[kind]
+def paid_sql(alias: str = "purchase_invoices") -> str:
+    """SQL for Σ allocations of the purchase invoice in scope (`alias`)."""
     return (
         f"(SELECT COALESCE(SUM(spa.amount), 0) FROM supplier_payment_allocations AS spa "
-        f"WHERE spa.{column} = {table}.id)"
+        f"WHERE spa.purchase_invoice_id = {alias}.id)"
     )
+
+
+def item_names(conn: sqlite3.Connection, purchase_id: int) -> list[str]:
+    """The item names of a purchase invoice's lines: materials (and services), then products, each by line id."""
+    return [
+        r[0]
+        for r in conn.execute(
+            """
+            SELECT name FROM (
+                SELECT 0 AS k, l.id, m.name FROM material_purchases AS l JOIN materials AS m ON m.id = l.material_id
+                WHERE l.purchase_invoice_id = ?
+                UNION ALL
+                SELECT 1, l.id, p.name FROM product_purchases AS l JOIN products AS p ON p.id = l.product_id
+                WHERE l.purchase_invoice_id = ?
+            ) ORDER BY k, id
+            """,
+            (purchase_id, purchase_id),
+        )
+    ]
 
 
 def payment_status(total: int, paid: int) -> str:
@@ -45,19 +66,13 @@ def payment_status(total: int, paid: int) -> str:
 
 
 def with_payment_figures(row: dict) -> dict:
-    """A purchase row that has `paid` (from `paid_sql`) gains `outstanding` and `payment_status`."""
-    row["outstanding"] = row["total_paid"] - row["paid"]
-    row["payment_status"] = payment_status(row["total_paid"], row["paid"])
+    """A purchase invoice row that has `total` and `paid` gains `outstanding` and `payment_status`."""
+    row["outstanding"] = row["total"] - row["paid"]
+    row["payment_status"] = payment_status(row["total"], row["paid"])
     return row
 
 
 # ---------------------------------------------------------------- validation
-
-
-def _check_kind(kind, field: str) -> str:
-    if kind not in KINDS:
-        raise ValidationError(f"purchase_kind must be one of {', '.join(KINDS)}, got {kind!r}", field=field)
-    return kind
 
 
 def _check_amount(value, field: str) -> int:
@@ -100,59 +115,58 @@ def _clean_allocations(allocations) -> list[dict]:
         raise ValidationError("allocations must list at least one purchase", field="allocations")
     cleaned, seen = [], set()
     for position, allocation in enumerate(allocations):
-        kind = _check_kind(allocation.get("purchase_kind"), f"allocations.{position}.purchase_kind")
         purchase_id = allocation.get("purchase_id")
         if isinstance(purchase_id, bool) or not isinstance(purchase_id, int):
             raise ValidationError(f"purchase_id must be an integer, got {purchase_id!r}", field=f"allocations.{position}.purchase_id")
-        if (kind, purchase_id) in seen:
-            raise ValidationError(f"{kind} purchase {purchase_id} is listed twice", field="allocations")
-        seen.add((kind, purchase_id))
+        if purchase_id in seen:
+            raise ValidationError(f"Purchase {purchase_id} is listed twice", field="allocations")
+        seen.add(purchase_id)
         amount = _check_amount(allocation.get("amount"), f"allocations.{position}.amount")
-        cleaned.append({"purchase_kind": kind, "purchase_id": purchase_id, "amount": amount})
+        cleaned.append({"purchase_id": purchase_id, "amount": amount})
     return cleaned
 
 
 # ---------------------------------------------------------------- reads
 
 
-def _purchase(conn: sqlite3.Connection, kind: str, purchase_id: int) -> dict:
-    table = KINDS[kind][0]
+def not_found(purchase_id: int) -> NotFoundError:
+    return NotFoundError(
+        f"Purchase #{purchase_id} does not exist",
+        code=ErrorCode.PURCHASE_NOT_FOUND,
+        details={"purchase_id": purchase_id},
+    )
+
+
+def _purchase(conn: sqlite3.Connection, purchase_id: int) -> dict:
     row = conn.execute(
-        f"SELECT id, supplier_id, purchase_date, total_paid, status, {paid_sql(kind)} AS paid FROM {table} WHERE id = ?",
+        f"SELECT id, supplier_id, purchase_date, status, {total_sql()} AS total, {paid_sql()} AS paid "
+        f"FROM purchase_invoices WHERE id = ?",
         (purchase_id,),
     ).fetchone()
     if row is None:
-        raise NotFoundError(
-            f"{kind.capitalize()} purchase #{purchase_id} does not exist",
-            code=ErrorCode.PURCHASE_NOT_FOUND,
-            details={"purchase_kind": kind, "purchase_id": purchase_id},
-        )
+        raise not_found(purchase_id)
     purchase = dict(row)
     # a cancelled purchase owes nothing (it has no allocations either)
-    purchase["outstanding"] = purchase["total_paid"] - purchase["paid"] if purchase["status"] == ACTIVE else 0
+    purchase["outstanding"] = purchase["total"] - purchase["paid"] if purchase["status"] == ACTIVE else 0
     return purchase
 
 
 def open_purchases(conn: sqlite3.Connection, supplier_id: int | None) -> list[dict]:
-    """ACTIVE purchases of the supplier (None: purchases with no supplier) that still owe something, oldest first
-    (purchase_date, then materials before products, then id)."""
+    """ACTIVE purchase invoices of the supplier (None: purchases with no supplier) that still owe something, oldest
+    first (purchase_date, then id), each with its item names."""
     rows = []
-    for order, (kind, (table, item_table, item_column, _)) in enumerate(KINDS.items()):
-        for row in conn.execute(
-            f"""
-            SELECT {table}.id AS purchase_id, {table}.invoice_number, {table}.purchase_date, {table}.total_paid,
-                   {item_table}.name AS item_name, {paid_sql(kind)} AS paid
-            FROM {table} JOIN {item_table} ON {item_table}.id = {table}.{item_column}
-            WHERE {table}.supplier_id IS ? AND {table}.status = 'ACTIVE'
-            """,
-            (supplier_id,),
-        ):
-            purchase = dict(row)
-            if purchase["paid"] < purchase["total_paid"]:
-                rows.append({"purchase_kind": kind, **with_payment_figures(purchase), "_order": order})
-    rows.sort(key=lambda r: (r["purchase_date"], r["_order"], r["purchase_id"]))
-    for row in rows:
-        del row["_order"]
+    for row in conn.execute(
+        f"""
+        SELECT id AS purchase_id, invoice_number, purchase_date, {total_sql()} AS total, {paid_sql()} AS paid
+        FROM purchase_invoices
+        WHERE supplier_id IS ? AND status = 'ACTIVE'
+        ORDER BY purchase_date, id
+        """,
+        (supplier_id,),
+    ):
+        purchase = dict(row)
+        if purchase["paid"] < purchase["total"]:
+            rows.append({**with_payment_figures(purchase), "item_names": item_names(conn, purchase["purchase_id"])})
     return rows
 
 
@@ -174,29 +188,27 @@ def allocate_oldest_first(conn: sqlite3.Connection, supplier_id: int | None, amo
         if left == 0:
             break
         share = min(left, purchase["outstanding"])
-        allocations.append({"purchase_kind": purchase["purchase_kind"], "purchase_id": purchase["purchase_id"], "amount": share})
+        allocations.append({"purchase_id": purchase["purchase_id"], "amount": share})
         left -= share
     return allocations
 
 
 def _allocation_rows(conn: sqlite3.Connection, payment_id: int) -> list[dict]:
-    rows = []
-    for kind, (table, item_table, item_column, column) in KINDS.items():
-        rows += [
-            {"purchase_kind": kind, **dict(r)}
-            for r in conn.execute(
-                f"""
-                SELECT spa.id, spa.{column} AS purchase_id, spa.amount, {table}.invoice_number, {table}.purchase_date,
-                       {item_table}.name AS item_name
-                FROM supplier_payment_allocations AS spa
-                JOIN {table} ON {table}.id = spa.{column}
-                JOIN {item_table} ON {item_table}.id = {table}.{item_column}
-                WHERE spa.payment_id = ?
-                """,
-                (payment_id,),
-            )
-        ]
-    rows.sort(key=lambda r: (r["purchase_date"], r["id"]))
+    rows = [
+        dict(r)
+        for r in conn.execute(
+            """
+            SELECT spa.id, spa.purchase_invoice_id AS purchase_id, spa.amount, pi.invoice_number, pi.purchase_date
+            FROM supplier_payment_allocations AS spa
+            JOIN purchase_invoices AS pi ON pi.id = spa.purchase_invoice_id
+            WHERE spa.payment_id = ?
+            ORDER BY pi.purchase_date, spa.id
+            """,
+            (payment_id,),
+        )
+    ]
+    for row in rows:
+        row["item_names"] = item_names(conn, row["purchase_id"])
     return rows
 
 
@@ -240,18 +252,17 @@ def list_supplier_payments(
     return [{**dict(r), "allocations": _allocation_rows(conn, r["id"])} for r in conn.execute(query, params).fetchall()]
 
 
-def purchase_payments(conn: sqlite3.Connection, kind: str, purchase_id: int) -> list[dict]:
-    """The payments that paid this purchase: each payment's date, method, reference and note, the amount allocated to
-    this purchase and the payment's whole amount; oldest first."""
-    column = KINDS[kind][3]
+def purchase_payments(conn: sqlite3.Connection, purchase_id: int) -> list[dict]:
+    """The payments that paid this purchase invoice: each payment's date, method, reference and note, the amount
+    allocated to this purchase and the payment's whole amount; oldest first."""
     return [
         dict(r)
         for r in conn.execute(
-            f"""
+            """
             SELECT sp.id AS payment_id, sp.payment_date, sp.method, sp.reference, sp.note,
                    spa.amount AS amount, sp.amount AS payment_amount
             FROM supplier_payment_allocations AS spa JOIN supplier_payments AS sp ON sp.id = spa.payment_id
-            WHERE spa.{column} = ?
+            WHERE spa.purchase_invoice_id = ?
             ORDER BY sp.payment_date, sp.id
             """,
             (purchase_id,),
@@ -264,23 +275,17 @@ def get_payables(conn: sqlite3.Connection) -> dict:
     with no supplier), largest debt first, with all-time purchases_total and paid_total over its ACTIVE purchases, the
     outstanding, the oldest unpaid purchase_date and its open purchases (oldest first)."""
     suppliers = []
-    keys = [r[0] for r in conn.execute(
-        "SELECT supplier_id FROM material_purchases WHERE status = 'ACTIVE' "
-        "UNION SELECT supplier_id FROM product_purchases WHERE status = 'ACTIVE'"
-    )]
+    keys = [r[0] for r in conn.execute("SELECT DISTINCT supplier_id FROM purchase_invoices WHERE status = 'ACTIVE'")]
     for supplier_id in keys:
         purchases = open_purchases(conn, supplier_id)
         if not purchases:
             continue
-        totals = {"purchases_total": 0, "paid_total": 0}
-        for kind, (table, _, _, _) in KINDS.items():
-            row = conn.execute(
-                f"SELECT COALESCE(SUM(total_paid), 0) AS total, COALESCE(SUM({paid_sql(kind)}), 0) AS paid "
-                f"FROM {table} WHERE supplier_id IS ? AND status = 'ACTIVE'",
-                (supplier_id,),
-            ).fetchone()
-            totals["purchases_total"] += row["total"]
-            totals["paid_total"] += row["paid"]
+        row = conn.execute(
+            f"SELECT COALESCE(SUM({total_sql()}), 0) AS total, COALESCE(SUM({paid_sql()}), 0) AS paid "
+            f"FROM purchase_invoices WHERE supplier_id IS ? AND status = 'ACTIVE'",
+            (supplier_id,),
+        ).fetchone()
+        totals = {"purchases_total": row["total"], "paid_total": row["paid"]}
         name = conn.execute("SELECT name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone() if supplier_id else None
         suppliers.append({
             "supplier_id": supplier_id,
@@ -295,26 +300,23 @@ def get_payables(conn: sqlite3.Connection) -> dict:
 
 
 def payables_outstanding(conn: sqlite3.Connection) -> int:
-    """Everything owed to suppliers now: Σ (total_paid − paid) over ACTIVE purchases."""
-    total = 0
-    for kind, (table, _, _, _) in KINDS.items():
-        total += conn.execute(
-            f"SELECT COALESCE(SUM(total_paid - {paid_sql(kind)}), 0) FROM {table} WHERE status = 'ACTIVE'"
-        ).fetchone()[0]
-    return total
+    """Everything owed to suppliers now: Σ (total − paid) over ACTIVE purchase invoices."""
+    return conn.execute(
+        f"SELECT COALESCE(SUM({total_sql()} - {paid_sql()}), 0) FROM purchase_invoices WHERE status = 'ACTIVE'"
+    ).fetchone()[0]
 
 
 # ---------------------------------------------------------------- writes
 
 
-def _refuse_before_purchase(conn: sqlite3.Connection, payment_day, kind: str, purchase: dict) -> None:
+def _refuse_before_purchase(conn: sqlite3.Connection, payment_day, purchase: dict) -> None:
     purchase_day = local_day(purchase["purchase_date"], conn)
     if payment_day < purchase_day:
         raise ValidationError(
-            f"The payment day {payment_day} is before the day of {kind.lower()} purchase #{purchase['id']} ({purchase_day})",
+            f"The payment day {payment_day} is before the day of purchase #{purchase['id']} ({purchase_day})",
             field="payment_date",
             code=ErrorCode.SUPPLIER_PAYMENT_BEFORE_PURCHASE,
-            details={"purchase_kind": kind, "purchase_id": purchase["id"], "purchase_date": purchase_day.isoformat()},
+            details={"purchase_id": purchase["id"], "purchase_date": purchase_day.isoformat()},
         )
 
 
@@ -322,33 +324,33 @@ def _write_allocations(conn: sqlite3.Connection, payment_id: int, supplier_id: i
     """Check each allocation against its purchase (inside the caller's transaction, so the outstanding is current) and
     write it; afterwards no purchase may hold more than its total (the guard against a concurrent payment)."""
     for allocation in allocations:
-        kind, purchase_id = allocation["purchase_kind"], allocation["purchase_id"]
-        purchase = _purchase(conn, kind, purchase_id)
+        purchase_id = allocation["purchase_id"]
+        purchase = _purchase(conn, purchase_id)
         if purchase["supplier_id"] != supplier_id:
             raise ValidationError(
-                f"{kind.capitalize()} purchase #{purchase_id} belongs to another supplier",
+                f"Purchase #{purchase_id} belongs to another supplier",
                 field="allocations",
                 code=ErrorCode.SUPPLIER_PAYMENT_SUPPLIER_MISMATCH,
-                details={"purchase_kind": kind, "purchase_id": purchase_id, "supplier_id": purchase["supplier_id"]},
+                details={"purchase_id": purchase_id, "supplier_id": purchase["supplier_id"]},
             )
-        _refuse_before_purchase(conn, payment_day, kind, purchase)
+        _refuse_before_purchase(conn, payment_day, purchase)
         if allocation["amount"] > purchase["outstanding"]:
             raise ConflictError(
-                f"{allocation['amount']} is more than {kind.lower()} purchase #{purchase_id} still owes ({purchase['outstanding']})",
+                f"{allocation['amount']} is more than purchase #{purchase_id} still owes ({purchase['outstanding']})",
                 code=ErrorCode.SUPPLIER_PAYMENT_EXCEEDS_DUE,
-                details={"purchase_kind": kind, "purchase_id": purchase_id, "outstanding": purchase["outstanding"]},
+                details={"purchase_id": purchase_id, "outstanding": purchase["outstanding"]},
             )
         conn.execute(
-            f"INSERT INTO supplier_payment_allocations (payment_id, {KINDS[kind][3]}, amount) VALUES (?, ?, ?)",
+            "INSERT INTO supplier_payment_allocations (payment_id, purchase_invoice_id, amount) VALUES (?, ?, ?)",
             (payment_id, purchase_id, allocation["amount"]),
         )
     for allocation in allocations:
-        purchase = _purchase(conn, allocation["purchase_kind"], allocation["purchase_id"])
-        if purchase["paid"] > purchase["total_paid"]:
+        purchase = _purchase(conn, allocation["purchase_id"])
+        if purchase["paid"] > purchase["total"]:
             raise ConflictError(
                 "This purchase was paid meanwhile; reload and try again.",
                 code=ErrorCode.SUPPLIER_PAYMENT_EXCEEDS_DUE,
-                details={"purchase_kind": allocation["purchase_kind"], "purchase_id": purchase["id"], "outstanding": 0},
+                details={"purchase_id": purchase["id"], "outstanding": 0},
             )
 
 
@@ -363,8 +365,8 @@ def record_supplier_payment(
     note: str | None = None,
     allocations: list[dict] | None = None,
 ) -> int:
-    """Record money paid to a supplier and allocate it: to the `allocations` given ({purchase_kind, purchase_id,
-    amount}, adding up to `amount` exactly), or oldest first when None. Returns the payment id."""
+    """Record money paid to a supplier and allocate it: to the `allocations` given ({purchase_id, amount}, a purchase
+    invoice each, adding up to `amount` exactly), or oldest first when None. Returns the payment id."""
     _check_amount(amount, "amount")
     _check_method(method)
     _check_supplier(conn, supplier_id)
@@ -424,19 +426,19 @@ def check_purchase_payment(payment: dict | None, supplier_id: int | None, total:
 
 
 @audited()
-def record_purchase_payment(conn: sqlite3.Connection, kind: str, purchase_id: int, payment: dict | None) -> None:
-    """The payment made with a purchase (`check_purchase_payment`'s result), dated with the purchase and allocated to it.
-    Runs inside the purchase's own transaction, and joins its audit operation."""
+def record_purchase_payment(conn: sqlite3.Connection, purchase_id: int, payment: dict | None) -> None:
+    """The payment made with a purchase invoice (`check_purchase_payment`'s result), dated with the purchase and
+    allocated to it. Runs inside the purchase's own transaction, and joins its audit operation."""
     if payment is None:
         return
-    purchase = _purchase(conn, kind, purchase_id)
+    purchase = _purchase(conn, purchase_id)
     cursor = conn.execute(
         "INSERT INTO supplier_payments (supplier_id, payment_date, amount, method, reference) VALUES (?, ?, ?, ?, ?)",
         (purchase["supplier_id"], purchase["purchase_date"], payment["amount"], payment["method"], payment["reference"]),
     )
     _write_allocations(
         conn, cursor.lastrowid, purchase["supplier_id"], local_day(purchase["purchase_date"], conn),
-        [{"purchase_kind": kind, "purchase_id": purchase_id, "amount": payment["amount"]}],
+        [{"purchase_id": purchase_id, "amount": payment["amount"]}],
     )
 
 
@@ -460,7 +462,7 @@ def update_supplier_payment(conn: sqlite3.Connection, payment_id: int, **fields)
         day = local_day(moment, conn)
         if day != local_day(old["payment_date"], conn):
             for allocation in old["allocations"]:
-                _refuse_before_purchase(conn, day, allocation["purchase_kind"], _purchase(conn, allocation["purchase_kind"], allocation["purchase_id"]))
+                _refuse_before_purchase(conn, day, _purchase(conn, allocation["purchase_id"]))
             changes["payment_date"] = moment
     if not changes:
         return

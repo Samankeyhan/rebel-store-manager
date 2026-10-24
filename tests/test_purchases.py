@@ -2,10 +2,10 @@ import sqlite3
 
 import pytest
 
+from db.costing import per_unit_cost as _compute_unit_cost
 from db.materials import add_material, get_material
 from db.products import add_product, get_product
 from db.purchases import (
-    _compute_unit_cost,
     get_material_purchase,
     get_product_purchase,
     list_material_purchases,
@@ -155,27 +155,21 @@ def test_duplicate_purchase_invoice_number_rejected_by_unique_index(
     invoice_number = get_material_purchase(test_db, purchase_id)["invoice_number"]
 
     with pytest.raises(sqlite3.IntegrityError):
-        test_db.execute(
-            """
-            INSERT INTO material_purchases
-                (material_id, invoice_number, quantity_bought, total_paid, unit_cost)
-            VALUES (?, ?, 1, 100, 100)
-            """,
-            (material_id, invoice_number),
-        )
+        test_db.execute("INSERT INTO purchase_invoices (invoice_number) VALUES (?)", (invoice_number,))
 
 
-def test_service_material_purchase_raises_and_rolls_back(purchase_setup, test_db):
+def test_service_material_purchase_sets_its_price_and_writes_no_movement(purchase_setup, test_db):
     service_id = purchase_setup["service_id"]
-    purchases_before = _count_rows(test_db, "material_purchases")
     movements_before = _count_rows(test_db, "stock_movements")
 
-    with pytest.raises(ValueError, match="SERVICE"):
-        record_material_purchase(
-            test_db, service_id, quantity_bought=1, total_paid=100
-        )
+    purchase_id = record_material_purchase(test_db, service_id, quantity_bought=3, total_paid=100)
 
-    assert _count_rows(test_db, "material_purchases") == purchases_before
+    purchase = test_db.execute("SELECT * FROM material_purchases WHERE id = ?", (purchase_id,)).fetchone()
+    assert purchase["unit_cost"] == 33  # 33.33 -> 33
+    assert (purchase["item_cost_before"], purchase["item_cost_after"]) == (50, 33)
+    assert purchase["stock_movement_id"] is None
+    service = get_material(test_db, service_id)
+    assert service["unit_cost"] == 33 and service["current_stock"] is None  # the last purchase sets the price
     assert _count_rows(test_db, "stock_movements") == movements_before
 
 

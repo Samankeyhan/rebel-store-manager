@@ -20,7 +20,7 @@ from db.distributions import compute_share_amounts, get_profit_distribution
 from db.name_keys import find_name_collisions
 from db.orders import REVENUE_ELIGIBLE_STATUSES, get_order, list_orders
 from db.payment_methods import compute_expected_settlement_date, compute_fee, get_payment_method
-from db.purchases import list_material_purchases, list_product_purchases
+from db.purchases import list_purchases
 from db.reports import get_profit_and_loss, get_purchases_summary
 from db.settlements import get_settlement
 from db.supplier_payments import get_payables
@@ -273,9 +273,13 @@ def check_stock_documents(conn: sqlite3.Connection, schema: int) -> CheckResult:
             result.fails.append(Row(table, key, field, stored, expected, stored - expected, note))
 
     count = 0
-    for kind, table, name in (("MATERIAL", "material_purchases", "material_id"), ("PRODUCT", "product_purchases", "product_id")):
+    # a SERVICE line has no stock and writes no movement (section 22): it is left out of the sums and has no link
+    for kind, table, name, stock_only in (
+        ("MATERIAL", "material_purchases", "material_id", "JOIN materials AS m ON m.id = p.material_id WHERE m.type = 'STOCK'"),
+        ("PRODUCT", "product_purchases", "product_id", ""),
+    ):
         bought = defaultdict(Fraction)
-        for row in conn.execute(f"SELECT {name} AS item, quantity_bought FROM {table}"):
+        for row in conn.execute(f"SELECT p.{name} AS item, p.quantity_bought FROM {table} AS p {stock_only}"):
             bought[row["item"]] += _exact(row["quantity_bought"])
         moved = defaultdict(Fraction)
         for row in conn.execute("SELECT item_id, quantity_change FROM stock_movements WHERE item_type = ? AND reason = 'PURCHASE'", (kind,)):
@@ -284,6 +288,15 @@ def check_stock_documents(conn: sqlite3.Connection, schema: int) -> CheckResult:
             count += 1
             compare("stock_movements", item, "sum PURCHASE quantity", moved[item], bought[item], kind,
                     f"{kind.lower()} id {item}: movements vs {table}.quantity_bought")
+    if schema >= 16:
+        for row in conn.execute(
+            "SELECT p.id, p.stock_movement_id, p.cancel_movement_id FROM material_purchases AS p "
+            "JOIN materials AS m ON m.id = p.material_id WHERE m.type = 'SERVICE' ORDER BY p.id"
+        ):
+            count += 1
+            if row["stock_movement_id"] is not None or row["cancel_movement_id"] is not None:
+                result.fails.append(Row("material_purchases", row["id"], "stock_movement_id",
+                                        row["stock_movement_id"], None, note="a SERVICE line writes no movement"))
 
     output = defaultdict(Fraction)
     for row in conn.execute(
@@ -407,9 +420,12 @@ def check_invoice_numbers(conn: sqlite3.Connection, schema: int) -> CheckResult:
     counters = {r["name"]: r["value"] for r in conn.execute("SELECT name, value FROM counters")}
 
     inv = _numbers(conn, "orders", "INV", result)
-    pur = _numbers(conn, "material_purchases", "PUR", result)
-    for number, rows in _numbers(conn, "product_purchases", "PUR", result).items():
-        pur[number].extend(rows)
+    if schema >= 16:  # one PUR number per purchase invoice (section 22)
+        pur = _numbers(conn, "purchase_invoices", "PUR", result)
+    else:
+        pur = _numbers(conn, "material_purchases", "PUR", result)
+        for number, rows in _numbers(conn, "product_purchases", "PUR", result).items():
+            pur[number].extend(rows)
 
     for prefix, found in (("INV", inv), ("PUR", pur)):
         for number, rows in sorted(found.items()):
@@ -544,10 +560,10 @@ def check_voided_orders(conn: sqlite3.Connection, schema: int) -> CheckResult:
 
 
 def check_supplier_payables(conn: sqlite3.Connection, schema: int) -> CheckResult:
-    """Section 21: every payment is wholly allocated; every allocation pays an ACTIVE purchase of the payment's own
-    supplier, on or after its day; no purchase is paid more than its total; per supplier, `get_payables` owes exactly
-    Σ (total − paid) over its ACTIVE purchases as the purchase lists give them; the all-time purchases summary's
-    payments equal the stored payments."""
+    """Sections 21 and 22: every payment is wholly allocated; every allocation pays an ACTIVE purchase invoice of the
+    payment's own supplier, on or after its day; no invoice is paid more than its total (Σ its lines); every invoice has
+    at least one line; per supplier, `get_payables` owes exactly Σ (total − paid) over its ACTIVE invoices as the
+    purchase list gives them; the all-time purchases summary's payments equal the stored payments."""
     result = CheckResult("j", "Supplier payables")
     payments = conn.execute("SELECT id, supplier_id, payment_date, amount FROM supplier_payments ORDER BY id").fetchall()
     allocated = defaultdict(int)
@@ -561,39 +577,35 @@ def check_supplier_payables(conn: sqlite3.Connection, schema: int) -> CheckResul
                                            allocated[payment["id"]], "sum of its allocations"))
     by_id = {payment["id"]: payment for payment in payments}
 
-    purchases = {("MATERIAL", p["id"]): p for p in list_material_purchases(conn)}
-    purchases.update({("PRODUCT", p["id"]): p for p in list_product_purchases(conn)})
+    purchases = {p["id"]: p for p in list_purchases(conn)}
     count = 0
-    for kind, column in (("MATERIAL", "material_purchase_id"), ("PRODUCT", "product_purchase_id")):
-        for row in conn.execute(
-            f"SELECT id, payment_id, {column} AS purchase_id, amount FROM supplier_payment_allocations "
-            f"WHERE {column} IS NOT NULL ORDER BY id"
-        ):
-            count += 1
-            purchase, payment = purchases.get((kind, row["purchase_id"])), by_id.get(row["payment_id"])
-            if purchase is None or payment is None:
-                result.fails.append(Row("supplier_payment_allocations", row["id"], "purchase / payment",
-                                        f"{kind} {row['purchase_id']} / {row['payment_id']}", "existing rows"))
-                continue
-            if purchase["status"] != "ACTIVE":
-                result.fails.append(Row("supplier_payment_allocations", row["id"], "purchase status", purchase["status"],
-                                        "ACTIVE", note=f"{kind.lower()} purchase {row['purchase_id']}"))
-            if payment["supplier_id"] != purchase["supplier_id"]:
-                result.fails.append(Row("supplier_payment_allocations", row["id"], "supplier_id", payment["supplier_id"],
-                                        purchase["supplier_id"], note=f"payment {payment['id']} vs {kind.lower()} purchase "
-                                                                      f"{row['purchase_id']}"))
-            payment_day, purchase_day = local_day(payment["payment_date"], conn), local_day(purchase["purchase_date"], conn)
-            if payment_day < purchase_day:
-                result.fails.append(Row("supplier_payments", payment["id"], "payment_date", payment_day.isoformat(),
-                                        f">= {purchase_day.isoformat()}", note=f"pays {kind.lower()} purchase {row['purchase_id']}"))
+    for row in conn.execute("SELECT id, payment_id, purchase_invoice_id AS purchase_id, amount FROM supplier_payment_allocations ORDER BY id"):
+        count += 1
+        purchase, payment = purchases.get(row["purchase_id"]), by_id.get(row["payment_id"])
+        if purchase is None or payment is None:
+            result.fails.append(Row("supplier_payment_allocations", row["id"], "purchase / payment",
+                                    f"{row['purchase_id']} / {row['payment_id']}", "existing rows"))
+            continue
+        if purchase["status"] != "ACTIVE":
+            result.fails.append(Row("supplier_payment_allocations", row["id"], "purchase status", purchase["status"],
+                                    "ACTIVE", note=f"purchase {row['purchase_id']}"))
+        if payment["supplier_id"] != purchase["supplier_id"]:
+            result.fails.append(Row("supplier_payment_allocations", row["id"], "supplier_id", payment["supplier_id"],
+                                    purchase["supplier_id"], note=f"payment {payment['id']} vs purchase {row['purchase_id']}"))
+        payment_day, purchase_day = local_day(payment["payment_date"], conn), local_day(purchase["purchase_date"], conn)
+        if payment_day < purchase_day:
+            result.fails.append(Row("supplier_payments", payment["id"], "payment_date", payment_day.isoformat(),
+                                    f">= {purchase_day.isoformat()}", note=f"pays purchase {row['purchase_id']}"))
 
     owed = defaultdict(int)
-    for (kind, purchase_id), purchase in sorted(purchases.items()):
-        if purchase["paid"] > purchase["total_paid"]:
-            result.fails.append(_money_row(f"{kind.lower()}_purchases", purchase_id, "paid", purchase["paid"],
-                                           purchase["total_paid"], "allocations above the invoice total"))
-        if purchase["status"] == "ACTIVE" and purchase["total_paid"] > purchase["paid"]:
-            owed[purchase["supplier_id"]] += purchase["total_paid"] - purchase["paid"]
+    for purchase_id, purchase in sorted(purchases.items()):
+        if not purchase["lines"]:
+            result.fails.append(Row("purchase_invoices", purchase_id, "lines", 0, ">= 1", note="a purchase without a line"))
+        if purchase["paid"] > purchase["total"]:
+            result.fails.append(_money_row("purchase_invoices", purchase_id, "paid", purchase["paid"],
+                                           purchase["total"], "allocations above the invoice total"))
+        if purchase["status"] == "ACTIVE" and purchase["total"] > purchase["paid"]:
+            owed[purchase["supplier_id"]] += purchase["total"] - purchase["paid"]
     payables = {row["supplier_id"]: row["outstanding"] for row in get_payables(conn)["suppliers"]}
     for supplier_id in sorted(set(owed) | set(payables), key=lambda s: (s is None, s or 0)):
         if payables.get(supplier_id, 0) != owed[supplier_id]:
@@ -607,7 +619,7 @@ def check_supplier_payables(conn: sqlite3.Connection, schema: int) -> CheckResul
     if summary["payables_outstanding"] != sum(owed.values()):
         result.fails.append(_money_row("purchases_summary", "now", "payables_outstanding", summary["payables_outstanding"],
                                        sum(owed.values()), "sum over suppliers"))
-    result.summary = f"{len(payments)} payments, {count} allocations, {len(payables)} suppliers owed"
+    result.summary = f"{len(purchases)} purchases, {len(payments)} payments, {count} allocations, {len(payables)} suppliers owed"
     return result
 
 
@@ -636,7 +648,7 @@ CHECKS = [
     Check("g", "Partner distributions", 9, check_distributions, "money is stored in Rial from migration 009"),
     Check("h", "Name collisions", 13, check_name_collisions, "name_key exists from migration 013"),
     Check("i", "Voided orders and corrections", 14, check_voided_orders, "VOIDED exists from migration 014"),
-    Check("j", "Supplier payables", 15, check_supplier_payables, "supplier payments exist from migration 015"),
+    Check("j", "Supplier payables", 16, check_supplier_payables, "supplier payments are per purchase invoice from migration 016"),
 ]
 
 

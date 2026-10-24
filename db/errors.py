@@ -65,17 +65,20 @@ class ErrorCode(StrEnum):
                                      recorded after the sale already took this item's stock as it was
     VOID_REASON_REQUIRED             - (field reason)
     SUPPLIER_REQUIRED_FOR_CREDIT     - (field supplier_id): a purchase not paid in full needs a supplier
-    SUPPLIER_PAYMENT_EXCEEDS_DUE     purchase_kind (MATERIAL | PRODUCT), purchase_id, outstanding: an allocation is
-                                     larger than what the purchase still owes
+    SUPPLIER_PAYMENT_EXCEEDS_DUE     purchase_id (the purchase invoice), outstanding: an allocation is larger than what
+                                     the purchase still owes
     SUPPLIER_PAYMENT_EXCEEDS_BALANCE supplier_id (None: purchases with no supplier), outstanding: a payment larger than
                                      everything owed to that supplier (no advances)
-    SUPPLIER_PAYMENT_SUPPLIER_MISMATCH purchase_kind, purchase_id, supplier_id (the purchase's): it is not that
-                                     supplier's purchase
+    SUPPLIER_PAYMENT_SUPPLIER_MISMATCH purchase_id, supplier_id (the purchase's): it is not that supplier's purchase
     SUPPLIER_PAYMENT_ALLOCATION_MISMATCH amount, allocated: the allocations do not add up to the payment
-    SUPPLIER_PAYMENT_BEFORE_PURCHASE purchase_kind, purchase_id, purchase_date (local day): a payment day before the
-                                     day of a purchase it pays
+    SUPPLIER_PAYMENT_BEFORE_PURCHASE purchase_id, purchase_date (local day): a payment day before the day of a purchase
+                                     it pays
     SUPPLIER_PAYMENT_NOT_FOUND       payment_id
-    PURCHASE_NOT_FOUND               purchase_kind, purchase_id
+    PURCHASE_NOT_FOUND               purchase_id (the purchase invoice)
+    PURCHASE_DUPLICATE_ITEM          index (0-based line), item_type (MATERIAL | PRODUCT), item_id (field
+                                     lines.N.item_id): the same item is already on this purchase
+    SERVICE_PURCHASE_NEEDS_TOTAL     index, material_id, material_name (field lines.N.total_paid): a service line of
+                                     total 0 would erase the service's price
 
     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
@@ -165,6 +168,10 @@ class ErrorCode(StrEnum):
     SUPPLIER_PAYMENT_BEFORE_PURCHASE = "SUPPLIER_PAYMENT_BEFORE_PURCHASE"
     SUPPLIER_PAYMENT_NOT_FOUND = "SUPPLIER_PAYMENT_NOT_FOUND"
     PURCHASE_NOT_FOUND = "PURCHASE_NOT_FOUND"
+
+    # Purchase invoices
+    PURCHASE_DUPLICATE_ITEM = "PURCHASE_DUPLICATE_ITEM"
+    SERVICE_PURCHASE_NEEDS_TOTAL = "SERVICE_PURCHASE_NEEDS_TOTAL"
 
     # Backups
     BACKUP_FAILED = "BACKUP_FAILED"
