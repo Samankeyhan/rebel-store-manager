@@ -15,6 +15,7 @@ import {
   type Supplier,
 } from "@/lib/api"
 import type { IsoRange } from "@/lib/jalali"
+import type { PaymentStatus } from "@/lib/payables"
 
 export type PurchaseKind = "material" | "product"
 export type TypeFilter = "all" | PurchaseKind
@@ -31,6 +32,9 @@ export type PurchaseRow = {
   quantity: number
   totalPaid: number
   unitCost: number
+  /** From the API (db/supplier_payments.py): never computed here. */
+  paymentStatus: PaymentStatus
+  outstanding: number
 }
 
 export function toRow(kind: PurchaseKind, p: MaterialPurchase | ProductPurchase): PurchaseRow {
@@ -45,6 +49,8 @@ export function toRow(kind: PurchaseKind, p: MaterialPurchase | ProductPurchase)
     quantity: p.quantity_bought,
     totalPaid: p.total_paid,
     unitCost: p.unit_cost,
+    paymentStatus: p.payment_status,
+    outstanding: p.outstanding,
   }
 }
 

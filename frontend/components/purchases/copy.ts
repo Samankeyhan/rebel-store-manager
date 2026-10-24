@@ -25,8 +25,14 @@ export const U = {
   colSupplier: "تأمین‌کننده",
   colQty: "مقدار",
   get colTotal() {
-    return `مبلغ پرداختی (${currencyLabel()})`
+    return `مبلغ فاکتور (${currencyLabel()})` // NEW (was «مبلغ پرداختی»: total_paid is the invoice total)
   },
+  colPayStatus: "وضعیت پرداخت", // NEW
+  get colOutstanding() {
+    return `مانده (${currencyLabel()})` // NEW
+  },
+  payFilterPrefix: "وضعیت پرداخت:", // NEW
+  payFilterAll: "همه", // NEW
   get colUnit() {
     return `بهای واحد (${currencyLabel()})`
   },
@@ -59,7 +65,18 @@ export const U = {
   noSupplierMatch: (q: string) => `تأمین‌کننده‌ای با «${q}» پیدا نشد.`, // NEW
   supplierGone: "این تأمین‌کننده دیگر در دسترس نیست — لطفاً دوباره انتخاب کنید",
   fieldQty: "مقدار",
-  fieldTotal: "مبلغ کل پرداختی",
+  fieldTotal: "مبلغ فاکتور", // NEW (was «مبلغ کل پرداختی»)
+  fieldPayment: "پرداخت", // NEW
+  payFull: "پرداخت کامل", // NEW
+  payNone: "نسیه", // NEW
+  payPartial: "پرداخت بخشی", // NEW
+  fieldPaidAmount: "مبلغ پرداخت‌شده", // NEW
+  fieldMethod: "روش پرداخت", // NEW
+  searchMethod: "جستجوی روش پرداخت", // NEW
+  fieldReference: "شماره پیگیری", // NEW
+  creditHelp: "مانده را بعداً از «تسویه‌ها ← بدهی به تأمین‌کنندگان» پرداخت کنید.", // NEW
+  supplierRequired: "برای خرید نسیه یا پرداخت بخشی، تأمین‌کننده را انتخاب کنید", // NEW
+  partialRange: "مبلغ پرداخت‌شده باید بیشتر از صفر و کمتر از مبلغ فاکتور باشد.", // NEW
   get unit() {
     return currencyLabel()
   },
@@ -113,7 +130,13 @@ export const U = {
   detailDate: "تاریخ", // NEW
   detailSupplier: "تأمین‌کننده", // NEW
   detailQty: "مقدار", // NEW
-  detailTotal: "مبلغ پرداختی", // NEW
+  detailTotal: "مبلغ فاکتور", // NEW
+  detailPaymentStatus: "وضعیت پرداخت", // NEW
+  detailPaid: "پرداخت‌شده", // NEW
+  detailOutstanding: "مانده", // NEW
+  detailPayments: "پرداخت‌ها", // NEW
+  noPayments: "هنوز پرداختی برای این خرید ثبت نشده.", // NEW
+  paymentOfWhole: (whole: string) => `از پرداخت ${whole}`, // NEW (a payment split over several purchases)
   detailUnit: "بهای واحد این خرید", // NEW
   detailNote: "یادداشت", // NEW
   detailLoadFailed: "جزئیات این خرید بارگذاری نشد.", // NEW
@@ -130,3 +153,21 @@ export const U = {
   loadingAria: "در حال بارگذاری",
   units: (n: number) => toPersianDigits(n),
 }
+
+/** db/supplier_payments.py METHODS (not the sales payment methods). // NEW */
+export const METHOD_LABELS = {
+  CASH: "نقدی",
+  CARD: "کارت به کارت",
+  BANK_TRANSFER: "حواله بانکی",
+  CHEQUE: "چک",
+  OTHER: "سایر",
+} as const
+
+export const METHOD_ORDER = ["CARD", "CASH", "BANK_TRANSFER", "CHEQUE", "OTHER"] as const
+
+/** A purchase's payment_status (computed by db/supplier_payments.py). // NEW */
+export const PAY_STATUS_LABELS = {
+  UNPAID: "پرداخت‌نشده",
+  PARTIAL: "پرداخت بخشی",
+  PAID: "پرداخت‌شده",
+} as const

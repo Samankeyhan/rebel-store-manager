@@ -4,17 +4,21 @@ import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { DrawerShell } from "@/components/products/drawer-shell"
 import { Alert, Btn } from "@/components/record-sale/primitives"
-import { getMaterialPurchase, getProductPurchase, type MaterialPurchase, type ProductPurchase } from "@/lib/api"
+import { getMaterialPurchase, getProductPurchase, type MaterialPurchaseDetail, type ProductPurchaseDetail } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
 import { formatQuantity } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
-import { U } from "./copy"
+import { METHOD_LABELS, U } from "./copy"
+import { PayStatusTag } from "./pay-status-tag"
 import { TypeTag } from "./type-tag"
 import type { PurchaseRow } from "./use-purchases-data"
 
-type Load = { status: "loading" } | { status: "error" } | { status: "ready"; p: MaterialPurchase | ProductPurchase }
+type Load = { status: "loading" } | { status: "error" } | { status: "ready"; p: MaterialPurchaseDetail | ProductPurchaseDetail }
 
-/** One purchase (GET /purchases/{materials|products}/{id}), every field including the server's invoice number. */
+/**
+ * One purchase (GET /purchases/{materials|products}/{id}), every field including the server's invoice number, its
+ * payment status, what is paid and still owed, and the payments that paid it (all from the API).
+ */
 export function PurchaseSheet({
   row,
   unitOf,
@@ -76,6 +80,9 @@ export function PurchaseSheet({
                   [U.detailQty, `${formatQuantity(current.p.quantity_bought)} ${unitOf(row)}`],
                   [U.detailTotal, formatMoney(current.p.total_paid)],
                   [U.detailUnit, formatMoney(current.p.unit_cost)],
+                  [U.detailPaymentStatus, <PayStatusTag key="s" status={current.p.payment_status} />],
+                  [U.detailPaid, formatMoney(current.p.paid)],
+                  [U.detailOutstanding, formatMoney(current.p.outstanding)],
                   [U.detailNote, current.p.notes || "—"],
                 ] as const
               ).map(([label, value]) => (
@@ -85,6 +92,39 @@ export function PurchaseSheet({
                 </div>
               ))}
             </dl>
+          )}
+          {current.status === "ready" && (
+            <section className="flex flex-col gap-2">
+              <h3 className="text-sm font-bold text-heading">{U.detailPayments}</h3>
+              {current.p.payments.length === 0 ? (
+                <p className="text-[13px] text-text-3">{U.noPayments}</p>
+              ) : (
+                <ul className="flex flex-col text-[13.5px]">
+                  {current.p.payments.map((pay) => (
+                    <li key={pay.payment_id} className="flex items-start justify-between gap-4 border-b border-border py-2 last:border-b-0">
+                      <span className="flex min-w-0 flex-col">
+                        <span>{formatJalaliDateTime(pay.payment_date, timeZone)}</span>
+                        <span className="truncate text-xs text-text-3">
+                          {METHOD_LABELS[pay.method]}
+                          {pay.reference && (
+                            <>
+                              {" · "}
+                              <span dir="ltr">{pay.reference}</span>
+                            </>
+                          )}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end">
+                        <span className="font-semibold tabular-nums">{formatMoney(pay.amount)}</span>
+                        {pay.payment_amount !== pay.amount && (
+                          <span className="text-xs text-text-3">{U.paymentOfWhole(formatMoney(pay.payment_amount))}</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           )}
         </>
       )}

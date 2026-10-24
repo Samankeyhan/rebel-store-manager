@@ -16,10 +16,12 @@ import {
   type Material,
   type Product,
   type Supplier,
+  type SupplierPaymentMethod,
 } from "@/lib/api"
+import { classifyPayablesError, type PaymentMode, purchasePaymentBody, purchasePaymentProblem } from "@/lib/payables"
 import { formatQuantity, parseDecimal, quantityText } from "@/lib/persian-numbers"
 import { cn } from "@/lib/utils"
-import { U } from "./copy"
+import { METHOD_LABELS, METHOD_ORDER, U } from "./copy"
 import { PurchasePreview, type PreviewItem } from "./purchase-preview"
 import type { PurchaseKind } from "./use-purchases-data"
 
@@ -29,7 +31,8 @@ export type PurchaseFormHandle = { submit: () => void }
 
 /**
  * The purchase entry form (design 07 drawer / mobile card): type, item,
- * supplier, quantity, total paid, date, note, and the live cost preview.
+ * supplier, quantity, invoice total, date, what is paid now (full, on credit
+ * or partly, with the method and reference), note, and the live cost preview.
  * Used inside the desktop drawer and inline on mobile; the parent owns the
  * submit button and calls `ref.submit()`.
  */
@@ -56,6 +59,11 @@ export const PurchaseForm = React.forwardRef<
   const [total, setTotal] = React.useState<number | null>(0)
   const [date, setDate] = React.useState(today)
   const [note, setNote] = React.useState("")
+  const [payMode, setPayMode] = React.useState<PaymentMode>("FULL")
+  /** Integer Rial paid now for PARTIAL; null while the text gives no exact amount. */
+  const [paidNow, setPaidNow] = React.useState<number | null>(0)
+  const [method, setMethod] = React.useState<SupplierPaymentMethod>("CARD")
+  const [reference, setReference] = React.useState("")
   const [touched, setTouched] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<{ message: string; code: string } | null>(null)
@@ -91,6 +99,9 @@ export const PurchaseForm = React.forwardRef<
       : null
 
   const itemError = touched && itemId == null ? U.itemRequired : null
+  const payProblem = purchasePaymentProblem(payMode, supplierId !== NO_SUPPLIER, total, paidNow)
+  const supplierError = (touched && payProblem === "supplier") || fieldErrors.supplier_id ? U.supplierRequired : null
+  const paidError = touched && payProblem === "partial_amount" ? U.partialRange : (fieldErrors["payment.amount"] ?? null)
   const qtyError = touched && (qty == null || qty <= 0) ? U.qtyRequired : (fieldErrors.quantity_bought ?? null)
 
   const switchKind = (k: PurchaseKind) => {
@@ -106,7 +117,7 @@ export const PurchaseForm = React.forwardRef<
     setTouched(true)
     setError(null)
     setFieldErrors({})
-    if (itemId == null || qty == null || qty <= 0 || total === null || busy) return
+    if (itemId == null || qty == null || qty <= 0 || total === null || payProblem !== null || busy) return
     setBusy(true)
     onBusyChange(true)
     const common = {
@@ -116,6 +127,7 @@ export const PurchaseForm = React.forwardRef<
       // Today: the server stamps the current time. Another day: that day.
       purchase_date: date === today ? null : date,
       notes: note.trim() || null,
+      payment: purchasePaymentBody(payMode, paidNow, method, reference),
     }
     try {
       if (kind === "material") await createMaterialPurchase({ material_id: itemId, ...common })
@@ -133,6 +145,9 @@ export const PurchaseForm = React.forwardRef<
       setProductQty(0)
       setTotal(0)
       setNote("")
+      setPayMode("FULL")
+      setPaidNow(0)
+      setReference("")
       setTouched(false)
       setSupplierGone(false)
     } catch (e) {
@@ -142,6 +157,10 @@ export const PurchaseForm = React.forwardRef<
         setSupplierGone(true)
         setSupplierId(NO_SUPPLIER)
         refreshSuppliers().catch(() => {})
+      } else if (e instanceof ApiError && classifyPayablesError(e).kind === "supplier_required") {
+        setFieldErrors({ supplier_id: U.supplierRequired })
+      } else if (e instanceof ApiError && e.status === 422 && e.field === "payment.amount") {
+        setFieldErrors({ "payment.amount": U.partialRange })
       } else if (e instanceof ApiError && e.status === 422 && e.field && ["quantity_bought", "total_paid"].includes(e.field)) {
         setFieldErrors({ [e.field]: e.message })
       } else {
@@ -223,6 +242,68 @@ export const PurchaseForm = React.forwardRef<
     </div>
   )
 
+  const methodItems: PickerItem[] = METHOD_ORDER.map((m, i) => ({ id: i + 1, name: METHOD_LABELS[m] }))
+  const paymentField = (
+    <div className="flex flex-col gap-2.5 rounded-lg border border-border p-3">
+      <div className="flex flex-col gap-1.5">
+        <Label>{U.fieldPayment}</Label>
+        <Segment<PaymentMode>
+          value={payMode}
+          options={[
+            ["FULL", U.payFull],
+            ["NONE", U.payNone],
+            ["PARTIAL", U.payPartial],
+          ]}
+          onChange={(m) => {
+            setPayMode(m)
+            setFieldErrors({})
+          }}
+          label={U.fieldPayment}
+          mobile={mobile}
+          className="grid grid-cols-3"
+        />
+      </div>
+      {payMode === "PARTIAL" && (
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <Label htmlFor="pf-paid">{U.fieldPaidAmount}</Label>
+          <MoneyInput
+            id="pf-paid"
+            value={paidNow}
+            onValue={(v) => setPaidNow(v ?? null)}
+            tone={paidError ? "error" : null}
+            className={mobile ? "h-12" : undefined}
+          />
+          {paidError && <InlineMessage severity="error">{paidError}</InlineMessage>}
+        </div>
+      )}
+      {payMode !== "NONE" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <Label htmlFor="pf-method">{U.fieldMethod}</Label>
+            <ItemPicker
+              id="pf-method"
+              items={methodItems}
+              value={METHOD_ORDER.indexOf(method as (typeof METHOD_ORDER)[number]) + 1}
+              onPick={(id) => setMethod(METHOD_ORDER[id - 1] ?? "OTHER")}
+              placeholder={U.fieldMethod}
+              searchLabel={U.searchMethod}
+              emptyText={U.fieldMethod}
+              noMatchText={U.noItemMatch}
+              mobile={mobile}
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <Label htmlFor="pf-ref" optional>
+              {U.fieldReference}
+            </Label>
+            <input id="pf-ref" dir="ltr" value={reference} onChange={(e) => setReference(e.target.value)} className={inputCls} />
+          </div>
+        </div>
+      )}
+      {payMode !== "FULL" && <Help>{U.creditHelp}</Help>}
+    </div>
+  )
+
   return (
     <div className={cn("flex flex-col", mobile ? "gap-3" : "gap-3.5")}>
       {error && <SaveError {...error} />}
@@ -274,10 +355,12 @@ export const PurchaseForm = React.forwardRef<
           emptyText={U.noSupplierOption}
           noMatchText={U.noSupplierMatch}
           mobile={mobile}
-          error={supplierGone}
+          error={supplierGone || !!supplierError}
         />
         {supplierGone ? (
           <InlineMessage severity="error">{U.supplierGone}</InlineMessage>
+        ) : supplierError ? (
+          <InlineMessage severity="error">{supplierError}</InlineMessage>
         ) : (
           suppliers.length === 0 && <Help>{U.noSuppliersYet}</Help>
         )}
@@ -299,6 +382,7 @@ export const PurchaseForm = React.forwardRef<
           {dateField}
         </>
       )}
+      {paymentField}
       <PurchasePreview item={previewItem} qty={total === null ? null : qty} total={total ?? 0} mobile={mobile} />
       {!mobile && (
         <div className="flex flex-col gap-1.5">

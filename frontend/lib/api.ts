@@ -432,6 +432,14 @@ export function removeRecipeItem(productId: number, materialId: number): Promise
 
 export type MaterialPurchase = Schemas["MaterialPurchaseOut"]
 export type ProductPurchase = Schemas["ProductPurchaseOut"]
+/** One purchase with `payments` (the supplier payments that paid it). */
+export type MaterialPurchaseDetail = Schemas["MaterialPurchaseDetailOut"]
+export type ProductPurchaseDetail = Schemas["ProductPurchaseDetailOut"]
+export type PurchasePayment = Schemas["PurchasePaymentOut"]
+export type PurchasePaymentIn = Schemas["PurchasePaymentIn"]
+/** db/supplier_payments.py METHODS. */
+export type SupplierPaymentMethod = NonNullable<PurchasePaymentIn["method"]>
+export type PaymentStatus = MaterialPurchase["payment_status"]
 export type MaterialPurchaseCreate = Schemas["MaterialPurchaseCreate"]
 export type ProductPurchaseCreate = Schemas["ProductPurchaseCreate"]
 export type Supplier = Schemas["SupplierOut"]
@@ -455,24 +463,69 @@ export function listProductPurchases(f: PurchaseFilters = {}): Promise<ProductPu
   return apiFetch<ProductPurchase[]>(`/purchases/products${purchaseQuery(f)}`)
 }
 
-export function getMaterialPurchase(id: number): Promise<MaterialPurchase> {
-  return apiFetch<MaterialPurchase>(`/purchases/materials/${id}`)
+export function getMaterialPurchase(id: number): Promise<MaterialPurchaseDetail> {
+  return apiFetch<MaterialPurchaseDetail>(`/purchases/materials/${id}`)
 }
 
-export function getProductPurchase(id: number): Promise<ProductPurchase> {
-  return apiFetch<ProductPurchase>(`/purchases/products/${id}`)
+export function getProductPurchase(id: number): Promise<ProductPurchaseDetail> {
+  return apiFetch<ProductPurchaseDetail>(`/purchases/products/${id}`)
 }
 
 /**
+ * `payment` (FULL / NONE / PARTIAL; omitted = FULL): what is paid with it; NONE and
+ * PARTIAL need a supplier (422 SUPPLIER_REQUIRED_FOR_CREDIT).
  * The response is the purchase row only (its own unit_cost), not the item's
  * new weighted average — re-fetch the item for that. A deleted supplier is a 404.
  */
-export function createMaterialPurchase(body: MaterialPurchaseCreate): Promise<MaterialPurchase> {
-  return apiFetch<MaterialPurchase>("/purchases/materials", { method: "POST", body: JSON.stringify(body) })
+export function createMaterialPurchase(body: MaterialPurchaseCreate): Promise<MaterialPurchaseDetail> {
+  return apiFetch<MaterialPurchaseDetail>("/purchases/materials", { method: "POST", body: JSON.stringify(body) })
 }
 
-export function createProductPurchase(body: ProductPurchaseCreate): Promise<ProductPurchase> {
-  return apiFetch<ProductPurchase>("/purchases/products", { method: "POST", body: JSON.stringify(body) })
+export function createProductPurchase(body: ProductPurchaseCreate): Promise<ProductPurchaseDetail> {
+  return apiFetch<ProductPurchaseDetail>("/purchases/products", { method: "POST", body: JSON.stringify(body) })
+}
+
+// ------------------------------------------------------------ supplier payables
+
+export type SupplierPayment = Schemas["SupplierPaymentOut"]
+export type SupplierPaymentCreate = Schemas["SupplierPaymentCreate"]
+export type SupplierPaymentUpdate = Schemas["SupplierPaymentUpdate"]
+export type Payables = Schemas["PayablesOut"]
+export type PayablesSupplier = Schemas["PayablesSupplierOut"]
+export type OpenPurchase = Schemas["OpenPurchaseOut"]
+export type AllocationIn = Schemas["AllocationIn"]
+export type AllocationPlan = Schemas["AllocationPlanOut"]
+
+/** Newest first, each with its allocations; dates are local days on payment_date. */
+export function listSupplierPayments(f: { supplierId?: number | null; from?: string | null; to?: string | null } = {}): Promise<SupplierPayment[]> {
+  return apiFetch<SupplierPayment[]>(`/supplier-payments${purchaseQuery(f)}`)
+}
+
+/** `allocations` must add up to `amount`; omitted = oldest unpaid purchases first. Never more than is owed (409). */
+export function createSupplierPayment(body: SupplierPaymentCreate): Promise<SupplierPayment> {
+  return apiFetch<SupplierPayment>("/supplier-payments", { method: "POST", body: JSON.stringify(body) })
+}
+
+/** Only date, method, reference and note change. */
+export function updateSupplierPayment(paymentId: number, patch: SupplierPaymentUpdate): Promise<SupplierPayment> {
+  return apiFetch<SupplierPayment>(`/supplier-payments/${paymentId}`, { method: "PATCH", body: JSON.stringify(patch) })
+}
+
+/** Hard delete with its allocations (the audit log keeps them). */
+export function deleteSupplierPayment(paymentId: number): Promise<void> {
+  return apiFetch<void>(`/supplier-payments/${paymentId}`, { method: "DELETE" })
+}
+
+/** Suppliers still owed something, largest debt first, with their open purchases (oldest first). */
+export function getPayables(): Promise<Payables> {
+  return apiFetch<Payables>("/payables")
+}
+
+/** How `amount` (integer Rial) would be split oldest first; 409 SUPPLIER_PAYMENT_EXCEEDS_BALANCE above the balance. */
+export function getAllocationPreview(supplierId: number | null, amount: number): Promise<AllocationPlan[]> {
+  const qs = new URLSearchParams({ amount: String(amount) })
+  if (supplierId != null) qs.set("supplier_id", String(supplierId))
+  return apiFetch<AllocationPlan[]>(`/payables/allocation-preview?${qs}`)
 }
 
 export type Adjustment = Schemas["AdjustmentOut"]

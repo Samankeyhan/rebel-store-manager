@@ -20,10 +20,12 @@ import { norm, unitLabel } from "@/components/products/figures"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { Material, Product } from "@/lib/api"
 import { dateToISO, formatJalali, jalaliMonthRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
+import { matchesPayFilter, PAY_FILTERS, parsePayFilter } from "@/lib/payables"
 import { formatQuantity } from "@/lib/persian-numbers"
 import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
-import { U } from "./copy"
+import { PAY_STATUS_LABELS, U } from "./copy"
+import { PayStatusTag } from "./pay-status-tag"
 import { PurchaseForm, type PurchaseFormHandle } from "./purchase-form"
 import { PurchaseSheet } from "./purchase-sheet"
 import { TypeTag } from "./type-tag"
@@ -36,7 +38,7 @@ const TYPES = ["all", "material", "product"] as const
 /**
  * خرید (design 07). Desktop: the purchase history with filters, the entry
  * form in a left drawer. Mobile: the form first, then «خریدهای اخیر».
- * Filters live in the URL (?type=, ?supplier=, ?from=&to=, ?q=).
+ * Filters live in the URL (?type=, ?supplier=, ?from=&to=, ?q=, ?pay=).
  */
 export function PurchasesPage() {
   // Re-render the whole screen when the display currency switches (lib/money.ts).
@@ -58,6 +60,8 @@ export function PurchasesPage() {
   const to = params.get("to")
   const range: IsoRange = from && to && ISO_DAY.test(from) && ISO_DAY.test(to) && from <= to ? { from, to } : defaultRange
   const q = params.get("q") ?? ""
+  // the payment status filter is client-side, like the search (the API gives each row its status)
+  const pay = parsePayFilter(params.get("pay"))
 
   const setParams = React.useCallback(
     (patch: Record<string, string | null>) => {
@@ -107,8 +111,11 @@ export function PurchasesPage() {
   }
 
   const query = norm(q)
-  const rows = list.status === "ready" ? list.rows.filter((r) => !query || norm(r.itemName).includes(query)) : []
-  const filtersActive = !!q || type !== "all" || supplierId != null || range.from !== defaultRange.from || range.to !== defaultRange.to
+  const rows =
+    list.status === "ready"
+      ? list.rows.filter((r) => (!query || norm(r.itemName).includes(query)) && matchesPayFilter(r.paymentStatus, pay))
+      : []
+  const filtersActive = !!q || pay != null || type !== "all" || supplierId != null || range.from !== defaultRange.from || range.to !== defaultRange.to
   const clearFilters = () => {
     setSearch("")
     router.replace(pathname, { scroll: false })
@@ -169,7 +176,10 @@ export function PurchasesPage() {
                       )}
                     </span>
                   </span>
-                  <Money value={r.totalPaid} className="shrink-0 font-bold" />
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <Money value={r.totalPaid} className="font-bold" />
+                    {r.paymentStatus !== "PAID" && <PayStatusTag status={r.paymentStatus} />}
+                  </span>
                 </button>
               ))}
             </>
@@ -254,6 +264,28 @@ export function PurchasesPage() {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        <DropdownMenu dir="rtl">
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex h-10 cursor-pointer items-center gap-2.5 rounded-lg border border-border-strong bg-card px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+            >
+              <span className="text-text-3">{U.payFilterPrefix}</span>
+              <span className="font-bold">{pay ? PAY_STATUS_LABELS[pay.toUpperCase() as keyof typeof PAY_STATUS_LABELS] : U.payFilterAll}</span>
+              <ChevronDown className="size-3.5 text-text-3" aria-hidden />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuRadioGroup value={pay ?? ""} onValueChange={(v) => setParams({ pay: v || null })}>
+              <DropdownMenuRadioItem value="">{U.payFilterAll}</DropdownMenuRadioItem>
+              {PAY_FILTERS.map((f) => (
+                <DropdownMenuRadioItem key={f} value={f}>
+                  {PAY_STATUS_LABELS[f.toUpperCase() as keyof typeof PAY_STATUS_LABELS]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <DateRangePopover
           value={range}
           onApply={(r) =>
@@ -325,6 +357,10 @@ export function PurchasesPage() {
                 <th scope="col" className="text-end!">
                   {U.colUnit}
                 </th>
+                <th scope="col">{U.colPayStatus}</th>
+                <th scope="col" className="text-end!">
+                  {U.colOutstanding}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -356,6 +392,10 @@ export function PurchasesPage() {
                   <td className="text-end">
                     <Money value={r.unitCost} />
                   </td>
+                  <td>
+                    <PayStatusTag status={r.paymentStatus} />
+                  </td>
+                  <td className="text-end">{r.outstanding > 0 ? <Money value={r.outstanding} /> : <span className="text-text-3">—</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -365,7 +405,7 @@ export function PurchasesPage() {
                 <td className="text-end">
                   <Money value={total} />
                 </td>
-                <td />
+                <td colSpan={3} />
               </tr>
             </tfoot>
           </table>
