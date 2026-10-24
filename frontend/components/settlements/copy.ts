@@ -20,6 +20,7 @@ export const S = {
   tabsLabel: "بخش‌های تسویه", // NEW
   tabPending: "در انتظار", // NEW
   tabHistory: "سابقه", // NEW
+  tabPayables: "بدهی به تأمین‌کنندگان", // NEW
   close: "بستن", // NEW
   retry: "تلاش دوباره", // NEW
   loadingAria: "در حال بارگذاری", // NEW
@@ -188,4 +189,72 @@ export function differenceText(difference: number): string {
   const kind = differenceKind(difference)
   if (kind === "equal") return S.equal
   return `${kind === "over" ? S.over : S.under} ${signedMoney(difference)}`
+}
+
+/** «بدهی به تأمین‌کنندگان» (supplier payables, accounting-rules section 21). // NEW */
+export const P = {
+  intro:
+    "خریدهای نسیه یا پرداخت‌نشده. پرداخت به تأمین‌کننده را این‌جا ثبت کنید؛ پرداخت هزینه نیست و سود را تغییر نمی‌دهد (خرید، موجودی است).", // NEW
+  owedTotal: "مجموع بدهی به تأمین‌کنندگان", // NEW
+  owed: "مانده بدهی", // NEW
+  noSupplier: "بدون تأمین‌کننده", // NEW
+  oldestUnpaid: (date: string) => `قدیمی‌ترین خرید پرداخت‌نشده: ${date}`, // NEW (date is formatJalali)
+  openCount: (n: number) => `${fa(n)} خرید پرداخت‌نشده`, // NEW
+  purchasesLink: "خریدهای این تأمین‌کننده", // NEW
+  record: "ثبت پرداخت", // NEW
+  none: "بدهی پرداخت‌نشده‌ای به تأمین‌کنندگان نیست.", // NEW
+  history: "سابقهٔ پرداخت‌ها", // NEW
+  noHistory: "هنوز پرداختی به تأمین‌کننده ثبت نشده.", // NEW
+  forPurchases: (n: number) => `برای ${fa(n)} خرید`, // NEW
+  colDate: "تاریخ", // NEW
+  colSupplier: "تأمین‌کننده", // NEW
+  colMethod: "روش پرداخت", // NEW
+  colPurchases: "خریدها", // NEW
+  get colAmount() {
+    return `مبلغ (${currencyLabel()})` // NEW
+  },
+  colOwes: "مانده", // NEW
+  loadFailed: "بدهی‌ها بارگذاری نشد", // NEW
+
+  // record / edit dialog
+  dialogTitle: (name: string) => `ثبت پرداخت به ${name}`, // NEW
+  amount: "مبلغ پرداخت", // NEW
+  date: "تاریخ پرداخت", // NEW
+  method: "روش پرداخت", // NEW
+  searchMethod: "جستجوی روش پرداخت", // NEW
+  reference: "شماره پیگیری", // NEW
+  note: "یادداشت", // NEW
+  split: "تقسیم پرداخت بین خریدها", // NEW
+  splitHelp: "به‌طور پیش‌فرض از قدیمی‌ترین خرید پرداخت می‌شود؛ مبلغ هر خرید را می‌توانید تغییر دهید.", // NEW
+  oldestFirst: "تقسیم از قدیمی‌ترین", // NEW
+  lineOwes: (amount: string) => `مانده ${amount}`, // NEW
+  allocated: "جمع تقسیم", // NEW
+  save: "ثبت پرداخت", // NEW
+  saveEdit: "ذخیره", // NEW
+  cancel: "انصراف", // NEW
+  editTitle: "ویرایش پرداخت", // NEW
+  editHelp: "فقط تاریخ، روش، شماره پیگیری و یادداشت تغییر می‌کند؛ برای تغییر مبلغ، پرداخت را حذف و دوباره ثبت کنید.", // NEW
+  deleteTitle: "حذف پرداخت", // NEW
+  deleteConfirm: "حذف پرداخت", // NEW
+  deleteLine: (supplier: string, date: string, amount: string) => `پرداخت ${amount} به ${supplier} در ${date}`, // NEW
+  deleteEffect: "مبلغ آن دوباره به ماندهٔ خریدهایش برمی‌گردد.", // NEW
+  toastSaved: (name: string) => `پرداخت به ${name} ثبت شد`, // NEW
+  toastEdited: "پرداخت ویرایش شد", // NEW
+  toastDeleted: "پرداخت حذف شد", // NEW
+
+  // refusals (lib/payables.ts classifyPayablesError; never the server message)
+  amountRequired: "مبلغ پرداخت را وارد کنید.", // NEW
+  over: "مبلغ این خرید از مانده‌اش بیشتر است.", // NEW
+  empty: "دست‌کم یک خرید را پرداخت کنید.", // NEW
+  mismatch: "جمع تقسیم با مبلغ پرداخت برابر نیست.", // NEW
+  exceedsDue: "مبلغ پرداخت از ماندهٔ این خرید بیشتر است", // NEW
+  exceedsBalance: (owed: string | null) =>
+    owed ? `مبلغ پرداخت از کل بدهی به این تأمین‌کننده (${owed}) بیشتر است` : "مبلغ پرداخت از کل بدهی به این تأمین‌کننده بیشتر است", // NEW
+  supplierMismatch: "این خرید از تأمین‌کنندهٔ دیگری است", // NEW
+  beforePurchase: (date: string | null) =>
+    date ? `تاریخ پرداخت پیش از تاریخ خرید (${day(date)}) است` : "تاریخ پرداخت پیش از تاریخ خرید است", // NEW
+  dateFuture: "تاریخ پرداخت نمی‌تواند بعد از امروز باشد.", // NEW
+  notFound: "این پرداخت یا خرید دیگر وجود ندارد؛ صفحه را دوباره بارگذاری کنید.", // NEW
+  tooLarge: "این مبلغ بیش از حد بزرگ است.", // NEW
+  owedText: (amount: number) => formatMoney(amount), // NEW
 }

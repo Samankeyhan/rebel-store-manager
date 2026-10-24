@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Clock, Hourglass } from "lucide-react"
+import { Clock, HandCoins, Hourglass } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Segment } from "@/components/common/segment"
 import { Toast } from "@/components/common/toast"
@@ -12,9 +12,10 @@ import { useCurrency } from "@/lib/use-currency"
 import { cn } from "@/lib/utils"
 import { S } from "./copy"
 import { HistoryTab } from "./history-tab"
+import { PayablesTab } from "./payables-tab"
 import { PendingTab } from "./pending-tab"
 
-const TABS = ["pending", "history"] as const
+const TABS = ["pending", "history", "payables"] as const
 type Tab = (typeof TABS)[number]
 const isTab = (v: string | null): v is Tab => TABS.includes(v as Tab)
 
@@ -22,8 +23,10 @@ const isTab = (v: string | null): v is Tab => TABS.includes(v as Tab)
  * تسویه‌ها: the owner matches what each payment method paid out against its
  * pending orders and records the settlement (nothing settles by itself).
  * «در انتظار» lists pending orders per method; «سابقه» lists recorded
- * settlements. The tab and the history's method filter live in the URL
- * (?tab=history&method=). "Today" is the store's day (settings.timezone).
+ * settlements; «بدهی به تأمین‌کنندگان» what the shop owes its suppliers and the
+ * payments made to them. The tab and the history's method filter live in the
+ * URL (?tab=history&method=, ?tab=payables). "Today" is the store's day
+ * (settings.timezone).
  */
 export function SettlementsPage() {
   // Re-render the whole screen when the display currency switches (lib/money.ts).
@@ -66,11 +69,12 @@ export function SettlementsPage() {
       options={[
         ["pending", S.tabPending],
         ["history", S.tabHistory],
+        ["payables", S.tabPayables],
       ]}
       onChange={(t) => setParams({ tab: t })}
       label={S.tabsLabel}
       mobile
-      className="grid grid-cols-2"
+      className="grid grid-cols-3"
     />
   ) : (
     <div role="tablist" aria-label={S.tabsLabel} className="flex gap-1 border-b border-border">
@@ -78,6 +82,7 @@ export function SettlementsPage() {
         [
           ["pending", S.tabPending, Hourglass],
           ["history", S.tabHistory, Clock],
+          ["payables", S.tabPayables, HandCoins],
         ] as const
       ).map(([id, label, Icon]) => {
         const on = tab === id
@@ -106,6 +111,8 @@ export function SettlementsPage() {
       {tabs}
       {tab === "pending" ? (
         <PendingTab today={today} mobile={mobile} onToast={setToast} />
+      ) : tab === "payables" ? (
+        <PayablesTab today={today} timeZone={timeZone} mobile={mobile} onToast={setToast} />
       ) : (
         // Mounted only while shown, so it refetches after a settlement is recorded.
         <HistoryTab
