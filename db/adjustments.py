@@ -1,15 +1,17 @@
-"""Manual stock corrections and waste write-offs (WASTE / ADJUSTMENT) for materials or products."""
+"""Manual stock corrections and waste write-offs (WASTE / ADJUSTMENT) for materials or products.
+`record_service_waste`: the waste of a SERVICE material (no stock): a WASTE movement with no stock change, valued at the price per unit it stores (accounting rules section 8)."""
 
 import sqlite3
+from datetime import date
 
 from db.audit import audited
 from db.connection import transaction
-from db.costing import blend_unit_cost, check_money, exact_quantity
+from db.costing import blend_unit_cost, check_money, check_quantity, exact_quantity, round_half_even
 from db.constants import MAX_QUANTITY
 from db.errors import ErrorCode, InsufficientStockError, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
-from db.timeutil import normalize_record_date, to_utc_range
+from db.timeutil import normalize_record_date, refuse_future_day, to_utc_range
 
 VALID_ITEM_TYPES = ("MATERIAL", "PRODUCT")
 VALID_REASONS = ("WASTE", "ADJUSTMENT")
@@ -188,6 +190,68 @@ def record_stock_adjustment(
         movement_id = cursor.lastrowid
 
     return movement_id
+
+
+@audited()
+def record_service_waste(
+    conn: sqlite3.Connection,
+    material_id: int,
+    quantity: float,
+    unit_cost: int | None = None,
+    notes: str | None = None,
+    movement_date: str | None = None,
+) -> int:
+    """Records `quantity` units of a SERVICE wasted (a failed print job): one WASTE movement, `quantity_change` =
+    -quantity, `unit_cost_at_time` = `unit_cost` (default: the material's current cost), and no stock change.
+    A material at cost 0 ("not entered") is refused: MATERIAL_NO_UNIT_COST. Today or past only."""
+    if isinstance(quantity, bool) or not isinstance(quantity, (int, float)):
+        raise ValidationError(f"quantity must be a number, got {quantity!r}", field="quantity")
+    check_quantity(quantity, "quantity")
+    if unit_cost is not None:
+        if isinstance(unit_cost, bool) or not isinstance(unit_cost, int):
+            raise ValidationError(
+                f"unit_cost must be a whole number of Rial, got {unit_cost!r}", field="unit_cost"
+            )
+        check_money(unit_cost, "unit_cost")
+        if unit_cost < 1:
+            raise ValidationError(f"unit_cost must be at least 1 Rial, got {unit_cost}", field="unit_cost")
+
+    material = get_material(conn, material_id)
+    if material is None:
+        raise NotFoundError(f"Material with id {material_id} does not exist")
+    if not material["is_active"]:
+        raise ValidationError(f"Material '{material['name']}' is not active", field="material_id")
+    if material["type"] != "SERVICE":
+        raise ValidationError(
+            f"Material '{material['name']}' is not a SERVICE: its waste is a stock adjustment",
+            field="material_id",
+        )
+    if material["unit_cost"] == 0:
+        raise ValidationError(
+            f"Material '{material['name']}' has no unit cost yet: set its price first",
+            field="material_id",
+            code=ErrorCode.MATERIAL_NO_UNIT_COST,
+            details={"material_id": material_id, "material_name": material["name"]},
+        )
+    price = unit_cost if unit_cost is not None else material["unit_cost"]
+    round_half_even(exact_quantity(quantity) * price)  # the amount stays inside MAX_MONEY
+
+    stored_date = None
+    if movement_date is not None:
+        stored_date = normalize_record_date(movement_date, conn)
+        refuse_future_day(conn, date.fromisoformat(movement_date.strip()[:10]), "movement_date")
+
+    with transaction(conn):
+        cursor = conn.execute(
+            """
+            INSERT INTO stock_movements
+                (item_type, item_id, quantity_change, reason, unit_cost_at_time,
+                 movement_date, notes)
+            VALUES ('MATERIAL', ?, ?, 'WASTE', ?, COALESCE(?, datetime('now')), ?)
+            """,
+            (material_id, -quantity, price, stored_date, notes),
+        )
+    return cursor.lastrowid
 
 
 def get_stock_movement(conn: sqlite3.Connection, movement_id: int) -> dict | None:

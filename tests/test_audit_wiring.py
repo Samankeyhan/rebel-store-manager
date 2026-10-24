@@ -119,6 +119,10 @@ CASES = {
         lambda c: adjustments.record_stock_adjustment(c, "MATERIAL", _kit_material(c), -1, "WASTE"),
         {"stock_movements", "materials"},
     ),
+    "record_service_waste": (
+        lambda c: adjustments.record_service_waste(c, materials.add_material(c, "Audit Printing", "SERVICE", 90_000), 2),
+        {"stock_movements"},
+    ),
     "add_expense": (
         lambda c: expenses.add_expense(c, expenses.add_expense_category(c, "Audit Ads"), 5000),
         {"expenses"},

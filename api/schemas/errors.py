@@ -117,6 +117,11 @@ class ProductRefDetails(_Details):
     product_name: str
 
 
+class MaterialRefDetails(_Details):
+    material_id: int
+    material_name: str
+
+
 class CostRefDetails(_Details):
     item_type: str
     item_id: int
@@ -213,6 +218,7 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.PRODUCT_NO_RECIPE: ProductRefDetails,
     C.PRODUCT_NO_UNIT_COST: ProductRefDetails,
     C.COST_ALREADY_SET: CostRefDetails,
+    C.MATERIAL_NO_UNIT_COST: MaterialRefDetails,
     C.SUPPLIER_NOT_FOUND: SupplierRefDetails,
     C.PACKAGING_KIT_NOT_FOUND: KitRefDetails,
     C.PACKAGING_KIT_INACTIVE: KitRefDetails,
