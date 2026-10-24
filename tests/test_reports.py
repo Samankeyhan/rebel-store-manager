@@ -2,6 +2,7 @@ import pytest
 
 from db import packaging, postage
 from db.adjustments import record_stock_adjustment
+from db.distributions import get_undistributed_profit
 from db.expenses import add_expense, add_expense_category
 from db.materials import add_material
 from db.orders import record_order
@@ -20,6 +21,8 @@ from db.reports import (
 )
 from db.returns import process_return
 from db.settings import update_channel_settings
+from db.supplier_payments import delete_supplier_payment, record_supplier_payment
+from db.suppliers import add_supplier
 from db.timeutil import to_utc_range
 from tests.helpers import cat
 
@@ -1047,12 +1050,18 @@ def test_get_purchases_summary_totals_and_counts_per_range(test_db, purchase_ite
         "material_purchases_count": 2,
         "product_purchases_total": 800_000,
         "product_purchases_count": 1,
+        "supplier_payments_total": 955_000,  # each purchase paid in full on its own day
+        "supplier_payments_count": 3,
+        "payables_outstanding": 0,
     }
     assert get_purchases_summary(test_db, "2026-04-01", "2026-04-30") == {
         "material_purchases_total": 12_000,
         "material_purchases_count": 1,
         "product_purchases_total": 450_000,
         "product_purchases_count": 1,
+        "supplier_payments_total": 462_000,
+        "supplier_payments_count": 2,
+        "payables_outstanding": 0,
     }
     # No range: everything.
     assert get_purchases_summary(test_db)["material_purchases_total"] == 167_000
@@ -1084,6 +1093,9 @@ def test_get_purchases_summary_empty_range(test_db, purchase_items):
         "material_purchases_count": 0,
         "product_purchases_total": 0,
         "product_purchases_count": 0,
+        "supplier_payments_total": 0,
+        "supplier_payments_count": 0,
+        "payables_outstanding": 0,
     }
 
 
@@ -1108,6 +1120,35 @@ def test_get_purchases_summary_is_not_in_profit_and_loss(test_db, purchase_items
     pnl = get_profit_and_loss(test_db, "2026-03-01", "2026-03-31")
     assert pnl["operating_expenses"] == 0
     assert pnl["net_profit"] == 0
+
+
+def test_purchases_summary_payments_by_payment_day_and_payables_now(test_db, purchase_items):
+    material_id, product_id = purchase_items
+    supplier = add_supplier(test_db, "Report Supplier")
+    record_material_purchase(test_db, material_id, 10, 100_000, supplier_id=supplier, purchase_date="2026-03-02",
+                             payment={"mode": "NONE"})
+    record_product_purchase(test_db, product_id, 1, 50_000, supplier_id=supplier, purchase_date="2026-03-05",
+                            payment={"mode": "PARTIAL", "amount": 20_000})
+    record_supplier_payment(test_db, supplier, "2026-04-03", 60_000, "CASH")
+    march = get_purchases_summary(test_db, "2026-03-01", "2026-03-31")
+    april = get_purchases_summary(test_db, "2026-04-01", "2026-04-30")
+    assert (march["material_purchases_total"], march["supplier_payments_total"], march["supplier_payments_count"]) == (100_000, 20_000, 1)
+    assert (april["material_purchases_total"], april["supplier_payments_total"], april["supplier_payments_count"]) == (0, 60_000, 1)
+    # what is owed is a figure of now: the same for every range
+    assert march["payables_outstanding"] == april["payables_outstanding"] == 150_000 - 80_000
+    assert get_purchases_summary(test_db, "2025-01-01", "2025-01-31")["payables_outstanding"] == 70_000
+
+
+def test_supplier_payments_change_no_profit_or_partner_figure(test_db, purchase_items):
+    material_id, _ = purchase_items
+    supplier = add_supplier(test_db, "Report Supplier")
+    record_material_purchase(test_db, material_id, 10, 100_000, supplier_id=supplier, purchase_date="2026-03-02",
+                             payment={"mode": "NONE"})
+    before = (get_profit_and_loss(test_db), get_undistributed_profit(test_db, "2026-04-30"))
+    payment = record_supplier_payment(test_db, supplier, "2026-03-10", 100_000, "BANK_TRANSFER")
+    assert (get_profit_and_loss(test_db), get_undistributed_profit(test_db, "2026-04-30")) == before
+    delete_supplier_payment(test_db, payment)
+    assert (get_profit_and_loss(test_db), get_undistributed_profit(test_db, "2026-04-30")) == before
 
 
 # ---------------------------------------------------------------- waste cost rounding

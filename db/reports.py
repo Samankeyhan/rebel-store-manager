@@ -16,6 +16,7 @@ from db.orders import (
     compute_order_revenue,
 )
 from db.payment_methods import PAID_STATUSES, list_payment_methods
+from db.supplier_payments import payables_outstanding
 from db.timeutil import to_utc_range, validate_calendar_date
 
 REFUND_INCLUDED_STATUSES = REVENUE_ELIGIBLE_STATUSES + ("REFUNDED",)
@@ -492,6 +493,9 @@ def get_purchases_summary(
     products kept apart. Purchases become inventory, not expenses — they reach
     the P&L only as COGS when the stock is sold or consumed — so nothing here
     feeds get_profit_and_loss.
+    Cash and debt (section 21): supplier_payments_total / _count = payments by
+    payment_date in the range; payables_outstanding = what is owed to suppliers
+    now, whatever the range.
     """
     date_clause, date_params = _date_range_clause(conn, "purchase_date", start_date, end_date)
     result = {}
@@ -506,6 +510,18 @@ def get_purchases_summary(
         ).fetchone()
         result[f"{prefix}_purchases_total"] = row["total"]
         result[f"{prefix}_purchases_count"] = row["count"]
+    payment_clause, payment_params = _date_range_clause(conn, "payment_date", start_date, end_date)
+    row = conn.execute(
+        f"""
+        SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
+        FROM supplier_payments
+        WHERE 1=1 {payment_clause}
+        """,
+        payment_params,
+    ).fetchone()
+    result["supplier_payments_total"] = row["total"]
+    result["supplier_payments_count"] = row["count"]
+    result["payables_outstanding"] = payables_outstanding(conn)
     return result
 
 
