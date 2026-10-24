@@ -477,6 +477,7 @@ export function createProductPurchase(body: ProductPurchaseCreate): Promise<Prod
 
 export type Adjustment = Schemas["AdjustmentOut"]
 export type AdjustmentCreate = Schemas["AdjustmentCreate"]
+export type ServiceWasteCreate = Schemas["ServiceWasteCreate"]
 export type AdjustmentReason = "WASTE" | "ADJUSTMENT"
 export type AdjustmentItemType = "PRODUCT" | "MATERIAL"
 
@@ -508,6 +509,15 @@ export function listAdjustments(f: AdjustmentFilters = {}): Promise<Adjustment[]
  */
 export function createAdjustment(body: AdjustmentCreate): Promise<Adjustment> {
   return apiFetch<Adjustment>("/adjustments", { method: "POST", body: JSON.stringify(body) })
+}
+
+/**
+ * Waste of a SERVICE material (a failed print job): a WASTE movement valued at `unit_cost` (omitted = the material's
+ * cost), no stock change. 422 MATERIAL_NO_UNIT_COST (details material_id, material_name) when the material has no cost
+ * yet; 422 DATE_IN_FUTURE (field movement_date); 422 field quantity / unit_cost; 404 for an unknown material.
+ */
+export function createServiceWaste(body: ServiceWasteCreate): Promise<Adjustment> {
+  return apiFetch<Adjustment>("/adjustments/service-waste", { method: "POST", body: JSON.stringify(body) })
 }
 
 export type StocktakeRequest = Schemas["StocktakeRequest"]

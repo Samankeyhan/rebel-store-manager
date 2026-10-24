@@ -24,16 +24,27 @@ export type AdjItem = {
   stock: number
   cost: number | null
   unit: string
+  /** A SERVICE material: no stock, waste only (a count of units at a price per unit). */
+  service: boolean
   /** A product with no stored cost and a COMPLETE recipe: its recipe cost, to prefill the cost of a gain (editable). */
   prefill: number | null
 }
 
 export function fromProduct(p: Product): AdjItem {
-  return { kind: "product", id: p.id, name: p.name, stock: p.current_stock, cost: p.unit_cost, unit: "عدد", prefill: prefillCost(p) }
+  return { kind: "product", id: p.id, name: p.name, stock: p.current_stock, cost: p.unit_cost, unit: "عدد", service: false, prefill: prefillCost(p) }
 }
 
 export function fromMaterial(m: Material): AdjItem {
-  return { kind: "material", id: m.id, name: m.name, stock: m.current_stock ?? 0, cost: m.unit_cost, unit: unitLabel(m.unit), prefill: null }
+  return {
+    kind: "material",
+    id: m.id,
+    name: m.name,
+    stock: m.current_stock ?? 0,
+    cost: m.unit_cost,
+    unit: unitLabel(m.unit),
+    service: m.type === "SERVICE",
+    prefill: null,
+  }
 }
 
 export const reasonOf = (kind: Kind): AdjustmentReason => (kind === "waste" ? "WASTE" : "ADJUSTMENT")
@@ -54,7 +65,7 @@ const EPS = 1e-9
 export function validate(item: AdjItem, q: number | null, sign: 1 | -1): string | null {
   if (q == null || !(q > 0)) return A.qtyRequired
   if (item.kind === "product" && Math.floor(q) !== q) return A.qtyFraction
-  if (sign < 0 && q > item.stock + EPS) {
+  if (sign < 0 && !item.service && q > item.stock + EPS) {
     return item.stock <= 0 ? A.qtyZeroStock(item.name) : A.qtyOver(item.stock, item.unit, item.name)
   }
   return null

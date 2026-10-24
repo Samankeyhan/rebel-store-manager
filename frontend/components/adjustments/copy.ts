@@ -31,6 +31,23 @@ export const A = {
     `${kind} · موجودی ${stock} ${unit} · ${cost == null ? "بهای واحد ثبت نشده" : `بهای واحد ${formatMoney(cost)}`}`,
   itemMetaMobile: (kind: string, stock: string, unit: string) => `${kind} · موجودی ${stock} ${unit}`,
   itemRequired: "کالا را انتخاب کنید.", // NEW
+  // Waste of a service (a SERVICE material: a cost but no stock)
+  serviceTag: "خدمت", // NEW
+  servicePill: (cost: number | null) => (cost == null || cost < 1 ? "بها ثبت نشده" : `بهای واحد ${formatMoney(cost)}`), // NEW
+  itemMetaService: (cost: number | null) =>
+    `متریال (خدمت) · بدون موجودی · ${cost == null || cost < 1 ? "بهای واحد ثبت نشده" : `بهای واحد ${formatMoney(cost)}`}`, // NEW
+  fieldServiceQty: "تعداد واحد ضایع‌شده", // NEW
+  qtyHelpService: "اعشار مجاز است (مثلاً ۰٫۵)؛ خدمت موجودی ندارد.", // NEW
+  fieldServicePrice: "بهای هر واحد", // NEW
+  servicePriceHelp: (cost: number) => `پیش‌فرض بهای فعلی (${formatMoney(cost)}) است؛ اگر عوضش کنید، همین بها با این ردیف ذخیره می‌شود.`, // NEW
+  servicePriceEdited: "این بها فقط برای همین ردیف ذخیره می‌شود؛ بهای خود متریال عوض نمی‌شود.", // NEW
+  servicePriceRequired: "بهای هر واحد را وارد کنید (بیشتر از صفر).", // NEW
+  serviceNoCost: (name: string) => `بهای «${name}» هنوز ثبت نشده؛ ضایعات خدمت فقط با بهای ثبت‌شده ممکن است.`, // NEW
+  serviceNoCostLink: "ثبت بها", // NEW
+  serviceAmountLabel: "مبلغ ضایعات = تعداد × بهای هر واحد (پیش‌نمایش)", // NEW
+  serviceNoStock: "موجودی تغییر نمی‌کند", // NEW
+  serviceBadge: "ضایعات خدمت", // NEW
+  dateFuture: "تاریخ نمی‌تواند در آینده باشد.", // NEW
   fieldDir: "جهت",
   dirPlus: "افزایش",
   dirMinus: "کاهش",
@@ -80,6 +97,8 @@ export const A = {
   pickToPreview: "کالا را انتخاب کنید تا اثر تعدیل را ببینید.", // NEW
   noteWaste:
     "ضایعات زیان واقعی است و در سود و زیان می‌آید — در ردیف «ضایعات». ارزش آن با بهای تمام‌شده همین امروز ثبت و ذخیره می‌شود و با تغییر بعدی بهای تمام‌شده عوض نمی‌شود.",
+  noteService:
+    "ضایعات خدمت هم مثل ضایعات دیگر زیان واقعی است و در سود و زیان، در ردیف «ضایعات» می‌آید؛ موجودی تغییر نمی‌کند. مبلغ = تعداد × بهای هر واحدی که همراه همین ردیف ذخیره می‌شود و با تغییر بعدی بها عوض نمی‌شود.", // NEW
   noteCorrection:
     "اصلاح موجودی فقط شمارش را درست می‌کند و در سود و زیان نمی‌آید؛ فقط موجودی و ارزش انبار تغییر می‌کند.",
   submit: "ثبت تعدیل",

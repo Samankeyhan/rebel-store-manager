@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { ChevronLeft, Loader2, Minus, Plus, SlidersHorizontal, Trash2 } from "lucide-react"
 import { DateField } from "@/components/common/date-field"
 import { ItemPicker, type PickerItem } from "@/components/common/item-picker"
@@ -10,14 +11,17 @@ import { Btn, cardClass, Help, InlineMessage, Label, MoneyInput, OptionTile, inp
 import {
   ApiError,
   createAdjustment,
+  createServiceWaste,
   getMaterial,
   getProduct,
   type Material,
   type Product,
 } from "@/lib/api"
+import { hasCode } from "@/lib/error-codes"
 import { dateToISO } from "@/lib/jalali"
 import { formatQuantity, parseDecimal, quantityText } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
+import { priceToSend, serviceWasteAmount, servicePrice, setCostHref } from "@/lib/service-waste"
 import { cn } from "@/lib/utils"
 import { A } from "./copy"
 import {
@@ -81,17 +85,22 @@ export const AdjustmentForm = React.forwardRef<
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<SaveErr | null>(null)
   const [fieldErrors, setFieldErrors] = React.useState<{ qty?: string; cost?: string }>({})
+  /** Price per unit of a service waste. undefined = not typed (the material's cost is prefilled); null = typed but not exact. */
+  const [priceInput, setPriceInput] = React.useState<number | null | undefined>(undefined)
+  const [priceEdited, setPriceEdited] = React.useState<string | null>(null)
+  /** The service the server refused for having no cost yet (MATERIAL_NO_UNIT_COST). */
+  const [noCostFor, setNoCostFor] = React.useState<number | null>(null)
 
   React.useEffect(() => {
     const t = window.setInterval(() => setToday(currentDay()), 60_000)
     return () => window.clearInterval(t)
   }, [])
 
-  // Only what the backend accepts: active products, active STOCK materials.
+  // Only what the backend accepts: active products, active STOCK materials, and for waste also active SERVICE materials.
   const items: AdjItem[] =
     itemKind === "product"
       ? products.filter((p) => p.is_active === 1).map(fromProduct)
-      : materials.filter((m) => m.is_active === 1 && m.type === "STOCK").map(fromMaterial)
+      : materials.filter((m) => m.is_active === 1 && (m.type === "STOCK" || (kind === "waste" && m.type === "SERVICE"))).map(fromMaterial)
   const item = items.find((i) => i.id === itemId) ?? null
 
   const sign = signOf(kind, dir)
@@ -102,13 +111,23 @@ export const AdjustmentForm = React.forwardRef<
   const costValue = costEdited === itemKey ? costInput : (prefill ?? costInput)
   const unitCost = showCost && typeof costValue === "number" ? costValue : null
   const costInexact = showCost && costValue === null
+  // A service: units at a price per unit, prefilled with the material's cost (editable), no stock.
+  const isService = item?.service === true
+  const defaultPrice = isService && item ? servicePrice({ unit_cost: item.cost }) : null
+  const priceValue = priceEdited === itemKey ? priceInput : (defaultPrice ?? priceInput)
+  const serviceNoCost = isService && item != null && (defaultPrice == null || noCostFor === item.id)
+  const priceInexact = isService && priceValue === null
+  const priceMissing = isService && !serviceNoCost && (priceValue === undefined || (typeof priceValue === "number" && priceValue < 1))
+  const priceOk = isService && !serviceNoCost && typeof priceValue === "number" && priceValue >= 1
 
   const clientError = item ? validate(item, qty, sign) : null
   const showQtyError = touched || qtyText.trim() !== ""
   const qtyError = fieldErrors.qty ?? (showQtyError ? clientError : null)
   const itemError = touched && item == null ? A.itemRequired : null
   const valid = item != null && clientError == null
-  const preview = valid ? previewOf(item, qty!, sign, unitCost) : null
+  const preview = valid && !isService ? previewOf(item, qty!, sign, unitCost) : null
+  /** Preview of units × price (db lineCost): the amount the waste report and the P&L will carry. */
+  const serviceAmount = valid && priceOk ? serviceWasteAmount(qty!, priceValue as number) : null
   const rowKind: RowKind = kind === "waste" ? "waste" : dir === "plus" ? "plus" : "minus"
 
   const clearServerErrors = () => {
@@ -132,21 +151,33 @@ export const AdjustmentForm = React.forwardRef<
     setTouched(true)
     setError(null)
     if (item == null || clientError != null || costInexact || busy) return
+    if (item.service && (serviceNoCost || priceInexact || priceMissing)) return
     setFieldErrors({})
     setBusy(true)
     onBusyChange(true)
     const day = currentDay()
     try {
-      await createAdjustment({
-        item_type: itemTypeOf(item.kind),
-        item_id: item.id,
-        quantity_change: sign * qty!,
-        reason: reasonOf(kind),
-        unit_cost: unitCost,
-        notes: note.trim() || null,
-        // Today: the server stamps the current time. Another day: that day.
-        movement_date: pickedDate == null || pickedDate === day ? null : pickedDate,
-      })
+      // Today: the server stamps the current time. Another day: that day.
+      const movementDate = pickedDate == null || pickedDate === day ? null : pickedDate
+      if (item.service) {
+        await createServiceWaste({
+          material_id: item.id,
+          quantity: qty!,
+          unit_cost: priceToSend(priceValue as number, { unit_cost: item.cost }),
+          notes: note.trim() || null,
+          movement_date: movementDate,
+        })
+      } else {
+        await createAdjustment({
+          item_type: itemTypeOf(item.kind),
+          item_id: item.id,
+          quantity_change: sign * qty!,
+          reason: reasonOf(kind),
+          unit_cost: unitCost,
+          notes: note.trim() || null,
+          movement_date: movementDate,
+        })
+      }
       let fresh: Product | Material | null = null
       try {
         fresh = item.kind === "product" ? await getProduct(item.id) : await getMaterial(item.id)
@@ -157,20 +188,29 @@ export const AdjustmentForm = React.forwardRef<
       setQtyText("")
       setCostInput(undefined)
       setCostEdited(null)
+      setPriceInput(undefined)
+      setPriceEdited(null)
+      setNoCostFor(null)
       setNote("")
       setTouched(false)
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409 && e.type === "InsufficientStockError") {
+      if (e instanceof ApiError && e.status === 422 && hasCode(e, "MATERIAL_NO_UNIT_COST")) {
+        // The material has no cost (yet): say so with the way to «ثبت بها», and re-read it.
+        setNoCostFor(item.id)
+        getMaterial(item.id).then((fresh) => onItemRefreshed("material", fresh), () => {})
+      } else if (e instanceof ApiError && e.status === 422 && hasCode(e, "DATE_IN_FUTURE")) {
+        setError({ message: A.dateFuture, code: "DATE_IN_FUTURE" })
+      } else if (e instanceof ApiError && e.status === 409 && e.type === "InsufficientStockError") {
         // Stock moved since the list loaded: say what the server has, and re-read the item.
         const available = Number(e.details.available ?? 0)
         setFieldErrors({ qty: A.serverShort(available, item.unit, item.name) })
         const reread = item.kind === "product" ? getProduct(item.id) : getMaterial(item.id)
         reread.then((fresh) => onItemRefreshed(item.kind, fresh), () => {})
-      } else if (e instanceof ApiError && e.status === 422 && e.field === "quantity_change") {
+      } else if (e instanceof ApiError && e.status === 422 && (e.field === "quantity_change" || e.field === "quantity")) {
         setFieldErrors({ qty: e.message })
       } else if (e instanceof ApiError && e.status === 422 && e.field === "unit_cost") {
         setFieldErrors({ cost: e.message })
-      } else if (e instanceof ApiError && (e.status === 404 || (e.status === 422 && e.field == null && e.type === "ValidationError"))) {
+      } else if (e instanceof ApiError && (e.status === 404 || (e.status === 422 && (e.field == null || e.field === "material_id") && e.type === "ValidationError"))) {
         // Deactivated, deleted or turned into a service since the list loaded.
         setError({ message: e.message, code: `ADJ_${e.status}` })
         setItemId(null)
@@ -197,7 +237,9 @@ export const AdjustmentForm = React.forwardRef<
   const pickerItems: PickerItem[] = items.map((i) => ({
     id: i.id,
     name: i.name,
-    pill: { text: A.stockPill(formatQuantity(i.stock), i.unit), tone: i.stock <= 0 ? "out" : "neutral" },
+    pill: i.service
+      ? { text: `${A.serviceTag} · ${A.servicePill(i.cost)}`, tone: servicePrice({ unit_cost: i.cost }) == null ? "out" : "neutral" }
+      : { text: A.stockPill(formatQuantity(i.stock), i.unit), tone: i.stock <= 0 ? "out" : "neutral" },
   }))
   const kindLabel = (k: ItemKind) => (k === "product" ? A.segProduct : A.segMaterial)
 
@@ -280,9 +322,11 @@ export const AdjustmentForm = React.forwardRef<
       ) : (
         item && (
           <Help className="tabular-nums">
-            {mobile
-              ? A.itemMetaMobile(kindLabel(item.kind), formatQuantity(item.stock), item.unit)
-              : A.itemMeta(kindLabel(item.kind), formatQuantity(item.stock), item.unit, item.cost)}
+            {item.service
+              ? A.itemMetaService(item.cost)
+              : mobile
+                ? A.itemMetaMobile(kindLabel(item.kind), formatQuantity(item.stock), item.unit)
+                : A.itemMeta(kindLabel(item.kind), formatQuantity(item.stock), item.unit, item.cost)}
           </Help>
         )
       )}
@@ -324,7 +368,7 @@ export const AdjustmentForm = React.forwardRef<
 
   const qtyField = (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor="adj-qty">{A.fieldQty}</Label>
+      <Label htmlFor="adj-qty">{isService ? A.fieldServiceQty : A.fieldQty}</Label>
       <div className={cn("relative flex items-center", !mobile && "max-w-[220px]")}>
         <input
           id="adj-qty"
@@ -349,8 +393,44 @@ export const AdjustmentForm = React.forwardRef<
       {qtyError && <InlineMessage severity="error">{qtyError}</InlineMessage>}
       {item && (
         <Help>
-          <span id="adj-qty-help">{item.kind === "product" ? A.qtyHelpProduct : A.qtyHelpMaterial}</span>
+          <span id="adj-qty-help">{isService ? A.qtyHelpService : item.kind === "product" ? A.qtyHelpProduct : A.qtyHelpMaterial}</span>
         </Help>
+      )}
+    </div>
+  )
+
+  const priceField = isService && item && (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="adj-price">{A.fieldServicePrice}</Label>
+      <MoneyInput
+        id="adj-price"
+        allowEmpty
+        value={priceValue}
+        onValue={(v) => {
+          setPriceInput(v)
+          setPriceEdited(itemKey)
+          if (fieldErrors.cost) setFieldErrors((f) => ({ ...f, cost: undefined }))
+        }}
+        aria-invalid={!!fieldErrors.cost || undefined}
+        tone={fieldErrors.cost ? "error" : null}
+        className={ctlH}
+        wrapperClassName={cn(!mobile && "max-w-[220px]")}
+      />
+      {serviceNoCost ? (
+        <InlineMessage severity="error">
+          {A.serviceNoCost(item.name)}{" "}
+          <Link href={setCostHref(item.id)} className="font-bold underline">
+            {A.serviceNoCostLink}
+          </Link>
+        </InlineMessage>
+      ) : fieldErrors.cost ? (
+        <InlineMessage severity="error">{fieldErrors.cost}</InlineMessage>
+      ) : priceInexact ? null : touched && priceMissing ? (
+        <InlineMessage severity="error">{A.servicePriceRequired}</InlineMessage>
+      ) : defaultPrice != null && priceValue === defaultPrice ? (
+        <Help>{A.servicePriceHelp(defaultPrice)}</Help>
+      ) : (
+        <Help>{A.servicePriceEdited}</Help>
       )}
     </div>
   )
@@ -468,7 +548,19 @@ export const AdjustmentForm = React.forwardRef<
     </div>
   )
 
-  const noCostNote = kind === "waste" && item && item.cost == null && (
+  const serviceSummary = (
+    <div className="flex flex-col gap-2.5 rounded-xl bg-surface-2 px-4 py-4">
+      <div className="flex items-center justify-between gap-3 text-[13px]">
+        <span className="text-text-2">{A.serviceAmountLabel}</span>
+        <b className={cn("tabular-nums", serviceAmount != null && "text-loss")}>
+          {serviceAmount != null ? A.signedValue(-serviceAmount) : "—"}
+        </b>
+      </div>
+      <p className="text-xs text-text-3">{A.serviceNoStock}</p>
+    </div>
+  )
+
+  const noCostNote = kind === "waste" && item && !item.service && item.cost == null && (
     <InlineMessage severity="warn">{A.noCostWaste}</InlineMessage>
   )
 
@@ -481,13 +573,14 @@ export const AdjustmentForm = React.forwardRef<
           {itemField}
           {dirField}
           {qtyField}
+          {priceField}
           {costField}
           {dateField}
           {reasonField}
         </section>
         <section aria-label={A.previewTitle} className="flex flex-col gap-2.5">
-          {beforeAfter}
-          {item && (
+          {isService ? serviceSummary : beforeAfter}
+          {item && !isService && (
             <div className="flex flex-col gap-2 px-1">
               {valueRow}
               {avgRow}
@@ -513,6 +606,7 @@ export const AdjustmentForm = React.forwardRef<
           {itemField}
           {dirField}
           {qtyField}
+          {priceField}
           {costField}
           {dateField}
           {reasonField}
@@ -530,13 +624,19 @@ export const AdjustmentForm = React.forwardRef<
             <p className="rounded-xl bg-surface-2 px-5 py-8 text-center text-[13px] text-text-3">{A.pickToPreview}</p>
           ) : (
             <>
-              {beforeAfter}
-              {valueRow}
-              {avgRow}
-              {noCostNote}
+              {isService ? (
+                serviceSummary
+              ) : (
+                <>
+                  {beforeAfter}
+                  {valueRow}
+                  {avgRow}
+                  {noCostNote}
+                </>
+              )}
             </>
           )}
-          <p className="text-xs leading-[1.8] text-text-3">{kind === "waste" ? A.noteWaste : A.noteCorrection}</p>
+          <p className="text-xs leading-[1.8] text-text-3">{isService ? A.noteService : kind === "waste" ? A.noteWaste : A.noteCorrection}</p>
           <Btn variant="primary" className="self-start" disabled={busy} aria-busy={busy || undefined} onClick={submit}>
             {busy && <Loader2 className="size-4 animate-spin" />}
             {A.submit}
