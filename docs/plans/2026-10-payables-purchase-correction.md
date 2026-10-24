@@ -25,7 +25,7 @@
   - The master plan orders D first.
   - B's cancel rules depend on allocations: payments block, move or go with a cancel.
   - Migration 015 then ships once, in A, and B ships code only.
-- **One migration, `015_supplier_payables_purchase_status.sql`, built in slice A.** It holds A's two new tables and B's columns. So the purchase tables are rebuilt exactly once, and B needs no migration. B2 (unit conversion) stays 016.
+- **One migration, `015_supplier_payables_purchase_status.sql`, built in slice A.** It holds A's two new tables and B's columns. So the purchase tables are rebuilt exactly once, and B needs no migration. B2 (unit conversion) moves to **017**: 016 is purchase invoices (see "Amendment: purchase invoices and services" before slice B).
 
 ## Migration 015 (exact)
 Runs with foreign keys OFF (`db/connection.py:115`), in one transaction. Steps, in this order:
@@ -256,6 +256,28 @@ Reused: `SUPPLIER_NOT_FOUND`, `DATE_IN_FUTURE`, `AMOUNT_TOO_LARGE`. There is no 
 
 ---
 
+## Amendment: purchase invoices and services (`feat/purchase-lines`, migration 016, approved 2026-10-24)
+Built between A and B, from `main` e52fa13. Slice B below is already written for it; this is the summary.
+- **Purchase invoices.** One supplier invoice = one `purchase_invoices` row: PUR number, supplier, date, notes, and B's status, cancel reason and moment, and `replaces_invoice_id`. Its lines are the old tables:
+  - `material_purchases` and `product_purchases` keep their names and ids, and gain `purchase_invoice_id`
+  - each line keeps its item, quantity, line total, unit cost, its PURCHASE movement, its cancel movement and its cost snapshot
+- **What moved out of the lines.** Supplier, PUR, date, notes, `status`, `cancel_reason`, `cancelled_at` and `replaces_purchase_id`. 015's line CHECKs on cancel fields therefore became check k rules.
+- **Mixing and limits.**
+  - one invoice may mix STOCK materials, services and products
+  - the same item twice on one invoice is refused (`PURCHASE_DUPLICATE_ITEM`)
+  - the invoice total is Σ line totals, computed, never stored
+- **Payments are per invoice.** `supplier_payment_allocations.purchase_invoice_id` replaces the two kind columns. paid, outstanding and payment status belong to the invoice.
+- **016 on existing data.** Every existing purchase became a one-line invoice with the same PUR, and every allocation points at its row's invoice. No figure changed.
+- **Services are purchased.**
+  - A service line writes **no** stock movement (`stock_movement_id` NULL forever) and leaves `current_stock` NULL.
+  - It sets the service's `unit_cost` to line total ÷ quantity (`blend_unit_cost` with no stock).
+  - A service line with total 0 is refused (`SERVICE_PURCHASE_NEEDS_TOTAL`).
+  - Its snapshot is `item_cost_before` (0 = not entered) and `item_cost_after`.
+- **Routes.** `/purchases/materials|products` are gone; `/purchases` and `/purchases/{id}` are per invoice.
+- **Rules section.** Accounting rules §22 is «Purchase invoices», so B's section becomes **§23**.
+
+---
+
 ## Slice B: purchase edit / cancel / correct (`feat/purchase-correction`)
 
 ### Cost restore: no general replay (recommended alternative)
@@ -265,47 +287,53 @@ Reused: `SUPPLIER_NOT_FOUND`, `DATE_IN_FUTURE`, `AMOUNT_TOO_LARGE`. There is no 
   - set-cost and go-live change a cost with no movement
   - legacy void returns come back "at the current cost"
 - A replay would also need a value source per event kind, and every future cost feature (B2 conversion) would have to stay in sync. One mismatch silently mis-prices stock.
-- **The rule instead.** A purchase can be cancelled only while it is the item's **latest cost event**:
-  - no movement on that item with id > the purchase's `stock_movement_id` has a positive `quantity_change` (PURCHASE, PRODUCTION_OUTPUT, RETURN, positive ADJUSTMENT or stocktake gain)
-  - and the item's `unit_cost` still equals the purchase's `item_cost_after` (this catches set-cost and any other change without a movement)
-- **Then the cost goes back to `item_cost_before`.** This is exactly what a replay would give:
+- **The rule instead.** An invoice can be cancelled only while each of its lines is its item's **latest cost event**:
+  - **stock material and product lines:**
+    - no movement on that item with id > the line's `stock_movement_id` has a positive `quantity_change` (PURCHASE, PRODUCTION_OUTPUT, RETURN, positive ADJUSTMENT or stocktake gain)
+    - and the item's `unit_cost` still equals the line's `item_cost_after` (this catches set-cost and any other change without a movement)
+  - **service lines** (no movement):
+    - no later line of the same service (higher line id) on an ACTIVE invoice
+    - and the service's `unit_cost` still equals the line's `item_cost_after`
+    - service waste and consumption after the purchase do not block: their prices are frozen on their own rows
+- **Then each line's item cost goes back to its `item_cost_before`.** This is exactly what a replay would give:
   - after the purchase only stock went out, and §2 says outgoing stock never changes `unit_cost`
   - so replaying without the purchase ends at the pre-purchase cost
   - no formula is copied and no rounding happens: the stored integer is restored
 - **Frozen costs stay untouched.** `unit_cost_at_time` on orders and movements, batch costs and `production_batch_materials` are never written. Sales made between the purchase and the cancel keep the COGS they froze. That is the same principle as §20.
 - **When a later cost event exists:** refused with `PURCHASE_COST_CHANGED_SINCE`, listing the later events. The preview names the later purchases, so the owner can cancel them newest first and re-enter them.
-- **B2 note (016):** a unit conversion after the purchase must also block. Its `material_unit_changes.last_movement_id` ≥ the purchase movement counts as a later cost event.
+- **B2 note (017):** a unit conversion after the purchase must also block. Its `material_unit_changes.last_movement_id` ≥ the purchase movement counts as a later cost event.
 
 ### Rules
-- **Easy edits** (`update_purchase(kind, id, **fields)`, `@audited`, refused on a CANCELLED purchase with `PURCHASE_ALREADY_CANCELLED`). Only these fields:
+- **Easy edits** (`update_purchase(invoice_id, **fields)`, on the invoice header, `@audited`, refused on a CANCELLED invoice with `PURCHASE_ALREADY_CANCELLED`). Only these fields:
   - **`supplier_id`:**
     - refused with `PURCHASE_HAS_PAYMENTS` if it has allocations, because they belong to the old supplier
     - NULL while outstanding > 0 → `SUPPLIER_REQUIRED_FOR_CREDIT`
   - **`purchase_date`:**
     - a local day, not in the future (`DATE_IN_FUTURE`)
     - not after the day of an allocated payment (`SUPPLIER_PAYMENT_BEFORE_PURCHASE`)
-    - an unchanged local day keeps the stored time; the linked PURCHASE movement's `movement_date` follows, in the same op
+    - an unchanged local day keeps the stored time; every line's PURCHASE movement `movement_date` follows, in the same op
   - **`notes`.**
   - None of these changes stock, cost, P&L or a distribution, so a closed day does not refuse them.
-- **Cancel** (`cancel_purchase(kind, id, reason, with_payments=False)`, «ابطال خرید»):
+- **Cancel** (`cancel_purchase(invoice_id, reason, with_payments=False)`, «ابطال خرید»), always the **whole invoice**; there is no single-line cancel:
   - **What it writes:**
-    - status CANCELLED, `cancel_reason` (stored form, at most 500 characters), `cancelled_at`
-    - one movement with reason PURCHASE and quantity −qty, note «ابطال خرید PUR-… — <reason>», saved in `cancel_movement_id`
-    - stock −qty
-    - `unit_cost := item_cost_before` (only when it differs)
-  - The row, its number and every figure stay.
+    - on the invoice: status CANCELLED, `cancel_reason` (stored form, at most 500 characters), `cancelled_at`
+    - per stock material or product line: one movement with reason PURCHASE and quantity −qty, note «ابطال خرید PUR-… — <reason>», saved in the line's `cancel_movement_id`, and stock −qty
+    - per service line: no movement (it has no stock)
+    - per line: `unit_cost := item_cost_before` (only when it differs)
+  - The invoice, its lines, its number and every figure stay.
 - **Refusals**, all listed by `plan_cancel_purchase` (`GET …/cancel-preview`), in this order:
-  1. `PURCHASE_ALREADY_CANCELLED` (purchase_kind, purchase_id, cancelled_at, replaced_by_purchase_id)
-  2. `PURCHASE_HAS_PAYMENTS` (purchase_kind, purchase_id, paid, payment_ids, shared): allocations exist and `with_payments` is false, **or** a payment also pays another purchase (shared = 1). With `with_payments=true`, every payment allocated *only* to this purchase is deleted in the same op (Q2).
-  3. `PERIOD_ALREADY_DISTRIBUTED` (reused): the purchase's local day is closed (`refuse_closed_day`), as requested.
-  4. `PURCHASE_STOCK_USED` (purchase_kind, purchase_id, item_type, item_id, item_name, current_stock, quantity_bought): stock < qty, compared as exact decimals.
-  5. `STOCKTAKE_AFTER_PURCHASE` (purchase_kind, purchase_id, item_type, item_id, item_name, stocktake_date): the same detection as `order_voids._refuse_stocktake_after`, extracted into a shared read-only helper in `db/stocktake.py` that order_voids also uses.
-  6. `PURCHASE_COST_CHANGED_SINCE` (purchase_kind, purchase_id, item_type, item_id, item_name, later: [{reason, movement_id, date, purchase_kind, purchase_id, invoice_number}], cost_changed_without_movement).
-  7. `PURCHASE_COST_HISTORY_UNKNOWN` (purchase_kind, purchase_id): a legacy row with no snapshot or no movement link.
+  `purchase_id` is the invoice id everywhere below; per-line refusals add `line_index` (0-based, in line id order) and the item.
+  1. `PURCHASE_ALREADY_CANCELLED` (purchase_id, cancelled_at, replaced_by_purchase_id)
+  2. `PURCHASE_HAS_PAYMENTS` (purchase_id, paid, payment_ids, shared): allocations exist and `with_payments` is false, **or** a payment also pays another invoice (shared = 1). With `with_payments=true`, every payment allocated *only* to this invoice is deleted in the same op (Q2).
+  3. `PERIOD_ALREADY_DISTRIBUTED` (reused): the invoice's local day is closed (`refuse_closed_day`), as requested.
+  4. `PURCHASE_STOCK_USED` (purchase_id, line_index, item_type, item_id, item_name, current_stock, quantity_bought): stock < qty for a stock or product line, compared as exact decimals.
+  5. `STOCKTAKE_AFTER_PURCHASE` (purchase_id, line_index, item_type, item_id, item_name, stocktake_date): the same detection as `order_voids._refuse_stocktake_after`, extracted into a shared read-only helper in `db/stocktake.py` that order_voids also uses. Not for service lines.
+  6. `PURCHASE_COST_CHANGED_SINCE` (purchase_id, line_index, item_type, item_id, item_name, later: [{reason, movement_id, date, purchase_id, invoice_number}], cost_changed_without_movement).
+  7. `PURCHASE_COST_HISTORY_UNKNOWN` (purchase_id, line_index): a legacy line with no snapshot, or a stock/product line with no movement link.
   - A blank reason → `VOID_REASON_REQUIRED` (reused, field reason).
-- **Correct** (`correct_purchase(kind, id, reason, item_id, quantity_bought, total_paid, supplier_id, purchase_date, notes, payment)`, «اصلاح خرید»), ONE op and ONE transaction:
-  - cancel, then `record_*_purchase` (same kind; the item may differ), then set the new row's `replaces_purchase_id`
-  - **allocations of the old purchase move to the new one:** each payment row is unchanged and only the allocation's purchase column moves
+- **Correct** (`correct_purchase(invoice_id, reason, lines, supplier_id, purchase_date, notes, payment)`, «اصلاح خرید»), ONE op and ONE transaction, always the whole invoice:
+  - cancel the invoice, then `record_purchase` with the full new list of lines (any kinds and items), then set the new invoice's `replaces_invoice_id`
+  - **allocations of the old invoice move to the new one:** each payment row is unchanged and only the allocation's `purchase_invoice_id` moves
   - moving allocations needs the same supplier: otherwise `PURCHASE_HAS_PAYMENTS`
   - the new total must be ≥ what was paid: otherwise `PURCHASE_CORRECTION_BELOW_PAID` (paid, new_total)
   - `payment` (A's FULL/NONE/PARTIAL) applies only to the unpaid remainder
@@ -313,20 +341,22 @@ Reused: `SUPPLIER_NOT_FOUND`, `DATE_IN_FUTURE`, `AMOUNT_TOO_LARGE`. There is no 
   - any refusal leaves both as they were
   - a replacement can be corrected again; a cancelled purchase cannot
 - **Reads:**
-  - `list_*_purchases` leaves CANCELLED out unless `include_cancelled=True` (or `status='CANCELLED'`)
-  - `get_*` gives both links
-  - `get_purchases_summary` counts ACTIVE only
-  - payables only ever see ACTIVE purchases; a cancelled one has no allocations
-  - stock replay: check d1 replays both movements, so they net to 0 and the result is the same as leaving the purchase out
-  - d2 compares Σ PURCHASE movements (+qty and −qty) with Σ `quantity_bought` of **ACTIVE** purchases
-- **Integrity check k «Cancelled and corrected purchases»** (min_schema 15):
-  - a CANCELLED purchase has a reason, `cancelled_at` and `cancel_movement_id`
-  - its two movements net to 0 and point at its item
+  - `list_purchases` (invoices) leaves CANCELLED out unless `include_cancelled=True` (or `status='CANCELLED'`)
+  - `get_purchase` gives both links
+  - `get_purchases_summary` counts lines of ACTIVE invoices only
+  - payables only ever see ACTIVE invoices; a cancelled one has no allocations
+  - stock replay: check d1 replays both movements, so they net to 0 and the result is the same as leaving the line out
+  - d2 compares Σ PURCHASE movements (+qty and −qty) with Σ `quantity_bought` of the non-service lines of **ACTIVE** invoices
+- **Integrity check k «Cancelled and corrected purchases»** (min_schema 16):
+  - a CANCELLED invoice has a reason and `cancelled_at`
+  - each of its stock and product lines has `cancel_movement_id`, and its two movements net to 0 and point at its item
+  - its service lines have neither movement link
   - it has no allocations
-  - `replaces_purchase_id` points at a CANCELLED row of the same table
-  - every ACTIVE purchase recorded after 015 has `stock_movement_id` and `item_cost_after`
-  - the all-time purchases summary = Σ over ACTIVE rows
-- d2 is changed as above. Check e is unchanged: cancelled rows keep their unit_cost.
+  - lines of an ACTIVE invoice have no `cancel_movement_id`
+  - `replaces_invoice_id` points at a CANCELLED invoice
+  - every line recorded after 016 has `item_cost_after`, and its stock and product lines have `stock_movement_id`
+  - the all-time purchases summary = Σ over the lines of ACTIVE invoices
+- d2 is changed as above. Check e is unchanged: cancelled lines keep their unit_cost.
 
 ### Error codes (B, Persian in `components/purchases/copy.ts`)
 | Code | HTTP | Persian |
@@ -342,19 +372,19 @@ Reused: `SUPPLIER_NOT_FOUND`, `DATE_IN_FUTURE`, `AMOUNT_TOO_LARGE`. There is no 
 `PERIOD_ALREADY_DISTRIBUTED` reuses the existing orders copy, worded for purchases.
 
 ### API (`npm.cmd run gen:api`)
-- `PATCH /purchases/{materials|products}/{id}` (`PurchaseUpdate`: supplier_id, purchase_date, notes)
-- `GET …/{id}/cancel-preview` (`PurchaseCancelPreviewOut`: blockers[], quantity, stock and cost before/after, payments that would go)
-- `POST …/{id}/cancel` (`{reason, with_payments}`) → the purchase
-- `POST …/{id}/correct` (201) → the new purchase
-- the list `include_cancelled` query parameter
+- `PATCH /purchases/{id}` (`PurchaseUpdate`: supplier_id, purchase_date, notes), per invoice
+- `GET /purchases/{id}/cancel-preview` (`PurchaseCancelPreviewOut`: blockers[], and per line: quantity, stock and cost before/after; the payments that would go)
+- `POST /purchases/{id}/cancel` (`{reason, with_payments}`) → the invoice
+- `POST /purchases/{id}/correct` (201, `PurchaseCreate` body plus `reason`) → the new invoice
+- the `GET /purchases` `include_cancelled` query parameter
 
 ### Commits (B)
 1. `refactor(db): shared stocktake-after helper (order_voids uses it)`.
 2. `feat(db): update_purchase (supplier, date, note)`.
 3. `feat(db): plan_cancel_purchase, cancel_purchase, correct_purchase; list include_cancelled; summary ACTIVE only`.
-4. `feat(tools): integrity d2 ACTIVE purchases, check k`.
+4. `feat(tools): integrity d2 ACTIVE invoices, check k`.
 5. `feat(api): purchase edit, cancel preview, cancel, correct; error details`.
-6. `docs: accounting rules §22, §9, §18 d2/k`.
+6. `docs: accounting rules §23, §9, §18 d2/k`.
 7. `feat(frontend): purchase sheet edit / ابطال / اصلاح, cancelled tag and toggle, links`. Includes `gen:api` and `lib/purchase-correction.ts` (+ test), mirroring `lib/order-correction.ts`.
 
 ### Files (B)
@@ -365,13 +395,13 @@ Reused: `SUPPLIER_NOT_FOUND`, `DATE_IN_FUTURE`, `AMOUNT_TOO_LARGE`. There is no 
   - `api/schemas/{purchases,errors}.py`, `api/routers/purchases.py`
   - `docs/accounting-rules.md`
 - Frontend:
-  - `components/purchases/{purchase-sheet,purchases-page,copy,use-purchases-data}`, plus new `purchase-edit-dialog.tsx`, `purchase-cancel-dialog.tsx` and `purchase-correct-dialog.tsx` (reusing the form fields)
+  - `components/purchases/{purchase-sheet,purchases-page,copy,use-purchases-data}`, plus new `purchase-edit-dialog.tsx`, `purchase-cancel-dialog.tsx` and `purchase-correct-dialog.tsx` (the correct dialog reuses the invoice form, prefilled with every line)
   - `lib/purchase-correction.ts`, `lib/error-codes.ts`, `lib/api.ts`
 
 ### UI (B)
 - **Purchase sheet buttons:** «ویرایش» (supplier, date, note), «ابطال خرید», «اصلاح خرید».
 - **Both dialogs show the preview first:**
-  - «موجودی ‹نام متریال› از X به Y و بهای واحد از A به B برمی‌گردد»
+  - one row per line: «موجودی ‹نام متریال› از X به Y و بهای واحد از A به B برمی‌گردد»; for a service line only «بهای ‹نام خدمت› از A به B برمی‌گردد»
   - the payments that go with it
   - every blocker in Persian, with the later purchases linked
   - a required «دلیل»
@@ -383,14 +413,16 @@ Reused: `SUPPLIER_NOT_FOUND`, `DATE_IN_FUTURE`, `AMOUNT_TOO_LARGE`. There is no 
 ### Tests (B)
 - **Backend +52 → about 2635 passed + 2 skipped:**
   - edit, 8: each field, payments block supplier and date, credit needs supplier, cancelled refused, movement date follows
-  - cancel, 20:
+  - cancel, 24:
     - material and product
+    - a service line: price restored, no movement; blocked by a later line of the same service
+    - a multi-line invoice: all lines reversed in one op; one blocked line refuses the whole invoice
     - cost restored exactly: product NULL, material 0, and an unchanged cost
     - frozen sale COGS untouched after a sale in between
     - each blocker in order: stock used, stocktake loss after, later purchase, later production output, later costed adjustment, set-cost after, legacy no snapshot, closed day
     - `with_payments` single vs shared
     - one `op_id`
-  - correct, 10: same and different item; allocations move; below paid; supplier change with payments; closed new day; chain of corrections; any refusal leaves both
+  - correct, 11: same and different item; a multi-line invoice corrected with lines added and removed; allocations move; below paid; supplier change with payments; closed new day; chain of corrections; any refusal leaves both
   - integrity d2 and k: 7
   - API: 7
 - **Frontend +6 → 255:** the preview text and choosing which blocker to show (`lib/purchase-correction.ts`).
@@ -437,6 +469,14 @@ Reused: `SUPPLIER_NOT_FOUND`, `DATE_IN_FUTURE`, `AMOUNT_TOO_LARGE`. There is no 
   - stop any server before the full pytest run
   - `npm.cmd run lint` last
 - **Final report:** commit hashes, exact test counts, migration test results on a fresh database and on a copy of the test database, the rehearsal result, the `data\shop.db` fingerprint at start and end, and what was not checked by eye.
+
+## Owner decisions for the amendment (approved 2026-10-24)
+- Option (a): `purchase_invoices` with the old tables as lines, migration 016; B2 → 017.
+- One invoice may mix materials, services and products. The same item twice on one invoice is refused (`PURCHASE_DUPLICATE_ITEM`). A service line with total 0 is refused.
+- Slice B cancels and corrects per whole invoice only.
+- The old `/purchases/materials|products` routes are removed; the db wrappers `record_material_purchase` / `record_product_purchase` stay (one-line invoices).
+- The purchases list shows one row per invoice, with an item summary.
+- `material_purchases_*` in the summary counts STOCK lines only; services have their own total.
 
 ## Verification (each slice)
 - `data\shop.db` fingerprint at the start and end.
