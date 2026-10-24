@@ -38,6 +38,10 @@ MONEY_SETTINGS = ("default_shipping_charge", "default_postage_estimate")
 # Money columns added after 009, stored in Rial from the start (009 never scaled them).
 MONEY_SINCE_RIAL = {
     "payment_methods": ("fee_cap",),  # 010
+    "material_purchases": ("item_cost_before", "item_cost_after"),  # 015
+    "product_purchases": ("item_cost_before", "item_cost_after"),  # 015
+    "supplier_payments": ("amount",),  # 015
+    "supplier_payment_allocations": ("amount",),  # 015
 }
 
 OLD_STAMP = "2025-01-02 03:04:05"
@@ -308,6 +312,8 @@ def test_every_numeric_column_is_classified(tmp_path):
         "paid_jalali_month", "jalali_year", "jalali_month", "current_percentage",
         "percentage_at_time", "order_count", "value", "fee_bps", "settlement_days", "seq",
         "min_stock", "allow_purge", "replaces_order_id",
+        "replaces_purchase_id", "stock_movement_id", "cancel_movement_id", "payment_id",
+        "material_purchase_id", "product_purchase_id",
     }
     db_path = tmp_path / "shop.db"
     init_db(str(db_path))
