@@ -1,5 +1,6 @@
 """The integrity checks. Each takes (conn, schema_number) with a read-only connection and returns a CheckResult.
-Every formula is a db/ function (costing, orders, settlements, payment_methods, jalali, distributions, name_keys); nothing is
+Every formula is a db/ function (costing, orders, settlements, payment_methods, jalali, distributions, name_keys,
+supplier_payments); nothing is
 re-implemented here: a check only compares what is stored with what db/ computes, or sums stored rows.
 Money is exact integer Rial. Quantities are REAL: they are read as the decimal they were entered as (`exact_quantity`) and
 compared with an explicit tolerance (`stock_tolerance`)."""
@@ -19,8 +20,11 @@ from db.distributions import compute_share_amounts, get_profit_distribution
 from db.name_keys import find_name_collisions
 from db.orders import REVENUE_ELIGIBLE_STATUSES, get_order, list_orders
 from db.payment_methods import compute_expected_settlement_date, compute_fee, get_payment_method
-from db.reports import get_profit_and_loss
+from db.purchases import list_material_purchases, list_product_purchases
+from db.reports import get_profit_and_loss, get_purchases_summary
 from db.settlements import get_settlement
+from db.supplier_payments import get_payables
+from db.timeutil import local_day
 from tools.integrity_check.report import CheckResult, Row
 
 PAID_STATUSES = ("PAID", "COMPLETED")
@@ -536,6 +540,77 @@ def check_voided_orders(conn: sqlite3.Connection, schema: int) -> CheckResult:
     return result
 
 
+# ------------------------------------------------------------------ j. supplier payables
+
+
+def check_supplier_payables(conn: sqlite3.Connection, schema: int) -> CheckResult:
+    """Section 21: every payment is wholly allocated; every allocation pays an ACTIVE purchase of the payment's own
+    supplier, on or after its day; no purchase is paid more than its total; per supplier, `get_payables` owes exactly
+    Σ (total − paid) over its ACTIVE purchases as the purchase lists give them; the all-time purchases summary's
+    payments equal the stored payments."""
+    result = CheckResult("j", "Supplier payables")
+    payments = conn.execute("SELECT id, supplier_id, payment_date, amount FROM supplier_payments ORDER BY id").fetchall()
+    allocated = defaultdict(int)
+    for row in conn.execute("SELECT payment_id, amount FROM supplier_payment_allocations"):
+        allocated[row["payment_id"]] += row["amount"]
+    for payment in payments:
+        if payment["amount"] <= 0:
+            result.fails.append(Row("supplier_payments", payment["id"], "amount", payment["amount"], "> 0"))
+        if allocated[payment["id"]] != payment["amount"]:
+            result.fails.append(_money_row("supplier_payments", payment["id"], "amount", payment["amount"],
+                                           allocated[payment["id"]], "sum of its allocations"))
+    by_id = {payment["id"]: payment for payment in payments}
+
+    purchases = {("MATERIAL", p["id"]): p for p in list_material_purchases(conn)}
+    purchases.update({("PRODUCT", p["id"]): p for p in list_product_purchases(conn)})
+    count = 0
+    for kind, column in (("MATERIAL", "material_purchase_id"), ("PRODUCT", "product_purchase_id")):
+        for row in conn.execute(
+            f"SELECT id, payment_id, {column} AS purchase_id, amount FROM supplier_payment_allocations "
+            f"WHERE {column} IS NOT NULL ORDER BY id"
+        ):
+            count += 1
+            purchase, payment = purchases.get((kind, row["purchase_id"])), by_id.get(row["payment_id"])
+            if purchase is None or payment is None:
+                result.fails.append(Row("supplier_payment_allocations", row["id"], "purchase / payment",
+                                        f"{kind} {row['purchase_id']} / {row['payment_id']}", "existing rows"))
+                continue
+            if purchase["status"] != "ACTIVE":
+                result.fails.append(Row("supplier_payment_allocations", row["id"], "purchase status", purchase["status"],
+                                        "ACTIVE", note=f"{kind.lower()} purchase {row['purchase_id']}"))
+            if payment["supplier_id"] != purchase["supplier_id"]:
+                result.fails.append(Row("supplier_payment_allocations", row["id"], "supplier_id", payment["supplier_id"],
+                                        purchase["supplier_id"], note=f"payment {payment['id']} vs {kind.lower()} purchase "
+                                                                      f"{row['purchase_id']}"))
+            payment_day, purchase_day = local_day(payment["payment_date"], conn), local_day(purchase["purchase_date"], conn)
+            if payment_day < purchase_day:
+                result.fails.append(Row("supplier_payments", payment["id"], "payment_date", payment_day.isoformat(),
+                                        f">= {purchase_day.isoformat()}", note=f"pays {kind.lower()} purchase {row['purchase_id']}"))
+
+    owed = defaultdict(int)
+    for (kind, purchase_id), purchase in sorted(purchases.items()):
+        if purchase["paid"] > purchase["total_paid"]:
+            result.fails.append(_money_row(f"{kind.lower()}_purchases", purchase_id, "paid", purchase["paid"],
+                                           purchase["total_paid"], "allocations above the invoice total"))
+        if purchase["status"] == "ACTIVE" and purchase["total_paid"] > purchase["paid"]:
+            owed[purchase["supplier_id"]] += purchase["total_paid"] - purchase["paid"]
+    payables = {row["supplier_id"]: row["outstanding"] for row in get_payables(conn)["suppliers"]}
+    for supplier_id in sorted(set(owed) | set(payables), key=lambda s: (s is None, s or 0)):
+        if payables.get(supplier_id, 0) != owed[supplier_id]:
+            result.fails.append(_money_row("suppliers", supplier_id, "outstanding", payables.get(supplier_id, 0),
+                                           owed[supplier_id], "sum of total - paid over its ACTIVE purchases"))
+    summary = get_purchases_summary(conn)
+    stored = sum(payment["amount"] for payment in payments)
+    if summary["supplier_payments_total"] != stored:
+        result.fails.append(_money_row("purchases_summary", "all time", "supplier_payments_total",
+                                       summary["supplier_payments_total"], stored, "sum of supplier_payments.amount"))
+    if summary["payables_outstanding"] != sum(owed.values()):
+        result.fails.append(_money_row("purchases_summary", "now", "payables_outstanding", summary["payables_outstanding"],
+                                       sum(owed.values()), "sum over suppliers"))
+    result.summary = f"{len(payments)} payments, {count} allocations, {len(payables)} suppliers owed"
+    return result
+
+
 # ------------------------------------------------------------------ registry
 
 
@@ -561,6 +636,7 @@ CHECKS = [
     Check("g", "Partner distributions", 9, check_distributions, "money is stored in Rial from migration 009"),
     Check("h", "Name collisions", 13, check_name_collisions, "name_key exists from migration 013"),
     Check("i", "Voided orders and corrections", 14, check_voided_orders, "VOIDED exists from migration 014"),
+    Check("j", "Supplier payables", 15, check_supplier_payables, "supplier payments exist from migration 015"),
 ]
 
 

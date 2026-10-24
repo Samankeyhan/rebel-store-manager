@@ -145,6 +145,64 @@ def test_the_figures_ignore_schema_migrations_and_time_stamps_but_catch_everythi
     assert failures == ["orders id 1 disappeared"]
 
 
+def test_a_rehearsal_of_migration_015_compares_purchases_and_reports_the_backfill(tmp_path):
+    """A shop database before 015 (fictional purchases written the 014 way), rehearsed with the real migrations:
+    nothing owed after the backfill, one payment per purchase with a total, every purchase row unchanged."""
+    from tests.test_migration_015 import _add_fictional_purchases
+
+    root = tmp_path / "proj"
+    (root / "data" / "restore-test" / "real").mkdir(parents=True)
+    shutil.copytree(MIGRATIONS_DIR, root / "migrations")
+    old = tmp_path / "to_014"
+    old.mkdir()
+    for path in MIGRATIONS_DIR.glob("*.sql"):
+        if path.name < "015":
+            shutil.copy(path, old / path.name)
+    source = root / "data" / "restore-test" / "real" / "shop.db"
+    init_db(str(source), migrations_dir=str(old))
+    _add_fictional_purchases(str(source))
+    init_db(str(source), migrations_dir=str(old))  # the startup backfill gives the raw rows their name_key
+    ctx = FakeCtx(root)
+
+    def migrate(db):
+        init_db(str(db), migrations_dir=str(root / "migrations"))
+        return 0, "MIGRATION OK\n"
+
+    ctx.migrate = migrate
+    ctx.integrity = lambda db: (0, "OK\n")
+    assert rehearse(ctx, str(source)) == 0, ctx.text
+    assert "REHEARSAL OK" in ctx.text
+    assert "INFO supplier payments backfilled: 3 (purchases with a total: 3)" in ctx.text
+    assert "INFO purchases without a movement link: 0" in ctx.text
+    assert "INFO purchases without a cost snapshot (cannot be cancelled later): 1" in ctx.text
+    assert "INFO new table supplier_payments: 3 rows" in ctx.text
+
+
+def _payables(**overrides):
+    return {"outstanding": 0, "payments": 2, "purchases_with_total": 2, "without_movement_link": 0, "without_cost_snapshot": 0, **overrides}
+
+
+def test_the_purchase_rows_and_the_backfill_are_compared():
+    base = {
+        "migrations": ["001"], "counts": {"a": 1}, "profit_and_loss": {}, "settlements": {}, "materials": {}, "products": {},
+        "orders": {}, "purchases": {"MATERIAL:1": {"id": 1, "total_paid": 500, "notes": None}}, "payables": None,
+    }
+    after = {**base, "migrations": ["001", "015"],
+             "purchases": {"MATERIAL:1": {"id": 1, "total_paid": 500, "notes": None, "status": "ACTIVE"}}, "payables": _payables()}
+    failures, info = invariants.compare(base, after, ["015"])
+    assert failures == [] and "supplier payments backfilled: 2 (purchases with a total: 2)" in info
+    changed = {**after, "purchases": {"MATERIAL:1": {"id": 1, "total_paid": 400, "notes": None}}}
+    assert invariants.compare(base, changed, ["015"])[0] == ["purchases.MATERIAL:1.total_paid: 500 -> 400"]
+    assert invariants.compare(base, {**after, "purchases": {}}, ["015"])[0] == ["purchases id MATERIAL:1 disappeared"]
+    owed = invariants.compare(base, {**after, "payables": _payables(outstanding=7)}, ["015"])[0]
+    assert owed == ["payables: 7 owed to suppliers right after the backfill (must be 0)"]
+    missing = invariants.compare(base, {**after, "payables": _payables(payments=1)}, ["015"])[0]
+    assert missing == ["payables: 1 payments backfilled for 2 purchases with a total"]
+    # a later migration: the payables figures must not move at all
+    later = invariants.compare({**after, "payables": _payables()}, {**after, "payables": _payables(outstanding=3)}, [])[0]
+    assert later == ["payables.outstanding: 0 -> 3"]
+
+
 def test_main_rehearse_goes_through_the_command_line(lab):
     assert main(["--rehearse", str(lab.source)], lab.ctx) == 0
 

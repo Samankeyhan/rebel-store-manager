@@ -21,7 +21,7 @@ def test_a_shop_with_a_void_and_a_correction_passes_every_check(shop, test_db):
     _voided_shop(shop, test_db)
     results = run(test_db)
     assert {key: r.status for key, r in results.items() if key != "d3"} == {
-        key: "PASS" for key in ("a", "b", "c", "d1", "d2", "d4", "e", "f", "g", "h", "i")}
+        key: "PASS" for key in ("a", "b", "c", "d1", "d2", "d4", "e", "f", "g", "h", "i", "j")}
     assert results["i"].summary == "2 voided orders, 1 corrections checked"
 
 
