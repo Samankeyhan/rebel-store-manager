@@ -84,16 +84,36 @@ def _check_upgraded(db_path: str, before: dict) -> None:
     assert integrity_main(["--db", db_path]) == 0
 
 
+def _migrations_upto(folder: Path, last: str) -> Path:
+    """A folder with the migration files up to and including `last` (a 3-digit prefix)."""
+    folder.mkdir()
+    for path in MIGRATIONS_DIR.glob("*.sql"):
+        if path.name[:3] <= last:
+            shutil.copy(path, folder / path.name)
+    return folder
+
+
+@pytest.fixture
+def to_015(tmp_path) -> Path:
+    """Migration 016 rebuilt these tables again: these tests stop at 015, the schema they describe."""
+    return _migrations_upto(tmp_path / "migrations_to_015", "015")
+
+
 @pytest.fixture
 def db_at_014(tmp_path):
-    old_dir = tmp_path / "migrations_to_014"
-    old_dir.mkdir()
-    for path in MIGRATIONS_DIR.glob("*.sql"):
-        if path.name < "015":
-            shutil.copy(path, old_dir / path.name)
     db_path = str(tmp_path / "old.db")
-    init_db(db_path, migrations_dir=old_dir)
+    init_db(db_path, migrations_dir=_migrations_upto(tmp_path / "migrations_to_014", "014"))
     return db_path
+
+
+@pytest.fixture
+def db_015(tmp_path, to_015):
+    """A connection to a fresh database built from 001-015."""
+    db_path = str(tmp_path / "at015.db")
+    init_db(db_path, migrations_dir=to_015)
+    conn = get_connection(db_path)
+    yield conn
+    conn.close()
 
 
 def _purchase(conn, kind, item_id, qty, total, unit_cost, new_cost, supplier=None, number=None, operation=True):
@@ -159,7 +179,7 @@ def _add_fictional_purchases(db_path: str) -> dict:
         conn.close()
 
 
-def test_upgrade_from_014_keeps_every_purchase_row_id_and_mark_and_backfills_payments(db_at_014):
+def test_upgrade_from_014_keeps_every_purchase_row_id_and_mark_and_backfills_payments(db_at_014, to_015):
     ids = _add_fictional_purchases(db_at_014)
     conn = get_connection(db_at_014)
     before = _snapshot(conn)
@@ -167,7 +187,7 @@ def test_upgrade_from_014_keeps_every_purchase_row_id_and_mark_and_backfills_pay
     assert before["product_purchases.seq"] == 2 and [p["id"] for p in before["product_purchases"]] == [1]
     assert integrity_main(["--db", db_at_014]) == 0  # the rehearsal checks the database BEFORE 015 with this code
 
-    init_db(db_at_014)
+    init_db(db_at_014, migrations_dir=to_015)
 
     _check_upgraded(db_at_014, before)
     conn = get_connection(db_at_014)
@@ -182,9 +202,9 @@ def test_upgrade_from_014_keeps_every_purchase_row_id_and_mark_and_backfills_pay
         conn.close()
 
 
-def test_the_cost_snapshot_and_movement_link_come_from_the_history(db_at_014):
+def test_the_cost_snapshot_and_movement_link_come_from_the_history(db_at_014, to_015):
     ids = _add_fictional_purchases(db_at_014)
-    init_db(db_at_014)
+    init_db(db_at_014, migrations_dir=to_015)
     conn = get_connection(db_at_014)
     try:
         rows = {r["id"]: dict(r) for r in conn.execute("SELECT * FROM material_purchases")}
@@ -202,7 +222,7 @@ def test_the_cost_snapshot_and_movement_link_come_from_the_history(db_at_014):
         conn.close()
 
 
-def test_a_purchase_whose_movement_note_is_ambiguous_or_missing_gets_no_link(db_at_014):
+def test_a_purchase_whose_movement_note_is_ambiguous_or_missing_gets_no_link(db_at_014, to_015):
     _add_fictional_purchases(db_at_014)
     conn = get_connection(db_at_014)
     conn.execute(
@@ -212,7 +232,7 @@ def test_a_purchase_whose_movement_note_is_ambiguous_or_missing_gets_no_link(db_
     conn.execute("UPDATE stock_movements SET notes = 'hand written' WHERE notes LIKE 'Material purchase #2 (%'")
     conn.execute("UPDATE materials SET current_stock = current_stock + 10 WHERE id = 1")
     conn.close()
-    init_db(db_at_014)
+    init_db(db_at_014, migrations_dir=to_015)
     conn = get_connection(db_at_014)
     try:
         links = dict(conn.execute("SELECT id, stock_movement_id FROM material_purchases").fetchall())
@@ -221,8 +241,8 @@ def test_a_purchase_whose_movement_note_is_ambiguous_or_missing_gets_no_link(db_
         conn.close()
 
 
-def test_upgrade_of_an_empty_database_leaves_no_sequence_row_and_no_payment(db_at_014):
-    init_db(db_at_014)
+def test_upgrade_of_an_empty_database_leaves_no_sequence_row_and_no_payment(db_at_014, to_015):
+    init_db(db_at_014, migrations_dir=to_015)
     conn = get_connection(db_at_014)
     try:
         names = [r[0] for r in conn.execute("SELECT name FROM sqlite_sequence")]
@@ -233,9 +253,9 @@ def test_upgrade_of_an_empty_database_leaves_no_sequence_row_and_no_payment(db_a
         conn.close()
 
 
-def test_new_columns_come_last_and_old_ones_keep_their_order(test_db):
+def test_new_columns_come_last_and_old_ones_keep_their_order(db_015):
     for table, item in KINDS:
-        columns = tuple(r["name"] for r in test_db.execute(f"PRAGMA table_info({table})"))
+        columns = tuple(r["name"] for r in db_015.execute(f"PRAGMA table_info({table})"))
         assert columns == _old_columns(item) + NEW_COLUMNS
 
 
@@ -246,11 +266,11 @@ def _insert_purchase(conn, **cols):
     )
 
 
-def test_cancelled_needs_a_moment_a_reason_and_a_movement_and_the_snapshot_is_consistent(test_db):
-    test_db.execute("INSERT INTO materials (name, type, unit, current_stock, unit_cost) VALUES ('M', 'STOCK', 'piece', 0, 0)")
-    test_db.execute("INSERT INTO stock_movements (item_type, item_id, quantity_change, reason) VALUES ('MATERIAL', 1, -1, 'PURCHASE')")
+def test_cancelled_needs_a_moment_a_reason_and_a_movement_and_the_snapshot_is_consistent(db_015):
+    db_015.execute("INSERT INTO materials (name, type, unit, current_stock, unit_cost) VALUES ('M', 'STOCK', 'piece', 0, 0)")
+    db_015.execute("INSERT INTO stock_movements (item_type, item_id, quantity_change, reason) VALUES ('MATERIAL', 1, -1, 'PURCHASE')")
     ok = {"status": "CANCELLED", "cancelled_at": "2026-10-24 10:00:00", "cancel_reason": "wrong amount", "cancel_movement_id": 1}
-    _insert_purchase(test_db, **ok)
+    _insert_purchase(db_015, **ok)
     for bad in (
         {**ok, "cancelled_at": None},
         {**ok, "cancel_reason": "  "},
@@ -262,16 +282,16 @@ def test_cancelled_needs_a_moment_a_reason_and_a_movement_and_the_snapshot_is_co
         {"id": 9, "replaces_purchase_id": 9},
     ):
         with pytest.raises(sqlite3.IntegrityError):
-            _insert_purchase(test_db, **bad)
-    _insert_purchase(test_db, replaces_purchase_id=1)
+            _insert_purchase(db_015, **bad)
+    _insert_purchase(db_015, replaces_purchase_id=1)
     with pytest.raises(sqlite3.IntegrityError):
-        _insert_purchase(test_db, replaces_purchase_id=1)  # a purchase is replaced at most once
+        _insert_purchase(db_015, replaces_purchase_id=1)  # a purchase is replaced at most once
 
 
-def test_payment_and_allocation_constraints(test_db):
-    test_db.execute("INSERT INTO materials (name, type, unit, current_stock, unit_cost) VALUES ('M', 'STOCK', 'piece', 0, 0)")
-    _insert_purchase(test_db, total_paid=100)
-    test_db.execute("INSERT INTO supplier_payments (payment_date, amount, method) VALUES ('2026-10-24 08:00:00', 100, 'CASH')")
+def test_payment_and_allocation_constraints(db_015):
+    db_015.execute("INSERT INTO materials (name, type, unit, current_stock, unit_cost) VALUES ('M', 'STOCK', 'piece', 0, 0)")
+    _insert_purchase(db_015, total_paid=100)
+    db_015.execute("INSERT INTO supplier_payments (payment_date, amount, method) VALUES ('2026-10-24 08:00:00', 100, 'CASH')")
     for sql in (
         "INSERT INTO supplier_payments (payment_date, amount, method) VALUES ('2026-10-24 08:00:00', 0, 'CASH')",
         "INSERT INTO supplier_payments (payment_date, amount, method) VALUES ('2026-10-24 08:00:00', 5, 'BITCOIN')",
@@ -281,27 +301,27 @@ def test_payment_and_allocation_constraints(test_db):
         "INSERT INTO supplier_payment_allocations (payment_id, material_purchase_id, amount) VALUES (1, 99, 5)",
     ):
         with pytest.raises(sqlite3.IntegrityError):
-            test_db.execute(sql)
-    test_db.execute("INSERT INTO supplier_payment_allocations (payment_id, material_purchase_id, amount) VALUES (1, 1, 100)")
+            db_015.execute(sql)
+    db_015.execute("INSERT INTO supplier_payment_allocations (payment_id, material_purchase_id, amount) VALUES (1, 1, 100)")
     with pytest.raises(sqlite3.IntegrityError):
-        test_db.execute("INSERT INTO supplier_payment_allocations (payment_id, material_purchase_id, amount) VALUES (1, 1, 1)")
-    test_db.execute("DELETE FROM supplier_payments WHERE id = 1")
-    assert test_db.execute("SELECT COUNT(*) FROM supplier_payment_allocations").fetchone()[0] == 0  # cascade
+        db_015.execute("INSERT INTO supplier_payment_allocations (payment_id, material_purchase_id, amount) VALUES (1, 1, 1)")
+    db_015.execute("DELETE FROM supplier_payments WHERE id = 1")
+    assert db_015.execute("SELECT COUNT(*) FROM supplier_payment_allocations").fetchone()[0] == 0  # cascade
 
 
-def test_audit_triggers_log_payments_and_the_new_purchase_columns(test_db):
-    test_db.execute("INSERT INTO supplier_payments (payment_date, amount, method, note) VALUES ('2026-10-24 08:00:00', 70, 'CARD', 'n')")
-    test_db.execute("UPDATE supplier_payments SET note = 'm' WHERE id = 1")
-    rows = test_db.execute(
+def test_audit_triggers_log_payments_and_the_new_purchase_columns(db_015):
+    db_015.execute("INSERT INTO supplier_payments (payment_date, amount, method, note) VALUES ('2026-10-24 08:00:00', 70, 'CARD', 'n')")
+    db_015.execute("UPDATE supplier_payments SET note = 'm' WHERE id = 1")
+    rows = db_015.execute(
         "SELECT action, before_json, after_json FROM audit_log WHERE entity_type = 'supplier_payments' ORDER BY id"
     ).fetchall()
     assert [r["action"] for r in rows] == ["INSERT", "UPDATE"]
     assert json.loads(rows[0]["after_json"])["amount"] == 70
     assert json.loads(rows[1]["before_json"]) == {"note": "n"}  # updated_at is never logged
-    assert test_db.execute("SELECT updated_at FROM supplier_payments").fetchone()[0] is not None
-    test_db.execute("INSERT INTO materials (name, type, unit, current_stock, unit_cost) VALUES ('M', 'STOCK', 'piece', 0, 0)")
-    _insert_purchase(test_db, item_cost_before=0, item_cost_after=10)
-    after = test_db.execute(
+    assert db_015.execute("SELECT updated_at FROM supplier_payments").fetchone()[0] is not None
+    db_015.execute("INSERT INTO materials (name, type, unit, current_stock, unit_cost) VALUES ('M', 'STOCK', 'piece', 0, 0)")
+    _insert_purchase(db_015, item_cost_before=0, item_cost_after=10)
+    after = db_015.execute(
         "SELECT after_json FROM audit_log WHERE entity_type = 'material_purchases' AND action = 'INSERT'"
     ).fetchone()[0]
     assert '"status":"ACTIVE"' in after and '"item_cost_after":10' in after
@@ -336,7 +356,7 @@ def test_upgrade_of_a_copy_of_the_laptop_database():
         path, before, applied = _laptop_copy(folder)
         if MIGRATION in applied:
             pytest.skip("this laptop's data/shop.db is already at migration 015 or later: no upgrade to test")
-        init_db(path)
+        init_db(path, migrations_dir=_migrations_upto(folder / "migrations_to_015", "015"))
         _check_upgraded(path, before)
     finally:
         shutil.rmtree(folder)

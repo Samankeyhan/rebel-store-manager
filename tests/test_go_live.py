@@ -21,6 +21,7 @@ from db.purchases import record_material_purchase
 from tests.go_live_fixture import build_shop, db_file, dump
 from tools.go_live_reset.__main__ import integrity_verifier
 from tools.integrity_check.checks import run_checks
+from tools.integrity_check.readonly import schema_version
 
 
 @pytest.fixture
@@ -182,7 +183,9 @@ def test_counters_restart_and_the_next_documents_start_at_one(shop):
     purchase = record_material_purchase(conn, ids["paper"], 1, 1000)
     assert order == 1 and purchase == 1
     assert conn.execute("SELECT invoice_number FROM orders WHERE id = 1").fetchone()[0] == "INV-000001"
-    assert conn.execute("SELECT invoice_number FROM material_purchases WHERE id = 1").fetchone()[0] == "PUR-000001"
+    assert conn.execute(
+        "SELECT i.invoice_number FROM material_purchases l JOIN purchase_invoices i ON i.id = l.purchase_invoice_id WHERE l.id = 1"
+    ).fetchone()[0] == "PUR-000001"
 
 
 def test_cleared_tables_restart_their_ids_and_kept_tables_do_not(shop):
@@ -307,7 +310,7 @@ def test_an_existing_archive_file_is_never_overwritten_or_deleted(shop):
 def test_the_result_passes_every_integrity_check(shop):
     conn, _ = shop
     apply_go_live(conn, archive(conn), verify=integrity_verifier)
-    results = run_checks(conn, 15)
+    results = run_checks(conn, schema_version(conn)[0])
     assert [(r.key, r.status) for r in results if r.status not in ("PASS", "SKIPPED")] == []
     assert [r.key for r in results if r.status == "SKIPPED"] == ["d3"]
     assert all(not r.infos for r in results)

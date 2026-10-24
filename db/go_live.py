@@ -25,11 +25,11 @@ METHOD_RESET, METHOD_MARK_LIVE = "reset", "mark_live"
 
 KEEP, CLEAR, VALUE, BOOKKEEPING = "KEEP", "CLEAR", "VALUE", "BOOKKEEPING"
 
-# Rows are deleted in this order (children, then parents): supplier payment allocations point at payments and purchases,
-# purchases point at their stock movements, stock_movements points at orders and batches.
+# Rows are deleted in this order (children, then parents): supplier payment allocations point at payments and purchase
+# invoices, purchase lines point at their invoice and their stock movements, stock_movements points at orders and batches.
 CLEAR_ORDER = (
     "supplier_payment_allocations", "supplier_payments",
-    "material_purchases", "product_purchases",
+    "material_purchases", "product_purchases", "purchase_invoices",
     "stock_movements", "order_items", "orders", "settlements",
     "production_batch_materials", "production_batches",
     "expenses", "postage_batches",

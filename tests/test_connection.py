@@ -321,8 +321,11 @@ def test_upgrade_from_only_001_applies_002_and_003_in_one_run(tmp_path):
         # The full set includes 009, which stores money in Rial: x 10.
         assert order_item["unit_cost_at_time"] == 5000
 
+        # 016 moved the day to the purchase's invoice; the line keeps its id and total
         purchase = conn.execute(
-            "SELECT * FROM material_purchases WHERE id = ?", (purchase_id,)
+            "SELECT l.total_paid, i.purchase_date FROM material_purchases l "
+            "JOIN purchase_invoices i ON i.id = l.purchase_invoice_id WHERE l.id = ?",
+            (purchase_id,),
         ).fetchone()
         assert purchase["purchase_date"] == "2026-03-04 20:30:00"
         assert purchase["total_paid"] == 20000  # x 10 by 009 (Rial)
