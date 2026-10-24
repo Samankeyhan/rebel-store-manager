@@ -177,6 +177,10 @@ def init_db(
 
         collisions = backfill_name_keys(conn)
 
+        from db.go_live import heal_marker
+
+        heal_marker(conn)
+
         violations = conn.execute("PRAGMA foreign_key_check").fetchall()
         if violations:
             raise RuntimeError(

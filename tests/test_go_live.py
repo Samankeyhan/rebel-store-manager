@@ -87,6 +87,8 @@ def test_apply_clears_exactly_the_clear_tables_and_nothing_else_loses_rows(shop)
             assert after[table] == 1
         elif table == "payment_methods":
             assert after[table] == before[table] - 1
+        elif table == "settings":
+            assert after[table] == before[table] + 1  # the go-live marker row
         else:
             assert after[table] == before[table], table
     assert result["before"] == before and result["after"] == after
@@ -95,11 +97,14 @@ def test_apply_clears_exactly_the_clear_tables_and_nothing_else_loses_rows(shop)
 def test_keep_tables_are_unchanged_row_for_row(shop):
     conn, _ = shop
     # channel_settings: only a default payment method pointing at the merged duplicate moves (own test below)
-    tables = [t for t in keep_tables() if t != "channel_settings"] + ["schema_migrations", "audit_control"]
+    tables = [t for t in keep_tables() if t not in ("channel_settings", "settings")] + ["schema_migrations", "audit_control"]
+    settings = "SELECT key, value FROM settings WHERE key != 'go_live_marker' ORDER BY key"
+    settings_before = [tuple(r) for r in conn.execute(settings)]
     channels = "SELECT channel, applies_shipping_charge, applies_postage, default_packaging_kit_id FROM channel_settings ORDER BY channel"
     before, channels_before = dump(conn, tables), [tuple(r) for r in conn.execute(channels)]
     apply_go_live(conn, archive(conn))
     assert dump(conn, tables) == before
+    assert [tuple(r) for r in conn.execute(settings)] == settings_before  # the marker row is the only addition
     assert [tuple(r) for r in conn.execute(channels)] == channels_before
 
 
@@ -248,7 +253,7 @@ def test_the_marker_is_set_by_the_reset(shop):
     assert live_markers(conn) == []
     result = apply_go_live(conn, archive(conn))
     assert conn.execute("PRAGMA user_version").fetchone()[0] == GO_LIVE_USER_VERSION
-    assert result["markers"] == ["user_version", "audit_archive_tag"]
+    assert result["markers"] == ["user_version", "audit_archive_tag", "settings_flag"]
 
 
 # ------------------------------------------------------------------ all or nothing
@@ -337,7 +342,7 @@ def test_a_live_database_with_data_is_refused_even_after_a_later_plain_audit_res
     record_order(conn, "IN_PERSON", [{"product_id": ids["shirt"], "quantity": 1, "unit_price": 1000000}])
     reset_audit_log(conn, archive_path=_ARCHIVES["dir"] / "audit-archive-later.jsonl")
     assert [r["before_json"] for r in conn.execute("SELECT before_json FROM audit_log")][0].find(ARCHIVE_PREFIX) < 0
-    assert live_markers(conn) == ["user_version"]  # the audit tag is gone, the header marker survives
+    assert live_markers(conn) == ["user_version", "settings_flag"]  # the audit tag is gone, the other two survive
     before = snapshot(conn)
     assert assess(conn)["state"] == "live"
     with pytest.raises(ConflictError, match="already went live"):
@@ -349,6 +354,7 @@ def test_the_audit_tag_alone_also_marks_a_database_as_live(shop):
     conn, ids = shop
     apply_go_live(conn, archive(conn))
     conn.execute("PRAGMA user_version = 0")
+    conn.execute("DELETE FROM settings WHERE key = 'go_live_marker'")
     conn.execute("UPDATE products SET current_stock = 5 WHERE id = ?", (ids["shirt"],))
     assert live_markers(conn) == ["audit_archive_tag"]
     assert assess(conn)["state"] == "live"
@@ -392,3 +398,160 @@ def test_assess_of_a_fresh_shop_is_ready_and_lists_nothing_to_hide(shop):
     conn, _ = shop
     state = assess(conn)
     assert state["state"] == "ready" and state["markers"] == [] and state["problems"]
+
+
+# ------------------------------------------------------- the settings flag, heal_marker, mark_live
+
+
+def all_rows(conn):
+    return dump(conn, go_live.user_tables(conn))
+
+
+def flag(conn):
+    row = conn.execute("SELECT value FROM settings WHERE key = 'go_live_marker'").fetchone()
+    return None if row is None else json.loads(row[0])
+
+
+def test_the_reset_writes_the_settings_flag_with_method_reset(shop):
+    conn, _ = shop
+    assert flag(conn) is None
+    apply_go_live(conn, archive(conn))
+    value = flag(conn)
+    assert value["method"] == "reset" and value["at"]
+    assert go_live.marker_method(conn) == "reset"
+    assert go_live.TABLE_CLASS["settings"] == go_live.KEEP
+
+
+def test_a_database_with_only_the_settings_flag_is_live_and_the_reset_refuses(shop):
+    conn, ids = shop
+    apply_go_live(conn, archive(conn))
+    conn.execute("PRAGMA user_version = 0")
+    conn.execute("UPDATE products SET current_stock = 5, unit_cost = 1 WHERE id = ?", (ids["shirt"],))
+    record_order(conn, "IN_PERSON", [{"product_id": ids["shirt"], "quantity": 1, "unit_price": 1000000}])
+    reset_audit_log(conn, archive_path=_ARCHIVES["dir"] / "audit-archive-later.jsonl")  # the audit tag goes too
+    assert live_markers(conn) == ["settings_flag"]
+    before = snapshot(conn)
+    assert assess(conn)["state"] == "live"
+    with pytest.raises(ConflictError, match="already went live"):
+        apply_go_live(conn, archive(conn, "again"))
+    assert snapshot(conn) == before
+
+
+@pytest.mark.parametrize("keep_flag", [True, False])
+def test_init_db_puts_the_header_back_when_the_audit_tag_or_the_flag_survives(shop, keep_flag):
+    conn, _ = shop
+    apply_go_live(conn, archive(conn))
+    conn.execute("PRAGMA user_version = 0")
+    if not keep_flag:
+        conn.execute("DELETE FROM settings WHERE key = 'go_live_marker'")  # the audit tag is still there
+    before = all_rows(conn)
+    init_db(db_file(conn))
+    fresh = get_connection(db_file(conn))
+    try:
+        assert fresh.execute("PRAGMA user_version").fetchone()[0] == GO_LIVE_USER_VERSION
+        assert dump(fresh, go_live.user_tables(fresh)) == before  # not one row, audit entry or updated_at moved
+    finally:
+        fresh.close()
+
+
+def test_heal_marker_never_sets_the_header_from_nothing(shop):
+    conn, _ = shop
+    before = all_rows(conn)
+    assert go_live.heal_marker(conn) is False
+    init_db(db_file(conn))
+    assert all_rows(conn) == before
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 0
+
+
+def test_heal_marker_leaves_a_foreign_header_value_alone(shop):
+    conn, _ = shop
+    apply_go_live(conn, archive(conn))
+    conn.execute("PRAGMA user_version = 7")
+    assert go_live.heal_marker(conn) is False
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
+
+
+def test_heal_marker_is_idempotent_and_writes_nothing_else(shop):
+    conn, _ = shop
+    apply_go_live(conn, archive(conn))
+    conn.execute("PRAGMA user_version = 0")
+    before = all_rows(conn)
+    assert go_live.heal_marker(conn) is True
+    assert go_live.heal_marker(conn) is False
+    assert all_rows(conn) == before
+
+
+def test_heal_marker_copes_with_a_database_without_the_tables(tmp_path):
+    bare = sqlite3.connect(tmp_path / "bare.db")
+    try:
+        assert go_live.heal_marker(bare) is False
+    finally:
+        bare.close()
+
+
+def test_mark_live_marks_a_database_with_orders_and_changes_nothing_else(shop):
+    conn, _ = shop
+    facts = go_live.database_facts(conn)
+    assert facts["orders"] > 0 and facts["user_version"] == 0 and facts["markers"] == []
+    assert facts["first_order_day"] and facts["last_order_day"]
+    others = [t for t in go_live.user_tables(conn) if t not in ("settings", "audit_log")]
+    before = dump(conn, others)
+    audit_before = conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    settings_before = [tuple(r) for r in conn.execute("SELECT key, value FROM settings ORDER BY key")]
+    result = go_live.mark_live(conn)
+    assert result["markers"] == ["user_version", "settings_flag"]
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == GO_LIVE_USER_VERSION
+    assert flag(conn)["method"] == "mark_live" and go_live.marker_method(conn) == "mark_live"
+    added = conn.execute("SELECT operation, entity_type FROM audit_log ORDER BY id DESC LIMIT 1").fetchone()
+    assert tuple(added) == ("mark_live", "settings")
+    assert conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == audit_before + 1
+    assert dump(conn, others) == before
+    settings_after = [tuple(r) for r in conn.execute("SELECT key, value FROM settings WHERE key != 'go_live_marker' ORDER BY key")]
+    assert settings_after == settings_before
+
+
+def test_mark_live_refuses_a_marked_database(shop):
+    conn, _ = shop
+    go_live.mark_live(conn)
+    before = snapshot(conn)
+    with pytest.raises(ConflictError, match="already marked"):
+        go_live.mark_live(conn)
+    assert snapshot(conn) == before
+
+
+def test_mark_live_refuses_a_database_without_orders_and_an_open_transaction(test_db):
+    with pytest.raises(ConflictError, match="no orders"):
+        go_live.mark_live(test_db)
+    assert live_markers(test_db) == []
+    test_db.execute("BEGIN")
+    with pytest.raises(ValidationError):
+        go_live.mark_live(test_db)
+    test_db.execute("ROLLBACK")
+
+
+def test_the_reset_refuses_a_database_that_was_marked_live(shop):
+    conn, _ = shop
+    go_live.mark_live(conn)
+    before = snapshot(conn)
+    assert assess(conn)["state"] == "live"
+    with pytest.raises(ConflictError, match="already went live"):
+        apply_go_live(conn, archive(conn))
+    assert snapshot(conn) == before
+
+
+def test_every_copy_path_keeps_the_header(shop, tmp_path):
+    import shutil
+
+    from tools.update_app.fsutil import sqlite_copy
+
+    conn, _ = shop
+    go_live.mark_live(conn)
+    source = Path(db_file(conn))
+    sqlite_copy(source, tmp_path / "sqlite_copy.db")
+    shutil.copyfile(source, tmp_path / "copyfile.db")
+    for name in ("sqlite_copy.db", "copyfile.db"):
+        copy = sqlite3.connect(tmp_path / name)
+        try:
+            assert copy.execute("PRAGMA user_version").fetchone()[0] == GO_LIVE_USER_VERSION, name
+        finally:
+            copy.close()
