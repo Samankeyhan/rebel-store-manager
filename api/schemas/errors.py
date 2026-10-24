@@ -183,6 +183,52 @@ class NameDuplicateDetails(_Details):
     existing_id: int | None
 
 
+class SupplierRequiredForCreditDetails(_Details):
+    """Carries nothing (field supplier_id): a purchase not paid in full needs a supplier. Its own model, so the generated
+    types name it."""
+
+
+class PurchaseRefDetails(_Details):
+    # MATERIAL | PRODUCT
+    purchase_kind: str
+    purchase_id: int
+
+
+class PurchaseDueDetails(_Details):
+    purchase_kind: str
+    purchase_id: int
+    outstanding: int
+
+
+class SupplierBalanceDetails(_Details):
+    # None: purchases that have no supplier
+    supplier_id: int | None
+    outstanding: int
+
+
+class PurchaseSupplierDetails(_Details):
+    purchase_kind: str
+    purchase_id: int
+    # the purchase's own supplier
+    supplier_id: int | None
+
+
+class AllocationMismatchDetails(_Details):
+    amount: int
+    allocated: int
+
+
+class PaymentBeforePurchaseDetails(_Details):
+    purchase_kind: str
+    purchase_id: int
+    # the purchase's local day
+    purchase_date: str
+
+
+class SupplierPaymentRefDetails(_Details):
+    payment_id: int
+
+
 C = ErrorCode
 
 # Every ErrorCode -> the model of its details.
@@ -231,6 +277,14 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.NAME_DUPLICATE: NameDuplicateDetails,
     C.CATEGORY_DUPLICATE_NAME: NameDuplicateDetails,
     C.PAYMENT_METHOD_DUPLICATE_NAME: NameDuplicateDetails,
+    C.SUPPLIER_REQUIRED_FOR_CREDIT: SupplierRequiredForCreditDetails,
+    C.SUPPLIER_PAYMENT_EXCEEDS_DUE: PurchaseDueDetails,
+    C.SUPPLIER_PAYMENT_EXCEEDS_BALANCE: SupplierBalanceDetails,
+    C.SUPPLIER_PAYMENT_SUPPLIER_MISMATCH: PurchaseSupplierDetails,
+    C.SUPPLIER_PAYMENT_ALLOCATION_MISMATCH: AllocationMismatchDetails,
+    C.SUPPLIER_PAYMENT_BEFORE_PURCHASE: PaymentBeforePurchaseDetails,
+    C.SUPPLIER_PAYMENT_NOT_FOUND: SupplierPaymentRefDetails,
+    C.PURCHASE_NOT_FOUND: PurchaseRefDetails,
 }
 
 

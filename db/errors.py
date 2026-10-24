@@ -64,6 +64,18 @@ class ErrorCode(StrEnum):
     STOCKTAKE_AFTER_SALE             order_id, item_type, item_id, item_name, stocktake_date (local day): a count
                                      recorded after the sale already took this item's stock as it was
     VOID_REASON_REQUIRED             - (field reason)
+    SUPPLIER_REQUIRED_FOR_CREDIT     - (field supplier_id): a purchase not paid in full needs a supplier
+    SUPPLIER_PAYMENT_EXCEEDS_DUE     purchase_kind (MATERIAL | PRODUCT), purchase_id, outstanding: an allocation is
+                                     larger than what the purchase still owes
+    SUPPLIER_PAYMENT_EXCEEDS_BALANCE supplier_id (None: purchases with no supplier), outstanding: a payment larger than
+                                     everything owed to that supplier (no advances)
+    SUPPLIER_PAYMENT_SUPPLIER_MISMATCH purchase_kind, purchase_id, supplier_id (the purchase's): it is not that
+                                     supplier's purchase
+    SUPPLIER_PAYMENT_ALLOCATION_MISMATCH amount, allocated: the allocations do not add up to the payment
+    SUPPLIER_PAYMENT_BEFORE_PURCHASE purchase_kind, purchase_id, purchase_date (local day): a payment day before the
+                                     day of a purchase it pays
+    SUPPLIER_PAYMENT_NOT_FOUND       payment_id
+    PURCHASE_NOT_FOUND               purchase_kind, purchase_id
 
     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
@@ -143,6 +155,16 @@ class ErrorCode(StrEnum):
     ORDER_NOT_COMMITTED = "ORDER_NOT_COMMITTED"
     STOCKTAKE_AFTER_SALE = "STOCKTAKE_AFTER_SALE"
     VOID_REASON_REQUIRED = "VOID_REASON_REQUIRED"
+
+    # Supplier payables
+    SUPPLIER_REQUIRED_FOR_CREDIT = "SUPPLIER_REQUIRED_FOR_CREDIT"
+    SUPPLIER_PAYMENT_EXCEEDS_DUE = "SUPPLIER_PAYMENT_EXCEEDS_DUE"
+    SUPPLIER_PAYMENT_EXCEEDS_BALANCE = "SUPPLIER_PAYMENT_EXCEEDS_BALANCE"
+    SUPPLIER_PAYMENT_SUPPLIER_MISMATCH = "SUPPLIER_PAYMENT_SUPPLIER_MISMATCH"
+    SUPPLIER_PAYMENT_ALLOCATION_MISMATCH = "SUPPLIER_PAYMENT_ALLOCATION_MISMATCH"
+    SUPPLIER_PAYMENT_BEFORE_PURCHASE = "SUPPLIER_PAYMENT_BEFORE_PURCHASE"
+    SUPPLIER_PAYMENT_NOT_FOUND = "SUPPLIER_PAYMENT_NOT_FOUND"
+    PURCHASE_NOT_FOUND = "PURCHASE_NOT_FOUND"
 
     # Backups
     BACKUP_FAILED = "BACKUP_FAILED"

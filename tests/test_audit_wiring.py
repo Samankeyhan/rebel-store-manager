@@ -35,7 +35,7 @@ def _public_writers():
             "adjustments", "categories", "connection", "distributions", "expenses", "materials",
             "order_voids", "orders", "packaging", "partners", "payment_methods", "postage", "production",
             "products", "purchases", "recipes", "returns", "settings", "settlements", "stocktake", "suppliers",
-            "audit",
+            "supplier_payments", "audit",
         )
     ):
         module = getattr(__import__(f"db.{module_name}", fromlist=["x"]), "__dict__")
