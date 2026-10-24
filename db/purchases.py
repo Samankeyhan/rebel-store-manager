@@ -2,7 +2,7 @@
 `total_paid` is the purchase's invoice total (it sets the weighted-average cost); what was actually paid for it is in
 db/supplier_payments.py: a new purchase is paid in FULL (the default), NONE (on credit) or PARTIAL, and NONE / PARTIAL
 need a supplier. Each purchase stores its own PURCHASE movement (`stock_movement_id`) and the item's unit cost just
-before and just after it (`item_cost_before` / `item_cost_after`), for a later cancel or correction (section 22).
+before and just after it (`item_cost_before` / `item_cost_after`), for a later cancel or correction (docs/plans/2026-10-payables-purchase-correction.md, slice B).
 Reads give `paid`, `outstanding` and `payment_status` (section 21)."""
 
 import sqlite3
