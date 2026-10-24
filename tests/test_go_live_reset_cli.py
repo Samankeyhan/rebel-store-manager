@@ -362,3 +362,120 @@ def test_the_lock_probe_sees_another_writer_and_releases_at_once(shop_file, monk
         blocker.execute("ROLLBACK")
         blocker.close()
     assert cli.lock_problem(shop_file) is None
+
+
+# ------------------------------------------------------------------ --mark-live
+
+
+def header(path) -> int:
+    conn = sqlite3.connect(path)
+    try:
+        return conn.execute("PRAGMA user_version").fetchone()[0]
+    finally:
+        conn.close()
+
+
+def test_mark_live_dry_run_is_the_default_prints_the_facts_and_changes_nothing(shop_file):
+    before = sha(shop_file)
+    code, text = run(shop_file, "--mark-live")
+    assert code == 0 and "dry-run" in text and "unchanged" in text
+    assert "Orders        : 3" in text and "first day" in text and "user_version  : 0" in text and "Markers found : none" in text
+    assert "--mark-live --apply" in text
+    assert sha(shop_file) == before and not (shop_file.parent / "backups").exists()
+
+
+def test_mark_live_apply_backs_up_asks_for_the_phrase_and_marks_without_touching_data(shop_file):
+    code, text = run(shop_file, "--mark-live", "--apply", answer="MARK LIVE shop.db")
+    assert code == 0 and "DONE" in text and "user_version, settings_flag" in text
+    assert header(shop_file) == 1 and orders(shop_file) == 3
+    backups = list((shop_file.parent / "backups" / "pre-go-live").glob("daily-*.db"))
+    assert len(backups) == 1 and header(backups[0]) == 0
+    conn = sqlite3.connect(shop_file)
+    try:
+        assert json.loads(conn.execute("SELECT value FROM settings WHERE key = 'go_live_marker'").fetchone()[0])["method"] == "mark_live"
+    finally:
+        conn.close()
+    code, text = run(shop_file, "--apply")  # the reset now refuses it
+    assert code == 1 and "already went live" in text and orders(shop_file) == 3
+
+
+@pytest.mark.parametrize("answer", ["﻿MARK LIVE shop.db\r", "MARK LIVE shop.db\r\n"])
+def test_mark_live_accepts_a_confirmation_piped_from_powershell(shop_file, answer):
+    code, _ = run(shop_file, "--mark-live", "--apply", answer=answer)
+    assert code == 0 and header(shop_file) == 1
+
+
+@pytest.mark.parametrize("answer", ["yes", "RESET shop.db", "MARK LIVE other.db", None])
+def test_mark_live_with_the_wrong_confirmation_changes_nothing(shop_file, answer):
+    before = sha(shop_file)
+    code, text = run(shop_file, "--mark-live", "--apply", answer=answer)
+    assert code == 1 and "Cancelled" in text and sha(shop_file) == before
+    assert not (shop_file.parent / "backups").exists()
+
+
+def test_mark_live_is_refused_while_the_app_runs_or_the_database_is_locked(shop_file, monkeypatch):
+    before = sha(shop_file)
+    code, text = run(shop_file, "--mark-live", "--apply", server=lambda p: "the app is running (pid 1, port 8000)")
+    assert code == 1 and "REFUSED" in text and "stop-rebel.cmd" in text and sha(shop_file) == before
+    monkeypatch.setattr(cli, "lock_problem", lambda p: "the database is locked (test)")
+    code, text = run(shop_file, "--mark-live", "--apply")
+    assert code == 1 and "locked" in text and sha(shop_file) == before
+
+
+def test_mark_live_failed_backup_aborts_with_nothing_changed(shop_file):
+    def failing(path, backups_dir=None):
+        raise BackupError("disk full", "disk_full")
+
+    before = sha(shop_file)
+    code, text = run(shop_file, "--mark-live", "--apply", answer="MARK LIVE shop.db", backup=failing)
+    assert code == 1 and "ABORTED: the backup failed" in text and sha(shop_file) == before
+
+
+def test_mark_live_refuses_a_database_without_orders(tmp_path):
+    path = tmp_path / "empty" / "shop.db"
+    path.parent.mkdir()
+    init_db(str(path))
+    before = sha(path)
+    for args in (("--mark-live",), ("--mark-live", "--apply")):
+        code, text = run(path, *args, answer="MARK LIVE shop.db")
+        assert code == 1 and "no orders" in text
+    assert sha(path) == before
+
+
+def test_mark_live_refuses_a_database_that_is_already_marked(shop_file):
+    run(shop_file, "--mark-live", "--apply", answer="MARK LIVE shop.db")
+    before = sha(shop_file)
+    for args in (("--mark-live",), ("--mark-live", "--apply")):
+        code, text = run(shop_file, *args, answer="MARK LIVE shop.db")
+        assert code == 1 and "already marked live" in text
+    assert sha(shop_file) == before
+
+
+def test_mark_live_says_the_header_comes_back_by_itself_when_only_the_flag_is_left(shop_file):
+    run(shop_file, "--mark-live", "--apply", answer="MARK LIVE shop.db")
+    conn = sqlite3.connect(shop_file)
+    conn.execute("PRAGMA user_version = 0")
+    conn.close()
+    code, text = run(shop_file, "--mark-live")
+    assert code == 1 and "settings_flag" in text and "next time the app starts" in text
+    init_db(str(shop_file))
+    assert header(shop_file) == 1
+
+
+def test_an_older_schema_cannot_mark_live(shop_file, monkeypatch):
+    monkeypatch.setattr(cli, "head_schema", lambda: 999)
+    code, text = run(shop_file, "--mark-live")
+    assert code == 2 and "CANNOT RUN" in text
+
+
+def test_the_reset_lists_the_markers_and_refuses_on_a_database_with_only_the_settings_flag(shop_file):
+    run(shop_file, "--apply")
+    conn = get_connection(str(shop_file))
+    conn.execute("PRAGMA user_version = 0")
+    conn.execute("UPDATE products SET current_stock = 3, unit_cost = 5 WHERE id = 1")
+    conn.close()
+    before = sha(shop_file)
+    for args in ((), ("--apply",)):
+        code, text = run(shop_file, *args)
+        assert code == 1 and "already went live" in text and "settings_flag" in text
+    assert sha(shop_file) == before

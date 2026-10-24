@@ -1,5 +1,6 @@
 """CLI of the go-live reset: guards, backup, typed confirmation, then `db.go_live.apply_go_live`; prints what it does.
 Dry-run (the default) changes nothing: it rehearses the real reset on an in-memory copy and prints before / after per table.
+`--mark-live` is the other mode: it marks a database that went live WITHOUT the reset (it has orders) so the reset can never erase it; it changes no data.
 Exit codes: 0 done, dry-run fine, or already reset; 1 refused, aborted or rolled back (the database is as it was); 2 could not run."""
 
 import argparse
@@ -112,6 +113,10 @@ def integrity_verifier(conn: sqlite3.Connection) -> list[str]:
     return problems
 
 
+def confirmed(typed: str, phrase: str) -> bool:
+    return typed.replace("﻿", "").strip() == phrase  # a piped answer from Windows PowerShell can start with a BOM; strip() drops a CR
+
+
 # ---------------------------------------------------------------- reporting
 
 
@@ -157,6 +162,99 @@ def _reminders(out) -> None:
         out(line)
 
 
+# ----------------------------------------------------------------- mark live
+
+
+def _describe_facts(facts: dict, out) -> None:
+    out(f"Orders        : {facts['orders']}" + (f" (first day {facts['first_order_day']}, last day {facts['last_order_day']})" if facts["orders"] else ""))
+    out(f"user_version  : {facts['user_version']}")
+    out(f"Markers found : {', '.join(facts['markers']) or 'none'}")
+
+
+def mark_live_main(path: Path, apply: bool, *, input_fn, out, server_check, backup) -> int:
+    """`--mark-live`: dry-run (default) shows the database facts and what would be written; `--apply` backs up, asks for
+    "MARK LIVE <file>" and calls `go_live.mark_live`. Exit 0 done / dry-run fine, 1 refused or cancelled, 2 could not run."""
+    try:
+        conn = open_readonly(path)
+        try:
+            number, name = schema_version(conn)
+            if number != head_schema():
+                raise CannotRun(f"the database is at schema {number:03d}; start the app once so it is migrated to {head_schema():03d}")
+            facts_before = fingerprint(path)
+            facts = go_live.database_facts(conn)
+        finally:
+            conn.close()
+    except (CannotRun, sqlite3.Error) as exc:
+        if "locked" in str(exc).lower() or "busy" in str(exc).lower():
+            out(f"REFUSED: the database is locked ({exc}). Close every program using it (stop-rebel.cmd), then try again. Nothing was changed.")
+            return 1
+        out(f"CANNOT RUN: {exc}")
+        return 2
+
+    out("Rebel Store Manager - mark a database live " + ("(APPLY)" if apply else "(dry-run, changes nothing)"))
+    out(f"Database      : {path}")
+    out(f"Schema        : {name}")
+    out(f"Size          : {facts_before['size']} bytes, modified {facts_before['mtime']}, sha256 {facts_before['sha256']}")
+    _describe_facts(facts, out)
+    out("-" * 60)
+    if facts["markers"]:
+        out(f"REFUSED: this database is already marked live ({', '.join(facts['markers'])}). Nothing to do.")
+        if "user_version" not in facts["markers"]:
+            out("  The header marker is set again by itself the next time the app starts.")
+        return 1
+    if not facts["orders"]:
+        out("REFUSED: this database has no orders, so there is nothing to protect yet. For a test database use the go-live reset instead.")
+        return 1
+    out("It would set user_version to 1 and add one settings row 'go_live_marker' (method mark_live), with one audit entry. No other data is touched.")
+    if not apply:
+        facts_after = fingerprint(path)
+        same = facts_after == facts_before
+        out(f"The database file is {'unchanged' if same else 'CHANGED (unexpected!)'}: {facts_after['size']} bytes, sha256 {facts_after['sha256']}.")
+        out("Dry-run only. To do it for real: stop the app, then run again with --mark-live --apply.")
+        return 0 if same else 1
+
+    reason = server_check(path)
+    if reason is None:
+        reason = lock_problem(path)
+    if reason is not None:
+        out(f"REFUSED: {reason}. Run stop-rebel.cmd (and close every program using the database), then try again. Nothing was changed.")
+        return 1
+
+    phrase = f"MARK LIVE {path.name}"
+    folder = absolute_db_path(path).parent
+    out("")
+    out(f"A verified backup is made first, in {folder / 'backups' / 'pre-go-live'}")
+    out(f"Type exactly   {phrase}   and press Enter to continue; anything else cancels.")
+    try:
+        typed = input_fn("> ")
+    except EOFError:
+        typed = ""
+    if not confirmed(typed, phrase):
+        out("Cancelled: the confirmation did not match. Nothing was changed.")
+        return 1
+    try:
+        made = backup(path, backups_dir=folder / "backups" / "pre-go-live")
+    except BackupError as exc:
+        out(f"ABORTED: the backup failed ({exc}). Nothing was changed.")
+        return 1
+    out(f"Backup        : {made['path']} ({made['size']} bytes, checked)")
+
+    conn = get_connection(str(absolute_db_path(path)))
+    try:
+        result = go_live.mark_live(conn)
+    except Exception as exc:
+        out(f"REFUSED: {exc}")
+        out(f"The database is as it was. The backup stays at {made['path']}.")
+        return 1
+    finally:
+        conn.close()
+    out("DONE. The database is marked live; the go-live reset will refuse it from now on.")
+    out(f"Markers       : {', '.join(result['markers'])}")
+    facts_after = fingerprint(path)
+    out(f"Database now  : {facts_after['size']} bytes, modified {facts_after['mtime']}, sha256 {facts_after['sha256']}")
+    return 0
+
+
 # --------------------------------------------------------------------- main
 
 
@@ -171,6 +269,8 @@ def main(argv=None, *, input_fn=input, out=print, server_check=server_running, b
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="change nothing, show before / after (the default)")
     mode.add_argument("--apply", action="store_true", help="do the reset (asks for a typed confirmation)")
+    parser.add_argument("--mark-live", action="store_true",
+                        help="mark a database that went live without the reset (dry-run by default; with --apply it asks to type MARK LIVE <file>)")
     parser.add_argument("--product-unit-cost", choices=go_live.PRODUCT_COST_CHOICES, default="null",
                         help="unit cost of every product after the reset (default null = 'unknown, enter it')")
     parser.add_argument("--reset-service-costs", action="store_true",
@@ -179,6 +279,8 @@ def main(argv=None, *, input_fn=input, out=print, server_check=server_running, b
     path = resolve_path(args.db)
     if backup is None:
         from db.backup import make_backup as backup
+    if args.mark_live:
+        return mark_live_main(path, args.apply, input_fn=input_fn, out=out, server_check=server_check, backup=backup)
 
     # ---- can it run at all (exit 2)
     try:
@@ -269,7 +371,7 @@ def main(argv=None, *, input_fn=input, out=print, server_check=server_running, b
         typed = input_fn("> ")
     except EOFError:
         typed = ""
-    if typed.replace("﻿", "").strip() != phrase:  # a piped answer from Windows PowerShell can start with a BOM
+    if not confirmed(typed, phrase):
         out("Cancelled: the confirmation did not match. Nothing was changed.")
         return 1
 
