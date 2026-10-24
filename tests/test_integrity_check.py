@@ -142,7 +142,7 @@ def test_the_header_has_a_fixed_length_and_the_report_ends_with_one_final_line(s
     lines = text.splitlines()
     assert lines[cli.HEADER_LINES - 1] == "-" * 60
     assert lines[0].startswith("Rebel Store Manager - integrity check")
-    assert any(line.startswith("Schema   : 014_order_void.sql (version 14)") for line in lines[:cli.HEADER_LINES])
+    assert any(line.startswith("Schema   : 015_supplier_payables_purchase_status.sql (version 15)") for line in lines[:cli.HEADER_LINES])
     assert sum(line in ("OK",) or line.startswith(("FAILED:", "INCOMPLETE:")) for line in lines) == 1
 
 

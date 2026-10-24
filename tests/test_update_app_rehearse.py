@@ -88,9 +88,9 @@ def test_an_identical_database_passes_and_the_copy_is_made_in_its_own_folder(lab
 
 
 def test_a_harmless_new_table_passes_and_is_reported_as_info(lab):
-    add_migration(lab, "CREATE TABLE supplier_payments (id INTEGER PRIMARY KEY, amount INTEGER);\nINSERT INTO supplier_payments (amount) VALUES (5);\n")
+    add_migration(lab, "CREATE TABLE brand_new_notes (id INTEGER PRIMARY KEY, amount INTEGER);\nINSERT INTO brand_new_notes (amount) VALUES (5);\n")
     assert rehearse(lab.ctx, str(lab.source)) == 0
-    assert "APPLIED 014_dummy.sql" in lab.ctx.text and "INFO new table supplier_payments: 1 rows" in lab.ctx.text
+    assert "APPLIED 014_dummy.sql" in lab.ctx.text and "INFO new table brand_new_notes: 1 rows" in lab.ctx.text
     assert "new migrations applied: 1" in lab.ctx.text
 
 
