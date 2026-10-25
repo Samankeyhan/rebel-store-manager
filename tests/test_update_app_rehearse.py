@@ -179,7 +179,7 @@ def test_a_rehearsal_of_migration_015_compares_purchases_and_reports_the_backfil
 
 
 def _payables(**overrides):
-    return {"outstanding": 0, "payments": 2, "purchases_with_total": 2, "without_movement_link": 0, "without_cost_snapshot": 0, **overrides}
+    return {"outstanding": 0, "by_supplier": {}, "payments": 2, "purchases_with_total": 2, "without_movement_link": 0, "without_cost_snapshot": 0, **overrides}
 
 
 def test_the_purchase_rows_and_the_backfill_are_compared():
@@ -201,6 +201,82 @@ def test_the_purchase_rows_and_the_backfill_are_compared():
     # a later migration: the payables figures must not move at all
     later = invariants.compare({**after, "payables": _payables()}, {**after, "payables": _payables(outstanding=3)}, [])[0]
     assert later == ["payables.outstanding: 0 -> 3"]
+
+
+def test_a_rehearsal_of_migration_016_keeps_every_purchase_payment_and_allocation(tmp_path):
+    """A shop database at 015 (purchases, payments and allocations written the 015 way, a cancelled purchase and its
+    replacement included), rehearsed with the real migrations: one invoice per purchase, every purchase row, payment,
+    allocation, payable and summary figure identical."""
+    from tests.test_migration_016 import _add_fictional_rows, _migrations_upto
+
+    root = tmp_path / "proj"
+    (root / "data" / "restore-test" / "real").mkdir(parents=True)
+    shutil.copytree(MIGRATIONS_DIR, root / "migrations")
+    to_015 = _migrations_upto(tmp_path / "to_015", "015")
+    source = root / "data" / "restore-test" / "real" / "shop.db"
+    init_db(str(source), migrations_dir=str(to_015))
+    _add_fictional_rows(str(source), cancelled=True)
+    init_db(str(source), migrations_dir=str(to_015))  # the startup backfill gives the raw rows their name_key
+    ctx = FakeCtx(root)
+
+    def migrate(db):
+        init_db(str(db), migrations_dir=str(root / "migrations"))
+        return 0, "MIGRATION OK\n"
+
+    ctx.migrate = migrate
+    ctx.integrity = lambda db: (0, "OK\n")
+    assert rehearse(ctx, str(source)) == 0, ctx.text
+    assert "REHEARSAL OK" in ctx.text
+    assert "INFO purchase invoices created: 7 (one per purchase)" in ctx.text
+    assert "INFO new table purchase_invoices: 7 rows" in ctx.text
+    assert "INFO purchases without a movement link: 1" in ctx.text  # the legacy purchase whose movement is not linked
+    assert "DIFF" not in ctx.text
+
+
+def _purchase_figures(**overrides):
+    base = {
+        "migrations": ["015"], "counts": {"material_purchases": 1, "product_purchases": 0}, "counters": {"PUR": 1},
+        "profit_and_loss": {}, "settlements": {}, "materials": {}, "products": {}, "orders": {},
+        "purchases": {"MATERIAL:1": {"id": 1, "material_id": 7, "supplier_id": 2, "invoice_number": "PUR-000001",
+                                     "total_paid": 500, "replaces_purchase_id": None}},
+        "payments": {1: {"id": 1, "amount": 500}},
+        "allocations": {1: {"payment_id": 1, "purchase": "MATERIAL:1", "amount": 500}},
+        "purchases_summary": {"material_purchases_total": 500, "material_purchases_count": 1},
+        "invoices": None,
+        "payables": _payables(outstanding=0, payments=1, purchases_with_total=1, by_supplier=[]),
+    }
+    return {**base, **overrides}
+
+
+def test_the_016_figures_fail_on_a_lost_column_a_moved_allocation_or_a_wrong_invoice_count():
+    before = _purchase_figures()
+    row = {"id": 1, "material_id": 7, "supplier_id": 2, "invoice_number": "PUR-000001", "total_paid": 500,
+           "replaces_purchase_id": None, "purchase_invoice_id": 1}
+    after = {**before, "migrations": ["015", "016"], "counts": {**before["counts"], "purchase_invoices": 1},
+             "purchases": {"MATERIAL:1": row}, "invoices": {"count": 1, "lines": 1}}
+    failures, info = invariants.compare(before, after, ["016"])
+    assert failures == [] and "purchase invoices created: 1 (one per purchase)" in info
+    # the line lost a column it had (here the supplier), or changed one
+    lost = {k: v for k, v in row.items() if k != "supplier_id"}
+    assert invariants.compare(before, {**after, "purchases": {"MATERIAL:1": lost}}, ["016"])[0] == ["purchases.MATERIAL:1.supplier_id: the column is gone"]
+    assert invariants.compare(before, {**after, "purchases": {"MATERIAL:1": {**row, "invoice_number": "PUR-000009"}}}, ["016"])[0] == [
+        "purchases.MATERIAL:1.invoice_number: 'PUR-000001' -> 'PUR-000009'"
+    ]
+    # an allocation now paying another line, one that disappeared
+    moved = {1: {"payment_id": 1, "purchase": "PRODUCT:3", "amount": 500}}
+    assert invariants.compare(before, {**after, "allocations": moved}, ["016"])[0] == ["allocations.1.purchase: 'MATERIAL:1' -> 'PRODUCT:3'"]
+    assert invariants.compare(before, {**after, "allocations": {}}, ["016"])[0] == ["allocations id 1 disappeared"]
+    assert invariants.compare(before, {**after, "allocations": {1: {**moved[1], "purchase": "INVOICE:1"}}}, ["016"])[0][-1].startswith(
+        "allocations.1: pays an invoice that does not have exactly one line"
+    )
+    # the invoice count, the payables per supplier, the summary and the counters must not move
+    assert "purchase invoices: 2 invoices for 1 purchases (one each)" in invariants.compare(
+        before, {**after, "invoices": {"count": 2, "lines": 1}}, ["016"])[0]
+    owed = invariants.compare(before, {**after, "payables": _payables(by_supplier=[("2", 40)], payments=1, purchases_with_total=1)}, ["016"])[0]
+    assert owed == ["payables.by_supplier: [] -> [('2', 40)]"]
+    summary = {**after, "purchases_summary": {"material_purchases_total": 400, "material_purchases_count": 1}}
+    assert invariants.compare(before, summary, ["016"])[0] == ["purchases summary.material_purchases_total: 500 -> 400"]
+    assert invariants.compare(before, {**after, "counters": {"PUR": 2}}, ["016"])[0] == ["counters.PUR: 1 -> 2"]
 
 
 def test_main_rehearse_goes_through_the_command_line(lab):
