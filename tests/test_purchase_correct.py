@@ -181,3 +181,18 @@ def test_a_bad_new_line_leaves_both_as_they_were(shop):
     with pytest.raises(ValidationError) as exc:
         correct_purchase(conn, old, " ", [line(ids["paper"])], supplier_id=ids["acme"], purchase_date=DAY)
     assert exc.value.code == ErrorCode.VOID_REASON_REQUIRED
+
+
+def test_the_same_day_keeps_the_stored_moment_and_the_payment_made_with_it(shop):
+    conn, ids = shop
+    old = record_purchase(conn, [line(ids["paper"], 10, 1000)], supplier_id=ids["acme"], purchase_date=f"{DAY} 18:30")
+    moment = get_purchase(conn, old)["purchase_date"]
+    new = correct_purchase(conn, old, "x", [line(ids["paper"], 10, 1200)], supplier_id=ids["acme"], purchase_date=DAY)
+    p = get_purchase(conn, new)
+    assert p["purchase_date"] == moment
+    assert [pay["payment_date"] for pay in p["payments"]] == [moment, moment]  # the moved one and the remainder's
+    credit = record_purchase(conn, [line(ids["ink"], 1, 100)], supplier_id=ids["acme"], purchase_date=f"{DAY} 18:30",
+                             payment={"mode": "NONE"})
+    other_day = correct_purchase(conn, credit, "x", [line(ids["ink"], 1, 100)], supplier_id=ids["acme"],
+                                 purchase_date="2026-10-11", payment={"mode": "NONE"})
+    assert get_purchase(conn, other_day)["purchase_date"] != moment  # another day: that day, as a new purchase

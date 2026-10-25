@@ -35,7 +35,7 @@ from db.purchases import (
     refuse_shared_payments,
 )
 from db.stocktake import difference, stocktake_after
-from db.timeutil import local_day, now_utc
+from db.timeutil import local_day, normalize_record_date, now_utc, today_local
 
 MAX_REASON_LENGTH = 500
 CANCEL_NOTE_PREFIX = "ابطال خرید"
@@ -373,9 +373,12 @@ def correct_purchase(
                     supplier_id, supplier_changed, made_with_id=purchase_id,
                 )
 
+        # The same local day keeps the stored moment (as an edit does, D5), so the payment made with it keeps its time.
+        new_day = local_day(normalize_record_date(purchase_date, conn), conn) if purchase_date is not None else today_local(conn)
+        moment = invoice["purchase_date"] if new_day == local_day(invoice["purchase_date"], conn) else None
         new_id, _ = _record(
             conn, lines, supplier_id, purchase_date, notes, payment, one_line=False,
-            corrects={"purchase_id": purchase_id, "paid": paid, "before_payment": move_allocations},
+            corrects={"purchase_id": purchase_id, "paid": paid, "before_payment": move_allocations, "moment": moment},
         )
         new_date = conn.execute("SELECT purchase_date FROM purchase_invoices WHERE id = ?", (new_id,)).fetchone()[0]
         refuse_closed_day(conn, local_day(new_date, conn))

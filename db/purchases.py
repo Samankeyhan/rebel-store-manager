@@ -135,10 +135,11 @@ def _record(
 ) -> tuple[int, list[int]]:
     """Check every line, then write the invoice, its lines, each item's stock and cost, the PURCHASE movements and the
     payment made with it, in one transaction. Returns (invoice id, line ids).
-    `corrects` (a correction, db/purchase_cancel.py): {purchase_id, paid, before_payment}. The new total must be at least
-    `paid` (PURCHASE_CORRECTION_BELOW_PAID), the payment chosen on the form is on the remainder only, and
+    `corrects` (a correction, db/purchase_cancel.py): {purchase_id, paid, before_payment, moment}. The new total must be
+    at least `paid` (PURCHASE_CORRECTION_BELOW_PAID), the payment chosen on the form is on the remainder only, and
     `before_payment(new invoice id, its purchase_date)` runs after the lines are written and before that payment (it
-    moves the old invoice's allocations)."""
+    moves the old invoice's allocations). `moment` (a stored UTC moment, or None) is used as the purchase_date as is:
+    the old invoice's moment when the correction keeps its local day."""
     if not isinstance(lines, (list, tuple)) or not lines:
         raise ValidationError("A purchase needs at least one line", field="lines")
     checked, seen = [], set()
@@ -167,7 +168,9 @@ def _record(
             details={"purchase_id": corrects["purchase_id"], "paid": paid_before, "new_total": total},
         )
     paid_now = check_purchase_payment(payment, supplier_id, total - paid_before)
-    if purchase_date is not None:
+    if corrects and corrects.get("moment"):
+        purchase_date = corrects["moment"]
+    elif purchase_date is not None:
         purchase_date = normalize_record_date(purchase_date, conn)
 
     with transaction(conn):
