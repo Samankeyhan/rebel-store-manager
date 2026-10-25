@@ -22,6 +22,8 @@ PAYMENT_MODES = ("FULL", "NONE", "PARTIAL")
 UNPAID, PARTIAL, PAID = "UNPAID", "PARTIAL", "PAID"
 UPDATABLE_FIELDS = ("payment_date", "method", "reference", "note")
 ACTIVE = "ACTIVE"
+# the note migration 015 gave each purchase's backfilled payment (one per purchase with a total, dated with it)
+BACKFILL_NOTE = "پیش از ثبت بدهی‌ها"
 
 
 def total_sql(alias: str = "purchase_invoices") -> str:

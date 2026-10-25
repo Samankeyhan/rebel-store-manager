@@ -79,6 +79,21 @@ class ErrorCode(StrEnum):
                                      lines.N.item_id): the same item is already on this purchase
     SERVICE_PURCHASE_NEEDS_TOTAL     index, material_id, material_name (field lines.N.total_paid): a service line of
                                      total 0 would erase the service's price
+    PURCHASE_ALREADY_CANCELLED       purchase_id, cancelled_at (UTC), replaced_by_purchase_id (None when not corrected)
+    PURCHASE_HAS_PAYMENTS            purchase_id, paid, payment_ids, shared (1 when a payment also pays another
+                                     purchase): payments block the change (a cancel without with_payments, a shared
+                                     payment, or a correction's allocations that cannot move)
+    PURCHASE_STOCK_USED              purchase_id, line_index, item_type, item_id, item_name, current_stock,
+                                     quantity_bought: less stock is left than the line brought in
+    STOCKTAKE_AFTER_PURCHASE         purchase_id, line_index, item_type, item_id, item_name, stocktake_date (local day):
+                                     a count recorded after the purchase already took the item's stock as it was
+    PURCHASE_COST_CHANGED_SINCE      purchase_id, line_index, item_type, item_id, item_name, later: [{reason,
+                                     movement_id, date, purchase_id, invoice_number}], cost_changed_without_movement
+                                     (0/1): the line is no longer the item's latest cost event
+    PURCHASE_COST_HISTORY_UNKNOWN    purchase_id, line_index, item_type, item_id, item_name: a line recorded before
+                                     the cost history was kept (no snapshot, or a stock line with no movement link)
+    PURCHASE_CORRECTION_BELOW_PAID   purchase_id, paid, new_total (field lines): the corrected total is below what
+                                     was already paid
 
     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
@@ -172,6 +187,15 @@ class ErrorCode(StrEnum):
     # Purchase invoices
     PURCHASE_DUPLICATE_ITEM = "PURCHASE_DUPLICATE_ITEM"
     SERVICE_PURCHASE_NEEDS_TOTAL = "SERVICE_PURCHASE_NEEDS_TOTAL"
+
+    # Cancelled and corrected purchases
+    PURCHASE_ALREADY_CANCELLED = "PURCHASE_ALREADY_CANCELLED"
+    PURCHASE_HAS_PAYMENTS = "PURCHASE_HAS_PAYMENTS"
+    PURCHASE_STOCK_USED = "PURCHASE_STOCK_USED"
+    STOCKTAKE_AFTER_PURCHASE = "STOCKTAKE_AFTER_PURCHASE"
+    PURCHASE_COST_CHANGED_SINCE = "PURCHASE_COST_CHANGED_SINCE"
+    PURCHASE_COST_HISTORY_UNKNOWN = "PURCHASE_COST_HISTORY_UNKNOWN"
+    PURCHASE_CORRECTION_BELOW_PAID = "PURCHASE_CORRECTION_BELOW_PAID"
 
     # Backups
     BACKUP_FAILED = "BACKUP_FAILED"

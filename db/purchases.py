@@ -20,10 +20,11 @@ import sqlite3
 from db.audit import audited
 from db.connection import next_counter, transaction
 from db.costing import blend_unit_cost, check_money, check_quantity, per_unit_cost
-from db.errors import ErrorCode, NotFoundError, ValidationError
+from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.materials import get_material
 from db.products import get_product
 from db.supplier_payments import (
+    BACKFILL_NOTE,
     check_purchase_payment,
     not_found,
     paid_sql,
@@ -33,7 +34,7 @@ from db.supplier_payments import (
     with_payment_figures,
 )
 from db.suppliers import get_supplier
-from db.timeutil import normalize_record_date, to_utc_range
+from db.timeutil import local_day, normalize_record_date, refuse_future_day, to_utc_range
 
 # line kind -> (line table, item table, item column, note label)
 _KINDS = {
@@ -243,6 +244,183 @@ def record_product_purchase(
     """A purchase of one product: a one-line invoice. Returns the line id."""
     line = {"kind": "PRODUCT", "item_id": product_id, "quantity_bought": quantity_bought, "total_paid": total_paid}
     return _record(conn, [line], supplier_id, purchase_date, notes, payment, one_line=True)[1][0]
+
+
+# ---------------------------------------------------------------- edits (section 23)
+
+UPDATABLE_FIELDS = ("supplier_id", "purchase_date", "notes")
+
+
+def invoice_row(conn: sqlite3.Connection, purchase_id: int) -> sqlite3.Row:
+    """The purchase_invoices row, or PURCHASE_NOT_FOUND."""
+    row = conn.execute("SELECT * FROM purchase_invoices WHERE id = ?", (purchase_id,)).fetchone()
+    if row is None:
+        raise not_found(purchase_id)
+    return row
+
+
+def refuse_cancelled(conn: sqlite3.Connection, invoice: sqlite3.Row) -> None:
+    """PURCHASE_ALREADY_CANCELLED for a CANCELLED invoice: it can be neither edited, cancelled nor corrected."""
+    if invoice["status"] == "CANCELLED":
+        replaced_by = conn.execute(
+            "SELECT id FROM purchase_invoices WHERE replaces_invoice_id = ?", (invoice["id"],)
+        ).fetchone()
+        raise ConflictError(
+            f"Purchase #{invoice['id']} is already cancelled",
+            code=ErrorCode.PURCHASE_ALREADY_CANCELLED,
+            details={
+                "purchase_id": invoice["id"],
+                "cancelled_at": invoice["cancelled_at"],
+                "replaced_by_purchase_id": replaced_by[0] if replaced_by else None,
+            },
+        )
+
+
+def invoice_payments(conn: sqlite3.Connection, purchase_id: int) -> list[dict]:
+    """The payments that paid this invoice (`purchase_payments`), each with `shared` 1 when it also pays another
+    purchase (a payment is always wholly allocated, so it is shared exactly when its whole amount is more than the part
+    allocated here)."""
+    return [{**p, "shared": int(p["payment_amount"] != p["amount"])} for p in purchase_payments(conn, purchase_id)]
+
+
+def refuse_shared_payments(purchase_id: int, payments: list[dict], paid: int) -> None:
+    """PURCHASE_HAS_PAYMENTS (shared 1) when a payment of this invoice also pays another purchase."""
+    if any(p["shared"] for p in payments):
+        raise ConflictError(
+            f"A payment of purchase #{purchase_id} also pays another purchase",
+            code=ErrorCode.PURCHASE_HAS_PAYMENTS,
+            details={"purchase_id": purchase_id, "paid": paid, "payment_ids": [p["payment_id"] for p in payments], "shared": 1},
+        )
+
+
+def _made_with(conn: sqlite3.Connection, purchase_id: int, payment: dict, purchase_date: str) -> bool:
+    """Whether `payment` is the one recorded with the purchase (FULL or PARTIAL on the form) and still dated with it:
+    its audit INSERT is in the same operation as the invoice's or one of its lines' INSERT; for a purchase from before
+    migration 015, the backfilled payment (BACKFILL_NOTE) dated with it. A payment recorded on its own on the same day
+    is not."""
+    if payment["shared"] or payment["payment_date"] != purchase_date:
+        return False
+    if payment["note"] == BACKFILL_NOTE:
+        return True
+    return conn.execute(
+        """
+        SELECT 1 FROM audit_log AS p
+        WHERE p.entity_type = 'supplier_payments' AND p.entity_id = CAST(? AS TEXT) AND p.action = 'INSERT'
+          AND p.op_id IS NOT NULL
+          AND p.op_id IN (
+              SELECT a.op_id FROM audit_log AS a
+              WHERE a.action = 'INSERT' AND a.op_id IS NOT NULL AND (
+                  (a.entity_type = 'purchase_invoices' AND a.entity_id = CAST(? AS TEXT))
+                  OR (a.entity_type = 'material_purchases' AND a.entity_id IN
+                      (SELECT CAST(id AS TEXT) FROM material_purchases WHERE purchase_invoice_id = ?))
+                  OR (a.entity_type = 'product_purchases' AND a.entity_id IN
+                      (SELECT CAST(id AS TEXT) FROM product_purchases WHERE purchase_invoice_id = ?))))
+        """,
+        (payment["payment_id"], purchase_id, purchase_id, purchase_id),
+    ).fetchone() is not None
+
+
+def follow_payments(
+    conn: sqlite3.Connection,
+    purchase_id: int,
+    payments: list[dict],
+    old_date: str,
+    new_date: str,
+    supplier_id: int | None,
+    supplier_changed: bool,
+) -> None:
+    """The payments of an invoice whose supplier or day changes (D3, D4): when the supplier changes, every payment must
+    be wholly on this invoice (else PURCHASE_HAS_PAYMENTS, shared) and follows it; the payment made with the purchase
+    (`_made_with`) moves to the new moment; every other payment must not be before the new local day
+    (SUPPLIER_PAYMENT_BEFORE_PURCHASE)."""
+    if supplier_changed:
+        refuse_shared_payments(purchase_id, payments, sum(p["amount"] for p in payments))
+    new_day = local_day(new_date, conn)
+    for payment in payments:
+        changes: dict = {}
+        if supplier_changed:
+            changes["supplier_id"] = supplier_id
+        if _made_with(conn, purchase_id, payment, old_date):
+            if new_date != old_date:
+                changes["payment_date"] = new_date
+        elif local_day(payment["payment_date"], conn) < new_day:
+            raise ValidationError(
+                f"Payment #{payment['payment_id']} is dated before the purchase's new day {new_day}",
+                field="purchase_date",
+                code=ErrorCode.SUPPLIER_PAYMENT_BEFORE_PURCHASE,
+                details={"purchase_id": purchase_id, "purchase_date": new_day.isoformat()},
+            )
+        if changes:
+            conn.execute(
+                f"UPDATE supplier_payments SET {', '.join(f'{k} = ?' for k in changes)} WHERE id = ?",
+                [*changes.values(), payment["payment_id"]],
+            )
+
+
+@audited()
+def update_purchase(conn: sqlite3.Connection, purchase_id: int, **fields) -> None:
+    """Correct an invoice's supplier, day or note (accounting rules section 23). None of them changes stock, cost, P&L
+    or a distribution, so a closed day does not refuse them. A CANCELLED invoice is PURCHASE_ALREADY_CANCELLED.
+    - supplier_id: an existing supplier (SUPPLIER_NOT_FOUND); None while something is owed is
+      SUPPLIER_REQUIRED_FOR_CREDIT; the payments wholly on this invoice follow it, a shared one refuses
+      (PURCHASE_HAS_PAYMENTS).
+    - purchase_date: a local day, not in the future (DATE_IN_FUTURE); the same local day keeps the stored moment;
+      every line's PURCHASE movement follows; the payment made with the purchase moves with it, any other payment must
+      not be before the new day (SUPPLIER_PAYMENT_BEFORE_PURCHASE).
+    - notes."""
+    for name in fields:
+        if name not in UPDATABLE_FIELDS:
+            raise ValidationError(f"Unknown field '{name}'", field=name)
+    with transaction(conn):
+        invoice = invoice_row(conn, purchase_id)
+        refuse_cancelled(conn, invoice)
+        changes: dict = {}
+        if "notes" in fields:
+            changes["notes"] = fields["notes"]
+        supplier_id = invoice["supplier_id"]
+        supplier_changed = "supplier_id" in fields and fields["supplier_id"] != invoice["supplier_id"]
+        if supplier_changed:
+            supplier_id = fields["supplier_id"]
+            if supplier_id is not None and (isinstance(supplier_id, bool) or not isinstance(supplier_id, int)):
+                raise ValidationError(f"supplier_id must be an integer, got {supplier_id!r}", field="supplier_id")
+            _validate_supplier(conn, supplier_id)
+            owed = conn.execute(
+                f"SELECT {total_sql()} - {paid_sql()} FROM purchase_invoices WHERE id = ?", (purchase_id,)
+            ).fetchone()[0]
+            if supplier_id is None and owed > 0:
+                raise ValidationError(
+                    "A purchase that is not paid in full needs a supplier", field="supplier_id",
+                    code=ErrorCode.SUPPLIER_REQUIRED_FOR_CREDIT,
+                )
+            changes["supplier_id"] = supplier_id
+        new_date = invoice["purchase_date"]
+        if "purchase_date" in fields:
+            if not isinstance(fields["purchase_date"], str):
+                raise ValidationError(f"purchase_date must be 'YYYY-MM-DD', got {fields['purchase_date']!r}", field="purchase_date")
+            moment = normalize_record_date(fields["purchase_date"], conn)
+            day = local_day(moment, conn)
+            refuse_future_day(conn, day, "purchase_date")
+            if day != local_day(invoice["purchase_date"], conn):
+                new_date = moment
+                changes["purchase_date"] = moment
+        if supplier_changed or new_date != invoice["purchase_date"]:
+            follow_payments(
+                conn, purchase_id, invoice_payments(conn, purchase_id), invoice["purchase_date"], new_date,
+                supplier_id, supplier_changed,
+            )
+        if not changes:
+            return
+        conn.execute(
+            f"UPDATE purchase_invoices SET {', '.join(f'{k} = ?' for k in changes)} WHERE id = ?",
+            [*changes.values(), purchase_id],
+        )
+        if "purchase_date" in changes:
+            for table, _, _, _ in _KINDS.values():
+                conn.execute(
+                    f"UPDATE stock_movements SET movement_date = ? WHERE id IN "
+                    f"(SELECT stock_movement_id FROM {table} WHERE purchase_invoice_id = ? AND stock_movement_id IS NOT NULL)",
+                    (new_date, purchase_id),
+                )
 
 
 # ---------------------------------------------------------------- reads
