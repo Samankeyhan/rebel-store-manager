@@ -11,7 +11,11 @@ A fresh session can finish this slice from this file alone. Read it with `docs/p
   - `ba4d169` docs(plans): slice B adjusted, B2 → 017, "Amendment" section.
   - `f6920a3` feat(db): migration 016 (`purchase_invoices`, lines, allocations per invoice), go-live, `test_migration_016`, `test_migration_015` pinned to 015, connection/startup/go-live tests.
   - `a19c8c5` feat(db) WIP: `record_purchase`, invoice reads, payments per invoice, d2/f/j, summary, error details (`db/errors.py`, `api/schemas/errors.py`).
-- **Remaining, in order:** see "Remaining steps" at the end.
+- **Also done (2026-10-25), all pushed:** db/api tests rewritten and added (`test_purchase_invoices`, payments per invoice, integrity d2/f/j, summary, API), rehearsal invariants for 016 (`tools/update_app/invariants.py`), the API (`POST/GET /purchases`, allocations by invoice; the per-kind routes are removed), `gen:api`, accounting rules §2, §8, §9, §10, §18, §21 and the new §22, the frontend (invoice form with lines, list and sheet per invoice, payables per invoice, service totals in reports and the dashboard, `lib/purchase-lines.ts`).
+- **Final checks (2026-10-25):** pytest 2649 passed + 3 skipped (baseline 2605 + 3); `npm.cmd test` 257 (baseline 249); `check:money`, `tsc --noEmit` and `npm.cmd run lint` clean.
+- **Rehearsal gate (E2): NOT MET, the rehearsal of the real copy was not run.** `data\restore-test\real\shop.db` has 14 rows in `schema_migrations` (last `014_order_void.sql`) and is dated 2026-10-24 16:55, before the shop's 015 update. A fresh copy of the shop database taken after the 015 update must be placed there; then run `.\.venv\Scripts\python.exe -m tools.update_app --rehearse data\restore-test\real\shop.db` (read-only use) and stop if it applies anything other than 016. A supplementary rehearsal on a scratch copy of this laptop's test database (at 015) was OK: 016 applied, every figure the same, 3 invoices created.
+- **Remaining:** the E2 rehearsal above, then review and merge by the owner. Slice B is built later from `docs/plans/2026-10-payables-purchase-correction.md`.
+- **The steps below are the original plan; all but the E2 rehearsal are done.**
 
 ## Context
 - The live shop database (separate laptop) is at migration 015, marked live, with real purchases. 015 can no longer be edited: any schema change is a new migration, so this is **016** and B2 (unit conversion) is **017**.
