@@ -110,10 +110,13 @@ def _legacy_owed(conn) -> dict:
 
 
 def _legacy_summary(conn) -> dict:
-    """The all-time purchases summary before 016 (the purchase tables hold the invoice fields themselves)."""
+    """The all-time purchases summary before 016 (the purchase tables hold the invoice fields themselves): ACTIVE rows
+    only, as the summary counts them (section 23; every row is ACTIVE before a cancel exists)."""
     result = {}
     for prefix, table in (("material", "material_purchases"), ("product", "product_purchases")):
-        row = conn.execute(f"SELECT COALESCE(SUM(total_paid), 0), COUNT(*) FROM {table}").fetchone()
+        columns = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        active = "WHERE status = 'ACTIVE'" if "status" in columns else ""
+        row = conn.execute(f"SELECT COALESCE(SUM(total_paid), 0), COUNT(*) FROM {table} {active}").fetchone()
         result[f"{prefix}_purchases_total"], result[f"{prefix}_purchases_count"] = row[0], row[1]
     result["supplier_payments_total"], result["supplier_payments_count"] = conn.execute(
         "SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM supplier_payments"

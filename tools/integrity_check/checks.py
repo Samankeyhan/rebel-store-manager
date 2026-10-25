@@ -273,13 +273,18 @@ def check_stock_documents(conn: sqlite3.Connection, schema: int) -> CheckResult:
             result.fails.append(Row(table, key, field, stored, expected, stored - expected, note))
 
     count = 0
-    # a SERVICE line has no stock and writes no movement (section 22): it is left out of the sums and has no link
+    # a SERVICE line has no stock and writes no movement (section 22): it is left out of the sums and has no link.
+    # A cancelled invoice's stock lines (section 23) have their +qty and -qty PURCHASE movements, which net to 0: only
+    # the lines of ACTIVE invoices are bought.
+    active = (
+        "JOIN purchase_invoices AS pi ON pi.id = p.purchase_invoice_id AND pi.status = 'ACTIVE'" if schema >= 16 else ""
+    )
     for kind, table, name, stock_only in (
-        ("MATERIAL", "material_purchases", "material_id", "JOIN materials AS m ON m.id = p.material_id WHERE m.type = 'STOCK'"),
+        ("MATERIAL", "material_purchases", "material_id", "JOIN materials AS m ON m.id = p.material_id AND m.type = 'STOCK'"),
         ("PRODUCT", "product_purchases", "product_id", ""),
     ):
         bought = defaultdict(Fraction)
-        for row in conn.execute(f"SELECT p.{name} AS item, p.quantity_bought FROM {table} AS p {stock_only}"):
+        for row in conn.execute(f"SELECT p.{name} AS item, p.quantity_bought FROM {table} AS p {stock_only} {active}"):
             bought[row["item"]] += _exact(row["quantity_bought"])
         moved = defaultdict(Fraction)
         for row in conn.execute("SELECT item_id, quantity_change FROM stock_movements WHERE item_type = ? AND reason = 'PURCHASE'", (kind,)):
@@ -623,6 +628,112 @@ def check_supplier_payables(conn: sqlite3.Connection, schema: int) -> CheckResul
     return result
 
 
+# ------------------------------------------------------------------ k. cancelled and corrected purchases
+
+
+def _cancelled_line_rows(conn, purchase_id: int) -> list[dict]:
+    rows = []
+    for kind, table, column in (("MATERIAL", "material_purchases", "material_id"), ("PRODUCT", "product_purchases", "product_id")):
+        item_type = "m.type" if kind == "MATERIAL" else "'PRODUCT'"
+        join = "JOIN materials AS m ON m.id = l.material_id" if kind == "MATERIAL" else ""
+        for row in conn.execute(
+            f"SELECT l.id, l.{column} AS item_id, l.quantity_bought, l.stock_movement_id, l.cancel_movement_id, {item_type} AS item_type "
+            f"FROM {table} AS l {join} WHERE l.purchase_invoice_id = ? ORDER BY l.id",
+            (purchase_id,),
+        ):
+            rows.append({"kind": kind, "table": table, **dict(row)})
+    return rows
+
+
+def check_cancelled_purchases(conn: sqlite3.Connection, schema: int) -> CheckResult:
+    """Section 23: a CANCELLED invoice has its reason and moment, no allocation, and each of its stock and product lines
+    has its own PURCHASE movement and a cancel movement, of its item, that net to zero (+qty, −qty); its service lines
+    have neither. A line of an ACTIVE invoice has no cancel movement; `replaces_invoice_id` points at a CANCELLED
+    invoice; a line recorded with its cost history (its audit INSERT holds an `item_cost_after`) still has it and, for
+    a stock or product line, its movement link; the all-time purchases summary is the sum over the lines of ACTIVE
+    invoices as `list_purchases` gives them. Older lines without a history are INFO: they cannot be cancelled."""
+    result = CheckResult("k", "Cancelled and corrected purchases")
+    invoices = {p["id"]: p for p in list_purchases(conn, include_cancelled=True)}
+    cancelled = [p for p in invoices.values() if p["status"] == "CANCELLED"]
+    for invoice in cancelled:
+        if not (invoice["cancel_reason"] or "").strip():
+            result.fails.append(Row("purchase_invoices", invoice["id"], "cancel_reason", invoice["cancel_reason"], "a reason"))
+        if invoice["cancelled_at"] is None:
+            result.fails.append(Row("purchase_invoices", invoice["id"], "cancelled_at", None, "a moment"))
+        if invoice["paid"] != 0:
+            result.fails.append(_money_row("purchase_invoices", invoice["id"], "paid", invoice["paid"], 0,
+                                           "a cancelled purchase has no allocations"))
+        for line in _cancelled_line_rows(conn, invoice["id"]):
+            if line["item_type"] == "SERVICE":
+                if line["stock_movement_id"] is not None or line["cancel_movement_id"] is not None:
+                    result.fails.append(Row(line["table"], line["id"], "cancel_movement_id", line["cancel_movement_id"], None,
+                                            note="a SERVICE line has no movement"))
+                continue
+            moved = {}
+            for field in ("stock_movement_id", "cancel_movement_id"):
+                movement = conn.execute(
+                    "SELECT item_type, item_id, quantity_change, reason FROM stock_movements WHERE id = ?", (line[field],)
+                ).fetchone() if line[field] is not None else None
+                if movement is None or movement["reason"] != "PURCHASE" or (movement["item_type"], movement["item_id"]) != (line["kind"], line["item_id"]):
+                    result.fails.append(Row(line["table"], line["id"], field, line[field], f"a PURCHASE movement of {line['kind'].lower()} {line['item_id']}"))
+                else:
+                    moved[field] = _exact(movement["quantity_change"])
+            if len(moved) == 2:
+                qty = _exact(line["quantity_bought"])
+                if moved["stock_movement_id"] != qty or moved["cancel_movement_id"] != -qty:
+                    result.fails.append(Row(line["table"], line["id"], "movements", f"{moved['stock_movement_id']} / {moved['cancel_movement_id']}",
+                                            f"{qty} / {-qty}", note="a cancelled line's movements net to zero"))
+    for table in ("material_purchases", "product_purchases"):
+        for row in conn.execute(
+            f"SELECT l.id FROM {table} AS l JOIN purchase_invoices AS pi ON pi.id = l.purchase_invoice_id "
+            f"WHERE pi.status = 'ACTIVE' AND l.cancel_movement_id IS NOT NULL ORDER BY l.id"
+        ):
+            result.fails.append(Row(table, row["id"], "cancel_movement_id", "set", None, note="the invoice is ACTIVE"))
+    for invoice in invoices.values():
+        replaced = invoice["replaces_invoice_id"]
+        if replaced is not None and invoices.get(replaced, {}).get("status") != "CANCELLED":
+            result.fails.append(Row("purchase_invoices", invoice["id"], "replaces_invoice_id", replaced, "a CANCELLED invoice"))
+    unknown = 0
+    for kind, table in (("MATERIAL", "material_purchases"), ("PRODUCT", "product_purchases")):
+        item_type = "(SELECT type FROM materials WHERE id = l.material_id)" if kind == "MATERIAL" else "'PRODUCT'"
+        for row in conn.execute(
+            f"""
+            SELECT l.id, l.stock_movement_id, l.item_cost_after, {item_type} AS item_type,
+                   EXISTS (SELECT 1 FROM audit_log AS a WHERE a.entity_type = '{table}' AND a.entity_id = CAST(l.id AS TEXT)
+                           AND a.action = 'INSERT' AND json_extract(a.after_json, '$.item_cost_after') IS NOT NULL) AS kept
+            FROM {table} AS l ORDER BY l.id
+            """
+        ):
+            known = row["item_cost_after"] is not None and (row["item_type"] == "SERVICE" or row["stock_movement_id"] is not None)
+            if known:
+                continue
+            if row["kept"]:
+                field = "item_cost_after" if row["item_cost_after"] is None else "stock_movement_id"
+                result.fails.append(Row(table, row["id"], field, None, "set", note="recorded with its cost history"))
+            else:
+                unknown += 1
+    if unknown:
+        result.infos.append(f"{unknown} purchase lines were recorded before their cost history was kept: they cannot be cancelled")
+    summary = get_purchases_summary(conn)
+    expected = defaultdict(int)
+    for invoice in invoices.values():
+        if invoice["status"] != "ACTIVE":
+            continue
+        expected["purchase_invoices_count"] += 1
+        for line in invoice["lines"]:
+            prefix = {"STOCK": "material", "SERVICE": "service", "PRODUCT": "product"}[line["item_type"]]
+            expected[f"{prefix}_purchases_total"] += line["total_paid"]
+            expected[f"{prefix}_purchases_count"] += 1
+    for key in ("material_purchases_total", "material_purchases_count", "service_purchases_total", "service_purchases_count",
+                "product_purchases_total", "product_purchases_count", "purchase_invoices_count"):
+        if summary[key] != expected[key]:
+            result.fails.append(Row("purchases_summary", "all time", key, summary[key], expected[key], summary[key] - expected[key],
+                                    "the lines of ACTIVE invoices"))
+    corrections = sum(1 for p in invoices.values() if p["replaces_invoice_id"] is not None)
+    result.summary = f"{len(cancelled)} cancelled purchases, {corrections} corrections checked"
+    return result
+
+
 # ------------------------------------------------------------------ registry
 
 
@@ -649,6 +760,7 @@ CHECKS = [
     Check("h", "Name collisions", 13, check_name_collisions, "name_key exists from migration 013"),
     Check("i", "Voided orders and corrections", 14, check_voided_orders, "VOIDED exists from migration 014"),
     Check("j", "Supplier payables", 16, check_supplier_payables, "supplier payments are per purchase invoice from migration 016"),
+    Check("k", "Cancelled and corrected purchases", 16, check_cancelled_purchases, "purchase invoices exist from migration 016"),
 ]
 
 

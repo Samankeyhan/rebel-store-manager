@@ -132,7 +132,7 @@ def test_a_consistent_shop_passes_every_check(shop, test_db, capsys):
     statuses = {key: r.status for key, r in results.items()}
     assert statuses == {"a": "PASS", "b": "PASS", "c": "PASS", "d1": "PASS", "d2": "PASS", "d3": "SKIPPED",
                         "d4": "PASS", "e": "PASS", "f": "PASS", "g": "PASS", "h": "PASS", "i": "PASS",
-                        "j": "PASS"}, text
+                        "j": "PASS", "k": "PASS"}, text
     assert results["b"].summary == "2 settlements checked"
     # The audit log knows what the two materials were created with, so there is nothing to guess.
     assert results["d1"].infos == []
