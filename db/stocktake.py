@@ -39,6 +39,33 @@ def stocktake_note(day, extra: str | None = None) -> str:
     return f"{text} — {extra}" if extra else text
 
 
+def stocktake_after(conn: sqlite3.Connection, movement_id: int, items: set[tuple[str, int]]) -> sqlite3.Row | None:
+    """Read-only: the first stocktake movement recorded after movement `movement_id` on one of `items` ({(item_type,
+    item_id)}), or None. A stocktake movement is an ADJUSTMENT the audit log labels `apply_stocktake`, or one carrying the
+    stocktake note. A void or a purchase cancel that would move such an item's stock again would count it twice."""
+    if not items:
+        return None
+    rows = conn.execute(
+        """
+        SELECT stock_movements.id, item_type, item_id, movement_date
+        FROM stock_movements
+        WHERE reason = 'ADJUSTMENT' AND stock_movements.id > ?
+          AND (notes LIKE ? || '%' OR EXISTS (
+                SELECT 1 FROM audit_log
+                WHERE audit_log.entity_type = 'stock_movements'
+                  AND audit_log.entity_id = CAST(stock_movements.id AS TEXT)
+                  AND audit_log.action = 'INSERT'
+                  AND audit_log.operation = 'apply_stocktake'))
+        ORDER BY stock_movements.id
+        """,
+        (movement_id, NOTE_PREFIX),
+    ).fetchall()
+    for row in rows:
+        if (row["item_type"], row["item_id"]) in items:
+            return row
+    return None
+
+
 def _field(index: int, name: str) -> str:
     return f"items.{index}.{name}"
 

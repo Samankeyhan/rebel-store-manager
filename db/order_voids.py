@@ -16,7 +16,7 @@ from db.names import stored_form
 from db.orders import VOIDED, _fetch_order_items, get_order, record_order, replaced_by_order_id
 from db.payment_methods import PAID_STATUSES
 from db.period_lock import refuse_closed_day
-from db.stocktake import NOTE_PREFIX as STOCKTAKE_NOTE_PREFIX
+from db.stocktake import stocktake_after
 from db.timeutil import local_day, now_utc
 
 VOIDABLE_STATUSES = ("PENDING", "PAID", "COMPLETED")
@@ -96,35 +96,20 @@ def _refuse_stocktake_after(conn: sqlite3.Connection, order: sqlite3.Row, moveme
     if not movements:
         return
     affected = {(m["item_type"], m["item_id"]) for m in movements}
-    rows = conn.execute(
-        """
-        SELECT stock_movements.id, item_type, item_id, movement_date
-        FROM stock_movements
-        WHERE reason = 'ADJUSTMENT' AND stock_movements.id > ?
-          AND (notes LIKE ? || '%' OR EXISTS (
-                SELECT 1 FROM audit_log
-                WHERE audit_log.entity_type = 'stock_movements'
-                  AND audit_log.entity_id = CAST(stock_movements.id AS TEXT)
-                  AND audit_log.action = 'INSERT'
-                  AND audit_log.operation = 'apply_stocktake'))
-        ORDER BY stock_movements.id
-        """,
-        (max(m["id"] for m in movements), STOCKTAKE_NOTE_PREFIX),
-    ).fetchall()
-    for row in rows:
-        if (row["item_type"], row["item_id"]) in affected:
-            raise ConflictError(
-                f"Order #{order['id']}: a stocktake recorded after this sale counted "
-                f"{row['item_type'].lower()} #{row['item_id']}; returning its stock would count it twice.",
-                code=ErrorCode.STOCKTAKE_AFTER_SALE,
-                details={
-                    "order_id": order["id"],
-                    "item_type": row["item_type"],
-                    "item_id": row["item_id"],
-                    "item_name": _item_name(conn, row["item_type"], row["item_id"]),
-                    "stocktake_date": local_day(row["movement_date"], conn).isoformat(),
-                },
-            )
+    row = stocktake_after(conn, max(m["id"] for m in movements), affected)
+    if row is not None:
+        raise ConflictError(
+            f"Order #{order['id']}: a stocktake recorded after this sale counted "
+            f"{row['item_type'].lower()} #{row['item_id']}; returning its stock would count it twice.",
+            code=ErrorCode.STOCKTAKE_AFTER_SALE,
+            details={
+                "order_id": order["id"],
+                "item_type": row["item_type"],
+                "item_id": row["item_id"],
+                "item_name": _item_name(conn, row["item_type"], row["item_id"]),
+                "stocktake_date": local_day(row["movement_date"], conn).isoformat(),
+            },
+        )
 
 
 def _checks(conn: sqlite3.Connection, order: sqlite3.Row, movements: list[sqlite3.Row]):
