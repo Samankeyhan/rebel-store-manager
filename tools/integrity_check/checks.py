@@ -699,10 +699,11 @@ def check_cancelled_purchases(conn: sqlite3.Connection, schema: int) -> CheckRes
         for row in conn.execute(
             f"""
             SELECT l.id, l.stock_movement_id, l.item_cost_after, {item_type} AS item_type,
-                   EXISTS (SELECT 1 FROM audit_log AS a WHERE a.entity_type = '{table}' AND a.entity_id = CAST(l.id AS TEXT)
+                   EXISTS (SELECT 1 FROM audit_log AS a WHERE a.entity_type = ? AND a.entity_id = CAST(l.id AS TEXT)
                            AND a.action = 'INSERT' AND json_extract(a.after_json, '$.item_cost_after') IS NOT NULL) AS kept
             FROM {table} AS l ORDER BY l.id
-            """
+            """,
+            (table,),
         ):
             known = row["item_cost_after"] is not None and (row["item_type"] == "SERVICE" or row["stock_movement_id"] is not None)
             if known:
