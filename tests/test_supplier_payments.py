@@ -1,6 +1,7 @@
-"""db/supplier_payments.py and the payment terms of a purchase (accounting rules section 21): paid / outstanding /
-status are derived; a payment is wholly allocated (given, or oldest first), never more than is owed, only to that
-supplier's purchases and never before them; edit changes date / method / reference / note only; delete cascades."""
+"""db/supplier_payments.py and the payment terms of a purchase invoice (accounting rules sections 21 and 22): paid /
+outstanding / status are derived per invoice; a payment is wholly allocated (given, or oldest first), never more than is
+owed, only to that supplier's purchases and never before them; edit changes date / method / reference / note only;
+delete cascades."""
 
 import json
 import sqlite3
@@ -11,7 +12,7 @@ from db.constants import MAX_MONEY
 from db.errors import ConflictError, ErrorCode, NotFoundError, ValidationError
 from db.materials import add_material
 from db.products import add_product
-from db.purchases import get_material_purchase, get_product_purchase, list_material_purchases, record_material_purchase, record_product_purchase
+from db.purchases import get_purchase, list_purchases, record_material_purchase, record_purchase
 from db.reports import get_profit_and_loss
 from db.supplier_payments import (
     allocate_oldest_first,
@@ -34,6 +35,7 @@ def shop(test_db):
     ids = {
         "paper": add_material(test_db, "Fictional Paper", "STOCK", 0),
         "ink": add_material(test_db, "Fictional Ink", "STOCK", 0),
+        "print": add_material(test_db, "Fictional Printing", "SERVICE", 0),
         "tee": add_product(test_db, "Fictional Tee", cat(test_db, "TSHIRT"), 3000, 2000),
         "acme": add_supplier(test_db, "Acme Paper"),
         "other": add_supplier(test_db, "Other Supplier"),
@@ -42,15 +44,19 @@ def shop(test_db):
 
 
 def credit(conn, ids, total, date="2026-05-01", item="paper", supplier="acme", mode="NONE", **payment):
-    """A material purchase of 10 units for `total`, on credit unless `mode` says otherwise."""
-    return record_material_purchase(
-        conn, ids[item], 10, total, supplier_id=ids[supplier], purchase_date=date,
-        payment={"mode": mode, **payment},
+    """A purchase of one material, 10 units for `total`, on credit unless `mode` says otherwise. Returns the invoice id."""
+    return record_purchase(
+        conn, [{"kind": "MATERIAL", "item_id": ids[item], "quantity_bought": 10, "total_paid": total}],
+        supplier_id=ids[supplier], purchase_date=date, payment={"mode": mode, **payment},
     )
 
 
+def product_purchase(conn, ids, quantity, total, **kwargs):
+    return record_purchase(conn, [{"kind": "PRODUCT", "item_id": ids["tee"], "quantity_bought": quantity, "total_paid": total}], **kwargs)
+
+
 def _paid(conn, purchase_id):
-    p = get_material_purchase(conn, purchase_id)
+    p = get_purchase(conn, purchase_id)
     return p["paid"], p["outstanding"], p["payment_status"]
 
 
@@ -59,22 +65,37 @@ def _paid(conn, purchase_id):
 
 def test_a_purchase_is_paid_in_full_by_default_with_one_payment_in_the_same_operation(shop):
     conn, ids = shop
-    purchase_id = record_material_purchase(conn, ids["paper"], 4, 8000, supplier_id=ids["acme"], purchase_date="2026-05-02")
+    purchase_id = record_purchase(
+        conn, [{"kind": "MATERIAL", "item_id": ids["paper"], "quantity_bought": 4, "total_paid": 8000}],
+        supplier_id=ids["acme"], purchase_date="2026-05-02",
+    )
     assert _paid(conn, purchase_id) == (8000, 0, "PAID")
     (payment,) = list_supplier_payments(conn)
     assert (payment["amount"], payment["method"], payment["supplier_id"]) == (8000, "OTHER", ids["acme"])
-    assert payment["payment_date"] == get_material_purchase(conn, purchase_id)["purchase_date"]
+    assert payment["payment_date"] == get_purchase(conn, purchase_id)["purchase_date"]
+    assert [a["purchase_id"] for a in payment["allocations"]] == [purchase_id]
     ops = {r[0] for r in conn.execute(
-        "SELECT op_id FROM audit_log WHERE entity_type IN ('material_purchases', 'supplier_payments', 'supplier_payment_allocations')"
+        "SELECT op_id FROM audit_log WHERE entity_type IN "
+        "('purchase_invoices', 'material_purchases', 'supplier_payments', 'supplier_payment_allocations')"
     )}
     assert len(ops) == 1
     operations = {r[0] for r in conn.execute("SELECT operation FROM audit_log WHERE entity_type = 'supplier_payments'")}
-    assert operations == {"record_material_purchase"}
+    assert operations == {"record_purchase"}
+
+
+def test_the_wrappers_pay_in_full_too_and_return_the_line_id(shop):
+    conn, ids = shop
+    line_id = record_material_purchase(conn, ids["paper"], 4, 8000, supplier_id=ids["acme"], purchase_date="2026-05-02")
+    invoice_id = conn.execute("SELECT purchase_invoice_id FROM material_purchases WHERE id = ?", (line_id,)).fetchone()[0]
+    assert _paid(conn, invoice_id) == (8000, 0, "PAID")
 
 
 def test_full_payment_without_a_supplier_is_allowed(shop):
     conn, ids = shop
-    purchase_id = record_material_purchase(conn, ids["paper"], 1, 500, payment={"mode": "FULL", "method": "CASH", "reference": "R1"})
+    purchase_id = record_purchase(
+        conn, [{"kind": "MATERIAL", "item_id": ids["paper"], "quantity_bought": 1, "total_paid": 500}],
+        payment={"mode": "FULL", "method": "CASH", "reference": "R1"},
+    )
     payment = list_supplier_payments(conn)[0]
     assert payment["supplier_id"] is None and payment["method"] == "CASH" and payment["reference"] == "R1"
     assert _paid(conn, purchase_id) == (500, 0, "PAID")
@@ -86,7 +107,7 @@ def test_on_credit_and_partial(shop):
     partial = credit(conn, ids, 6000, mode="PARTIAL", amount=2500, method="CARD")
     assert _paid(conn, unpaid) == (0, 10000, "UNPAID")
     assert _paid(conn, partial) == (2500, 3500, "PARTIAL")
-    assert get_material_purchase(conn, partial)["payments"][0]["method"] == "CARD"
+    assert get_purchase(conn, partial)["payments"][0]["method"] == "CARD"
 
 
 @pytest.mark.parametrize("mode", ["NONE", "PARTIAL"])
@@ -97,6 +118,7 @@ def test_credit_needs_a_supplier(shop, mode):
     assert exc.value.code == ErrorCode.SUPPLIER_REQUIRED_FOR_CREDIT and exc.value.field == "supplier_id"
     assert exc.value.details == {}
     assert conn.execute("SELECT COUNT(*) FROM material_purchases").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM purchase_invoices").fetchone()[0] == 0
 
 
 @pytest.mark.parametrize("payment, field", [
@@ -113,6 +135,7 @@ def test_bad_purchase_payments_write_nothing(shop, payment, field):
         record_material_purchase(conn, ids["paper"], 1, 500, supplier_id=ids["acme"], payment=payment)
     assert exc.value.field == field
     assert conn.execute("SELECT COUNT(*) FROM material_purchases").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM purchase_invoices").fetchone()[0] == 0
 
 
 def test_a_purchase_of_total_0_is_paid_and_has_no_payment(shop):
@@ -125,23 +148,60 @@ def test_a_purchase_of_total_0_is_paid_and_has_no_payment(shop):
 
 def test_a_product_purchase_on_credit(shop):
     conn, ids = shop
-    purchase_id = record_product_purchase(conn, ids["tee"], 3, 900, supplier_id=ids["acme"], payment={"mode": "NONE"})
-    p = get_product_purchase(conn, purchase_id)
+    purchase_id = product_purchase(conn, ids, 3, 900, supplier_id=ids["acme"], payment={"mode": "NONE"})
+    p = get_purchase(conn, purchase_id)
     assert (p["paid"], p["outstanding"], p["payment_status"], p["payments"]) == (0, 900, "UNPAID", [])
 
 
 def test_the_purchase_stores_its_movement_and_the_cost_snapshot(shop):
     conn, ids = shop
-    first = credit(conn, ids, 1000)
-    second = credit(conn, ids, 3000)
+    credit(conn, ids, 1000)
+    credit(conn, ids, 3000)
     rows = {r["id"]: r for r in conn.execute("SELECT * FROM material_purchases")}
+    first, second = sorted(rows)
     assert (rows[first]["item_cost_before"], rows[first]["item_cost_after"]) == (0, 100)
     assert (rows[second]["item_cost_before"], rows[second]["item_cost_after"]) == (100, 200)
     movement = conn.execute("SELECT * FROM stock_movements WHERE id = ?", (rows[second]["stock_movement_id"],)).fetchone()
-    assert (movement["reason"], movement["quantity_change"], movement["movement_date"]) == ("PURCHASE", 10, rows[second]["purchase_date"])
-    product = record_product_purchase(conn, ids["tee"], 2, 600)
-    row = conn.execute("SELECT item_cost_before, item_cost_after FROM product_purchases WHERE id = ?", (product,)).fetchone()
+    invoice_date = conn.execute("SELECT purchase_date FROM purchase_invoices WHERE id = ?", (rows[second]["purchase_invoice_id"],)).fetchone()[0]
+    assert (movement["reason"], movement["quantity_change"], movement["movement_date"]) == ("PURCHASE", 10, invoice_date)
+    product_purchase(conn, ids, 2, 600)
+    row = conn.execute("SELECT item_cost_before, item_cost_after FROM product_purchases").fetchone()
     assert tuple(row) == (None, 300)
+
+
+# ---------------------------------------------------------------- one payment on an invoice with several lines
+
+
+def test_one_payment_pays_the_whole_invoice_of_several_lines(shop):
+    conn, ids = shop
+    lines = [
+        {"kind": "MATERIAL", "item_id": ids["paper"], "quantity_bought": 10, "total_paid": 4000},
+        {"kind": "MATERIAL", "item_id": ids["print"], "quantity_bought": 2, "total_paid": 1000},
+        {"kind": "PRODUCT", "item_id": ids["tee"], "quantity_bought": 3, "total_paid": 900},
+    ]
+    purchase = record_purchase(conn, lines, supplier_id=ids["acme"], purchase_date="2026-05-01", payment={"mode": "NONE"})
+    invoice = get_purchase(conn, purchase)
+    assert invoice["total"] == 5900 and len(invoice["lines"]) == 3
+    assert _paid(conn, purchase) == (0, 5900, "UNPAID")
+    record_supplier_payment(conn, ids["acme"], "2026-05-02", 2000, "CASH")
+    assert _paid(conn, purchase) == (2000, 3900, "PARTIAL")
+    record_supplier_payment(conn, ids["acme"], "2026-05-03", 3900, "CASH")
+    assert _paid(conn, purchase) == (5900, 0, "PAID")
+    # one allocation per payment: it belongs to the invoice, not to a line
+    assert conn.execute("SELECT COUNT(*) FROM supplier_payment_allocations").fetchone()[0] == 2
+
+
+def test_a_partial_payment_with_the_purchase_is_on_the_invoice_total(shop):
+    conn, ids = shop
+    lines = [
+        {"kind": "MATERIAL", "item_id": ids["paper"], "quantity_bought": 10, "total_paid": 4000},
+        {"kind": "PRODUCT", "item_id": ids["tee"], "quantity_bought": 3, "total_paid": 900},
+    ]
+    purchase = record_purchase(conn, lines, supplier_id=ids["acme"], payment={"mode": "PARTIAL", "amount": 4000})
+    assert _paid(conn, purchase) == (4000, 900, "PARTIAL")
+    with pytest.raises(ValidationError) as exc:  # the whole invoice total is FULL, not PARTIAL (not a single line's)
+        record_purchase(conn, lines, supplier_id=ids["acme"], payment={"mode": "PARTIAL", "amount": 4900})
+    assert exc.value.field == "payment.amount"
 
 
 # ---------------------------------------------------------------- payments
@@ -152,34 +212,34 @@ def test_oldest_first_allocation(shop):
     old = credit(conn, ids, 4000, date="2026-05-01")
     newer = credit(conn, ids, 5000, date="2026-05-03")
     assert allocate_oldest_first(conn, ids["acme"], 6000) == [
-        {"purchase_kind": "MATERIAL", "purchase_id": old, "amount": 4000},
-        {"purchase_kind": "MATERIAL", "purchase_id": newer, "amount": 2000},
+        {"purchase_id": old, "amount": 4000},
+        {"purchase_id": newer, "amount": 2000},
     ]
     payment_id = record_supplier_payment(conn, ids["acme"], "2026-05-04", 6000, "BANK_TRANSFER", reference="T-9")
     assert _paid(conn, old) == (4000, 0, "PAID") and _paid(conn, newer) == (2000, 3000, "PARTIAL")
     payment = get_supplier_payment(conn, payment_id)
     assert [a["amount"] for a in payment["allocations"]] == [4000, 2000]
+    assert payment["allocations"][0]["item_names"] == ["Fictional Paper"]
     assert payment["supplier_name"] == "Acme Paper"
 
 
-def test_explicit_allocation_over_material_and_product_purchases(shop):
+def test_explicit_allocation_over_two_invoices_one_of_a_product(shop):
     conn, ids = shop
     material = credit(conn, ids, 4000)
-    product = record_product_purchase(conn, ids["tee"], 1, 700, supplier_id=ids["acme"], purchase_date="2026-05-01", payment={"mode": "NONE"})
+    product = product_purchase(conn, ids, 1, 700, supplier_id=ids["acme"], purchase_date="2026-05-01", payment={"mode": "NONE"})
     record_supplier_payment(conn, ids["acme"], "2026-05-02", 1700, "CASH", allocations=[
-        {"purchase_kind": "PRODUCT", "purchase_id": product, "amount": 700},
-        {"purchase_kind": "MATERIAL", "purchase_id": material, "amount": 1000},
+        {"purchase_id": product, "amount": 700},
+        {"purchase_id": material, "amount": 1000},
     ])
     assert _paid(conn, material) == (1000, 3000, "PARTIAL")
-    assert get_product_purchase(conn, product)["payment_status"] == "PAID"
+    assert get_purchase(conn, product)["payment_status"] == "PAID"
 
 
 def test_allocations_must_add_up_to_the_payment(shop):
     conn, ids = shop
     purchase = credit(conn, ids, 4000)
     with pytest.raises(ValidationError) as exc:
-        record_supplier_payment(conn, ids["acme"], "2026-05-02", 1000, "CASH",
-                                allocations=[{"purchase_kind": "MATERIAL", "purchase_id": purchase, "amount": 900}])
+        record_supplier_payment(conn, ids["acme"], "2026-05-02", 1000, "CASH", allocations=[{"purchase_id": purchase, "amount": 900}])
     assert exc.value.code == ErrorCode.SUPPLIER_PAYMENT_ALLOCATION_MISMATCH
     assert exc.value.details == {"amount": 1000, "allocated": 900}
 
@@ -188,10 +248,9 @@ def test_an_allocation_above_what_the_purchase_owes_is_refused(shop):
     conn, ids = shop
     purchase = credit(conn, ids, 4000, mode="PARTIAL", amount=3000)
     with pytest.raises(ConflictError) as exc:
-        record_supplier_payment(conn, ids["acme"], "2026-05-02", 1500, "CASH",
-                                allocations=[{"purchase_kind": "MATERIAL", "purchase_id": purchase, "amount": 1500}])
+        record_supplier_payment(conn, ids["acme"], "2026-05-02", 1500, "CASH", allocations=[{"purchase_id": purchase, "amount": 1500}])
     assert exc.value.code == ErrorCode.SUPPLIER_PAYMENT_EXCEEDS_DUE
-    assert exc.value.details == {"purchase_kind": "MATERIAL", "purchase_id": purchase, "outstanding": 1000}
+    assert exc.value.details == {"purchase_id": purchase, "outstanding": 1000}
     assert conn.execute("SELECT COUNT(*) FROM supplier_payments").fetchone()[0] == 1  # only the purchase's own
 
 
@@ -210,10 +269,9 @@ def test_a_purchase_of_another_supplier_is_refused(shop):
     conn, ids = shop
     purchase = credit(conn, ids, 4000, supplier="other")
     with pytest.raises(ValidationError) as exc:
-        record_supplier_payment(conn, ids["acme"], "2026-05-02", 100, "CASH",
-                                allocations=[{"purchase_kind": "MATERIAL", "purchase_id": purchase, "amount": 100}])
+        record_supplier_payment(conn, ids["acme"], "2026-05-02", 100, "CASH", allocations=[{"purchase_id": purchase, "amount": 100}])
     assert exc.value.code == ErrorCode.SUPPLIER_PAYMENT_SUPPLIER_MISMATCH
-    assert exc.value.details == {"purchase_kind": "MATERIAL", "purchase_id": purchase, "supplier_id": ids["other"]}
+    assert exc.value.details == {"purchase_id": purchase, "supplier_id": ids["other"]}
 
 
 def test_a_payment_before_the_purchase_day_is_refused(shop):
@@ -222,7 +280,7 @@ def test_a_payment_before_the_purchase_day_is_refused(shop):
     with pytest.raises(ValidationError) as exc:
         record_supplier_payment(conn, ids["acme"], "2026-05-09", 100, "CASH")
     assert exc.value.code == ErrorCode.SUPPLIER_PAYMENT_BEFORE_PURCHASE
-    assert exc.value.details == {"purchase_kind": "MATERIAL", "purchase_id": purchase, "purchase_date": "2026-05-10"}
+    assert exc.value.details == {"purchase_id": purchase, "purchase_date": "2026-05-10"}
     record_supplier_payment(conn, ids["acme"], "2026-05-10", 100, "CASH")  # the same day is fine
 
 
@@ -236,17 +294,16 @@ def test_future_dates_and_unknown_things_are_refused(shop):
         record_supplier_payment(conn, 999, "2026-05-02", 100, "CASH")
     assert exc.value.code == ErrorCode.SUPPLIER_NOT_FOUND
     with pytest.raises(NotFoundError) as exc:
-        record_supplier_payment(conn, ids["acme"], "2026-05-02", 100, "CASH",
-                                allocations=[{"purchase_kind": "PRODUCT", "purchase_id": purchase, "amount": 100}])
+        record_supplier_payment(conn, ids["acme"], "2026-05-02", 100, "CASH", allocations=[{"purchase_id": purchase + 99, "amount": 100}])
     assert exc.value.code == ErrorCode.PURCHASE_NOT_FOUND
-    assert exc.value.details == {"purchase_kind": "PRODUCT", "purchase_id": purchase}
+    assert exc.value.details == {"purchase_id": purchase + 99}
     with pytest.raises(ValidationError) as exc:
         record_supplier_payment(conn, ids["acme"], "2026-05-02", 100, "GOLD")
     assert exc.value.field == "method"
     with pytest.raises(ValidationError) as exc:
         record_supplier_payment(conn, ids["acme"], "2026-05-02", 200, "CASH", allocations=[
-            {"purchase_kind": "MATERIAL", "purchase_id": purchase, "amount": 100},
-            {"purchase_kind": "MATERIAL", "purchase_id": purchase, "amount": 100},
+            {"purchase_id": purchase, "amount": 100},
+            {"purchase_id": purchase, "amount": 100},
         ])
     assert exc.value.field == "allocations"
 
@@ -267,7 +324,7 @@ def test_a_payment_racing_another_cannot_overpay(shop):
     payment planned against the old figure is refused and writes nothing."""
     conn, ids = shop
     purchase = credit(conn, ids, 4000)
-    planned = [{"purchase_kind": "MATERIAL", "purchase_id": purchase, "amount": 4000}]
+    planned = [{"purchase_id": purchase, "amount": 4000}]
     record_supplier_payment(conn, ids["acme"], "2026-05-02", 4000, "CASH", allocations=planned)
     with pytest.raises(ConflictError) as exc:
         record_supplier_payment(conn, ids["acme"], "2026-05-02", 4000, "CASH", allocations=planned)
@@ -337,6 +394,14 @@ def test_a_supplier_with_payments_cannot_be_deleted(shop):
         conn.execute("DELETE FROM suppliers WHERE id = ?", (ids["acme"],))
 
 
+def test_an_invoice_with_allocations_cannot_be_deleted(shop):
+    conn, ids = shop
+    purchase = credit(conn, ids, 4000, mode="PARTIAL", amount=100)
+    conn.execute("DELETE FROM material_purchases")
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("DELETE FROM purchase_invoices WHERE id = ?", (purchase,))
+
+
 # ---------------------------------------------------------------- reads
 
 
@@ -350,9 +415,9 @@ def test_payables_per_supplier_and_open_purchases(shop):
     assert payables["outstanding_total"] == 4000 + 600 + 2000 == payables_outstanding(conn)
     acme, other = payables["suppliers"]
     assert (acme["supplier_id"], acme["outstanding"], acme["purchases_total"], acme["paid_total"]) == (ids["acme"], 4600, 14000, 9400)
-    assert acme["oldest_unpaid_date"] == get_material_purchase(conn, oldest)["purchase_date"]
+    assert acme["oldest_unpaid_date"] == get_purchase(conn, oldest)["purchase_date"]
     assert [p["purchase_id"] for p in acme["open_purchases"]] == [oldest, later]  # oldest first, by purchase day
-    assert acme["open_purchases"][0]["outstanding"] == 600 and acme["open_purchases"][0]["item_name"] == "Fictional Paper"
+    assert acme["open_purchases"][0]["outstanding"] == 600 and acme["open_purchases"][0]["item_names"] == ["Fictional Paper"]
     assert other["supplier_name"] == "Other Supplier" and other["outstanding"] == 2000
     assert [p["purchase_id"] for p in open_purchases(conn, ids["other"])] == [other["open_purchases"][0]["purchase_id"]]
 
@@ -362,7 +427,7 @@ def test_list_purchases_carries_the_payment_figures_and_the_list_of_payments_fil
     credit(conn, ids, 4000, date="2026-05-01")
     record_supplier_payment(conn, ids["acme"], "2026-05-05", 1000, "CASH")
     credit(conn, ids, 500, supplier="other", mode="FULL", date="2026-06-01")
-    rows = list_material_purchases(conn)
+    rows = list_purchases(conn)
     assert {(r["supplier_id"], r["payment_status"], r["outstanding"]) for r in rows} == {(ids["acme"], "PARTIAL", 3000), (ids["other"], "PAID", 0)}
     assert [p["amount"] for p in list_supplier_payments(conn)] == [500, 1000]  # newest first
     assert [p["amount"] for p in list_supplier_payments(conn, supplier_id=ids["acme"])] == [1000]

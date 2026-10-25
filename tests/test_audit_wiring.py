@@ -109,7 +109,17 @@ CASES = {
         lambda c: purchases.record_material_purchase(
             c, materials.add_material(c, "Audit Glue", "STOCK", 0), 5, 50_000
         ),
-        {"material_purchases", "materials", "stock_movements"},
+        {"purchase_invoices", "material_purchases", "materials", "stock_movements"},
+    ),
+    "record_purchase": (
+        lambda c: purchases.record_purchase(
+            c,
+            [
+                {"kind": "MATERIAL", "item_id": materials.add_material(c, "Audit Tape", "STOCK", 0), "quantity_bought": 5, "total_paid": 50_000},
+                {"kind": "MATERIAL", "item_id": materials.add_material(c, "Audit Print Job", "SERVICE", 10), "quantity_bought": 2, "total_paid": 9_000},
+            ],
+        ),
+        {"purchase_invoices", "material_purchases", "materials", "stock_movements"},
     ),
     "run_production_batch": (
         lambda c: production.run_production_batch(c, _recipe_product(c)[0], 2),

@@ -1048,8 +1048,11 @@ def test_get_purchases_summary_totals_and_counts_per_range(test_db, purchase_ite
     assert get_purchases_summary(test_db, "2026-03-01", "2026-03-31") == {
         "material_purchases_total": 155_000,
         "material_purchases_count": 2,
+        "service_purchases_total": 0,
+        "service_purchases_count": 0,
         "product_purchases_total": 800_000,
         "product_purchases_count": 1,
+        "purchase_invoices_count": 3,  # one invoice per purchase here
         "supplier_payments_total": 955_000,  # each purchase paid in full on its own day
         "supplier_payments_count": 3,
         "payables_outstanding": 0,
@@ -1057,8 +1060,11 @@ def test_get_purchases_summary_totals_and_counts_per_range(test_db, purchase_ite
     assert get_purchases_summary(test_db, "2026-04-01", "2026-04-30") == {
         "material_purchases_total": 12_000,
         "material_purchases_count": 1,
+        "service_purchases_total": 0,
+        "service_purchases_count": 0,
         "product_purchases_total": 450_000,
         "product_purchases_count": 1,
+        "purchase_invoices_count": 2,
         "supplier_payments_total": 462_000,
         "supplier_payments_count": 2,
         "payables_outstanding": 0,
@@ -1091,8 +1097,11 @@ def test_get_purchases_summary_empty_range(test_db, purchase_items):
     assert get_purchases_summary(test_db, "2025-01-01", "2025-01-31") == {
         "material_purchases_total": 0,
         "material_purchases_count": 0,
+        "service_purchases_total": 0,
+        "service_purchases_count": 0,
         "product_purchases_total": 0,
         "product_purchases_count": 0,
+        "purchase_invoices_count": 0,
         "supplier_payments_total": 0,
         "supplier_payments_count": 0,
         "payables_outstanding": 0,
