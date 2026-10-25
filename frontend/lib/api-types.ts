@@ -653,68 +653,40 @@ export interface paths {
         patch: operations["patch_supplier_suppliers__supplier_id__patch"];
         trace?: never;
     };
-    "/purchases/materials": {
+    "/purchases": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Read Material Purchases */
-        get: operations["read_material_purchases_purchases_materials_get"];
+        /**
+         * Read Purchases
+         * @description Purchase invoices, newest first, each with its lines. `item_type` keeps the invoices with a line of that type
+         *     (MATERIAL = STOCK materials, SERVICE, PRODUCT); `item_id` (needs item_type) a line of that item.
+         */
+        get: operations["read_purchases_purchases_get"];
         put?: never;
-        /** Create Material Purchase */
-        post: operations["create_material_purchase_purchases_materials_post"];
+        /**
+         * Create Purchase
+         * @description One supplier invoice with one or more lines (STOCK materials, services, products), one payment choice.
+         */
+        post: operations["create_purchase_purchases_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/purchases/materials/{purchase_id}": {
+    "/purchases/{purchase_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Read Material Purchase */
-        get: operations["read_material_purchase_purchases_materials__purchase_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/purchases/products": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Product Purchases */
-        get: operations["read_product_purchases_purchases_products_get"];
-        put?: never;
-        /** Create Product Purchase */
-        post: operations["create_product_purchase_purchases_products_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/purchases/products/{purchase_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Product Purchase */
-        get: operations["read_product_purchase_purchases_products__purchase_id__get"];
+        /** Read Purchase */
+        get: operations["read_purchase_purchases__purchase_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1909,14 +1881,9 @@ export interface components {
         };
         /**
          * AllocationIn
-         * @description The part of a payment that pays one purchase.
+         * @description The part of a payment that pays one purchase (a purchase invoice).
          */
         AllocationIn: {
-            /**
-             * Purchase Kind
-             * @enum {string}
-             */
-            purchase_kind: "MATERIAL" | "PRODUCT";
             /** Purchase Id */
             purchase_id: number;
             /**
@@ -1936,11 +1903,6 @@ export interface components {
         AllocationOut: {
             /** Id */
             id: number;
-            /**
-             * Purchase Kind
-             * @enum {string}
-             */
-            purchase_kind: "MATERIAL" | "PRODUCT";
             /** Purchase Id */
             purchase_id: number;
             /**
@@ -1952,16 +1914,11 @@ export interface components {
             invoice_number: string | null;
             /** Purchase Date */
             purchase_date: string;
-            /** Item Name */
-            item_name: string;
+            /** Item Names */
+            item_names: string[];
         };
         /** AllocationPlanOut */
         AllocationPlanOut: {
-            /**
-             * Purchase Kind
-             * @enum {string}
-             */
-            purchase_kind: "MATERIAL" | "PRODUCT";
             /** Purchase Id */
             purchase_id: number;
             /**
@@ -2761,6 +2718,21 @@ export interface components {
             code: "SUPPLIER_PAYMENT_EXCEEDS_DUE";
             details: components["schemas"]["PurchaseDueDetails"];
         };
+        /** ErrorBodyPurchaseDuplicateItem */
+        ErrorBodyPurchaseDuplicateItem: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PURCHASE_DUPLICATE_ITEM";
+            details: components["schemas"]["PurchaseDuplicateItemDetails"];
+        };
         /** ErrorBodyPurchaseRef */
         ErrorBodyPurchaseRef: {
             /** Type */
@@ -2820,6 +2792,21 @@ export interface components {
              */
             code: "PAYMENT_METHOD_RULE_PENDING";
             details: components["schemas"]["RulePendingDetails"];
+        };
+        /** ErrorBodyServicePurchaseNeedsTotal */
+        ErrorBodyServicePurchaseNeedsTotal: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "SERVICE_PURCHASE_NEEDS_TOTAL";
+            details: components["schemas"]["ServicePurchaseNeedsTotalDetails"];
         };
         /** ErrorBodyStocktakeAfterSale */
         ErrorBodyStocktakeAfterSale: {
@@ -2929,7 +2916,7 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             /** Error */
-            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodyMaterialRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodySupplierRequiredForCredit"] | components["schemas"]["ErrorBodyPurchaseDue"] | components["schemas"]["ErrorBodySupplierBalance"] | components["schemas"]["ErrorBodyPurchaseSupplier"] | components["schemas"]["ErrorBodyAllocationMismatch"] | components["schemas"]["ErrorBodyPaymentBeforePurchase"] | components["schemas"]["ErrorBodySupplierPaymentRef"] | components["schemas"]["ErrorBodyPurchaseRef"] | components["schemas"]["ErrorBodyBackupFailed"];
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodyMaterialRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodySupplierRequiredForCredit"] | components["schemas"]["ErrorBodyPurchaseDue"] | components["schemas"]["ErrorBodySupplierBalance"] | components["schemas"]["ErrorBodyPurchaseSupplier"] | components["schemas"]["ErrorBodyAllocationMismatch"] | components["schemas"]["ErrorBodyPaymentBeforePurchase"] | components["schemas"]["ErrorBodySupplierPaymentRef"] | components["schemas"]["ErrorBodyPurchaseRef"] | components["schemas"]["ErrorBodyPurchaseDuplicateItem"] | components["schemas"]["ErrorBodyServicePurchaseNeedsTotal"] | components["schemas"]["ErrorBodyBackupFailed"];
         };
         /**
          * ErrorItem
@@ -3213,145 +3200,6 @@ export interface components {
             /** Updated At */
             updated_at: string | null;
         };
-        /** MaterialPurchaseCreate */
-        MaterialPurchaseCreate: {
-            /** Material Id */
-            material_id: number;
-            /** Quantity Bought */
-            quantity_bought: number;
-            /**
-             * Total Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            total_paid: number;
-            /** Supplier Id */
-            supplier_id?: number | null;
-            /** Purchase Date */
-            purchase_date?: string | null;
-            /** Notes */
-            notes?: string | null;
-            payment?: components["schemas"]["PurchasePaymentIn"] | null;
-        };
-        /** MaterialPurchaseDetailOut */
-        MaterialPurchaseDetailOut: {
-            /** Id */
-            id: number;
-            /** Supplier Id */
-            supplier_id: number | null;
-            /** Invoice Number */
-            invoice_number: string | null;
-            /** Purchase Date */
-            purchase_date: string;
-            /**
-             * Total Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            total_paid: number;
-            /**
-             * Unit Cost
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            unit_cost: number;
-            /** Notes */
-            notes: string | null;
-            /** Supplier Name */
-            supplier_name: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "ACTIVE" | "CANCELLED";
-            /** Cancel Reason */
-            cancel_reason: string | null;
-            /** Cancelled At */
-            cancelled_at: string | null;
-            /** Replaces Purchase Id */
-            replaces_purchase_id: number | null;
-            /** Replaced By Purchase Id */
-            replaced_by_purchase_id: number | null;
-            /**
-             * Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            paid: number;
-            /**
-             * Outstanding
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            outstanding: number;
-            /**
-             * Payment Status
-             * @enum {string}
-             */
-            payment_status: "UNPAID" | "PARTIAL" | "PAID";
-            /** Material Id */
-            material_id: number;
-            /** Quantity Bought */
-            quantity_bought: number;
-            /** Material Name */
-            material_name: string;
-            /** Payments */
-            payments: components["schemas"]["PurchasePaymentOut"][];
-        };
-        /** MaterialPurchaseOut */
-        MaterialPurchaseOut: {
-            /** Id */
-            id: number;
-            /** Supplier Id */
-            supplier_id: number | null;
-            /** Invoice Number */
-            invoice_number: string | null;
-            /** Purchase Date */
-            purchase_date: string;
-            /**
-             * Total Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            total_paid: number;
-            /**
-             * Unit Cost
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            unit_cost: number;
-            /** Notes */
-            notes: string | null;
-            /** Supplier Name */
-            supplier_name: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "ACTIVE" | "CANCELLED";
-            /** Cancel Reason */
-            cancel_reason: string | null;
-            /** Cancelled At */
-            cancelled_at: string | null;
-            /** Replaces Purchase Id */
-            replaces_purchase_id: number | null;
-            /** Replaced By Purchase Id */
-            replaced_by_purchase_id: number | null;
-            /**
-             * Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            paid: number;
-            /**
-             * Outstanding
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            outstanding: number;
-            /**
-             * Payment Status
-             * @enum {string}
-             */
-            payment_status: "UNPAID" | "PARTIAL" | "PAID";
-            /** Material Id */
-            material_id: number;
-            /** Quantity Bought */
-            quantity_bought: number;
-            /** Material Name */
-            material_name: string;
-        };
         /** MaterialRefDetails */
         MaterialRefDetails: {
             /** Material Id */
@@ -3410,27 +3258,22 @@ export interface components {
         NoDetails: Record<string, never>;
         /**
          * OpenPurchaseOut
-         * @description A purchase that still owes something.
+         * @description A purchase invoice that still owes something.
          */
         OpenPurchaseOut: {
-            /**
-             * Purchase Kind
-             * @enum {string}
-             */
-            purchase_kind: "MATERIAL" | "PRODUCT";
             /** Purchase Id */
             purchase_id: number;
             /** Invoice Number */
             invoice_number: string | null;
             /** Purchase Date */
             purchase_date: string;
-            /** Item Name */
-            item_name: string;
+            /** Item Names */
+            item_names: string[];
             /**
-             * Total Paid
+             * Total
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
-            total_paid: number;
+            total: number;
             /**
              * Paid
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
@@ -3869,8 +3712,6 @@ export interface components {
         };
         /** PaymentBeforePurchaseDetails */
         PaymentBeforePurchaseDetails: {
-            /** Purchase Kind */
-            purchase_kind: string;
             /** Purchase Id */
             purchase_id: number;
             /** Purchase Date */
@@ -4322,145 +4163,6 @@ export interface components {
             /** Wholesale Price */
             wholesale_price?: number | null;
         };
-        /** ProductPurchaseCreate */
-        ProductPurchaseCreate: {
-            /** Product Id */
-            product_id: number;
-            /** Quantity Bought */
-            quantity_bought: number;
-            /**
-             * Total Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            total_paid: number;
-            /** Supplier Id */
-            supplier_id?: number | null;
-            /** Purchase Date */
-            purchase_date?: string | null;
-            /** Notes */
-            notes?: string | null;
-            payment?: components["schemas"]["PurchasePaymentIn"] | null;
-        };
-        /** ProductPurchaseDetailOut */
-        ProductPurchaseDetailOut: {
-            /** Id */
-            id: number;
-            /** Supplier Id */
-            supplier_id: number | null;
-            /** Invoice Number */
-            invoice_number: string | null;
-            /** Purchase Date */
-            purchase_date: string;
-            /**
-             * Total Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            total_paid: number;
-            /**
-             * Unit Cost
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            unit_cost: number;
-            /** Notes */
-            notes: string | null;
-            /** Supplier Name */
-            supplier_name: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "ACTIVE" | "CANCELLED";
-            /** Cancel Reason */
-            cancel_reason: string | null;
-            /** Cancelled At */
-            cancelled_at: string | null;
-            /** Replaces Purchase Id */
-            replaces_purchase_id: number | null;
-            /** Replaced By Purchase Id */
-            replaced_by_purchase_id: number | null;
-            /**
-             * Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            paid: number;
-            /**
-             * Outstanding
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            outstanding: number;
-            /**
-             * Payment Status
-             * @enum {string}
-             */
-            payment_status: "UNPAID" | "PARTIAL" | "PAID";
-            /** Product Id */
-            product_id: number;
-            /** Quantity Bought */
-            quantity_bought: number;
-            /** Product Name */
-            product_name: string;
-            /** Payments */
-            payments: components["schemas"]["PurchasePaymentOut"][];
-        };
-        /** ProductPurchaseOut */
-        ProductPurchaseOut: {
-            /** Id */
-            id: number;
-            /** Supplier Id */
-            supplier_id: number | null;
-            /** Invoice Number */
-            invoice_number: string | null;
-            /** Purchase Date */
-            purchase_date: string;
-            /**
-             * Total Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            total_paid: number;
-            /**
-             * Unit Cost
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            unit_cost: number;
-            /** Notes */
-            notes: string | null;
-            /** Supplier Name */
-            supplier_name: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "ACTIVE" | "CANCELLED";
-            /** Cancel Reason */
-            cancel_reason: string | null;
-            /** Cancelled At */
-            cancelled_at: string | null;
-            /** Replaces Purchase Id */
-            replaces_purchase_id: number | null;
-            /** Replaced By Purchase Id */
-            replaced_by_purchase_id: number | null;
-            /**
-             * Paid
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            paid: number;
-            /**
-             * Outstanding
-             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
-             */
-            outstanding: number;
-            /**
-             * Payment Status
-             * @enum {string}
-             */
-            payment_status: "UNPAID" | "PARTIAL" | "PAID";
-            /** Product Id */
-            product_id: number;
-            /** Quantity Bought */
-            quantity_bought: number;
-            /** Product Name */
-            product_name: string;
-        };
         /** ProductRefDetails */
         ProductRefDetails: {
             /** Product Id */
@@ -4636,14 +4338,192 @@ export interface components {
             /** Order Count */
             order_count: number;
         };
+        /** PurchaseCreate */
+        PurchaseCreate: {
+            /** Supplier Id */
+            supplier_id?: number | null;
+            /** Purchase Date */
+            purchase_date?: string | null;
+            /** Notes */
+            notes?: string | null;
+            payment?: components["schemas"]["PurchasePaymentIn"] | null;
+            /** Lines */
+            lines: components["schemas"]["PurchaseLineIn"][];
+        };
+        /** PurchaseDetailOut */
+        PurchaseDetailOut: {
+            /** Id */
+            id: number;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Supplier Id */
+            supplier_id: number | null;
+            /** Supplier Name */
+            supplier_name: string | null;
+            /** Purchase Date */
+            purchase_date: string;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ACTIVE" | "CANCELLED";
+            /** Cancel Reason */
+            cancel_reason: string | null;
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /** Replaces Invoice Id */
+            replaces_invoice_id: number | null;
+            /** Replaced By Invoice Id */
+            replaced_by_invoice_id: number | null;
+            /**
+             * Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            total: number;
+            /**
+             * Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            paid: number;
+            /**
+             * Outstanding
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            outstanding: number;
+            /**
+             * Payment Status
+             * @enum {string}
+             */
+            payment_status: "UNPAID" | "PARTIAL" | "PAID";
+            /** Lines */
+            lines: components["schemas"]["PurchaseLineOut"][];
+            /** Payments */
+            payments: components["schemas"]["PurchasePaymentOut"][];
+        };
         /** PurchaseDueDetails */
         PurchaseDueDetails: {
-            /** Purchase Kind */
-            purchase_kind: string;
             /** Purchase Id */
             purchase_id: number;
             /** Outstanding */
             outstanding: number;
+        };
+        /** PurchaseDuplicateItemDetails */
+        PurchaseDuplicateItemDetails: {
+            /** Index */
+            index: number;
+            /** Item Type */
+            item_type: string;
+            /** Item Id */
+            item_id: number;
+        };
+        /**
+         * PurchaseLineIn
+         * @description One item of a purchase. `quantity_bought` must be whole for a PRODUCT; a service line needs a total above 0
+         *     (it sets the service's price).
+         */
+        PurchaseLineIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "MATERIAL" | "PRODUCT";
+            /** Item Id */
+            item_id: number;
+            /** Quantity Bought */
+            quantity_bought: number;
+            /**
+             * Total Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            total_paid: number;
+        };
+        /** PurchaseLineOut */
+        PurchaseLineOut: {
+            /** Id */
+            id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "MATERIAL" | "PRODUCT";
+            /**
+             * Item Type
+             * @enum {string}
+             */
+            item_type: "STOCK" | "SERVICE" | "PRODUCT";
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
+            /** Unit */
+            unit: string | null;
+            /** Quantity Bought */
+            quantity_bought: number;
+            /**
+             * Total Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            total_paid: number;
+            /**
+             * Unit Cost
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            unit_cost: number;
+        };
+        /**
+         * PurchaseOut
+         * @description A purchase invoice: one supplier bill with its lines (`total` = Σ line totals).
+         */
+        PurchaseOut: {
+            /** Id */
+            id: number;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Supplier Id */
+            supplier_id: number | null;
+            /** Supplier Name */
+            supplier_name: string | null;
+            /** Purchase Date */
+            purchase_date: string;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ACTIVE" | "CANCELLED";
+            /** Cancel Reason */
+            cancel_reason: string | null;
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /** Replaces Invoice Id */
+            replaces_invoice_id: number | null;
+            /** Replaced By Invoice Id */
+            replaced_by_invoice_id: number | null;
+            /**
+             * Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            total: number;
+            /**
+             * Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            paid: number;
+            /**
+             * Outstanding
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            outstanding: number;
+            /**
+             * Payment Status
+             * @enum {string}
+             */
+            payment_status: "UNPAID" | "PARTIAL" | "PAID";
+            /** Lines */
+            lines: components["schemas"]["PurchaseLineOut"][];
         };
         /**
          * PurchasePaymentIn
@@ -4699,15 +4579,11 @@ export interface components {
         };
         /** PurchaseRefDetails */
         PurchaseRefDetails: {
-            /** Purchase Kind */
-            purchase_kind: string;
             /** Purchase Id */
             purchase_id: number;
         };
         /** PurchaseSupplierDetails */
         PurchaseSupplierDetails: {
-            /** Purchase Kind */
-            purchase_kind: string;
             /** Purchase Id */
             purchase_id: number;
             /** Supplier Id */
@@ -4723,12 +4599,21 @@ export interface components {
             /** Material Purchases Count */
             material_purchases_count: number;
             /**
+             * Service Purchases Total
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            service_purchases_total: number;
+            /** Service Purchases Count */
+            service_purchases_count: number;
+            /**
              * Product Purchases Total
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
             product_purchases_total: number;
             /** Product Purchases Count */
             product_purchases_count: number;
+            /** Purchase Invoices Count */
+            purchase_invoices_count: number;
             /**
              * Supplier Payments Total
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
@@ -4828,6 +4713,15 @@ export interface components {
         RulePendingDetails: {
             /** Pending Count */
             pending_count: number;
+        };
+        /** ServicePurchaseNeedsTotalDetails */
+        ServicePurchaseNeedsTotalDetails: {
+            /** Index */
+            index: number;
+            /** Material Id */
+            material_id: number;
+            /** Material Name */
+            material_name: string;
         };
         /**
          * ServiceWasteCreate
@@ -5547,24 +5441,27 @@ export interface components {
          *                                      recorded after the sale already took this item's stock as it was
          *     VOID_REASON_REQUIRED             - (field reason)
          *     SUPPLIER_REQUIRED_FOR_CREDIT     - (field supplier_id): a purchase not paid in full needs a supplier
-         *     SUPPLIER_PAYMENT_EXCEEDS_DUE     purchase_kind (MATERIAL | PRODUCT), purchase_id, outstanding: an allocation is
-         *                                      larger than what the purchase still owes
+         *     SUPPLIER_PAYMENT_EXCEEDS_DUE     purchase_id (the purchase invoice), outstanding: an allocation is larger than what
+         *                                      the purchase still owes
          *     SUPPLIER_PAYMENT_EXCEEDS_BALANCE supplier_id (None: purchases with no supplier), outstanding: a payment larger than
          *                                      everything owed to that supplier (no advances)
-         *     SUPPLIER_PAYMENT_SUPPLIER_MISMATCH purchase_kind, purchase_id, supplier_id (the purchase's): it is not that
-         *                                      supplier's purchase
+         *     SUPPLIER_PAYMENT_SUPPLIER_MISMATCH purchase_id, supplier_id (the purchase's): it is not that supplier's purchase
          *     SUPPLIER_PAYMENT_ALLOCATION_MISMATCH amount, allocated: the allocations do not add up to the payment
-         *     SUPPLIER_PAYMENT_BEFORE_PURCHASE purchase_kind, purchase_id, purchase_date (local day): a payment day before the
-         *                                      day of a purchase it pays
+         *     SUPPLIER_PAYMENT_BEFORE_PURCHASE purchase_id, purchase_date (local day): a payment day before the day of a purchase
+         *                                      it pays
          *     SUPPLIER_PAYMENT_NOT_FOUND       payment_id
-         *     PURCHASE_NOT_FOUND               purchase_kind, purchase_id
+         *     PURCHASE_NOT_FOUND               purchase_id (the purchase invoice)
+         *     PURCHASE_DUPLICATE_ITEM          index (0-based line), item_type (MATERIAL | PRODUCT), item_id (field
+         *                                      lines.N.item_id): the same item is already on this purchase
+         *     SERVICE_PURCHASE_NEEDS_TOTAL     index, material_id, material_name (field lines.N.total_paid): a service line of
+         *                                      total 0 would erase the service's price
          *
          *     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
          *     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "MATERIAL_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "SUPPLIER_REQUIRED_FOR_CREDIT" | "SUPPLIER_PAYMENT_EXCEEDS_DUE" | "SUPPLIER_PAYMENT_EXCEEDS_BALANCE" | "SUPPLIER_PAYMENT_SUPPLIER_MISMATCH" | "SUPPLIER_PAYMENT_ALLOCATION_MISMATCH" | "SUPPLIER_PAYMENT_BEFORE_PURCHASE" | "SUPPLIER_PAYMENT_NOT_FOUND" | "PURCHASE_NOT_FOUND" | "BACKUP_FAILED";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "MATERIAL_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "SUPPLIER_REQUIRED_FOR_CREDIT" | "SUPPLIER_PAYMENT_EXCEEDS_DUE" | "SUPPLIER_PAYMENT_EXCEEDS_BALANCE" | "SUPPLIER_PAYMENT_SUPPLIER_MISMATCH" | "SUPPLIER_PAYMENT_ALLOCATION_MISMATCH" | "SUPPLIER_PAYMENT_BEFORE_PURCHASE" | "SUPPLIER_PAYMENT_NOT_FOUND" | "PURCHASE_NOT_FOUND" | "PURCHASE_DUPLICATE_ITEM" | "SERVICE_PURCHASE_NEEDS_TOTAL" | "BACKUP_FAILED";
     };
     responses: never;
     parameters: never;
@@ -7972,13 +7869,14 @@ export interface operations {
             };
         };
     };
-    read_material_purchases_purchases_materials_get: {
+    read_purchases_purchases_get: {
         parameters: {
             query?: {
-                material_id?: number | null;
                 supplier_id?: number | null;
                 start_date?: string | null;
                 end_date?: string | null;
+                item_type?: ("MATERIAL" | "SERVICE" | "PRODUCT") | null;
+                item_id?: number | null;
             };
             header?: never;
             path?: never;
@@ -7992,7 +7890,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialPurchaseOut"][];
+                    "application/json": components["schemas"]["PurchaseOut"][];
                 };
             };
             /** @description App error (see ErrorBody.code) */
@@ -8033,7 +7931,7 @@ export interface operations {
             };
         };
     };
-    create_material_purchase_purchases_materials_post: {
+    create_purchase_purchases_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -8042,7 +7940,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MaterialPurchaseCreate"];
+                "application/json": components["schemas"]["PurchaseCreate"];
             };
         };
         responses: {
@@ -8052,7 +7950,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialPurchaseDetailOut"];
+                    "application/json": components["schemas"]["PurchaseDetailOut"];
                 };
             };
             /** @description App error (see ErrorBody.code) */
@@ -8093,7 +7991,7 @@ export interface operations {
             };
         };
     };
-    read_material_purchase_purchases_materials__purchase_id__get: {
+    read_purchase_purchases__purchase_id__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8110,186 +8008,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialPurchaseDetailOut"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    read_product_purchases_purchases_products_get: {
-        parameters: {
-            query?: {
-                product_id?: number | null;
-                supplier_id?: number | null;
-                start_date?: string | null;
-                end_date?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProductPurchaseOut"][];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    create_product_purchase_purchases_products_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProductPurchaseCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProductPurchaseDetailOut"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description App error (see ErrorBody.code) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    read_product_purchase_purchases_products__purchase_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                purchase_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProductPurchaseDetailOut"];
+                    "application/json": components["schemas"]["PurchaseDetailOut"];
                 };
             };
             /** @description App error (see ErrorBody.code) */

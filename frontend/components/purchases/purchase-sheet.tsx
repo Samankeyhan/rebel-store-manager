@@ -4,30 +4,29 @@ import * as React from "react"
 import { Loader2 } from "lucide-react"
 import { DrawerShell } from "@/components/products/drawer-shell"
 import { Alert, Btn } from "@/components/record-sale/primitives"
-import { getMaterialPurchase, getProductPurchase, type MaterialPurchaseDetail, type ProductPurchaseDetail } from "@/lib/api"
+import { getPurchase, type PurchaseDetail } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
 import { formatQuantity } from "@/lib/persian-numbers"
+import { unitLabel } from "@/components/products/figures"
 import { formatMoney } from "@/lib/money"
 import { METHOD_LABELS, U } from "./copy"
 import { PayStatusTag } from "./pay-status-tag"
 import { TypeTag } from "./type-tag"
 import type { PurchaseRow } from "./use-purchases-data"
 
-type Load = { status: "loading" } | { status: "error" } | { status: "ready"; p: MaterialPurchaseDetail | ProductPurchaseDetail }
+type Load = { status: "loading" } | { status: "error" } | { status: "ready"; p: PurchaseDetail }
 
 /**
- * One purchase (GET /purchases/{materials|products}/{id}), every field including the server's invoice number, its
- * payment status, what is paid and still owed, and the payments that paid it (all from the API).
+ * One purchase invoice (GET /purchases/{id}): the server's invoice number, every line (item, quantity, line total, unit
+ * cost), the invoice total, its payment status, what is paid and still owed, and the payments that paid it (all from the API).
  */
 export function PurchaseSheet({
   row,
-  unitOf,
   timeZone,
   mobile,
   onClose,
 }: {
   row: PurchaseRow | null
-  unitOf: (row: PurchaseRow) => string
   timeZone: string
   mobile: boolean
   onClose: () => void
@@ -38,8 +37,7 @@ export function PurchaseSheet({
   React.useEffect(() => {
     if (!row) return
     let cancelled = false
-    const fetch = row.kind === "material" ? getMaterialPurchase(row.id) : getProductPurchase(row.id)
-    fetch.then(
+    getPurchase(row.id).then(
       (p) => !cancelled && setLoad({ key: row.key, load: { status: "ready", p } }),
       () => !cancelled && setLoad({ key: row.key, load: { status: "error" } })
     )
@@ -60,9 +58,13 @@ export function PurchaseSheet({
     >
       {row && (
         <>
-          <div className="flex items-center gap-2 text-[15px] font-bold">
-            {row.itemName}
-            <TypeTag kind={row.kind} />
+          <div className="flex flex-wrap items-center gap-2 text-[15px] font-bold">
+            <span dir="ltr" className="font-mono">
+              {row.invoiceNumber ?? "—"}
+            </span>
+            {row.types.map((t) => (
+              <TypeTag key={t} type={t} />
+            ))}
           </div>
           {current.status === "loading" && (
             <p className="flex justify-center py-6 text-text-3">
@@ -77,9 +79,7 @@ export function PurchaseSheet({
                   [U.detailInvoice, <span key="i" dir="ltr" className="font-mono">{current.p.invoice_number ?? "—"}</span>],
                   [U.detailDate, formatJalaliDateTime(current.p.purchase_date, timeZone)],
                   [U.detailSupplier, current.p.supplier_name ?? U.noSupplierOption],
-                  [U.detailQty, `${formatQuantity(current.p.quantity_bought)} ${unitOf(row)}`],
-                  [U.detailTotal, formatMoney(current.p.total_paid)],
-                  [U.detailUnit, formatMoney(current.p.unit_cost)],
+                  [U.detailTotal, formatMoney(current.p.total)],
                   [U.detailPaymentStatus, <PayStatusTag key="s" status={current.p.payment_status} />],
                   [U.detailPaid, formatMoney(current.p.paid)],
                   [U.detailOutstanding, formatMoney(current.p.outstanding)],
@@ -92,6 +92,27 @@ export function PurchaseSheet({
                 </div>
               ))}
             </dl>
+          )}
+          {current.status === "ready" && (
+            <section className="flex flex-col gap-2">
+              <h3 className="text-sm font-bold text-heading">{U.detailLines}</h3>
+              <ul className="flex flex-col text-[13.5px]">
+                {current.p.lines.map((line) => (
+                  <li key={`${line.kind}-${line.id}`} className="flex items-start justify-between gap-4 border-b border-border py-2 last:border-b-0">
+                    <span className="flex min-w-0 flex-col">
+                      <span className="flex flex-wrap items-center gap-1.5 font-semibold">
+                        {line.item_name}
+                        <TypeTag type={line.item_type} />
+                      </span>
+                      <span className="text-xs text-text-3 tabular-nums">
+                        {formatQuantity(line.quantity_bought)} {line.unit ? unitLabel(line.unit) : "عدد"} · {U.detailUnit}: {formatMoney(line.unit_cost)}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-semibold tabular-nums">{formatMoney(line.total_paid)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
           {current.status === "ready" && (
             <section className="flex flex-col gap-2">

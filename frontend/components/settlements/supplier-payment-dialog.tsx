@@ -19,6 +19,7 @@ import {
 } from "@/lib/api"
 import { formatJalali, utcToLocal } from "@/lib/jalali"
 import { formatMoney } from "@/lib/money"
+import { itemsSummary } from "@/lib/purchase-lines"
 import { allocatedTotal, allocationProblem, allocationsBody, classifyPayablesError } from "@/lib/payables"
 import { cn } from "@/lib/utils"
 import { P, S } from "./copy"
@@ -26,7 +27,6 @@ import { SettlementDialogFrame } from "./record-dialog"
 
 type Line = {
   key: string
-  purchase_kind: "MATERIAL" | "PRODUCT"
   purchase_id: number
   label: string
   outstanding: number
@@ -146,7 +146,7 @@ export function SupplierPaymentDialog({
       if (value === null || value <= 0) return
       try {
         const plan = await getAllocationPreview(s.supplier_id, value)
-        setLines((ls) => ls.map((l) => ({ ...l, amount: plan.find((p) => p.purchase_kind === l.purchase_kind && p.purchase_id === l.purchase_id)?.amount ?? 0 })))
+        setLines((ls) => ls.map((l) => ({ ...l, amount: plan.find((p) => p.purchase_id === l.purchase_id)?.amount ?? 0 })))
       } catch (e) {
         if (e instanceof ApiError) setFieldError({ field: "amount", text: refusalText(e).text })
       }
@@ -165,10 +165,9 @@ export function SupplierPaymentDialog({
     // everything owed, oldest first: each purchase gets what it still owes
     setLines(
       supplier.open_purchases.map((p) => ({
-        key: `${p.purchase_kind}-${p.purchase_id}`,
-        purchase_kind: p.purchase_kind,
+        key: String(p.purchase_id),
         purchase_id: p.purchase_id,
-        label: `${p.item_name} · ${p.invoice_number ?? ""} · ${dayOf(p.purchase_date, timeZone)}`,
+        label: `${itemsSummary(p.item_names, P.moreItems)} · ${p.invoice_number ?? ""} · ${dayOf(p.purchase_date, timeZone)}`,
         outstanding: p.outstanding,
         amount: p.outstanding,
       }))

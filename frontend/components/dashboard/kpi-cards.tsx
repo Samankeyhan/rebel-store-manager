@@ -193,9 +193,9 @@ export function KpiCards({
 }
 
 /**
- * «خرید و هزینه‌ها»: four separate figures for the period, never added
+ * «خرید و هزینه‌ها»: five separate figures for the period, never added
  * together — operating expenses and postage paid come from the P&L,
- * purchases from /reports/purchases (inventory, not P&L). Each line opens
+ * purchases (stock materials, services, products) from /reports/purchases (not P&L). Each line opens
  * its own screen on the same range.
  */
 function CostsCard({
@@ -220,6 +220,13 @@ function CostsCard({
       href: `/purchases?type=material&${qs}`,
       value: b?.material_purchases_total ?? null,
       count: b?.material_purchases_count,
+      load: purchases,
+    },
+    {
+      label: D.costsServices,
+      href: `/purchases?type=service&${qs}`,
+      value: b?.service_purchases_total ?? null,
+      count: b?.service_purchases_count,
       load: purchases,
     },
     {

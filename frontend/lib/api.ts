@@ -430,59 +430,55 @@ export function removeRecipeItem(productId: number, materialId: number): Promise
 
 // ------------------------------------------------------------ purchases
 
-export type MaterialPurchase = Schemas["MaterialPurchaseOut"]
-export type ProductPurchase = Schemas["ProductPurchaseOut"]
+/** A purchase invoice: one supplier bill with its `lines` (`total` = Σ line totals). */
+export type Purchase = Schemas["PurchaseOut"]
+export type PurchaseLine = Schemas["PurchaseLineOut"]
 /** One purchase with `payments` (the supplier payments that paid it). */
-export type MaterialPurchaseDetail = Schemas["MaterialPurchaseDetailOut"]
-export type ProductPurchaseDetail = Schemas["ProductPurchaseDetailOut"]
+export type PurchaseDetail = Schemas["PurchaseDetailOut"]
 export type PurchasePayment = Schemas["PurchasePaymentOut"]
 export type PurchasePaymentIn = Schemas["PurchasePaymentIn"]
 /** db/supplier_payments.py METHODS. */
 export type SupplierPaymentMethod = NonNullable<PurchasePaymentIn["method"]>
-export type PaymentStatus = MaterialPurchase["payment_status"]
-export type MaterialPurchaseCreate = Schemas["MaterialPurchaseCreate"]
-export type ProductPurchaseCreate = Schemas["ProductPurchaseCreate"]
+export type PaymentStatus = Purchase["payment_status"]
+export type PurchaseCreate = Schemas["PurchaseCreate"]
+export type PurchaseLineIn = Schemas["PurchaseLineIn"]
 export type Supplier = Schemas["SupplierOut"]
 
-export type PurchaseFilters = { supplierId?: number | null; from?: string | null; to?: string | null }
+export type PurchaseFilters = {
+  supplierId?: number | null
+  from?: string | null
+  to?: string | null
+  /** Invoices with a line of this type (MATERIAL = STOCK materials). */
+  itemType?: "MATERIAL" | "SERVICE" | "PRODUCT" | null
+}
 
 function purchaseQuery(f: PurchaseFilters): string {
   const qs = new URLSearchParams()
   if (f.supplierId != null) qs.set("supplier_id", String(f.supplierId))
   if (f.from) qs.set("start_date", f.from)
   if (f.to) qs.set("end_date", f.to)
+  if (f.itemType) qs.set("item_type", f.itemType)
   const s = qs.toString()
   return s ? `?${s}` : ""
 }
 
-export function listMaterialPurchases(f: PurchaseFilters = {}): Promise<MaterialPurchase[]> {
-  return apiFetch<MaterialPurchase[]>(`/purchases/materials${purchaseQuery(f)}`)
+/** Purchase invoices, newest first, each with its lines. */
+export function listPurchases(f: PurchaseFilters = {}): Promise<Purchase[]> {
+  return apiFetch<Purchase[]>(`/purchases${purchaseQuery(f)}`)
 }
 
-export function listProductPurchases(f: PurchaseFilters = {}): Promise<ProductPurchase[]> {
-  return apiFetch<ProductPurchase[]>(`/purchases/products${purchaseQuery(f)}`)
-}
-
-export function getMaterialPurchase(id: number): Promise<MaterialPurchaseDetail> {
-  return apiFetch<MaterialPurchaseDetail>(`/purchases/materials/${id}`)
-}
-
-export function getProductPurchase(id: number): Promise<ProductPurchaseDetail> {
-  return apiFetch<ProductPurchaseDetail>(`/purchases/products/${id}`)
+export function getPurchase(id: number): Promise<PurchaseDetail> {
+  return apiFetch<PurchaseDetail>(`/purchases/${id}`)
 }
 
 /**
- * `payment` (FULL / NONE / PARTIAL; omitted = FULL): what is paid with it; NONE and
- * PARTIAL need a supplier (422 SUPPLIER_REQUIRED_FOR_CREDIT).
- * The response is the purchase row only (its own unit_cost), not the item's
- * new weighted average — re-fetch the item for that. A deleted supplier is a 404.
+ * One supplier invoice with one or more lines (STOCK materials, services, products). `payment` (FULL / NONE /
+ * PARTIAL, on the invoice total; omitted = FULL): NONE and PARTIAL need a supplier (422 SUPPLIER_REQUIRED_FOR_CREDIT).
+ * A refusal of one line names it in `field` (`lines.N.total_paid`). The response is the invoice (each line's own
+ * unit_cost), not the items' new weighted averages — re-fetch the items for that. A deleted supplier is a 404.
  */
-export function createMaterialPurchase(body: MaterialPurchaseCreate): Promise<MaterialPurchaseDetail> {
-  return apiFetch<MaterialPurchaseDetail>("/purchases/materials", { method: "POST", body: JSON.stringify(body) })
-}
-
-export function createProductPurchase(body: ProductPurchaseCreate): Promise<ProductPurchaseDetail> {
-  return apiFetch<ProductPurchaseDetail>("/purchases/products", { method: "POST", body: JSON.stringify(body) })
+export function createPurchase(body: PurchaseCreate): Promise<PurchaseDetail> {
+  return apiFetch<PurchaseDetail>("/purchases", { method: "POST", body: JSON.stringify(body) })
 }
 
 // ------------------------------------------------------------ supplier payables
@@ -847,7 +843,7 @@ export function getPaymentMethodReport(r: DateRangeParams): Promise<PaymentMetho
 
 export type PurchasesSummary = Schemas["PurchasesSummaryOut"]
 
-/** Σ total_paid and count of material / product purchases in range; inventory, not P&L. */
+/** Σ line totals and counts of STOCK material / service / product purchase lines and the invoices in range; not P&L. */
 export function getPurchasesSummary(r: DateRangeParams): Promise<PurchasesSummary> {
   return apiFetch<PurchasesSummary>(reportUrl("/reports/purchases", r))
 }

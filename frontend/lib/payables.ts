@@ -99,18 +99,18 @@ export function allocationProblem(
   return null
 }
 
-/** The lines with an amount above 0, as the body's `allocations`. */
-export function allocationsBody<L extends AllocationLine & { purchase_kind: "MATERIAL" | "PRODUCT"; purchase_id: number }>(
+/** The lines with an amount above 0, as the body's `allocations` (each line is one purchase invoice). */
+export function allocationsBody<L extends AllocationLine & { purchase_id: number }>(
   lines: readonly L[]
-): { purchase_kind: "MATERIAL" | "PRODUCT"; purchase_id: number; amount: number }[] {
+): { purchase_id: number; amount: number }[] {
   return lines
     .filter((l) => l.amount !== null && l.amount > 0)
-    .map((l) => ({ purchase_kind: l.purchase_kind, purchase_id: l.purchase_id, amount: l.amount as number }))
+    .map((l) => ({ purchase_id: l.purchase_id, amount: l.amount as number }))
 }
 
 export type PayablesErrorKind =
   | { kind: "supplier_required" }
-  | { kind: "exceeds_due"; purchaseKind: string | null; purchaseId: number | null; outstanding: number | null }
+  | { kind: "exceeds_due"; purchaseId: number | null; outstanding: number | null }
   | { kind: "exceeds_balance"; outstanding: number | null }
   | { kind: "supplier_mismatch" }
   | { kind: "allocation_mismatch"; allocated: number | null }
@@ -126,7 +126,6 @@ export function classifyPayablesError(e: CodedError): PayablesErrorKind {
   if (hasCode(e, "SUPPLIER_PAYMENT_EXCEEDS_DUE"))
     return {
       kind: "exceeds_due",
-      purchaseKind: detailStr(e, "purchase_kind"),
       purchaseId: detailNum(e, "purchase_id"),
       outstanding: detailNum(e, "outstanding"),
     }

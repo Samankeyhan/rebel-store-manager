@@ -3,61 +3,58 @@
 import * as React from "react"
 import {
   getSettings,
-  listMaterialPurchases,
   listMaterials,
-  listProductPurchases,
   listProducts,
+  listPurchases,
   listSuppliers,
   type Material,
-  type MaterialPurchase,
   type Product,
-  type ProductPurchase,
+  type Purchase,
+  type PurchaseLine,
   type Supplier,
 } from "@/lib/api"
 import type { IsoRange } from "@/lib/jalali"
 import type { PaymentStatus } from "@/lib/payables"
+import { apiItemType, type ItemKind, type ItemType, type TypeFilter } from "@/lib/purchase-lines"
 
-export type PurchaseKind = "material" | "product"
-export type TypeFilter = "all" | PurchaseKind
+export type { TypeFilter }
 
-/** One history row, material or product purchase. */
+/** An item re-read from the server after a purchase. */
+export type RefreshedItem = { kind: ItemKind; item: Material | Product }
+
+/** One history row: a purchase invoice with its lines. */
 export type PurchaseRow = {
   key: string
-  kind: PurchaseKind
   id: number
-  itemId: number
-  itemName: string
+  invoiceNumber: string | null
   date: string
   supplierName: string | null
-  quantity: number
-  totalPaid: number
-  unitCost: number
-  /** From the API (db/supplier_payments.py): never computed here. */
+  /** The lines in order (materials and services, then products). */
+  lines: PurchaseLine[]
+  itemNames: string[]
+  types: ItemType[]
+  /** From the API (db/purchases.py, db/supplier_payments.py): never computed here, except the search below. */
+  total: number
   paymentStatus: PaymentStatus
   outstanding: number
+  notes: string | null
 }
 
-export function toRow(kind: PurchaseKind, p: MaterialPurchase | ProductPurchase): PurchaseRow {
+export function toRow(p: Purchase): PurchaseRow {
   return {
-    key: `${kind}-${p.id}`,
-    kind,
+    key: `purchase-${p.id}`,
     id: p.id,
-    itemId: kind === "material" ? (p as MaterialPurchase).material_id : (p as ProductPurchase).product_id,
-    itemName: kind === "material" ? (p as MaterialPurchase).material_name : (p as ProductPurchase).product_name,
+    invoiceNumber: p.invoice_number,
     date: p.purchase_date,
     supplierName: p.supplier_name,
-    quantity: p.quantity_bought,
-    totalPaid: p.total_paid,
-    unitCost: p.unit_cost,
+    lines: p.lines,
+    itemNames: p.lines.map((l) => l.item_name),
+    types: [...new Set(p.lines.map((l) => l.item_type))],
+    total: p.total,
     paymentStatus: p.payment_status,
     outstanding: p.outstanding,
+    notes: p.notes,
   }
-}
-
-/** Newest first, like each endpoint: date, then id. */
-function byNewest(a: PurchaseRow, b: PurchaseRow): number {
-  if (a.date !== b.date) return a.date < b.date ? 1 : -1
-  return b.id - a.id
 }
 
 type Catalog =
@@ -70,18 +67,14 @@ type List = { status: "loading" } | { status: "error" } | { status: "ready"; row
 const DEFAULT_TZ = "Asia/Tehran"
 
 async function fetchRows(type: TypeFilter, supplierId: number | null, range: IsoRange | null): Promise<PurchaseRow[]> {
-  const f = { supplierId, from: range?.from, to: range?.to }
-  const [materials, products] = await Promise.all([
-    type === "product" ? Promise.resolve([]) : listMaterialPurchases(f),
-    type === "material" ? Promise.resolve([]) : listProductPurchases(f),
-  ])
-  return [...materials.map((p) => toRow("material", p)), ...products.map((p) => toRow("product", p))].sort(byNewest)
+  const purchases = await listPurchases({ supplierId, from: range?.from, to: range?.to, itemType: apiItemType(type) })
+  return purchases.map(toRow)
 }
 
 /**
  * Items, suppliers and the purchase history for the current filters. The
- * history is re-fetched when the type / supplier / range change (both
- * endpoints filter server-side); search stays client-side.
+ * history is re-fetched when the type / supplier / range change (the
+ * endpoint filters server-side); search stays client-side.
  */
 export function usePurchasesData(filters: { type: TypeFilter; supplierId: number | null; range: IsoRange | null }) {
   const [catalog, setCatalog] = React.useState<Catalog>({ status: "loading" })
@@ -134,15 +127,19 @@ export function usePurchasesData(filters: { type: TypeFilter; supplierId: number
     setCatalog((c) => (c.status === "ready" ? { ...c, suppliers } : c))
   }, [])
 
-  /** Replace one item after a purchase so the next preview starts from its new stock/average. */
-  const replaceItem = React.useCallback((kind: PurchaseKind, item: Material | Product) => {
+  /** Replace the items of a purchase's lines so the next preview starts from their new stock/average/price. */
+  const replaceItems = React.useCallback((items: RefreshedItem[]) => {
     setCatalog((c) => {
       if (c.status !== "ready") return c
-      return kind === "material"
-        ? { ...c, materials: c.materials.map((m) => (m.id === item.id ? (item as Material) : m)) }
-        : { ...c, products: c.products.map((p) => (p.id === item.id ? (item as Product) : p)) }
+      const material = new Map(items.filter((i) => i.kind === "MATERIAL").map((i) => [i.item.id, i.item as Material]))
+      const product = new Map(items.filter((i) => i.kind === "PRODUCT").map((i) => [i.item.id, i.item as Product]))
+      return {
+        ...c,
+        materials: c.materials.map((m) => material.get(m.id) ?? m),
+        products: c.products.map((p) => product.get(p.id) ?? p),
+      }
     })
   }, [])
 
-  return { catalog, list, timeZone, reload, refreshList, refreshSuppliers, replaceItem }
+  return { catalog, list, timeZone, reload, refreshList, refreshSuppliers, replaceItems }
 }

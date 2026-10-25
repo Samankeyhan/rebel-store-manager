@@ -16,12 +16,11 @@ import { Segment } from "@/components/common/segment"
 import { Toast } from "@/components/common/toast"
 import { DateRangePopover } from "@/components/orders/list/date-range-popover"
 import { DrawerShell } from "@/components/products/drawer-shell"
-import { norm, unitLabel } from "@/components/products/figures"
+import { norm } from "@/components/products/figures"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
-import type { Material, Product } from "@/lib/api"
 import { dateToISO, formatJalali, jalaliMonthRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
 import { matchesPayFilter, PAY_FILTERS, parsePayFilter } from "@/lib/payables"
-import { formatQuantity } from "@/lib/persian-numbers"
+import { itemsSummary, parseTypeFilter, TYPE_FILTERS } from "@/lib/purchase-lines"
 import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { PAY_STATUS_LABELS, U } from "./copy"
@@ -29,16 +28,22 @@ import { PayStatusTag } from "./pay-status-tag"
 import { PurchaseForm, type PurchaseFormHandle } from "./purchase-form"
 import { PurchaseSheet } from "./purchase-sheet"
 import { TypeTag } from "./type-tag"
-import { usePurchasesData, type PurchaseKind, type PurchaseRow, type TypeFilter } from "./use-purchases-data"
+import { usePurchasesData, type PurchaseRow, type RefreshedItem, type TypeFilter } from "./use-purchases-data"
 import { useCurrency } from "@/lib/use-currency"
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
-const TYPES = ["all", "material", "product"] as const
+const TYPE_LABELS: Record<TypeFilter, string> = {
+  all: U.typeAll,
+  material: U.typeMaterials,
+  service: U.typeServices,
+  product: U.typeProducts,
+}
 
 /**
- * خرید (design 07). Desktop: the purchase history with filters, the entry
- * form in a left drawer. Mobile: the form first, then «خریدهای اخیر».
- * Filters live in the URL (?type=, ?supplier=, ?from=&to=, ?q=, ?pay=).
+ * خرید (design 07). Desktop: the purchase history (one row per supplier
+ * invoice) with filters, the entry form in a left drawer. Mobile: the form
+ * first, then «خریدهای اخیر». Filters live in the URL (?type=material|service|
+ * product, ?supplier=, ?from=&to=, ?q=, ?pay=).
  */
 export function PurchasesPage() {
   // Re-render the whole screen when the display currency switches (lib/money.ts).
@@ -52,8 +57,7 @@ export function PurchasesPage() {
   const today = dateToISO(now)
   const defaultRange = React.useMemo(() => jalaliMonthRange(now), [now])
 
-  const typeParam = params.get("type")
-  const type: TypeFilter = TYPES.includes(typeParam as TypeFilter) ? (typeParam as TypeFilter) : "all"
+  const type: TypeFilter = parseTypeFilter(params.get("type"))
   const supplierParam = Number(params.get("supplier"))
   const supplierId = Number.isInteger(supplierParam) && supplierParam > 0 ? supplierParam : null
   const from = params.get("from")
@@ -96,15 +100,8 @@ export function PurchasesPage() {
   const [toast, setToast] = React.useState<string | null>(null)
   const closeToast = React.useCallback(() => setToast(null), [])
 
-  const materialsById = React.useMemo(
-    () => new Map((catalog.status === "ready" ? catalog.materials : []).map((m) => [m.id, m])),
-    [catalog]
-  )
-  const unitOf = (row: PurchaseRow) =>
-    row.kind === "material" ? unitLabel(materialsById.get(row.itemId)?.unit ?? "") : "عدد"
-
-  const onSaved = (kind: PurchaseKind, item: Material | Product, message: string) => {
-    data.replaceItem(kind, item)
+  const onSaved = (items: RefreshedItem[], message: string) => {
+    data.replaceItems(items)
     data.refreshList()
     setToast(message)
     setDrawerOpen(false)
@@ -113,7 +110,11 @@ export function PurchasesPage() {
   const query = norm(q)
   const rows =
     list.status === "ready"
-      ? list.rows.filter((r) => (!query || norm(r.itemName).includes(query)) && matchesPayFilter(r.paymentStatus, pay))
+      ? list.rows.filter(
+          (r) =>
+            (!query || r.itemNames.some((n) => norm(n).includes(query)) || norm(r.invoiceNumber ?? "").includes(query)) &&
+            matchesPayFilter(r.paymentStatus, pay)
+        )
       : []
   const filtersActive = !!q || pay != null || type !== "all" || supplierId != null || range.from !== defaultRange.from || range.to !== defaultRange.to
   const clearFilters = () => {
@@ -137,7 +138,7 @@ export function PurchasesPage() {
     ) : null
 
   const sheet = (
-    <PurchaseSheet row={openRow} unitOf={unitOf} timeZone={data.timeZone} mobile={mobile} onClose={() => setOpenRow(null)} />
+    <PurchaseSheet row={openRow} timeZone={data.timeZone} mobile={mobile} onClose={() => setOpenRow(null)} />
   )
   const toastNode = toast && <Toast title={toast} onClose={closeToast} closeLabel={U.close} />
 
@@ -167,17 +168,13 @@ export function PurchasesPage() {
                   className={cn(cardClass, "flex items-center justify-between gap-3 px-3.5 py-3 text-start outline-none focus-visible:ring-3 focus-visible:ring-ring/30")}
                 >
                   <span className="flex min-w-0 flex-col">
-                    <span className="truncate font-bold">{r.itemName}</span>
+                    <span className="truncate font-bold">{itemsSummary(r.itemNames, U.moreItems)}</span>
                     <span className="truncate text-xs text-text-3 tabular-nums">
-                      {U.recentMeta(
-                        shortDate(r.date, data.timeZone),
-                        `${formatQuantity(r.quantity)} ${unitOf(r)}`,
-                        r.supplierName
-                      )}
+                      {U.recentMeta(shortDate(r.date, data.timeZone), U.lineCount(r.lines.length), r.supplierName)}
                     </span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
-                    <Money value={r.totalPaid} className="font-bold" />
+                    <Money value={r.total} className="font-bold" />
                     {r.paymentStatus !== "PAID" && <PayStatusTag status={r.paymentStatus} />}
                   </span>
                 </button>
@@ -228,11 +225,7 @@ export function PurchasesPage() {
         </div>
         <Segment<TypeFilter>
           value={type}
-          options={[
-            ["all", U.typeAll],
-            ["material", U.typeMaterials],
-            ["product", U.typeProducts],
-          ]}
+          options={TYPE_FILTERS.map((t) => [t, TYPE_LABELS[t]] as const)}
           onChange={(t) => setParams({ type: t === "all" ? null : t })}
           label={U.typeFilterLabel}
           className="[&_button]:h-[32px]"
@@ -335,7 +328,7 @@ export function PurchasesPage() {
     )
   else {
     const month = wholeMonthLabel(range)
-    const total = rows.reduce((s, r) => s + r.totalPaid, 0)
+    const total = rows.reduce((s, r) => s + r.total, 0)
     body = (
       <section className={cn(cardClass, "overflow-hidden")}>
         <div className="overflow-x-auto">
@@ -349,13 +342,7 @@ export function PurchasesPage() {
                 <th scope="col">{U.colType}</th>
                 <th scope="col">{U.colSupplier}</th>
                 <th scope="col" className="text-end!">
-                  {U.colQty}
-                </th>
-                <th scope="col" className="text-end!">
                   {U.colTotal}
-                </th>
-                <th scope="col" className="text-end!">
-                  {U.colUnit}
                 </th>
                 <th scope="col">{U.colPayStatus}</th>
                 <th scope="col" className="text-end!">
@@ -378,19 +365,23 @@ export function PurchasesPage() {
                   className="cursor-pointer outline-none hover:[&>td]:bg-surface-2 focus-visible:[&>td]:bg-surface-2 [&>td]:h-[52px] [&>td]:border-b [&>td]:border-border [&>td]:px-4 [&>td]:whitespace-nowrap"
                 >
                   <td className="text-text-3 tabular-nums">{shortDate(r.date, data.timeZone)}</td>
-                  <td className="font-bold">{r.itemName}</td>
                   <td>
-                    <TypeTag kind={r.kind} />
+                    <span className="font-bold">{itemsSummary(r.itemNames, U.moreItems)}</span>
+                    <span className="ms-2 text-xs text-text-3 tabular-nums">
+                      {r.invoiceNumber && <span dir="ltr">{r.invoiceNumber}</span>}
+                      {r.lines.length > 1 && <> · {U.lineCount(r.lines.length)}</>}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="flex items-center gap-1">
+                      {r.types.map((t) => (
+                        <TypeTag key={t} type={t} />
+                      ))}
+                    </span>
                   </td>
                   <td>{r.supplierName ?? U.noSupplier}</td>
-                  <td className="text-end tabular-nums">
-                    {formatQuantity(r.quantity)} {unitOf(r)}
-                  </td>
                   <td className="text-end font-bold">
-                    <Money value={r.totalPaid} />
-                  </td>
-                  <td className="text-end">
-                    <Money value={r.unitCost} />
+                    <Money value={r.total} />
                   </td>
                   <td>
                     <PayStatusTag status={r.paymentStatus} />
@@ -401,11 +392,11 @@ export function PurchasesPage() {
             </tbody>
             <tfoot>
               <tr className="font-bold [&>td]:h-[52px] [&>td]:bg-surface-2 [&>td]:px-4">
-                <td colSpan={5}>{month ? U.footerMonth(month, rows.length) : U.footerRange(rows.length)}</td>
+                <td colSpan={4}>{month ? U.footerMonth(month, rows.length) : U.footerRange(rows.length)}</td>
                 <td className="text-end">
                   <Money value={total} />
                 </td>
-                <td colSpan={3} />
+                <td colSpan={2} />
               </tr>
             </tfoot>
           </table>

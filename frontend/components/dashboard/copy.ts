@@ -60,6 +60,7 @@ export const D = {
   costsTitle: "خرید و هزینه‌ها", // NEW
   costsOperating: "هزینه‌های عملیاتی", // NEW
   costsMaterials: "خرید متریال", // NEW
+  costsServices: "خرید خدمت", // NEW
   costsProducts: "خرید محصول آماده", // NEW
   costsPostage: "هزینه پست پرداخت‌شده", // NEW
   costsCount: (n: number) => `(${fa(n)})`, // NEW

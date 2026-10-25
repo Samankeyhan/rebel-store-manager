@@ -12,6 +12,7 @@ export const U = {
   searchAria: "جستجو",
   typeAll: "همه",
   typeMaterials: "متریال",
+  typeServices: "خدمت", // NEW
   typeProducts: "محصولات",
   typeFilterLabel: "نوع کالا", // NEW (aria)
   supplierPrefix: "تأمین‌کننده:",
@@ -20,7 +21,7 @@ export const U = {
 
   // table
   colDate: "تاریخ",
-  colItem: "کالا",
+  colItem: "اقلام", // NEW (was «کالا»: a purchase has several lines)
   colType: "نوع",
   colSupplier: "تأمین‌کننده",
   colQty: "مقدار",
@@ -37,7 +38,10 @@ export const U = {
     return `بهای واحد (${currencyLabel()})`
   },
   badgeMaterial: "متریال",
+  badgeService: "خدمت", // NEW
   badgeProduct: "محصول",
+  moreItems: (n: number) => `و ${formatNumber(n)} قلم دیگر`, // NEW
+  lineCount: (n: number) => `${formatNumber(n)} قلم`, // NEW
   footerMonth: (month: string, n: number) => `جمع خریدهای ${month} (${formatNumber(n)} مورد)`,
   footerRange: (n: number) => `جمع خریدهای این بازه (${formatNumber(n)} مورد)`, // NEW (range not a whole month)
   noSupplier: "—",
@@ -49,12 +53,17 @@ export const U = {
   formTitle: "ثبت خرید",
   close: "بستن",
   fieldType: "نوع کالا",
-  segMaterial: "متریال یا بسته‌بندی",
-  segProduct: "محصول آماده",
+  fieldLines: "اقلام فاکتور", // NEW
+  lineTitle: (n: number) => `قلم ${formatNumber(n)}`, // NEW
+  addLine: "افزودن قلم", // NEW
+  removeLine: "حذف این قلم", // NEW
   fieldItem: "کالا",
-  pickItem: "انتخاب کالا", // NEW
-  searchItem: "جستجوی کالا",
+  pickItem: "انتخاب کالا یا خدمت", // NEW
+  searchItem: "جستجوی کالا، متریال یا خدمت",
   noItems: "کالای فعالی برای خرید نیست.", // NEW
+  subMaterial: "متریال", // NEW (the picker's second line)
+  subService: "خدمت", // NEW
+  subProduct: "محصول", // NEW
   noItemMatch: (q: string) => `کالایی با «${q}» پیدا نشد.`, // NEW
   stockPill: (q: string, unit: string) => `موجودی ${q} ${unit}`,
   stockPillMobile: (q: string, unit: string) => `${q} ${unit}`,
@@ -65,7 +74,10 @@ export const U = {
   noSupplierMatch: (q: string) => `تأمین‌کننده‌ای با «${q}» پیدا نشد.`, // NEW
   supplierGone: "این تأمین‌کننده دیگر در دسترس نیست — لطفاً دوباره انتخاب کنید",
   fieldQty: "مقدار",
-  fieldTotal: "مبلغ فاکتور", // NEW (was «مبلغ کل پرداختی»)
+  fieldLineTotal: "مبلغ این قلم", // NEW
+  fieldTotal: "مبلغ فاکتور", // NEW (was «مبلغ کل پرداختی»): the sum of the lines
+  invoiceTotalHelp: "جمع مبلغ اقلام؛ پرداخت و بدهی بر پایهٔ همین مبلغ است.", // NEW
+  serviceHelp: "هزینهٔ خدمت از راه تولید و ضایعات به سود و زیان می‌رسد؛ همین فاکتور را در هزینه‌ها ثبت نکنید.", // NEW
   fieldPayment: "پرداخت", // NEW
   payFull: "پرداخت کامل", // NEW
   payNone: "نسیه", // NEW
@@ -89,14 +101,23 @@ export const U = {
   submit: "ثبت خرید",
   cancel: "انصراف",
   itemRequired: "کالا را انتخاب کنید.", // NEW
+  duplicateItem: "این کالا قبلاً در همین فاکتور آمده است؛ مقدارها را در یک قلم جمع کنید.", // NEW
   qtyRequired: "مقدار باید بیشتر از صفر باشد.", // NEW
   qtyInteger: "تعداد محصول باید عدد صحیح باشد.", // NEW
+  totalInvalid: "مبلغ را دقیق وارد کنید.", // NEW
+  serviceTotal: "مبلغ خدمت باید بیشتر از صفر باشد؛ بهای هر واحد خدمت از همین مبلغ ساخته می‌شود.", // NEW
   totalZero: "مبلغ صفر است؛ میانگین بهای این کالا پایین می‌آید.", // NEW
   saveFailed: "ثبت نشد", // NEW
   errorCode: "کد خطا:", // NEW
 
-  // preview
+  // preview (one per line)
   previewTitle: "پیش‌نمایش بهای تمام‌شده",
+  previewUnit: "بهای واحد این قلم", // NEW
+  previewAvg: "میانگین جدید", // NEW
+  previewService: "قیمت جدید خدمت", // NEW
+  previewServiceFrom: (name: string, now: string, after: string) => `قیمت «${name}» از ${now} به ${after}`, // NEW
+  previewServiceNote: (name: string) => `تولیدها و ضایعات بعدی «${name}» با قیمت جدید محاسبه می‌شوند؛ گذشته تغییر نمی‌کند.`, // NEW
+  servicePriceNotEntered: "ثبت نشده", // NEW
   unitThis: "بهای واحد این خرید",
   avgNow: "میانگین فعلی",
   avgAfter: "میانگین پس از خرید",
@@ -118,6 +139,8 @@ export const U = {
   // after save
   toastSaved: (name: string, avg: number | null) =>
     avg == null ? `خرید «${name}» ثبت شد` : `خرید ثبت شد · میانگین جدید «${name}»: ${formatMoney(avg)}`, // NEW
+  toastSavedLines: (invoice: string | null, n: number) =>
+    invoice ? `خرید ${invoice} ثبت شد (${formatNumber(n)} قلم)` : `خرید ثبت شد (${formatNumber(n)} قلم)`, // NEW
 
   // mobile
   recent: "خریدهای اخیر",
@@ -130,6 +153,8 @@ export const U = {
   detailDate: "تاریخ", // NEW
   detailSupplier: "تأمین‌کننده", // NEW
   detailQty: "مقدار", // NEW
+  detailLines: "اقلام", // NEW
+  detailLineTotal: "مبلغ", // NEW
   detailTotal: "مبلغ فاکتور", // NEW
   detailPaymentStatus: "وضعیت پرداخت", // NEW
   detailPaid: "پرداخت‌شده", // NEW

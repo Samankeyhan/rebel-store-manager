@@ -21,6 +21,7 @@ import {
 } from "@/lib/api"
 import { utcToLocal } from "@/lib/jalali"
 import { formatMoney } from "@/lib/money"
+import { itemsSummary } from "@/lib/purchase-lines"
 import { cn } from "@/lib/utils"
 import { P, S } from "./copy"
 import { dayOf, SupplierPaymentDialog, SupplierPaymentEditDialog } from "./supplier-payment-dialog"
@@ -224,9 +225,9 @@ function SupplierCard({
       </header>
       <ul className="flex flex-col divide-y divide-border rounded-[10px] border border-border text-[13px]">
         {supplier.open_purchases.map((p) => (
-          <li key={`${p.purchase_kind}-${p.purchase_id}`} className="flex items-center justify-between gap-2 px-3 py-2">
+          <li key={p.purchase_id} className="flex items-center justify-between gap-2 px-3 py-2">
             <span className="flex min-w-0 flex-col">
-              <span className="truncate font-semibold">{p.item_name}</span>
+              <span className="truncate font-semibold">{itemsSummary(p.item_names, P.moreItems)}</span>
               <span className="truncate text-xs text-text-3">
                 <span dir="ltr">{p.invoice_number}</span> · {dayOf(p.purchase_date, timeZone)}
               </span>

@@ -61,9 +61,9 @@ export function ExpensesTab({
     expenses.status === "ready" &&
     expenses.data.length === 0 &&
     purchases.status === "ready" &&
-    purchases.data.material_purchases_count === 0 &&
-    purchases.data.product_purchases_count === 0 &&
+    purchases.data.purchase_invoices_count === 0 &&
     purchases.data.material_purchases_total === 0 &&
+    purchases.data.service_purchases_total === 0 &&
     purchases.data.product_purchases_total === 0
 
   if (nothing)
@@ -229,6 +229,7 @@ function ExpensesCard({
 function PurchasesCard({ p, period, mobile }: { p: PurchasesSummary; period: ReportPeriod; mobile: boolean }) {
   const lines = [
     { type: "material", label: R.purchasesMaterial, total: p.material_purchases_total, count: p.material_purchases_count },
+    { type: "service", label: R.purchasesService, total: p.service_purchases_total, count: p.service_purchases_count },
     { type: "product", label: R.purchasesProduct, total: p.product_purchases_total, count: p.product_purchases_count },
   ]
   return (
@@ -238,7 +239,7 @@ function PurchasesCard({ p, period, mobile }: { p: PurchasesSummary; period: Rep
           {R.purchasesTitle}
         </h2>
       </div>
-      <div className={cn("grid", mobile ? "grid-cols-1" : "grid-cols-2")}>
+      <div className={cn("grid", mobile ? "grid-cols-1" : "grid-cols-3")}>
         {lines.map((l) => (
           <div
             key={l.type}
@@ -260,7 +261,9 @@ function PurchasesCard({ p, period, mobile }: { p: PurchasesSummary; period: Rep
       </div>
       <div className={cn(mobile ? "p-3" : "p-4")}>
         <ReportNote>
-          <span>{R.purchasesNote}</span>
+          <span>
+            {R.purchasesInvoices(p.purchase_invoices_count)}. {R.purchasesNote}
+          </span>
         </ReportNote>
       </div>
     </section>

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { getSettings, listMaterialPurchases, listProductPurchases, listSuppliers, type Supplier } from "@/lib/api"
+import { getSettings, listPurchases, listSuppliers, type Supplier } from "@/lib/api"
 
 export type SupplierStats = { count: number; last: string | null }
 
@@ -15,8 +15,8 @@ const byName = (a: Supplier, b: Supplier) => a.name.localeCompare(b.name, "fa")
 
 /**
  * Suppliers (sorted by Persian collation — the API sorts by SQLite's binary
- * order) plus per-supplier purchase count and newest purchase date, from the
- * two purchase lists. No money is summed here.
+ * order) plus per-supplier purchase count (one per purchase invoice) and newest
+ * purchase date, from the purchase list. No money is summed here.
  */
 export function useSuppliersData() {
   const [list, setList] = React.useState<List>({ status: "loading" })
@@ -30,11 +30,11 @@ export function useSuppliersData() {
       (suppliers) => !cancelled && setList({ status: "ready", suppliers: [...suppliers].sort(byName) }),
       () => !cancelled && setList({ status: "error" })
     )
-    Promise.all([listMaterialPurchases(), listProductPurchases()]).then(
-      ([materials, products]) => {
+    listPurchases().then(
+      (purchases) => {
         if (cancelled) return
         const m = new Map<number, SupplierStats>()
-        for (const p of [...materials, ...products]) {
+        for (const p of purchases) {
           if (p.supplier_id == null) continue
           const s = m.get(p.supplier_id) ?? { count: 0, last: null }
           s.count += 1

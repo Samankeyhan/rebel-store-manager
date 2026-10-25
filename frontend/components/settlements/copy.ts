@@ -201,6 +201,7 @@ export const P = {
   oldestUnpaid: (date: string) => `قدیمی‌ترین خرید پرداخت‌نشده: ${date}`, // NEW (date is formatJalali)
   openCount: (n: number) => `${fa(n)} خرید پرداخت‌نشده`, // NEW
   purchasesLink: "خریدهای این تأمین‌کننده", // NEW
+  moreItems: (n: number) => `و ${fa(n)} قلم دیگر`, // NEW (a purchase invoice with several lines)
   record: "ثبت پرداخت", // NEW
   none: "بدهی پرداخت‌نشده‌ای به تأمین‌کنندگان نیست.", // NEW
   history: "سابقهٔ پرداخت‌ها", // NEW

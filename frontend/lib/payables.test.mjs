@@ -61,19 +61,18 @@ test("allocationProblem: amount, over a line, nothing paid, sum mismatch, fine",
   assert.equal(allocationProblem(6, [line("a", 5, 5), line("b", 5, 1)]), null)
   assert.deepEqual(
     allocationsBody([
-      { key: "a", outstanding: 5, amount: 5, purchase_kind: "MATERIAL", purchase_id: 1 },
-      { key: "b", outstanding: 5, amount: 0, purchase_kind: "PRODUCT", purchase_id: 2 },
+      { key: "a", outstanding: 5, amount: 5, purchase_id: 1 },
+      { key: "b", outstanding: 5, amount: 0, purchase_id: 2 },
     ]),
-    [{ purchase_kind: "MATERIAL", purchase_id: 1, amount: 5 }]
+    [{ purchase_id: 1, amount: 5 }]
   )
 })
 
 test("classifyPayablesError reads code and details, never the message", () => {
   const e = (code, details = {}) => ({ status: 409, code, details, message: "ignored" })
   assert.deepEqual(classifyPayablesError(e("SUPPLIER_REQUIRED_FOR_CREDIT")), { kind: "supplier_required" })
-  assert.deepEqual(classifyPayablesError(e("SUPPLIER_PAYMENT_EXCEEDS_DUE", { purchase_kind: "MATERIAL", purchase_id: 3, outstanding: 70 })), {
+  assert.deepEqual(classifyPayablesError(e("SUPPLIER_PAYMENT_EXCEEDS_DUE", { purchase_id: 3, outstanding: 70 })), {
     kind: "exceeds_due",
-    purchaseKind: "MATERIAL",
     purchaseId: 3,
     outstanding: 70,
   })
