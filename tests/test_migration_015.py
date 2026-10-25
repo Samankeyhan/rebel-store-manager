@@ -2,10 +2,9 @@
 columns): every purchase row, id and AUTOINCREMENT mark survives, nothing is logged, the indexes and audit triggers are
 back, each purchase with a total gets one backfilled payment, the movement link and the cost snapshot are read from the
 history, and the new CHECKs hold. Run on a database built from 001-014 with fictional rows, and on a copy of this
-laptop's data/shop.db."""
+laptop's data/shop.db while it is still before 015."""
 
 import json
-import os
 import shutil
 import sqlite3
 from pathlib import Path
@@ -14,11 +13,9 @@ import pytest
 
 from db.audit import audit_operation, stale_audit_tables
 from db.connection import MIGRATIONS_DIR, get_connection, init_db
+from tests.laptop_db import copy_laptop_db, needs_laptop_db, skip_unless_before
 from tools.integrity_check.__main__ import main as integrity_main
 
-REPO = Path(__file__).resolve().parent.parent
-LAPTOP_DB = REPO / "data" / "shop.db"
-RESTORE_TEST = REPO / "data" / "restore-test"
 MIGRATION = "015_supplier_payables_purchase_status.sql"
 
 OLD_COLUMNS = ("id", "{item}_id", "supplier_id", "invoice_number", "purchase_date", "quantity_bought", "total_paid", "unit_cost", "notes")
@@ -327,36 +324,17 @@ def test_audit_triggers_log_payments_and_the_new_purchase_columns(db_015):
     assert '"status":"ACTIVE"' in after and '"item_cost_after":10' in after
 
 
-def _laptop_copy(folder: Path) -> tuple[str, dict, set]:
-    """A copy of data/shop.db made through SQLite immutable mode (the file itself is never opened for writing)."""
-    copy = folder / "shop.db"
-    source = sqlite3.connect(f"file:{LAPTOP_DB.as_posix()}?mode=ro&immutable=1", uri=True)
-    target = sqlite3.connect(copy)
-    try:
-        source.backup(target)
-    finally:
-        target.close()
-        source.close()
-    conn = get_connection(str(copy))
+@needs_laptop_db
+def test_upgrade_of_a_copy_of_the_laptop_database(tmp_path):
+    """Only while data/shop.db is still before migration 015 (decided from its schema_migrations rows, before any column
+    is read): a copy is migrated up to 015 by init_db and the upgrade assertions run, the integrity check included.
+    Skipped, with the reason, once the database is at 015 or later."""
+    skip_unless_before(MIGRATION)
+    path = copy_laptop_db(tmp_path / "laptop")
+    conn = get_connection(path)
     try:
         before = _snapshot(conn)
-        applied = {r[0] for r in conn.execute("SELECT filename FROM schema_migrations")}
     finally:
         conn.close()
-    return str(copy), before, applied
-
-
-@pytest.mark.skipif(not LAPTOP_DB.is_file(), reason="this laptop's data/shop.db is not here")
-def test_upgrade_of_a_copy_of_the_laptop_database():
-    """Only while data/shop.db is still before migration 015: the copy (in its own folder under data/restore-test/,
-    removed afterwards) is migrated by init_db and the upgrade assertions run, the integrity check included."""
-    folder = RESTORE_TEST / f"m015-pytest-{os.getpid()}"
-    folder.mkdir(parents=True, exist_ok=False)
-    try:
-        path, before, applied = _laptop_copy(folder)
-        if MIGRATION in applied:
-            pytest.skip("this laptop's data/shop.db is already at migration 015 or later: no upgrade to test")
-        init_db(path, migrations_dir=_migrations_upto(folder / "migrations_to_015", "015"))
-        _check_upgraded(path, before)
-    finally:
-        shutil.rmtree(folder)
+    init_db(path, migrations_dir=_migrations_upto(tmp_path / "migrations_to_015", "015"))
+    _check_upgraded(path, before)

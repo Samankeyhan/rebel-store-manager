@@ -2,20 +2,16 @@
 the AUTOINCREMENT mark survive, nothing is logged, the indexes and audit triggers are back, and the new CHECKs
 hold. Run on a database built from 001-013 with fictional rows, and on a copy of this laptop's data/shop.db."""
 
-import os
 import shutil
 import sqlite3
-from pathlib import Path
 
 import pytest
 
 from db.audit import stale_audit_tables
 from db.connection import MIGRATIONS_DIR, get_connection, init_db
+from tests.laptop_db import copy_laptop_db, needs_laptop_db, skip_unless_before
 from tools.integrity_check.__main__ import main as integrity_main
 
-REPO = Path(__file__).resolve().parent.parent
-LAPTOP_DB = REPO / "data" / "shop.db"
-RESTORE_TEST = REPO / "data" / "restore-test"
 
 OLD_COLUMNS = (
     "id", "invoice_number", "order_date", "status", "channel", "customer_name", "shipping_charge",
@@ -199,66 +195,18 @@ def test_audit_triggers_log_the_new_columns(test_db):
     assert '"void_reason":"x"' in row[0] and '"status":"VOIDED"' in row[0]
 
 
-def _laptop_copy(folder: Path) -> tuple[str, dict, set]:
-    """A copy of data/shop.db made through SQLite immutable mode (the file itself is never opened for writing):
-    (path of the copy, its snapshot, the migrations it has applied)."""
-    copy = folder / "shop.db"
-    source = sqlite3.connect(f"file:{LAPTOP_DB.as_posix()}?mode=ro&immutable=1", uri=True)
-    target = sqlite3.connect(copy)
-    try:
-        source.backup(target)
-    finally:
-        target.close()
-        source.close()
-    conn = get_connection(str(copy))
+@needs_laptop_db
+def test_upgrade_of_a_copy_of_the_laptop_database(tmp_path):
+    """Only while data/shop.db is still before migration 014 (decided from its schema_migrations rows): a copy is
+    migrated by init_db and the upgrade assertions run. Once the owner's database is at 014 or later there is nothing to
+    upgrade: skipped, with the reason. The always-run copy check is tests/test_laptop_database.py."""
+    skip_unless_before("014_order_void.sql")
+    path = copy_laptop_db(tmp_path / "laptop")
+    conn = get_connection(path)
     conn.row_factory = sqlite3.Row
     try:
         before = _snapshot(conn)
-        applied = {r[0] for r in conn.execute("SELECT filename FROM schema_migrations")}
     finally:
         conn.close()
-    return str(copy), before, applied
-
-
-def _generic_checks(db_path: str, before: dict) -> None:
-    """What holds whatever schema the copy is at: init_db changed no order, movement or audit row, no foreign key
-    is broken, and the integrity check passes."""
-    conn = get_connection(db_path)
-    try:
-        after = _snapshot(conn)
-        for key in ("orders", "order_items", "stock_movements", "audit_log", "user_version"):
-            assert after[key] == before[key], key
-        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
-    finally:
-        conn.close()
-    assert integrity_main(["--db", db_path]) == 0
-
-
-@pytest.mark.skipif(not LAPTOP_DB.is_file(), reason="this laptop's data/shop.db is not here")
-def test_a_copy_of_the_laptop_database_survives_init_db():
-    """Whatever schema data/shop.db is at (the app may have been run on another branch): a copy in its own folder
-    under data/restore-test/, init_db, foreign_key_check and the integrity check; nothing in it changes. The folder is removed."""
-    folder = RESTORE_TEST / f"m014-copy-pytest-{os.getpid()}"
-    folder.mkdir(parents=True, exist_ok=False)
-    try:
-        path, before, _ = _laptop_copy(folder)
-        init_db(path)
-        _generic_checks(path, before)
-    finally:
-        shutil.rmtree(folder)
-
-
-@pytest.mark.skipif(not LAPTOP_DB.is_file(), reason="this laptop's data/shop.db is not here")
-def test_upgrade_of_a_copy_of_the_laptop_database():
-    """Only while data/shop.db is still before migration 014: the copy is migrated by init_db and the upgrade
-    assertions run. Once the owner's database is at 014 or later there is nothing to upgrade: skipped, with the reason."""
-    folder = RESTORE_TEST / f"m014-pytest-{os.getpid()}"
-    folder.mkdir(parents=True, exist_ok=False)
-    try:
-        path, before, applied = _laptop_copy(folder)
-        if "014_order_void.sql" in applied:
-            pytest.skip("this laptop's data/shop.db is already at migration 014 or later: no upgrade to test")
-        init_db(path)
-        _check_upgraded(path, before)
-    finally:
-        shutil.rmtree(folder)
+    init_db(path)
+    _check_upgraded(path, before)

@@ -13,10 +13,9 @@ import pytest
 from db.audit import audit_trigger_sql, stale_audit_tables
 from db.connection import MIGRATIONS_DIR, get_connection, init_db
 from db.purchases import get_purchase
+from tests.laptop_db import copy_laptop_db, needs_laptop_db, skip_unless_before
 from tools.integrity_check.__main__ import main as integrity_main
 
-REPO = Path(__file__).resolve().parent.parent
-LAPTOP_DB = REPO / "data" / "shop.db"
 MIGRATION = "016_purchase_invoices.sql"
 KINDS = (("MATERIAL", "material_purchases", "material_id"), ("PRODUCT", "product_purchases", "product_id"))
 HEADER_COLUMNS = ("invoice_number", "supplier_id", "purchase_date", "notes", "status", "cancel_reason", "cancelled_at")
@@ -336,30 +335,22 @@ def test_audit_triggers_are_generated_for_the_new_columns(test_db):
     assert rows[1]["before_json"] == '{"notes":"n"}'
 
 
-@pytest.mark.skipif(not LAPTOP_DB.is_file(), reason="this laptop's data/shop.db is not here")
+@needs_laptop_db
 def test_upgrade_of_a_copy_of_the_laptop_database(tmp_path):
-    """A copy of data/shop.db (read through SQLite immutable mode, so the file itself is never opened for writing), in a
-    temporary folder: when it is at 015, init_db applies 016 and the upgrade assertions and the integrity check run."""
-    copy = tmp_path / "shop.db"
-    source = sqlite3.connect(f"file:{LAPTOP_DB.as_posix()}?mode=ro&immutable=1", uri=True)
-    target = sqlite3.connect(copy)
+    """Only while data/shop.db is still before migration 016 (decided from its schema_migrations rows, before any column
+    is read): a copy is migrated by init_db and the upgrade assertions and the integrity check run. Skipped, with the
+    reason, once the database is at 016 or later; tests/test_laptop_database.py checks the copy whatever its migration."""
+    skip_unless_before(MIGRATION)
+    path = copy_laptop_db(tmp_path / "laptop")
+    conn = get_connection(path)
     try:
-        source.backup(target)
-    finally:
-        target.close()
-        source.close()
-    conn = get_connection(str(copy))
-    try:
-        applied = {r[0] for r in conn.execute("SELECT filename FROM schema_migrations")}
-        if MIGRATION in applied or "015_supplier_payables_purchase_status.sql" not in applied:
-            pytest.skip("this laptop's data/shop.db is not at migration 015: no 016 upgrade to test")
         before = _snapshot(conn)
     finally:
         conn.close()
-    init_db(str(copy))
-    conn = get_connection(str(copy))
+    init_db(path)
+    conn = get_connection(path)
     try:
         _check_upgraded(conn, before)
     finally:
         conn.close()
-    assert integrity_main(["--db", str(copy)]) == 0
+    assert integrity_main(["--db", path]) == 0
