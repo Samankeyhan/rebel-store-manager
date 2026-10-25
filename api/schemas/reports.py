@@ -120,10 +120,15 @@ class RevenueSummaryOut(BaseModel):
 class PurchasesSummaryOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    # purchase lines in the range: STOCK materials, services (no stock) and products, kept apart (rules section 9)
     material_purchases_total: Rial
     material_purchases_count: int
+    service_purchases_total: Rial
+    service_purchases_count: int
     product_purchases_total: Rial
     product_purchases_count: int
+    # the purchase invoices dated in the range
+    purchase_invoices_count: int
     # cash and debt, never P&L: payments to suppliers by payment_date in the range, and what is owed now (any range)
     supplier_payments_total: Rial
     supplier_payments_count: int

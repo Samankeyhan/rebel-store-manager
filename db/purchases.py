@@ -79,6 +79,8 @@ def _check_line(conn: sqlite3.Connection, index: int, line, prefix: str) -> dict
     service = kind == "MATERIAL" and item["type"] == "SERVICE"
 
     quantity = line.get("quantity_bought")
+    if kind == "PRODUCT" and isinstance(quantity, float) and quantity.is_integer():
+        quantity = int(quantity)  # the API reads every quantity as a number: 3.0 is 3 units, 1.5 is refused below
     try:
         check_quantity(quantity, "quantity_bought", whole=kind == "PRODUCT")
     except ValidationError as exc:

@@ -89,12 +89,9 @@ def seeded(api):
         conn, "2020-01-01", "2020-01-31", 0, allow_exceeding=True
     )
 
-    material_purchase_id = conn.execute(
-        "SELECT id FROM material_purchases WHERE material_id = ?", (material_id,)
-    ).fetchone()["id"]
-    product_purchase_id = conn.execute(
-        "SELECT id FROM product_purchases WHERE product_id = ?", (product_id,)
-    ).fetchone()["id"]
+    material_invoice_id = conn.execute(
+        "SELECT purchase_invoice_id FROM material_purchases WHERE material_id = ?", (material_id,)
+    ).fetchone()[0]
 
     return {
         "client": client,
@@ -107,8 +104,7 @@ def seeded(api):
         "draft_order_id": draft_order_id,
         "partner_id": partner_id,
         "distribution_id": distribution_id,
-        "material_purchase_id": material_purchase_id,
-        "product_purchase_id": product_purchase_id,
+        "material_invoice_id": material_invoice_id,
     }
 
 
@@ -267,27 +263,27 @@ def test_suppliers_list_and_detail(seeded):
     assert detail.json()["name"] == "Acme Supplies"
 
 
-def test_material_and_product_purchases(seeded):
+def test_purchase_invoices(seeded):
     client = seeded["client"]
 
-    material_list = client.get("/purchases/materials")
-    assert material_list.status_code == 200
-    assert len(material_list.json()) >= 1
+    listing = client.get("/purchases")
+    assert listing.status_code == 200
+    rows = listing.json()
+    assert len(rows) == 2  # the fixture records one material and one product purchase: two one-line invoices
+    assert {line["item_name"] for row in rows for line in row["lines"]} == {"Glue", "Widget"}
 
-    material_detail = client.get(
-        f"/purchases/materials/{seeded['material_purchase_id']}"
-    )
-    assert material_detail.status_code == 200
-    assert material_detail.json()["material_name"] == "Glue"
+    detail = client.get(f"/purchases/{seeded['material_invoice_id']}")
+    assert detail.status_code == 200
+    body = detail.json()
+    assert [(l["kind"], l["item_type"], l["item_name"]) for l in body["lines"]] == [("MATERIAL", "STOCK", "Glue")]
+    assert body["total"] == body["lines"][0]["total_paid"] and body["payments"] != []
 
-    product_list = client.get("/purchases/products")
-    assert product_list.status_code == 200
-
-    product_detail = client.get(
-        f"/purchases/products/{seeded['product_purchase_id']}"
-    )
-    assert product_detail.status_code == 200
-    assert product_detail.json()["product_name"] == "Widget"
+    only_products = client.get("/purchases", params={"item_type": "PRODUCT"}).json()
+    assert [r["lines"][0]["item_name"] for r in only_products] == ["Widget"]
+    assert client.get("/purchases", params={"item_id": 1}).status_code == 422  # item_id needs item_type
+    assert client.get("/purchases/99999").status_code == 404
+    # the old per-kind routes are gone
+    assert client.get("/purchases/materials").status_code == 404 or client.get("/purchases/materials").status_code == 422
 
 
 def test_adjustments_list(seeded):

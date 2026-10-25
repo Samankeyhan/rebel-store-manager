@@ -83,12 +83,19 @@ CASES = {
                              lambda i, v: {"retail_price": v}, "retail_price"),
     "material.unit_cost": ("post", lambda i: "/materials",
                            lambda i, v: {"name": "M1", "type": "STOCK", "unit_cost": v}, "unit_cost"),
-    "purchase.material.total_paid": ("post", lambda i: "/purchases/materials",
-                                     lambda i, v: {"material_id": i["material"], "quantity_bought": 1, "total_paid": v}, "total_paid"),
-    "purchase.product.total_paid": ("post", lambda i: "/purchases/products",
-                                    lambda i, v: {"product_id": i["product"], "quantity_bought": 1, "total_paid": v}, "total_paid"),
-    "purchase.payment.amount": ("post", lambda i: "/purchases/materials",
-                                lambda i, v: {"material_id": i["material"], "quantity_bought": 1, "total_paid": 1000,
+    "purchase.material.total_paid": ("post", lambda i: "/purchases",
+                                     lambda i, v: {"lines": [{"kind": "MATERIAL", "item_id": i["material"], "quantity_bought": 1, "total_paid": v}]},
+                                     "lines.0.total_paid"),
+    "purchase.product.total_paid": ("post", lambda i: "/purchases",
+                                    lambda i, v: {"lines": [{"kind": "PRODUCT", "item_id": i["product"], "quantity_bought": 1, "total_paid": v}]},
+                                    "lines.0.total_paid"),
+    "purchase.second_line.total_paid": ("post", lambda i: "/purchases",
+                                        lambda i, v: {"lines": [
+                                            {"kind": "MATERIAL", "item_id": i["material"], "quantity_bought": 1, "total_paid": 0},
+                                            {"kind": "PRODUCT", "item_id": i["product"], "quantity_bought": 1, "total_paid": v}]},
+                                        "lines.1.total_paid"),
+    "purchase.payment.amount": ("post", lambda i: "/purchases",
+                                lambda i, v: {"lines": [{"kind": "MATERIAL", "item_id": i["material"], "quantity_bought": 1, "total_paid": 1000}],
                                               "supplier_id": i["supplier"], "payment": {"mode": "PARTIAL", "amount": v}},
                                 "payment.amount"),
     "supplier_payment.amount": ("post", lambda i: "/supplier-payments",
@@ -239,12 +246,23 @@ def test_an_order_exactly_at_the_bound_is_recorded(world):
 def test_a_material_purchase_whose_cost_exceeds_the_bound_per_unit_is_not_a_crash(world):
     client, ids, _ = world
     response = client.post(
-        "/purchases/materials",
-        json={"material_id": ids["material"], "quantity_bought": 0.001, "total_paid": MAX_MONEY},
+        "/purchases",
+        json={"lines": [{"kind": "MATERIAL", "item_id": ids["material"], "quantity_bought": 0.001, "total_paid": MAX_MONEY}]},
     )
     assert response.status_code == 422, response.text[:300]  # unit cost = 9e18 > bound
     assert response.json()["error"]["code"] == "AMOUNT_TOO_LARGE"
-    assert response.json()["error"]["field"] == "total_paid"
+    assert response.json()["error"]["field"] == "lines.0.total_paid"
+
+
+def test_an_invoice_whose_lines_add_up_beyond_the_bound_is_refused(world):
+    client, ids, _ = world
+    half = MAX_MONEY // 2 + 1
+    response = client.post("/purchases", json={"lines": [
+        {"kind": "MATERIAL", "item_id": ids["material"], "quantity_bought": 1, "total_paid": half},
+        {"kind": "PRODUCT", "item_id": ids["product"], "quantity_bought": 1, "total_paid": half},
+    ]})
+    assert response.status_code == 422, response.text[:300]
+    assert response.json()["error"]["code"] == "AMOUNT_TOO_LARGE" and response.json()["error"]["field"] == "lines"
 
 
 def test_a_fee_plus_fixed_fee_beyond_the_bound_is_refused(world):

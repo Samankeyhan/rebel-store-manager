@@ -5,15 +5,12 @@ from pydantic import BaseModel, ConfigDict, Strict
 from api.schemas.common import DateStr, Money, Rial
 from api.schemas.purchases import PaymentStatus, SupplierPaymentMethod
 
-PurchaseKind = Literal["MATERIAL", "PRODUCT"]
-
 
 class AllocationIn(BaseModel):
-    """The part of a payment that pays one purchase."""
+    """The part of a payment that pays one purchase (a purchase invoice)."""
 
     model_config = ConfigDict(extra="forbid")
 
-    purchase_kind: PurchaseKind
     purchase_id: Annotated[int, Strict()]
     amount: Money
 
@@ -48,12 +45,11 @@ class AllocationOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: int
-    purchase_kind: PurchaseKind
     purchase_id: int
     amount: Rial
     invoice_number: str | None
     purchase_date: str
-    item_name: str
+    item_names: list[str]
 
 
 class SupplierPaymentOut(BaseModel):
@@ -73,16 +69,15 @@ class SupplierPaymentOut(BaseModel):
 
 
 class OpenPurchaseOut(BaseModel):
-    """A purchase that still owes something."""
+    """A purchase invoice that still owes something."""
 
     model_config = ConfigDict(extra="forbid")
 
-    purchase_kind: PurchaseKind
     purchase_id: int
     invoice_number: str | None
     purchase_date: str
-    item_name: str
-    total_paid: Rial
+    item_names: list[str]
+    total: Rial
     paid: Rial
     outstanding: Rial
     payment_status: PaymentStatus
@@ -112,6 +107,5 @@ class PayablesOut(BaseModel):
 class AllocationPlanOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    purchase_kind: PurchaseKind
     purchase_id: int
     amount: Rial
