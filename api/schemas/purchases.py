@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -106,3 +106,78 @@ class PurchaseCreate(BaseModel):
     notes: str | None = None
     payment: PurchasePaymentIn | None = None
     lines: list[PurchaseLineIn] = Field(min_length=1)
+
+
+class PurchaseUpdate(BaseModel):
+    """Only the fields present change (accounting rules section 23). A new supplier takes the payments wholly on this
+    purchase; the payment made with it moves with a new day; a shared payment refuses a new supplier."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    supplier_id: int | None = None
+    purchase_date: DateStr | None = None
+    notes: str | None = None
+
+
+class PurchaseCancel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Required; why the purchase was entered by mistake (stored form, at most 500 characters).
+    reason: str
+    # true only after the owner ticked «پرداخت‌های این خرید هم حذف شوند»: the payments wholly on it are deleted with it
+    with_payments: bool = False
+
+
+class PurchaseCorrection(PurchaseCreate):
+    """The right invoice (as POST /purchases) plus the reason. The old invoice's payments move to it; `payment` is on
+    the part not yet paid."""
+
+    reason: str
+
+
+class PurchaseBlockerOut(BaseModel):
+    """A rule that refuses the cancel now: the ErrorCode the cancel would answer with, and its details."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    details: dict[str, Any]
+
+
+class PurchaseCancelLineOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    line_index: int
+    kind: LineKind
+    item_type: LineItemType
+    item_id: int
+    item_name: str
+    unit: str | None
+    quantity: float
+    # the item's stock now and after the cancel; null for a service (no stock)
+    stock_before: float | None
+    stock_after: float | None
+    # the item's unit cost now and the one it gets back (null: a product with no cost)
+    cost_before: Rial | None
+    cost_after: Rial | None
+
+
+class PurchaseCancelPaymentOut(PurchasePaymentOut):
+    # 1 when the payment also pays another purchase (it refuses the cancel)
+    shared: int
+
+
+class PurchaseCancelPreviewOut(BaseModel):
+    """What cancelling the purchase would do; `blockers` is empty when it may be cancelled (PURCHASE_HAS_PAYMENTS is
+    listed while it has payments: they go only with `with_payments`)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    purchase_id: int
+    invoice_number: str | None
+    status: PurchaseStatus
+    purchase_date: str
+    blockers: list[PurchaseBlockerOut]
+    lines: list[PurchaseCancelLineOut]
+    payments: list[PurchaseCancelPaymentOut]
+    paid: Rial
