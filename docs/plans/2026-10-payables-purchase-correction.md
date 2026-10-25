@@ -478,6 +478,20 @@ Built between A and B, from `main` e52fa13. Slice B below is already written for
 - The purchases list shows one row per invoice, with an item summary.
 - `material_purchases_*` in the summary counts STOCK lines only; services have their own total.
 
+## Slice B build check: deviations (approved 2026-10-25)
+Checked against the code at `main` 3dd7c53 (migrations 001–016). **No migration is needed:** every column and CHECK slice B writes exists after 015 and 016, PURCHASE movements may be negative, `products.unit_cost` may go back to NULL. Where these differ from the slice B text above, these win; accounting rules §23 is the result.
+- **D1. A cancelled later purchase does not block.** The +qty PURCHASE movement of a line whose invoice is CANCELLED is ignored by the latest-cost-event rule (its cancel movement takes it out again; the cost condition still holds).
+- **D2. Exact stock on a cancel:** the new stock is `exact(stock) − exact(qty)` rounded to 1e-9 (the stocktake's `difference`), so equal amounts give exactly 0.
+- **D3 (Q1 yes). Supplier edit or correction with payments:** the payments wholly on this invoice follow the new supplier (`supplier_payments.supplier_id`); a payment that also pays another purchase refuses (`PURCHASE_HAS_PAYMENTS`, shared 1).
+- **D4 (Q2 yes). Day edit or correction:** the payment made with the purchase (recorded in the purchase's own audit operation, or 015's backfill payment, and still dated with it) moves with the day; any other payment is re-checked (`SUPPLIER_PAYMENT_BEFORE_PURCHASE`).
+- **D5. Edit details:** an unknown supplier is `SUPPLIER_NOT_FOUND`; every line's PURCHASE movement follows the day; the same local day keeps the stored moment.
+- **D6. Correction order:** inside one transaction: cancel (keeping the allocations), write the new invoice, move the allocations, then the form's payment on the remainder (`purchases._record`'s `corrects` hook). Recording the new invoice first would make its line a later cost event.
+- **D7. Reason text** for purchases ("cancel or correct a purchase"), same code `VOID_REASON_REQUIRED`, field reason.
+- **D8. Reads:** line reads carry the invoice `status`; `list_purchases(include_cancelled=False)`; the summary and `purchase_invoices_count` count ACTIVE only; the suppliers screen counts ACTIVE only.
+- **D9. Check k** (`min_schema` 16): a line recorded with its cost history (its audit INSERT holds an `item_cost_after`) must keep it and, for a stock or product line, its movement link; older lines without one are INFO, never a failure.
+- **D10.** The rules are accounting rules **§23** (§22 is «Purchase invoices»); §2, §9, §11, §18 and §21 point to it.
+- **Q3 yes:** a voided sale's RETURN after the purchase blocks like any later stock-in; the preview names it. **Q4 yes:** cancelled purchases are hidden by default, toggle «نمایش خریدهای باطل‌شده».
+
 ## Verification (each slice)
 - `data\shop.db` fingerprint at the start and end.
 - `.\.venv\Scripts\python.exe -m pytest -q`, `npm.cmd test`, `npm.cmd run check:money`, `npx tsc --noEmit`, then `npm.cmd run lint` last.
