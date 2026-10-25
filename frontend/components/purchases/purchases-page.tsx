@@ -21,14 +21,16 @@ import { Btn, cardClass } from "@/components/record-sale/primitives"
 import { dateToISO, formatJalali, jalaliMonthRange, utcToLocal, wholeMonthLabel, type IsoRange } from "@/lib/jalali"
 import { matchesPayFilter, PAY_FILTERS, parsePayFilter } from "@/lib/payables"
 import { itemsSummary, parseTypeFilter, TYPE_FILTERS } from "@/lib/purchase-lines"
+import { parseShowCancelled } from "@/lib/purchase-correction"
+import type { PurchaseDetail } from "@/lib/api"
 import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
-import { PAY_STATUS_LABELS, U } from "./copy"
+import { C, PAY_STATUS_LABELS, U } from "./copy"
 import { PayStatusTag } from "./pay-status-tag"
 import { PurchaseForm, type PurchaseFormHandle } from "./purchase-form"
-import { PurchaseSheet } from "./purchase-sheet"
+import { CancelledTag, PurchaseSheet } from "./purchase-sheet"
 import { TypeTag } from "./type-tag"
-import { usePurchasesData, type PurchaseRow, type RefreshedItem, type TypeFilter } from "./use-purchases-data"
+import { toRow, usePurchasesData, type PurchaseRow, type RefreshedItem, type TypeFilter } from "./use-purchases-data"
 import { useCurrency } from "@/lib/use-currency"
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
@@ -43,7 +45,7 @@ const TYPE_LABELS: Record<TypeFilter, string> = {
  * خرید (design 07). Desktop: the purchase history (one row per supplier
  * invoice) with filters, the entry form in a left drawer. Mobile: the form
  * first, then «خریدهای اخیر». Filters live in the URL (?type=material|service|
- * product, ?supplier=, ?from=&to=, ?q=, ?pay=).
+ * product, ?supplier=, ?from=&to=, ?q=, ?pay=, ?cancelled=1 also lists the cancelled purchases, greyed).
  */
 export function PurchasesPage() {
   // Re-render the whole screen when the display currency switches (lib/money.ts).
@@ -66,6 +68,7 @@ export function PurchasesPage() {
   const q = params.get("q") ?? ""
   // the payment status filter is client-side, like the search (the API gives each row its status)
   const pay = parsePayFilter(params.get("pay"))
+  const showCancelled = parseShowCancelled(params.get("cancelled"))
 
   const setParams = React.useCallback(
     (patch: Record<string, string | null>) => {
@@ -89,7 +92,9 @@ export function PurchasesPage() {
 
   // Mobile shows the newest purchases overall, so no type/supplier/date filter there.
   const data = usePurchasesData(
-    mobile ? { type: "all", supplierId: null, range: null } : { type, supplierId, range }
+    mobile
+      ? { type: "all", supplierId: null, range: null, includeCancelled: false }
+      : { type, supplierId, range, includeCancelled: showCancelled }
   )
   const { catalog, list } = data
 
@@ -116,7 +121,7 @@ export function PurchasesPage() {
             matchesPayFilter(r.paymentStatus, pay)
         )
       : []
-  const filtersActive = !!q || pay != null || type !== "all" || supplierId != null || range.from !== defaultRange.from || range.to !== defaultRange.to
+  const filtersActive = !!q || pay != null || showCancelled || type !== "all" || supplierId != null || range.from !== defaultRange.from || range.to !== defaultRange.to
   const clearFilters = () => {
     setSearch("")
     router.replace(pathname, { scroll: false })
@@ -137,8 +142,25 @@ export function PurchasesPage() {
       />
     ) : null
 
+  const onChanged = (show: PurchaseDetail, items: RefreshedItem[], message: string) => {
+    data.replaceItems(items)
+    data.refreshList()
+    data.refreshCatalog().catch(() => {})
+    setOpenRow(toRow(show))
+    setToast(message)
+  }
   const sheet = (
-    <PurchaseSheet row={openRow} timeZone={data.timeZone} mobile={mobile} onClose={() => setOpenRow(null)} />
+    <PurchaseSheet
+      row={openRow}
+      timeZone={data.timeZone}
+      mobile={mobile}
+      onClose={() => setOpenRow(null)}
+      catalog={catalog.status === "ready" ? catalog : null}
+      today={today}
+      refreshSuppliers={data.refreshSuppliers}
+      onChanged={onChanged}
+      onShow={(p) => setOpenRow(toRow(p))}
+    />
   )
   const toastNode = toast && <Toast title={toast} onClose={closeToast} closeLabel={U.close} />
 
@@ -279,6 +301,15 @@ export function PurchasesPage() {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-border-strong bg-card px-3 text-sm">
+          <input
+            type="checkbox"
+            className="size-4 cursor-pointer accent-primary"
+            checked={showCancelled}
+            onChange={(e) => setParams({ cancelled: e.target.checked ? "1" : null })}
+          />
+          {C.showCancelled}
+        </label>
         <DateRangePopover
           value={range}
           onApply={(r) =>
@@ -328,7 +359,9 @@ export function PurchasesPage() {
     )
   else {
     const month = wholeMonthLabel(range)
-    const total = rows.reduce((s, r) => s + r.total, 0)
+    // The footer sums the purchases that count: a cancelled one is listed but in no total (section 23).
+    const counted = rows.filter((r) => r.status !== "CANCELLED")
+    const total = counted.reduce((s, r) => s + r.total, 0)
     body = (
       <section className={cn(cardClass, "overflow-hidden")}>
         <div className="overflow-x-auto">
@@ -362,11 +395,14 @@ export function PurchasesPage() {
                       setOpenRow(r)
                     }
                   }}
-                  className="cursor-pointer outline-none hover:[&>td]:bg-surface-2 focus-visible:[&>td]:bg-surface-2 [&>td]:h-[52px] [&>td]:border-b [&>td]:border-border [&>td]:px-4 [&>td]:whitespace-nowrap"
+                  className={cn(
+                    "cursor-pointer outline-none hover:[&>td]:bg-surface-2 focus-visible:[&>td]:bg-surface-2 [&>td]:h-[52px] [&>td]:border-b [&>td]:border-border [&>td]:px-4 [&>td]:whitespace-nowrap",
+                    r.status === "CANCELLED" && "text-text-3 [&>td]:bg-surface-2/60"
+                  )}
                 >
                   <td className="text-text-3 tabular-nums">{shortDate(r.date, data.timeZone)}</td>
                   <td>
-                    <span className="font-bold">{itemsSummary(r.itemNames, U.moreItems)}</span>
+                    <span className={cn("font-bold", r.status === "CANCELLED" && "line-through")}>{itemsSummary(r.itemNames, U.moreItems)}</span>
                     <span className="ms-2 text-xs text-text-3 tabular-nums">
                       {r.invoiceNumber && <span dir="ltr">{r.invoiceNumber}</span>}
                       {r.lines.length > 1 && <> · {U.lineCount(r.lines.length)}</>}
@@ -383,16 +419,17 @@ export function PurchasesPage() {
                   <td className="text-end font-bold">
                     <Money value={r.total} />
                   </td>
-                  <td>
-                    <PayStatusTag status={r.paymentStatus} />
+                  {/* a cancelled purchase is owed nothing: its tag stands in the payment status column */}
+                  <td>{r.status === "CANCELLED" ? <CancelledTag /> : <PayStatusTag status={r.paymentStatus} />}</td>
+                  <td className="text-end">
+                    {r.outstanding > 0 && r.status !== "CANCELLED" ? <Money value={r.outstanding} /> : <span className="text-text-3">—</span>}
                   </td>
-                  <td className="text-end">{r.outstanding > 0 ? <Money value={r.outstanding} /> : <span className="text-text-3">—</span>}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-bold [&>td]:h-[52px] [&>td]:bg-surface-2 [&>td]:px-4">
-                <td colSpan={4}>{month ? U.footerMonth(month, rows.length) : U.footerRange(rows.length)}</td>
+                <td colSpan={4}>{month ? U.footerMonth(month, counted.length) : U.footerRange(counted.length)}</td>
                 <td className="text-end">
                   <Money value={total} />
                 </td>

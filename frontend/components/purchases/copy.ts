@@ -5,6 +5,8 @@
 
 import { formatNumber, formatQuantity, toPersianDigits } from "@/lib/persian-numbers"
 import { currencyLabel, formatMoney, formatMoneyNumber } from "@/lib/money"
+import { formatJalali, formatJalaliDateTime } from "@/lib/jalali"
+import type { CancelRefusal, LaterEvent } from "@/lib/purchase-correction"
 
 export const U = {
   // toolbar
@@ -196,3 +198,102 @@ export const PAY_STATUS_LABELS = {
   PARTIAL: "پرداخت بخشی",
   PAID: "پرداخت‌شده",
 } as const
+
+/** Stock movement reasons a later cost event can have (stock_movements.reason). // NEW */
+const LATER_REASON_LABELS: Record<string, string> = {
+  PURCHASE: "خرید",
+  PRODUCTION_OUTPUT: "تولید",
+  RETURN: "برگشت فروش",
+  ADJUSTMENT: "اصلاح موجودی",
+  WASTE: "ضایعات",
+}
+
+function laterText(e: LaterEvent, timeZone: string): string {
+  const what = e.invoiceNumber ? `خرید ${e.invoiceNumber}` : (LATER_REASON_LABELS[e.reason] ?? e.reason)
+  return e.date ? `${what} (${formatJalaliDateTime(e.date, timeZone)})` : what
+}
+
+/** Editing, cancelling and correcting a purchase entered by mistake (accounting-rules section 23). All // NEW. */
+export const C = {
+  // sheet
+  edit: "ویرایش",
+  cancelPurchase: "ابطال خرید",
+  correctPurchase: "اصلاح خرید",
+  cancelledBanner: (reason: string) => `این خرید باطل شده است — دلیل: ${reason}`,
+  cancelledAt: "تاریخ ابطال",
+  replacedBy: "جایگزین:",
+  corrects: "اصلاحِ",
+  cancelledTag: "باطل‌شده",
+  showCancelled: "نمایش خریدهای باطل‌شده",
+
+  // edit dialog
+  editTitle: (invoice: string) => `ویرایش خرید ${invoice}`,
+  editSubtitle: "فقط تأمین‌کننده، تاریخ و یادداشت؛ برای اقلام و مبلغ‌ها «اصلاح خرید» را بزنید.",
+  editSave: "ذخیرهٔ تغییرات",
+  editPaymentsFollow: "پرداخت‌هایی که فقط برای همین خرید است همراه تأمین‌کنندهٔ جدید می‌روند و پرداختی که با خود خرید ثبت شده با تاریخ جدید جابه‌جا می‌شود.",
+  editNothing: "چیزی تغییر نکرده است.",
+  editSaved: (invoice: string) => `خرید ${invoice} ویرایش شد`,
+  paymentBeforeDay: "پرداختی از این خرید پیش از تاریخ جدید ثبت شده است؛ اول تاریخ آن پرداخت را اصلاح کنید.",
+  sharedSupplier: "پرداختی از این خرید، خرید دیگری را هم پرداخت کرده است؛ برای تغییر تأمین‌کننده اول آن پرداخت را اصلاح کنید.",
+  dateInFuture: "تاریخ خرید نمی‌تواند بعد از امروز باشد.",
+  creditNeedsSupplier: "این خرید نسیه یا بخشی پرداخت شده و بدون تأمین‌کننده نمی‌شود.",
+
+  // cancel dialog
+  cancelTitle: (invoice: string) => `ابطال خرید ${invoice}`,
+  cancelSubtitle: "برای خریدی که اشتباه ثبت شده: موجودی و بها به پیش از این خرید برمی‌گردد.",
+  cancelLoading: "در حال بررسی…",
+  cancelPreviewFailed: "بررسی ابطال انجام نشد؛ دوباره تلاش کنید.",
+  lineBack: (name: string, unit: string, stockBefore: string, stockAfter: string, costBefore: string, costAfter: string) =>
+    `موجودی «${name}» از ${stockBefore} به ${stockAfter} ${unit} و بهای واحد از ${costBefore} به ${costAfter} برمی‌گردد`,
+  serviceBack: (name: string, costBefore: string, costAfter: string) => `بهای «${name}» از ${costBefore} به ${costAfter} برمی‌گردد`,
+  noCost: "بدون بها",
+  paymentsGo: "این پرداخت‌ها همراه خرید حذف می‌شوند:",
+  paymentsTick: "پرداخت‌های این خرید هم حذف شوند",
+  reasonLabel: "دلیل",
+  reasonPlaceholder: "مثلاً: دو بار ثبت شده بود",
+  reasonHelp: "در سابقهٔ خرید و گزارش تغییرات می‌ماند.",
+  reasonRequired: "دلیل را بنویسید.",
+  cancelled: (invoice: string) => `خرید ${invoice} باطل شد`,
+  kept: "خودِ خرید با شماره‌اش در سابقه می‌ماند و در گزارش‌ها حساب نمی‌شود.",
+
+  // correct dialog
+  correctTitle: (invoice: string) => `اصلاح خرید ${invoice}`,
+  correctSubtitle: "خرید فعلی باطل می‌شود و فاکتور درست به جای آن ثبت می‌شود؛ پرداخت‌ها به فاکتور جدید منتقل می‌شوند.",
+  correctSubmit: "ثبت اصلاح",
+  alreadyPaid: "پرداخت‌شده تا حالا",
+  remainder: "ماندهٔ فاکتور جدید",
+  remainderHelp: "پرداخت این فرم فقط برای همین مانده است.",
+  belowPaidLocal: "مبلغ فاکتور جدید از مبلغ پرداخت‌شده کمتر است.",
+  partialRemainder: "مبلغ پرداخت‌شده باید بیشتر از صفر و کمتر از مانده باشد.",
+  corrected: (oldInvoice: string, newInvoice: string | null) =>
+    newInvoice ? `خرید ${oldInvoice} اصلاح شد؛ فاکتور جدید ${newInvoice}` : `خرید ${oldInvoice} اصلاح شد`,
+  loadFailed: "این خرید بارگذاری نشد؛ دوباره تلاش کنید.",
+}
+
+/** A refusal of a cancel or correction, in Persian (the plan's table, with the item and dates filled in). // NEW */
+export function refusalText(r: CancelRefusal, timeZone: string): string {
+  switch (r.kind) {
+    case "cancelled":
+      return "این خرید قبلاً باطل شده است."
+    case "payments":
+      return r.shared
+        ? "پرداختی از این خرید، خرید دیگری را هم پرداخت کرده است؛ اول آن پرداخت را از «تسویه‌ها ← بدهی به تأمین‌کنندگان» اصلاح کنید."
+        : "برای این خرید پرداخت ثبت شده است؛ پرداخت‌هایی که فقط برای همین خرید است همراه آن حذف می‌شود."
+    case "closed":
+      return `این خرید در روزی است که با تقسیم سود تا تاریخ ${formatJalali(r.periodEnd)} بسته شده؛ باطل‌کردن یا اصلاح آن ممکن نیست.`
+    case "stock_used":
+      return `بخشی از این خرید مصرف یا فروخته شده؛ موجودی «${r.itemName}»${r.currentStock != null ? ` (${formatQuantity(r.currentStock)})` : ""} کمتر از مقدار خرید${r.quantity != null ? ` (${formatQuantity(r.quantity)})` : ""} است.`
+    case "stocktake":
+      return `پس از این خرید، «${r.itemName}» در شمارش موجودی${r.stocktakeDate ? ` ${formatJalali(r.stocktakeDate)}` : ""} شمرده شده است.`
+    case "cost_changed":
+      if (r.withoutMovement || r.later.length === 0)
+        return `پس از این خرید، بهای «${r.itemName}» دستی تغییر کرده است؛ باطل‌کردن این خرید بهای درست را برنمی‌گرداند.`
+      return `پس از این خرید، بهای «${r.itemName}» با این رویدادها تغییر کرده؛ اول خریدهای بعدی را باطل کنید: ${r.later.map((e) => laterText(e, timeZone)).join("، ")}.`
+    case "history":
+      return `قلم «${r.itemName}» پیش از ثبت سابقهٔ بها ثبت شده و باطل‌کردن این خرید ممکن نیست.`
+    case "below_paid":
+      return `مبلغ فاکتور جدید${r.newTotal != null ? ` (${formatMoney(r.newTotal)})` : ""} از مبلغ پرداخت‌شده${r.paid != null ? ` (${formatMoney(r.paid)})` : ""} کمتر است.`
+    case "reason":
+      return C.reasonRequired
+  }
+}

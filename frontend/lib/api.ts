@@ -450,6 +450,8 @@ export type PurchaseFilters = {
   to?: string | null
   /** Invoices with a line of this type (MATERIAL = STOCK materials). */
   itemType?: "MATERIAL" | "SERVICE" | "PRODUCT" | null
+  /** Also the CANCELLED invoices (left out by default). */
+  includeCancelled?: boolean
 }
 
 function purchaseQuery(f: PurchaseFilters): string {
@@ -458,6 +460,7 @@ function purchaseQuery(f: PurchaseFilters): string {
   if (f.from) qs.set("start_date", f.from)
   if (f.to) qs.set("end_date", f.to)
   if (f.itemType) qs.set("item_type", f.itemType)
+  if (f.includeCancelled) qs.set("include_cancelled", "true")
   const s = qs.toString()
   return s ? `?${s}` : ""
 }
@@ -479,6 +482,36 @@ export function getPurchase(id: number): Promise<PurchaseDetail> {
  */
 export function createPurchase(body: PurchaseCreate): Promise<PurchaseDetail> {
   return apiFetch<PurchaseDetail>("/purchases", { method: "POST", body: JSON.stringify(body) })
+}
+
+export type PurchaseUpdate = Schemas["PurchaseUpdate"]
+export type PurchaseCancelPreview = Schemas["PurchaseCancelPreviewOut"]
+export type PurchaseCancelLine = Schemas["PurchaseCancelLineOut"]
+export type PurchaseCorrection = Schemas["PurchaseCorrection"]
+
+/** Only the fields sent change (supplier, day, note). Payments wholly on this invoice follow a new supplier, and the
+ * one made with it follows the day; a shared payment refuses a supplier change (409 PURCHASE_HAS_PAYMENTS). */
+export function updatePurchase(id: number, patch: PurchaseUpdate): Promise<PurchaseDetail> {
+  return apiFetch<PurchaseDetail>(`/purchases/${id}`, { method: "PATCH", body: JSON.stringify(patch) })
+}
+
+/** Read-only: each line's stock and cost after a cancel, the payments that would go, and every refusal (`blockers`). */
+export function getCancelPreview(id: number): Promise<PurchaseCancelPreview> {
+  return apiFetch<PurchaseCancelPreview>(`/purchases/${id}/cancel-preview`)
+}
+
+/** Cancels the whole invoice. `withPayments` only after the owner's tick; 409 with the preview's codes. */
+export function cancelPurchase(id: number, reason: string, withPayments: boolean): Promise<PurchaseDetail> {
+  return apiFetch<PurchaseDetail>(`/purchases/${id}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({ reason, with_payments: withPayments }),
+  })
+}
+
+/** Cancels the invoice and records the right one in its place (one operation); returns the new invoice. Its payment
+ * choice is on the remainder after what was already paid. */
+export function correctPurchase(id: number, body: PurchaseCorrection): Promise<PurchaseDetail> {
+  return apiFetch<PurchaseDetail>(`/purchases/${id}/correct`, { method: "POST", body: JSON.stringify(body) })
 }
 
 // ------------------------------------------------------------ supplier payables

@@ -663,7 +663,8 @@ export interface paths {
         /**
          * Read Purchases
          * @description Purchase invoices, newest first, each with its lines. `item_type` keeps the invoices with a line of that type
-         *     (MATERIAL = STOCK materials, SERVICE, PRODUCT); `item_id` (needs item_type) a line of that item.
+         *     (MATERIAL = STOCK materials, SERVICE, PRODUCT); `item_id` (needs item_type) a line of that item. CANCELLED
+         *     invoices are left out unless include_cancelled=true.
          */
         get: operations["read_purchases_purchases_get"];
         put?: never;
@@ -689,6 +690,73 @@ export interface paths {
         get: operations["read_purchase_purchases__purchase_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Purchase
+         * @description Only the fields present in the body change (supplier, day, note); a closed day does not refuse them.
+         */
+        patch: operations["patch_purchase_purchases__purchase_id__patch"];
+        trace?: never;
+    };
+    "/purchases/{purchase_id}/cancel-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Cancel Preview
+         * @description Read-only: what cancelling this purchase would take out (each line's stock and the cost it gets back), the
+         *     payments that would go with it, and every rule that refuses it now (`blockers`).
+         */
+        get: operations["read_cancel_preview_purchases__purchase_id__cancel_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/purchases/{purchase_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel
+         * @description Cancel the whole purchase entered by mistake. 409 with the codes of `cancel-preview`; 422 VOID_REASON_REQUIRED
+         *     for a blank reason.
+         */
+        post: operations["cancel_purchases__purchase_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/purchases/{purchase_id}/correct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Correct
+         * @description Cancel the purchase and record the right one in its place (one operation); returns the new purchase. Any
+         *     refusal (the cancel's, the new purchase's, a closed new day) leaves both as they were.
+         */
+        post: operations["correct_purchases__purchase_id__correct_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2703,6 +2771,51 @@ export interface components {
             code: "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST";
             details: components["schemas"]["ProductRefDetails"];
         };
+        /** ErrorBodyPurchaseAlreadyCancelled */
+        ErrorBodyPurchaseAlreadyCancelled: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PURCHASE_ALREADY_CANCELLED";
+            details: components["schemas"]["PurchaseAlreadyCancelledDetails"];
+        };
+        /** ErrorBodyPurchaseCorrectionBelowPaid */
+        ErrorBodyPurchaseCorrectionBelowPaid: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PURCHASE_CORRECTION_BELOW_PAID";
+            details: components["schemas"]["PurchaseCorrectionBelowPaidDetails"];
+        };
+        /** ErrorBodyPurchaseCostChanged */
+        ErrorBodyPurchaseCostChanged: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PURCHASE_COST_CHANGED_SINCE";
+            details: components["schemas"]["PurchaseCostChangedDetails"];
+        };
         /** ErrorBodyPurchaseDue */
         ErrorBodyPurchaseDue: {
             /** Type */
@@ -2733,6 +2846,36 @@ export interface components {
             code: "PURCHASE_DUPLICATE_ITEM";
             details: components["schemas"]["PurchaseDuplicateItemDetails"];
         };
+        /** ErrorBodyPurchaseHasPayments */
+        ErrorBodyPurchaseHasPayments: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PURCHASE_HAS_PAYMENTS";
+            details: components["schemas"]["PurchaseHasPaymentsDetails"];
+        };
+        /** ErrorBodyPurchaseLine */
+        ErrorBodyPurchaseLine: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PURCHASE_COST_HISTORY_UNKNOWN";
+            details: components["schemas"]["PurchaseLineDetails"];
+        };
         /** ErrorBodyPurchaseRef */
         ErrorBodyPurchaseRef: {
             /** Type */
@@ -2747,6 +2890,21 @@ export interface components {
              */
             code: "PURCHASE_NOT_FOUND";
             details: components["schemas"]["PurchaseRefDetails"];
+        };
+        /** ErrorBodyPurchaseStockUsed */
+        ErrorBodyPurchaseStockUsed: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "PURCHASE_STOCK_USED";
+            details: components["schemas"]["PurchaseStockUsedDetails"];
         };
         /** ErrorBodyPurchaseSupplier */
         ErrorBodyPurchaseSupplier: {
@@ -2807,6 +2965,21 @@ export interface components {
              */
             code: "SERVICE_PURCHASE_NEEDS_TOTAL";
             details: components["schemas"]["ServicePurchaseNeedsTotalDetails"];
+        };
+        /** ErrorBodyStocktakeAfterPurchase */
+        ErrorBodyStocktakeAfterPurchase: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "STOCKTAKE_AFTER_PURCHASE";
+            details: components["schemas"]["StocktakeAfterPurchaseDetails"];
         };
         /** ErrorBodyStocktakeAfterSale */
         ErrorBodyStocktakeAfterSale: {
@@ -2916,7 +3089,7 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             /** Error */
-            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodyMaterialRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodySupplierRequiredForCredit"] | components["schemas"]["ErrorBodyPurchaseDue"] | components["schemas"]["ErrorBodySupplierBalance"] | components["schemas"]["ErrorBodyPurchaseSupplier"] | components["schemas"]["ErrorBodyAllocationMismatch"] | components["schemas"]["ErrorBodyPaymentBeforePurchase"] | components["schemas"]["ErrorBodySupplierPaymentRef"] | components["schemas"]["ErrorBodyPurchaseRef"] | components["schemas"]["ErrorBodyPurchaseDuplicateItem"] | components["schemas"]["ErrorBodyServicePurchaseNeedsTotal"] | components["schemas"]["ErrorBodyBackupFailed"];
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodyMaterialRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodySupplierRequiredForCredit"] | components["schemas"]["ErrorBodyPurchaseDue"] | components["schemas"]["ErrorBodySupplierBalance"] | components["schemas"]["ErrorBodyPurchaseSupplier"] | components["schemas"]["ErrorBodyAllocationMismatch"] | components["schemas"]["ErrorBodyPaymentBeforePurchase"] | components["schemas"]["ErrorBodySupplierPaymentRef"] | components["schemas"]["ErrorBodyPurchaseRef"] | components["schemas"]["ErrorBodyPurchaseDuplicateItem"] | components["schemas"]["ErrorBodyServicePurchaseNeedsTotal"] | components["schemas"]["ErrorBodyPurchaseAlreadyCancelled"] | components["schemas"]["ErrorBodyPurchaseHasPayments"] | components["schemas"]["ErrorBodyPurchaseStockUsed"] | components["schemas"]["ErrorBodyStocktakeAfterPurchase"] | components["schemas"]["ErrorBodyPurchaseCostChanged"] | components["schemas"]["ErrorBodyPurchaseLine"] | components["schemas"]["ErrorBodyPurchaseCorrectionBelowPaid"] | components["schemas"]["ErrorBodyBackupFailed"];
         };
         /**
          * ErrorItem
@@ -3118,6 +3291,19 @@ export interface components {
         KitRefDetails: {
             /** Packaging Kit Id */
             packaging_kit_id: number;
+        };
+        /** LaterCostEvent */
+        LaterCostEvent: {
+            /** Reason */
+            reason: string;
+            /** Movement Id */
+            movement_id: number | null;
+            /** Date */
+            date: string;
+            /** Purchase Id */
+            purchase_id: number | null;
+            /** Invoice Number */
+            invoice_number: string | null;
         };
         /** LatestPaidDetails */
         LatestPaidDetails: {
@@ -4338,6 +4524,169 @@ export interface components {
             /** Order Count */
             order_count: number;
         };
+        /** PurchaseAlreadyCancelledDetails */
+        PurchaseAlreadyCancelledDetails: {
+            /** Purchase Id */
+            purchase_id: number;
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /** Replaced By Purchase Id */
+            replaced_by_purchase_id: number | null;
+        };
+        /**
+         * PurchaseBlockerOut
+         * @description A rule that refuses the cancel now: the ErrorCode the cancel would answer with, and its details.
+         */
+        PurchaseBlockerOut: {
+            /** Code */
+            code: string;
+            /** Details */
+            details: {
+                [key: string]: unknown;
+            };
+        };
+        /** PurchaseCancel */
+        PurchaseCancel: {
+            /** Reason */
+            reason: string;
+            /**
+             * With Payments
+             * @default false
+             */
+            with_payments?: boolean;
+        };
+        /** PurchaseCancelLineOut */
+        PurchaseCancelLineOut: {
+            /** Line Index */
+            line_index: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "MATERIAL" | "PRODUCT";
+            /**
+             * Item Type
+             * @enum {string}
+             */
+            item_type: "STOCK" | "SERVICE" | "PRODUCT";
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
+            /** Unit */
+            unit: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Stock Before */
+            stock_before: number | null;
+            /** Stock After */
+            stock_after: number | null;
+            /** Cost Before */
+            cost_before: number | null;
+            /** Cost After */
+            cost_after: number | null;
+        };
+        /** PurchaseCancelPaymentOut */
+        PurchaseCancelPaymentOut: {
+            /** Payment Id */
+            payment_id: number;
+            /** Payment Date */
+            payment_date: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "CASH" | "CARD" | "BANK_TRANSFER" | "CHEQUE" | "OTHER";
+            /** Reference */
+            reference: string | null;
+            /** Note */
+            note: string | null;
+            /**
+             * Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            amount: number;
+            /**
+             * Payment Amount
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            payment_amount: number;
+            /** Shared */
+            shared: number;
+        };
+        /**
+         * PurchaseCancelPreviewOut
+         * @description What cancelling the purchase would do; `blockers` is empty when it may be cancelled (PURCHASE_HAS_PAYMENTS is
+         *     listed while it has payments: they go only with `with_payments`).
+         */
+        PurchaseCancelPreviewOut: {
+            /** Purchase Id */
+            purchase_id: number;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ACTIVE" | "CANCELLED";
+            /** Purchase Date */
+            purchase_date: string;
+            /** Blockers */
+            blockers: components["schemas"]["PurchaseBlockerOut"][];
+            /** Lines */
+            lines: components["schemas"]["PurchaseCancelLineOut"][];
+            /** Payments */
+            payments: components["schemas"]["PurchaseCancelPaymentOut"][];
+            /**
+             * Paid
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            paid: number;
+        };
+        /**
+         * PurchaseCorrection
+         * @description The right invoice (as POST /purchases) plus the reason. The old invoice's payments move to it; `payment` is on
+         *     the part not yet paid.
+         */
+        PurchaseCorrection: {
+            /** Supplier Id */
+            supplier_id?: number | null;
+            /** Purchase Date */
+            purchase_date?: string | null;
+            /** Notes */
+            notes?: string | null;
+            payment?: components["schemas"]["PurchasePaymentIn"] | null;
+            /** Lines */
+            lines: components["schemas"]["PurchaseLineIn"][];
+            /** Reason */
+            reason: string;
+        };
+        /** PurchaseCorrectionBelowPaidDetails */
+        PurchaseCorrectionBelowPaidDetails: {
+            /** Purchase Id */
+            purchase_id: number;
+            /** Paid */
+            paid: number;
+            /** New Total */
+            new_total: number;
+        };
+        /** PurchaseCostChangedDetails */
+        PurchaseCostChangedDetails: {
+            /** Purchase Id */
+            purchase_id: number;
+            /** Line Index */
+            line_index: number;
+            /** Item Type */
+            item_type: string;
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
+            /** Later */
+            later: components["schemas"]["LaterCostEvent"][];
+            /** Cost Changed Without Movement */
+            cost_changed_without_movement: number;
+        };
         /** PurchaseCreate */
         PurchaseCreate: {
             /** Supplier Id */
@@ -4417,6 +4766,30 @@ export interface components {
             item_type: string;
             /** Item Id */
             item_id: number;
+        };
+        /** PurchaseHasPaymentsDetails */
+        PurchaseHasPaymentsDetails: {
+            /** Purchase Id */
+            purchase_id: number;
+            /** Paid */
+            paid: number;
+            /** Payment Ids */
+            payment_ids: number[];
+            /** Shared */
+            shared: number;
+        };
+        /** PurchaseLineDetails */
+        PurchaseLineDetails: {
+            /** Purchase Id */
+            purchase_id: number;
+            /** Line Index */
+            line_index: number;
+            /** Item Type */
+            item_type: string;
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
         };
         /**
          * PurchaseLineIn
@@ -4582,12 +4955,42 @@ export interface components {
             /** Purchase Id */
             purchase_id: number;
         };
+        /** PurchaseStockUsedDetails */
+        PurchaseStockUsedDetails: {
+            /** Purchase Id */
+            purchase_id: number;
+            /** Line Index */
+            line_index: number;
+            /** Item Type */
+            item_type: string;
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
+            /** Current Stock */
+            current_stock: number;
+            /** Quantity Bought */
+            quantity_bought: number;
+        };
         /** PurchaseSupplierDetails */
         PurchaseSupplierDetails: {
             /** Purchase Id */
             purchase_id: number;
             /** Supplier Id */
             supplier_id: number | null;
+        };
+        /**
+         * PurchaseUpdate
+         * @description Only the fields present change (accounting rules section 23). A new supplier takes the payments wholly on this
+         *     purchase; the payment made with it moves with a new day; a shared payment refuses a new supplier.
+         */
+        PurchaseUpdate: {
+            /** Supplier Id */
+            supplier_id?: number | null;
+            /** Purchase Date */
+            purchase_date?: string | null;
+            /** Notes */
+            notes?: string | null;
         };
         /** PurchasesSummaryOut */
         PurchasesSummaryOut: {
@@ -5034,6 +5437,21 @@ export interface components {
             /** Actual */
             actual: number;
         };
+        /** StocktakeAfterPurchaseDetails */
+        StocktakeAfterPurchaseDetails: {
+            /** Purchase Id */
+            purchase_id: number;
+            /** Line Index */
+            line_index: number;
+            /** Item Type */
+            item_type: string;
+            /** Item Id */
+            item_id: number;
+            /** Item Name */
+            item_name: string;
+            /** Stocktake Date */
+            stocktake_date: string;
+        };
         /** StocktakeAfterSaleDetails */
         StocktakeAfterSaleDetails: {
             /** Order Id */
@@ -5455,13 +5873,28 @@ export interface components {
          *                                      lines.N.item_id): the same item is already on this purchase
          *     SERVICE_PURCHASE_NEEDS_TOTAL     index, material_id, material_name (field lines.N.total_paid): a service line of
          *                                      total 0 would erase the service's price
+         *     PURCHASE_ALREADY_CANCELLED       purchase_id, cancelled_at (UTC), replaced_by_purchase_id (None when not corrected)
+         *     PURCHASE_HAS_PAYMENTS            purchase_id, paid, payment_ids, shared (1 when a payment also pays another
+         *                                      purchase): payments block the change (a cancel without with_payments, a shared
+         *                                      payment, or a correction's allocations that cannot move)
+         *     PURCHASE_STOCK_USED              purchase_id, line_index, item_type, item_id, item_name, current_stock,
+         *                                      quantity_bought: less stock is left than the line brought in
+         *     STOCKTAKE_AFTER_PURCHASE         purchase_id, line_index, item_type, item_id, item_name, stocktake_date (local day):
+         *                                      a count recorded after the purchase already took the item's stock as it was
+         *     PURCHASE_COST_CHANGED_SINCE      purchase_id, line_index, item_type, item_id, item_name, later: [{reason,
+         *                                      movement_id, date, purchase_id, invoice_number}], cost_changed_without_movement
+         *                                      (0/1): the line is no longer the item's latest cost event
+         *     PURCHASE_COST_HISTORY_UNKNOWN    purchase_id, line_index, item_type, item_id, item_name: a line recorded before
+         *                                      the cost history was kept (no snapshot, or a stock line with no movement link)
+         *     PURCHASE_CORRECTION_BELOW_PAID   purchase_id, paid, new_total (field lines): the corrected total is below what
+         *                                      was already paid
          *
          *     The five class defaults (APP_ERROR, NOT_FOUND, VALIDATION_FAILED,
          *     CONFLICT, INSUFFICIENT_STOCK) carry no details, except INSUFFICIENT_STOCK:
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "MATERIAL_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "SUPPLIER_REQUIRED_FOR_CREDIT" | "SUPPLIER_PAYMENT_EXCEEDS_DUE" | "SUPPLIER_PAYMENT_EXCEEDS_BALANCE" | "SUPPLIER_PAYMENT_SUPPLIER_MISMATCH" | "SUPPLIER_PAYMENT_ALLOCATION_MISMATCH" | "SUPPLIER_PAYMENT_BEFORE_PURCHASE" | "SUPPLIER_PAYMENT_NOT_FOUND" | "PURCHASE_NOT_FOUND" | "PURCHASE_DUPLICATE_ITEM" | "SERVICE_PURCHASE_NEEDS_TOTAL" | "BACKUP_FAILED";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "MATERIAL_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "SUPPLIER_REQUIRED_FOR_CREDIT" | "SUPPLIER_PAYMENT_EXCEEDS_DUE" | "SUPPLIER_PAYMENT_EXCEEDS_BALANCE" | "SUPPLIER_PAYMENT_SUPPLIER_MISMATCH" | "SUPPLIER_PAYMENT_ALLOCATION_MISMATCH" | "SUPPLIER_PAYMENT_BEFORE_PURCHASE" | "SUPPLIER_PAYMENT_NOT_FOUND" | "PURCHASE_NOT_FOUND" | "PURCHASE_DUPLICATE_ITEM" | "SERVICE_PURCHASE_NEEDS_TOTAL" | "PURCHASE_ALREADY_CANCELLED" | "PURCHASE_HAS_PAYMENTS" | "PURCHASE_STOCK_USED" | "STOCKTAKE_AFTER_PURCHASE" | "PURCHASE_COST_CHANGED_SINCE" | "PURCHASE_COST_HISTORY_UNKNOWN" | "PURCHASE_CORRECTION_BELOW_PAID" | "BACKUP_FAILED";
     };
     responses: never;
     parameters: never;
@@ -7877,6 +8310,7 @@ export interface operations {
                 end_date?: string | null;
                 item_type?: ("MATERIAL" | "SERVICE" | "PRODUCT") | null;
                 item_id?: number | null;
+                include_cancelled?: boolean;
             };
             header?: never;
             path?: never;
@@ -8004,6 +8438,250 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseDetailOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    patch_purchase_purchases__purchase_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseDetailOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    read_cancel_preview_purchases__purchase_id__cancel_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseCancelPreviewOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    cancel_purchases__purchase_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseCancel"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseDetailOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    correct_purchases__purchase_id__correct_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseCorrection"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

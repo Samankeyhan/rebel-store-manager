@@ -38,6 +38,8 @@ export type PurchaseRow = {
   paymentStatus: PaymentStatus
   outstanding: number
   notes: string | null
+  /** CANCELLED rows are listed only with «نمایش خریدهای باطل‌شده». */
+  status: Purchase["status"]
 }
 
 export function toRow(p: Purchase): PurchaseRow {
@@ -54,6 +56,7 @@ export function toRow(p: Purchase): PurchaseRow {
     paymentStatus: p.payment_status,
     outstanding: p.outstanding,
     notes: p.notes,
+    status: p.status,
   }
 }
 
@@ -66,8 +69,13 @@ type List = { status: "loading" } | { status: "error" } | { status: "ready"; row
 
 const DEFAULT_TZ = "Asia/Tehran"
 
-async function fetchRows(type: TypeFilter, supplierId: number | null, range: IsoRange | null): Promise<PurchaseRow[]> {
-  const purchases = await listPurchases({ supplierId, from: range?.from, to: range?.to, itemType: apiItemType(type) })
+async function fetchRows(
+  type: TypeFilter,
+  supplierId: number | null,
+  range: IsoRange | null,
+  includeCancelled: boolean
+): Promise<PurchaseRow[]> {
+  const purchases = await listPurchases({ supplierId, from: range?.from, to: range?.to, itemType: apiItemType(type), includeCancelled })
   return purchases.map(toRow)
 }
 
@@ -76,7 +84,12 @@ async function fetchRows(type: TypeFilter, supplierId: number | null, range: Iso
  * history is re-fetched when the type / supplier / range change (the
  * endpoint filters server-side); search stays client-side.
  */
-export function usePurchasesData(filters: { type: TypeFilter; supplierId: number | null; range: IsoRange | null }) {
+export function usePurchasesData(filters: {
+  type: TypeFilter
+  supplierId: number | null
+  range: IsoRange | null
+  includeCancelled: boolean
+}) {
   const [catalog, setCatalog] = React.useState<Catalog>({ status: "loading" })
   const [list, setList] = React.useState<List>({ status: "loading" })
   const [timeZone, setTimeZone] = React.useState(DEFAULT_TZ)
@@ -99,19 +112,19 @@ export function usePurchasesData(filters: { type: TypeFilter; supplierId: number
     }
   }, [attempt])
 
-  const { type, supplierId, range } = filters
+  const { type, supplierId, range, includeCancelled } = filters
   const from = range?.from ?? null
   const to = range?.to ?? null
   React.useEffect(() => {
     let cancelled = false
-    fetchRows(type, supplierId, from && to ? { from, to } : null).then(
+    fetchRows(type, supplierId, from && to ? { from, to } : null, includeCancelled).then(
       (rows) => !cancelled && setList({ status: "ready", rows }),
       () => !cancelled && setList({ status: "error" })
     )
     return () => {
       cancelled = true
     }
-  }, [type, supplierId, from, to, attempt, listAttempt])
+  }, [type, supplierId, from, to, includeCancelled, attempt, listAttempt])
 
   const reload = React.useCallback(() => {
     setCatalog({ status: "loading" })
@@ -141,5 +154,11 @@ export function usePurchasesData(filters: { type: TypeFilter; supplierId: number
     })
   }, [])
 
-  return { catalog, list, timeZone, reload, refreshList, refreshSuppliers, replaceItems }
+  /** After a cancel or correction: every item quietly re-read (the old invoice's items got their stock and cost back). */
+  const refreshCatalog = React.useCallback(async () => {
+    const [materials, products] = await Promise.all([listMaterials(), listProducts()])
+    setCatalog((c) => (c.status === "ready" ? { ...c, materials, products } : c))
+  }, [])
+
+  return { catalog, list, timeZone, reload, refreshList, refreshSuppliers, refreshCatalog, replaceItems }
 }

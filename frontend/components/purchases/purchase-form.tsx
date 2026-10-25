@@ -11,11 +11,13 @@ import { unitLabel } from "@/components/products/figures"
 import { Help, InlineMessage, Label, MoneyInput } from "@/components/record-sale/primitives"
 import {
   ApiError,
+  correctPurchase,
   createPurchase,
   getMaterial,
   getProduct,
   type Material,
   type Product,
+  type PurchaseDetail,
   type Supplier,
   type SupplierPaymentMethod,
 } from "@/lib/api"
@@ -31,8 +33,9 @@ import {
   pickId,
   unpick,
 } from "@/lib/purchase-lines"
+import { cancelRefusal, type PurchasePrefill, remainderAfterPaid } from "@/lib/purchase-correction"
 import { cn } from "@/lib/utils"
-import { METHOD_LABELS, METHOD_ORDER, U } from "./copy"
+import { C, METHOD_LABELS, METHOD_ORDER, refusalText, U } from "./copy"
 import { LinePreview, type PreviewItem } from "./purchase-preview"
 import type { RefreshedItem } from "./use-purchases-data"
 
@@ -61,18 +64,33 @@ export const PurchaseForm = React.forwardRef<
     today: string
     mobile: boolean
     onBusyChange: (busy: boolean) => void
-    /** After a successful save, with every line's item re-read from the server. */
-    onSaved: (items: RefreshedItem[], toast: string) => void
+    /** After a successful save, with every line's item re-read from the server, and the saved invoice. */
+    onSaved: (items: RefreshedItem[], toast: string, saved: PurchaseDetail) => void
     refreshSuppliers: () => Promise<void>
+    /** The form filled from an invoice (a correction). */
+    prefill?: PurchasePrefill
+    /**
+     * «اصلاح خرید»: the save cancels this invoice and records the form in its place (POST /purchases/{id}/correct),
+     * with a required reason; what was already paid moves to the new invoice, so the payment choice is on the rest.
+     */
+    correction?: { purchaseId: number; invoiceNumber: string; paid: number; timeZone: string }
   }
->(function PurchaseForm({ materials, products, suppliers, today, mobile, onBusyChange, onSaved, refreshSuppliers }, ref) {
+>(function PurchaseForm(
+  { materials, products, suppliers, today, mobile, onBusyChange, onSaved, refreshSuppliers, prefill, correction },
+  ref
+) {
   const nextKey = React.useRef(1)
   const newDraft = (): Draft => ({ key: nextKey.current++, pick: null, qtyText: "", total: 0 })
-  const [lines, setLines] = React.useState<Draft[]>(() => [newDraft()])
-  const [supplierId, setSupplierId] = React.useState(NO_SUPPLIER)
-  const [date, setDate] = React.useState(today)
-  const [note, setNote] = React.useState("")
-  const [payMode, setPayMode] = React.useState<PaymentMode>("FULL")
+  const [lines, setLines] = React.useState<Draft[]>(() =>
+    prefill && prefill.lines.length > 0
+      ? prefill.lines.map((l) => ({ key: nextKey.current++, pick: l.pick, qtyText: quantityText(l.qty), total: l.total }))
+      : [newDraft()]
+  )
+  const [supplierId, setSupplierId] = React.useState(prefill?.supplierId ?? NO_SUPPLIER)
+  const [date, setDate] = React.useState(prefill?.date ?? today)
+  const [note, setNote] = React.useState(prefill?.note ?? "")
+  const [payMode, setPayMode] = React.useState<PaymentMode>(prefill?.payMode ?? "FULL")
+  const [reason, setReason] = React.useState("")
   /** Integer Rial paid now for PARTIAL; null while the text gives no exact amount. */
   const [paidNow, setPaidNow] = React.useState<number | null>(0)
   const [method, setMethod] = React.useState<SupplierPaymentMethod>("CARD")
@@ -125,10 +143,15 @@ export const PurchaseForm = React.forwardRef<
     lines.map((d) => ({ pick: d.pick, itemType: itemOf(d.pick)?.type ?? null, qty: qtyOf(d), total: d.total }))
   )
   const total = invoiceTotal(lines.map((d) => d.total))
-  const payProblem = purchasePaymentProblem(payMode, supplierId !== NO_SUPPLIER, total, paidNow)
+  // A correction pays only what the new total adds to what was already paid (db/purchase_cancel.py correct_purchase).
+  const payable = correction ? remainderAfterPaid(total, correction.paid) : total
+  const belowPaid = correction != null && total !== null && total < correction.paid
+  const payProblem = purchasePaymentProblem(payMode, supplierId !== NO_SUPPLIER, payable, paidNow)
+  const reasonError = correction && touched && !reason.trim() ? C.reasonRequired : null
   const supplierError = (touched && payProblem === "supplier") || fieldErrors.supplier_id ? U.supplierRequired : null
-  const paidError = touched && payProblem === "partial_amount" ? U.partialRange : (fieldErrors["payment.amount"] ?? null)
-  const linesError = fieldErrors.lines ?? null
+  const partialText = correction ? C.partialRemainder : U.partialRange
+  const paidError = touched && payProblem === "partial_amount" ? partialText : (fieldErrors["payment.amount"] ?? null)
+  const linesError = fieldErrors.lines ?? (touched && belowPaid ? C.belowPaidLocal : null)
   const hasService = lines.some((d) => itemOf(d.pick)?.kind === "service")
 
   const problemText = (p: LineProblem | null): Pick<LineErrors, "item" | "qty" | "total"> => {
@@ -178,18 +201,22 @@ export const PurchaseForm = React.forwardRef<
     setFieldErrors({})
     setLineErrors({})
     if (busy || problems.some((p) => p !== null) || total === null || payProblem !== null) return
+    if (correction && (belowPaid || !reason.trim())) return
     setBusy(true)
     onBusyChange(true)
     const picked = lines.map((d) => ({ pick: d.pick as number, qty: qtyOf(d) as number, total: d.total as number }))
     try {
-      const saved = await createPurchase({
+      const body = {
         supplier_id: supplierId === NO_SUPPLIER ? null : supplierId,
         // Today: the server stamps the current time. Another day: that day.
         purchase_date: date === today ? null : date,
         notes: note.trim() || null,
         payment: purchasePaymentBody(payMode, paidNow, method, reference),
         lines: linesBody(picked),
-      })
+      }
+      const saved = correction
+        ? await correctPurchase(correction.purchaseId, { ...body, reason: reason.trim() })
+        : await createPurchase(body)
       // The response is the invoice (each line's own unit cost); the items' new averages and prices are re-read.
       const refreshed: RefreshedItem[] = []
       await Promise.all(
@@ -205,14 +232,24 @@ export const PurchaseForm = React.forwardRef<
       const only = refreshed.length === 1 && picked.length === 1 ? refreshed[0] : null
       onSaved(
         refreshed,
-        only
-          ? U.toastSaved(only.item.name, only.item.unit_cost ?? null)
-          : U.toastSavedLines(saved.invoice_number, saved.lines.length)
+        correction
+          ? C.corrected(correction.invoiceNumber, saved.invoice_number)
+          : only
+            ? U.toastSaved(only.item.name, only.item.unit_cost ?? null)
+            : U.toastSavedLines(saved.invoice_number, saved.lines.length),
+        saved
       )
-      reset()
+      if (!correction) reset()
     } catch (e) {
       const at = e instanceof ApiError ? lineField(e.field) : null
-      if (e instanceof ApiError && e.status === 404 && e.code === "SUPPLIER_NOT_FOUND") {
+      const refusal = correction && e instanceof ApiError ? cancelRefusal(e) : null
+      if (refusal && correction) {
+        setFieldErrors({ refusal: refusalText(refusal, correction.timeZone) })
+      } else if (e instanceof ApiError && e.code === "SUPPLIER_PAYMENT_BEFORE_PURCHASE") {
+        setFieldErrors({ date: C.paymentBeforeDay })
+      } else if (e instanceof ApiError && e.code === "DATE_IN_FUTURE") {
+        setFieldErrors({ date: C.dateInFuture })
+      } else if (e instanceof ApiError && e.status === 404 && e.code === "SUPPLIER_NOT_FOUND") {
         // The picked supplier was deleted since the list loaded: say so, make
         // them choose again, and refresh the list.
         setSupplierGone(true)
@@ -221,7 +258,7 @@ export const PurchaseForm = React.forwardRef<
       } else if (e instanceof ApiError && classifyPayablesError(e).kind === "supplier_required") {
         setFieldErrors({ supplier_id: U.supplierRequired })
       } else if (e instanceof ApiError && e.status === 422 && e.field === "payment.amount") {
-        setFieldErrors({ "payment.amount": U.partialRange })
+        setFieldErrors({ "payment.amount": partialText })
       } else if (e instanceof ApiError && e.status === 422 && at) {
         const text =
           e.code === "PURCHASE_DUPLICATE_ITEM"
@@ -349,6 +386,7 @@ export const PurchaseForm = React.forwardRef<
     <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor="pf-date">{mobile ? U.fieldDateMobile : U.fieldDate}</Label>
       <DateField id="pf-date" value={date} today={today} onChange={setDate} todayLabel={U.today} mobile={mobile} />
+      {fieldErrors.date && <InlineMessage severity="error">{fieldErrors.date}</InlineMessage>}
     </div>
   )
 
@@ -414,9 +452,41 @@ export const PurchaseForm = React.forwardRef<
     </div>
   )
 
+  const correctionHead = correction && (
+    <>
+      {fieldErrors.refusal && <InlineMessage severity="error">{fieldErrors.refusal}</InlineMessage>}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="pf-reason">{C.reasonLabel}</Label>
+        <input
+          id="pf-reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={C.reasonPlaceholder}
+          aria-invalid={!!reasonError || undefined}
+          className={cn(inputCls, reasonError && "border-loss ring-3 ring-loss-soft")}
+        />
+        {reasonError ? <InlineMessage severity="error">{reasonError}</InlineMessage> : <Help>{C.reasonHelp}</Help>}
+      </div>
+    </>
+  )
+  const paidBox = correction && (
+    <div className="flex flex-col gap-1 rounded-lg bg-surface-2 px-3 py-2.5 text-[13px]">
+      <span className="flex items-center justify-between gap-3">
+        <span className="text-text-3">{C.alreadyPaid}</span>
+        <Money value={correction.paid} className="font-semibold" />
+      </span>
+      <span className="flex items-center justify-between gap-3">
+        <span className="font-bold text-heading">{C.remainder}</span>
+        {payable === null ? <span className="text-text-3">—</span> : <Money value={payable} className="font-bold" />}
+      </span>
+      <span className="text-xs text-text-3">{C.remainderHelp}</span>
+    </div>
+  )
+
   return (
     <div className={cn("flex flex-col", mobile ? "gap-3" : "gap-3.5")}>
       {error && <SaveError {...error} />}
+      {correctionHead}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="pf-supplier">{U.fieldSupplier}</Label>
         <ItemPicker
@@ -464,8 +534,9 @@ export const PurchaseForm = React.forwardRef<
         </span>
         {total === null ? <span className="text-text-3">—</span> : <Money value={total} className="text-[17px] font-bold" />}
       </div>
+      {paidBox}
       {paymentField}
-      {!mobile && (
+      {(!mobile || correction) && (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="pf-note" optional>
             {U.fieldNote}

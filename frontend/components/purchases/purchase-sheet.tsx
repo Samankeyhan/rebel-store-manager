@@ -1,52 +1,94 @@
 "use client"
 
 import * as React from "react"
-import { Loader2 } from "lucide-react"
+import { Eraser, FilePenLine, Loader2, Pencil } from "lucide-react"
 import { DrawerShell } from "@/components/products/drawer-shell"
 import { Alert, Btn } from "@/components/record-sale/primitives"
-import { getPurchase, type PurchaseDetail } from "@/lib/api"
+import { getPurchase, type Material, type Product, type PurchaseDetail, type Supplier } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
 import { formatQuantity } from "@/lib/persian-numbers"
 import { unitLabel } from "@/components/products/figures"
 import { formatMoney } from "@/lib/money"
-import { METHOD_LABELS, U } from "./copy"
+import { canChange } from "@/lib/purchase-correction"
+import { C, METHOD_LABELS, U } from "./copy"
 import { PayStatusTag } from "./pay-status-tag"
+import { PurchaseCancelDialog } from "./purchase-cancel-dialog"
+import { PurchaseCorrectDialog } from "./purchase-correct-dialog"
+import { PurchaseEditDialog } from "./purchase-edit-dialog"
 import { TypeTag } from "./type-tag"
-import type { PurchaseRow } from "./use-purchases-data"
+import type { PurchaseRow, RefreshedItem } from "./use-purchases-data"
 
-type Load = { status: "loading" } | { status: "error" } | { status: "ready"; p: PurchaseDetail }
+/** The invoices linked by a correction: the one this replaces and the one that replaced it. */
+type Linked = { replaces: PurchaseDetail | null; replacedBy: PurchaseDetail | null }
+type Load = { status: "loading" } | { status: "error" } | { status: "ready"; p: PurchaseDetail; linked: Linked }
+
+async function fetchLinked(p: PurchaseDetail): Promise<Linked> {
+  const one = (id: number | null) => (id == null ? Promise.resolve(null) : getPurchase(id).catch(() => null))
+  const [replaces, replacedBy] = await Promise.all([one(p.replaces_invoice_id), one(p.replaced_by_invoice_id)])
+  return { replaces, replacedBy }
+}
 
 /**
  * One purchase invoice (GET /purchases/{id}): the server's invoice number, every line (item, quantity, line total, unit
  * cost), the invoice total, its payment status, what is paid and still owed, and the payments that paid it (all from the API).
+ * An ACTIVE invoice can be edited (supplier, day, note), cancelled or corrected (accounting-rules section 23); a
+ * CANCELLED one shows its reason and links to the invoice that replaced it.
  */
 export function PurchaseSheet({
   row,
   timeZone,
   mobile,
   onClose,
+  catalog,
+  today,
+  refreshSuppliers,
+  onChanged,
+  onShow,
 }: {
   row: PurchaseRow | null
   timeZone: string
   mobile: boolean
   onClose: () => void
+  /** null while the items and suppliers load (the change buttons wait for them). */
+  catalog: { materials: Material[]; products: Product[]; suppliers: Supplier[] } | null
+  today: string
+  refreshSuppliers: () => Promise<void>
+  /** After an edit, cancel or correction: the invoice to show now, the items re-read, and the toast. */
+  onChanged: (show: PurchaseDetail, items: RefreshedItem[], message: string) => void
+  /** Open a linked invoice in the sheet. */
+  onShow: (purchase: PurchaseDetail) => void
 }) {
-  const [load, setLoad] = React.useState<{ key: string; load: Load } | null>(null)
+  const [load, setLoad] = React.useState<{ key: string; row: PurchaseRow; load: Load } | null>(null)
+  const [dialog, setDialog] = React.useState<"edit" | "cancel" | "correct" | null>(null)
   const key = row?.key ?? null
 
   React.useEffect(() => {
     if (!row) return
     let cancelled = false
-    getPurchase(row.id).then(
-      (p) => !cancelled && setLoad({ key: row.key, load: { status: "ready", p } }),
-      () => !cancelled && setLoad({ key: row.key, load: { status: "error" } })
-    )
+    getPurchase(row.id)
+      .then(async (p) => ({ p, linked: await fetchLinked(p) }))
+      .then(
+        ({ p, linked }) => !cancelled && setLoad({ key: row.key, row, load: { status: "ready", p, linked } }),
+        () => !cancelled && setLoad({ key: row.key, row, load: { status: "error" } })
+      )
     return () => {
       cancelled = true
     }
   }, [row])
 
-  const current: Load = load && load.key === key ? load.load : { status: "loading" }
+  // A new row object (the same invoice after a change, or another one) shows loading until its fetch lands.
+  const current: Load = load && load.key === key && load.row === row ? load.load : { status: "loading" }
+  const ready = current.status === "ready" ? current.p : null
+  const changeable = ready != null && canChange(ready) && catalog != null
+
+  const linkBtn = (label: string, p: PurchaseDetail) => (
+    <Btn variant="link" onClick={() => onShow(p)}>
+      {label}{" "}
+      <span dir="ltr" className="font-mono">
+        {p.invoice_number ?? "—"}
+      </span>
+    </Btn>
+  )
 
   return (
     <DrawerShell
@@ -54,7 +96,27 @@ export function PurchaseSheet({
       onOpenChange={(o) => !o && onClose()}
       mobile={mobile}
       title={U.detailTitle}
-      footer={<Btn onClick={onClose}>{U.close}</Btn>}
+      footer={
+        <div className="flex flex-wrap gap-2">
+          {changeable && (
+            <>
+              <Btn onClick={() => setDialog("edit")}>
+                <Pencil className="size-4" aria-hidden />
+                {C.edit}
+              </Btn>
+              <Btn onClick={() => setDialog("correct")}>
+                <FilePenLine className="size-4" aria-hidden />
+                {C.correctPurchase}
+              </Btn>
+              <Btn className="text-loss" onClick={() => setDialog("cancel")}>
+                <Eraser className="size-4" aria-hidden />
+                {C.cancelPurchase}
+              </Btn>
+            </>
+          )}
+          <Btn onClick={onClose}>{U.close}</Btn>
+        </div>
+      }
     >
       {row && (
         <>
@@ -65,7 +127,26 @@ export function PurchaseSheet({
             {row.types.map((t) => (
               <TypeTag key={t} type={t} />
             ))}
+            {ready?.status === "CANCELLED" && <CancelledTag />}
           </div>
+          {current.status === "ready" && current.p.status === "CANCELLED" && (
+            <Alert tone="err">
+              <span className="flex flex-col gap-1">
+                <span>{C.cancelledBanner(current.p.cancel_reason ?? "—")}</span>
+                {current.p.cancelled_at && (
+                  <span className="text-xs">
+                    {C.cancelledAt}: {formatJalaliDateTime(current.p.cancelled_at, timeZone)}
+                  </span>
+                )}
+              </span>
+            </Alert>
+          )}
+          {current.status === "ready" && (current.linked.replacedBy || current.linked.replaces) && (
+            <div className="flex flex-wrap items-center gap-3 text-[13px]">
+              {current.linked.replacedBy && linkBtn(C.replacedBy, current.linked.replacedBy)}
+              {current.linked.replaces && linkBtn(C.corrects, current.linked.replaces)}
+            </div>
+          )}
           {current.status === "loading" && (
             <p className="flex justify-center py-6 text-text-3">
               <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -80,9 +161,10 @@ export function PurchaseSheet({
                   [U.detailDate, formatJalaliDateTime(current.p.purchase_date, timeZone)],
                   [U.detailSupplier, current.p.supplier_name ?? U.noSupplierOption],
                   [U.detailTotal, formatMoney(current.p.total)],
-                  [U.detailPaymentStatus, <PayStatusTag key="s" status={current.p.payment_status} />],
+                  // A cancelled invoice is owed nothing (payables leave it out), so no payment status or remainder.
+                  [U.detailPaymentStatus, current.p.status === "CANCELLED" ? "—" : <PayStatusTag key="s" status={current.p.payment_status} />],
                   [U.detailPaid, formatMoney(current.p.paid)],
-                  [U.detailOutstanding, formatMoney(current.p.outstanding)],
+                  [U.detailOutstanding, current.p.status === "CANCELLED" ? "—" : formatMoney(current.p.outstanding)],
                   [U.detailNote, current.p.notes || "—"],
                 ] as const
               ).map(([label, value]) => (
@@ -149,6 +231,52 @@ export function PurchaseSheet({
           )}
         </>
       )}
+      {ready && catalog && dialog === "edit" && (
+        <PurchaseEditDialog
+          open
+          onOpenChange={(o) => !o && setDialog(null)}
+          detail={ready}
+          suppliers={catalog.suppliers}
+          today={today}
+          timeZone={timeZone}
+          mobile={mobile}
+          onDone={(p, message) => onChanged(p, [], message)}
+        />
+      )}
+      {ready && dialog === "cancel" && (
+        <PurchaseCancelDialog
+          open
+          onOpenChange={(o) => !o && setDialog(null)}
+          detail={ready}
+          timeZone={timeZone}
+          mobile={mobile}
+          onDone={(p, message) => onChanged(p, [], message)}
+        />
+      )}
+      {ready && catalog && dialog === "correct" && (
+        <PurchaseCorrectDialog
+          onClose={() => setDialog(null)}
+          detail={ready}
+          materials={catalog.materials}
+          products={catalog.products}
+          suppliers={catalog.suppliers}
+          today={today}
+          timeZone={timeZone}
+          mobile={mobile}
+          refreshSuppliers={refreshSuppliers}
+          onDone={(p, items, message) => {
+            setDialog(null)
+            onChanged(p, items, message)
+          }}
+        />
+      )}
     </DrawerShell>
+  )
+}
+
+/** «باطل‌شده» on a cancelled purchase (the list row and the sheet). */
+export function CancelledTag() {
+  return (
+    <span className="inline-flex h-5 items-center rounded-full bg-loss-soft px-2 text-[11px] font-bold text-loss">{C.cancelledTag}</span>
   )
 }
