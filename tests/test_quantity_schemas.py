@@ -27,12 +27,10 @@ FIELDS = {
     "production.quantity_produced": ("post", lambda i: "/production",
                                      lambda i, v: {"product_id": i["product"], "quantity_produced": v},
                                      "quantity_produced", "whole"),
-    "purchase.product.quantity_bought": ("post", lambda i: "/purchases/products",
-                                         lambda i, v: {"product_id": i["product"], "quantity_bought": v, "total_paid": 1},
-                                         "quantity_bought", "whole"),
-    "purchase.material.quantity_bought": ("post", lambda i: "/purchases/materials",
-                                          lambda i, v: {"material_id": i["material"], "quantity_bought": v, "total_paid": 1},
-                                          "quantity_bought", "positive"),
+    # a product line's whole-number rule is db's (a line is one schema for both kinds): see the dedicated test below
+    "purchase.material.quantity_bought": ("post", lambda i: "/purchases",
+                                          lambda i, v: {"lines": [{"kind": "MATERIAL", "item_id": i["material"], "quantity_bought": v, "total_paid": 1}]},
+                                          "lines.0.quantity_bought", "positive"),
     "recipe.create": ("post", lambda i: f"/products/{i['product']}/recipe/items",
                       lambda i, v: {"material_id": i["material"], "quantity_needed": v}, "quantity_needed", "positive"),
     "kit.item_create": ("post", lambda i: f"/packaging/kits/{i['kit']}/items",
@@ -171,6 +169,24 @@ def test_a_fractional_quantity_at_the_maximum_is_not_a_quantity_error(ids, name)
     assert response.status_code != 500, (name, response.text[:300])
     if response.status_code >= 400:
         assert not response.json()["error"]["code"].startswith("QUANTITY_"), name
+
+
+def _product_line(i, value):
+    return {"lines": [{"kind": "PRODUCT", "item_id": i["product"], "quantity_bought": value, "total_paid": 1}]}
+
+
+def test_a_product_purchase_line_quantity_is_whole_and_in_range_with_its_codes(ids):
+    client, i, _ = ids
+    for value, code in ((0, "QUANTITY_OUT_OF_RANGE"), (-1, "QUANTITY_OUT_OF_RANGE"), (2.5, "QUANTITY_NOT_WHOLE")):
+        error = _error(client.post("/purchases", json=_product_line(i, value)))
+        assert (error["code"], error["field"]) == (code, "lines.0.quantity_bought"), value
+    error = _error(client.post("/purchases", json=_product_line(i, MAX_WHOLE_QUANTITY + 1)))
+    assert error["code"] == "QUANTITY_OUT_OF_RANGE" and error["details"]["max"] == MAX_WHOLE_QUANTITY
+    for value in (1, 2.0, MAX_WHOLE_QUANTITY):  # a whole number: 2.0 is 2 units
+        response = client.post("/purchases", json=_product_line(i, value))
+        assert response.status_code != 500, (value, response.text[:300])
+        if response.status_code >= 400:
+            assert not response.json()["error"]["code"].startswith("QUANTITY_"), value
 
 
 def test_the_most_units_at_the_highest_price_is_refused_as_an_amount_not_a_crash(ids):

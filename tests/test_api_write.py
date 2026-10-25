@@ -130,8 +130,8 @@ def shop(api):
     product_id = _create_product(client, "Widget")
     _post(
         client,
-        "/purchases/products",
-        {"product_id": product_id, "quantity_bought": 10, "total_paid": 60_000},
+        "/purchases",
+        {"lines": [{"kind": "PRODUCT", "item_id": product_id, "quantity_bought": 10, "total_paid": 60_000}]},
     )
 
     box_id = _create_material(client, "Box", "STOCK", 5_000, initial_stock=50)

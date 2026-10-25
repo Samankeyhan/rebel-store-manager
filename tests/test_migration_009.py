@@ -313,7 +313,7 @@ def test_every_numeric_column_is_classified(tmp_path):
         "percentage_at_time", "order_count", "value", "fee_bps", "settlement_days", "seq",
         "min_stock", "allow_purge", "replaces_order_id",
         "replaces_purchase_id", "stock_movement_id", "cancel_movement_id", "payment_id",
-        "material_purchase_id", "product_purchase_id",
+        "material_purchase_id", "product_purchase_id", "purchase_invoice_id", "replaces_invoice_id",
     }
     db_path = tmp_path / "shop.db"
     init_db(str(db_path))
