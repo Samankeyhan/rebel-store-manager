@@ -490,7 +490,8 @@ def get_purchases_summary(
 ) -> dict:
     """What was spent buying stock and services in the date range, per
     accounting-rules.md section 9: Σ line total (total_paid) and the line count
-    of the purchase invoices dated in the range, STOCK materials, services and
+    of the ACTIVE purchase invoices dated in the range (a cancelled one, section
+    23, is in no figure), STOCK materials, services and
     finished products kept apart, plus the number of invoices (section 22).
     Purchases are not expenses — stock reaches the P&L only as COGS when it is
     sold or consumed, a service only as it is consumed or wasted — so nothing
@@ -513,14 +514,14 @@ def get_purchases_summary(
             FROM {table} AS l
             JOIN purchase_invoices AS pi ON pi.id = l.purchase_invoice_id
             {item_join}
-            WHERE 1=1 {condition} {date_clause}
+            WHERE pi.status = 'ACTIVE' {condition} {date_clause}
             """,
             date_params,
         ).fetchone()
         result[f"{prefix}_purchases_total"] = row["total"]
         result[f"{prefix}_purchases_count"] = row["count"]
     result["purchase_invoices_count"] = conn.execute(
-        f"SELECT COUNT(*) FROM purchase_invoices AS pi WHERE 1=1 {date_clause}", date_params
+        f"SELECT COUNT(*) FROM purchase_invoices AS pi WHERE pi.status = 'ACTIVE' {date_clause}", date_params
     ).fetchone()[0]
     payment_clause, payment_params = _date_range_clause(conn, "payment_date", start_date, end_date)
     row = conn.execute(

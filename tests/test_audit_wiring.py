@@ -23,6 +23,7 @@ NOT_AUDITED_OPERATIONS = {
     "init_db",          # migrations
     "transaction",
     "audit_trigger_sql",  # builds migration SQL text; writes nothing
+    "stocktake_after",  # read-only; its SQL only names the audit action 'INSERT'
 }
 
 _WRITES = re.compile(r"\b(INSERT|UPDATE|DELETE)\b|\btransaction\(")
@@ -34,7 +35,7 @@ def _public_writers():
         m for m in (
             "adjustments", "categories", "connection", "distributions", "expenses", "materials",
             "order_voids", "orders", "packaging", "partners", "payment_methods", "postage", "production",
-            "products", "purchases", "recipes", "returns", "settings", "settlements", "stocktake", "suppliers",
+            "products", "purchase_cancel", "purchases", "recipes", "returns", "settings", "settlements", "stocktake", "suppliers",
             "supplier_payments", "audit",
         )
     ):

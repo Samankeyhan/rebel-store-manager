@@ -12,7 +12,10 @@ before and just after it (`item_cost_before` / `item_cost_after`) for a later ca
 as the stock or service is consumed or wasted. What was paid is in db/supplier_payments.py: FULL (the default), NONE
 (on credit) or PARTIAL, on the invoice total; NONE / PARTIAL need a supplier.
 `record_material_purchase` / `record_product_purchase` record a one-line invoice and return the line id.
-Reads: `get_purchase` / `list_purchases` per invoice (with `paid`, `outstanding`, `payment_status`, section 21);
+`update_purchase` corrects an invoice's supplier, day or note (section 23); a cancel or correction of the whole
+invoice is db/purchase_cancel.py.
+Reads: `get_purchase` / `list_purchases` per invoice (with `paid`, `outstanding`, `payment_status`, section 21;
+CANCELLED invoices only with `include_cancelled`);
 `list_material_purchases` / `list_product_purchases` / `get_*_purchase` per line, with its invoice's fields."""
 
 import sqlite3
@@ -128,9 +131,14 @@ def _record(
     notes: str | None,
     payment: dict | None,
     one_line: bool,
+    corrects: dict | None = None,
 ) -> tuple[int, list[int]]:
     """Check every line, then write the invoice, its lines, each item's stock and cost, the PURCHASE movements and the
-    payment made with it, in one transaction. Returns (invoice id, line ids)."""
+    payment made with it, in one transaction. Returns (invoice id, line ids).
+    `corrects` (a correction, db/purchase_cancel.py): {purchase_id, paid, before_payment}. The new total must be at least
+    `paid` (PURCHASE_CORRECTION_BELOW_PAID), the payment chosen on the form is on the remainder only, and
+    `before_payment(new invoice id, its purchase_date)` runs after the lines are written and before that payment (it
+    moves the old invoice's allocations)."""
     if not isinstance(lines, (list, tuple)) or not lines:
         raise ValidationError("A purchase needs at least one line", field="lines")
     checked, seen = [], set()
@@ -150,7 +158,15 @@ def _record(
     total = sum(entry["total_paid"] for entry in checked)
     check_money(total, "total_paid" if one_line else "lines")
     _validate_supplier(conn, supplier_id)
-    paid_now = check_purchase_payment(payment, supplier_id, total)
+    paid_before = corrects["paid"] if corrects else 0
+    if total < paid_before:
+        raise ValidationError(
+            f"The corrected total ({total}) is below what was already paid ({paid_before})",
+            field="lines",
+            code=ErrorCode.PURCHASE_CORRECTION_BELOW_PAID,
+            details={"purchase_id": corrects["purchase_id"], "paid": paid_before, "new_total": total},
+        )
+    paid_now = check_purchase_payment(payment, supplier_id, total - paid_before)
     if purchase_date is not None:
         purchase_date = normalize_record_date(purchase_date, conn)
 
@@ -194,6 +210,8 @@ def _record(
                  f"{label} purchase #{line_id} (invoice {invoice_number})"),
             )
             conn.execute(f"UPDATE {table} SET stock_movement_id = ? WHERE id = ?", (movement.lastrowid, line_id))
+        if corrects:
+            corrects["before_payment"](invoice_id, stored_date)
         record_purchase_payment(conn, invoice_id, paid_now)
     return invoice_id, line_ids
 
@@ -320,7 +338,7 @@ def _made_with(conn: sqlite3.Connection, purchase_id: int, payment: dict, purcha
     ).fetchone() is not None
 
 
-def follow_payments(
+def _follow_payments(
     conn: sqlite3.Connection,
     purchase_id: int,
     payments: list[dict],
@@ -328,11 +346,13 @@ def follow_payments(
     new_date: str,
     supplier_id: int | None,
     supplier_changed: bool,
+    made_with_id: int | None = None,
 ) -> None:
     """The payments of an invoice whose supplier or day changes (D3, D4): when the supplier changes, every payment must
     be wholly on this invoice (else PURCHASE_HAS_PAYMENTS, shared) and follows it; the payment made with the purchase
     (`_made_with`) moves to the new moment; every other payment must not be before the new local day
-    (SUPPLIER_PAYMENT_BEFORE_PURCHASE)."""
+    (SUPPLIER_PAYMENT_BEFORE_PURCHASE). `made_with_id`: the invoice the payments were made with, when it is not
+    `purchase_id` (a correction moves them to the new invoice)."""
     if supplier_changed:
         refuse_shared_payments(purchase_id, payments, sum(p["amount"] for p in payments))
     new_day = local_day(new_date, conn)
@@ -340,7 +360,7 @@ def follow_payments(
         changes: dict = {}
         if supplier_changed:
             changes["supplier_id"] = supplier_id
-        if _made_with(conn, purchase_id, payment, old_date):
+        if _made_with(conn, made_with_id or purchase_id, payment, old_date):
             if new_date != old_date:
                 changes["payment_date"] = new_date
         elif local_day(payment["payment_date"], conn) < new_day:
@@ -404,7 +424,7 @@ def update_purchase(conn: sqlite3.Connection, purchase_id: int, **fields) -> Non
                 new_date = moment
                 changes["purchase_date"] = moment
         if supplier_changed or new_date != invoice["purchase_date"]:
-            follow_payments(
+            _follow_payments(
                 conn, purchase_id, invoice_payments(conn, purchase_id), invoice["purchase_date"], new_date,
                 supplier_id, supplier_changed,
             )
@@ -491,12 +511,16 @@ def list_purchases(
     end_date: str | None = None,
     item_type: str | None = None,
     item_id: int | None = None,
+    include_cancelled: bool = False,
 ) -> list[dict]:
-    """Purchase invoices, newest first (purchase_date, then id), each with its lines and payment figures. `item_type`
-    (MATERIAL = STOCK materials, SERVICE, PRODUCT) keeps the invoices with a line of that type; with `item_id` too, a
-    line of that item. Dates are local calendar days (section 1)."""
+    """Purchase invoices, newest first (purchase_date, then id), each with its lines and payment figures. CANCELLED
+    invoices are left out unless `include_cancelled` (section 23). `item_type` (MATERIAL = STOCK materials, SERVICE,
+    PRODUCT) keeps the invoices with a line of that type; with `item_id` too, a line of that item. Dates are local
+    calendar days (section 1)."""
     query = f"{_INVOICE_SQL} WHERE 1=1"
     params: list = []
+    if not include_cancelled:
+        query += " AND pi.status = 'ACTIVE'"
     if supplier_id is not None:
         query += " AND pi.supplier_id = ?"
         params.append(supplier_id)

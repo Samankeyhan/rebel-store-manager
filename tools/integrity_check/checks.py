@@ -577,7 +577,7 @@ def check_supplier_payables(conn: sqlite3.Connection, schema: int) -> CheckResul
                                            allocated[payment["id"]], "sum of its allocations"))
     by_id = {payment["id"]: payment for payment in payments}
 
-    purchases = {p["id"]: p for p in list_purchases(conn)}
+    purchases = {p["id"]: p for p in list_purchases(conn, include_cancelled=True)}
     count = 0
     for row in conn.execute("SELECT id, payment_id, purchase_invoice_id AS purchase_id, amount FROM supplier_payment_allocations ORDER BY id"):
         count += 1

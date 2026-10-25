@@ -239,6 +239,62 @@ class ServicePurchaseNeedsTotalDetails(_Details):
     material_name: str
 
 
+class PurchaseAlreadyCancelledDetails(_Details):
+    purchase_id: int
+    cancelled_at: str | None
+    replaced_by_purchase_id: int | None
+
+
+class PurchaseHasPaymentsDetails(_Details):
+    purchase_id: int
+    paid: int
+    payment_ids: list[int]
+    # 1 when a payment also pays another purchase
+    shared: int
+
+
+class PurchaseLineDetails(_Details):
+    purchase_id: int
+    # 0-based, materials and services by line id, then products by line id
+    line_index: int
+    # MATERIAL | PRODUCT
+    item_type: str
+    item_id: int
+    item_name: str
+
+
+class PurchaseStockUsedDetails(PurchaseLineDetails):
+    current_stock: float
+    quantity_bought: float
+
+
+class StocktakeAfterPurchaseDetails(PurchaseLineDetails):
+    # local day
+    stocktake_date: str
+
+
+class LaterCostEvent(_Details):
+    # PURCHASE, PRODUCTION_OUTPUT, RETURN, ADJUSTMENT
+    reason: str
+    # None for a later service purchase (it has no movement)
+    movement_id: int | None
+    date: str
+    purchase_id: int | None
+    invoice_number: str | None
+
+
+class PurchaseCostChangedDetails(PurchaseLineDetails):
+    later: list[LaterCostEvent]
+    # 1 when the cost changed with no later movement (a set cost)
+    cost_changed_without_movement: int
+
+
+class PurchaseCorrectionBelowPaidDetails(_Details):
+    purchase_id: int
+    paid: int
+    new_total: int
+
+
 C = ErrorCode
 
 # Every ErrorCode -> the model of its details.
@@ -297,6 +353,13 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.PURCHASE_NOT_FOUND: PurchaseRefDetails,
     C.PURCHASE_DUPLICATE_ITEM: PurchaseDuplicateItemDetails,
     C.SERVICE_PURCHASE_NEEDS_TOTAL: ServicePurchaseNeedsTotalDetails,
+    C.PURCHASE_ALREADY_CANCELLED: PurchaseAlreadyCancelledDetails,
+    C.PURCHASE_HAS_PAYMENTS: PurchaseHasPaymentsDetails,
+    C.PURCHASE_STOCK_USED: PurchaseStockUsedDetails,
+    C.STOCKTAKE_AFTER_PURCHASE: StocktakeAfterPurchaseDetails,
+    C.PURCHASE_COST_CHANGED_SINCE: PurchaseCostChangedDetails,
+    C.PURCHASE_COST_HISTORY_UNKNOWN: PurchaseLineDetails,
+    C.PURCHASE_CORRECTION_BELOW_PAID: PurchaseCorrectionBelowPaidDetails,
 }
 
 
