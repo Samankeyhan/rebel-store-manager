@@ -13,7 +13,7 @@ from db.reports import get_payment_method_report, get_profit_and_loss
 from db.returns import process_return
 from db.settlements import record_settlement
 from db.timeutil import to_utc_range
-from tests.helpers import stocked_product
+from tests.helpers import make_legacy_no_method, stocked_product
 
 TODAY = date(2026, 10, 6)
 
@@ -81,9 +81,9 @@ def report_data(test_db, fixed_today):
     deactivate_payment_method(conn, used_old)
     deactivate_payment_method(conn, unused_old)
 
-    # No method: manual fees.
-    _order(conn, product_id, None, "2026-10-01", transaction_fee=700)
-    refunded_no_method = _order(conn, product_id, None, "2026-10-02", transaction_fee=300)
+    # No method (orders from before a method was required): manual fees. Recorded with a method, then made method-less.
+    make_legacy_no_method(conn, _order(conn, product_id, card, "2026-10-01", transaction_fee=700))
+    refunded_no_method = make_legacy_no_method(conn, _order(conn, product_id, card, "2026-10-02", transaction_fee=300))
     process_return(conn, refunded_no_method, "REFUNDED")
 
     return {"card": card, "zarinpal": zarinpal, "digipay": digipay, "used_old": used_old}

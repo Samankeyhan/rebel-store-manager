@@ -28,7 +28,7 @@ from db.reports import (
 )
 from db.returns import process_return
 from db.settlements import get_pending, list_settlements, record_settlement
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 
 TODAY = date(2026, 10, 23)
 RANGE = ("2026-09-01", "2026-10-31")
@@ -54,6 +54,7 @@ def _build(conn, with_voided: bool) -> None:
     add_kit_item(conn, kit, box, 1)
 
     def sell(channel, product, quantity, **kwargs):
+        kwargs.setdefault("payment_method_id", sale_method(conn))
         return record_order(conn, channel, [{"product_id": product, "quantity": quantity, "unit_price": 30_000}],
                             **kwargs)
 
