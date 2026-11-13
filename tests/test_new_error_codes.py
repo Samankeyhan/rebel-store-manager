@@ -7,7 +7,7 @@ from tests.test_money_bounds import world  # noqa: F401  (fixture)
 
 def _order(ids, **extra):
     return {"channel": "WEBSITE", "shipping_charge": 0, "postage_cost": 0, "packaging_kit_id": None,
-            "payment_method_id": None,
+            "payment_method_id": ids["sale_method"],
             "items": [{"product_id": ids["product"], "quantity": 1, "unit_price": 1000}], **extra}
 
 

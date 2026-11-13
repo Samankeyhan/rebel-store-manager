@@ -13,7 +13,7 @@ from db import (
     settlements, stocktake, suppliers,
 )
 from db.audit import list_audit_log
-from tests.helpers import cat, stocked_product
+from tests.helpers import cat, stocked_product, sale_method
 
 # Public functions that write but are deliberately not one labelled operation.
 NOT_AUDITED_OPERATIONS = {
@@ -74,7 +74,7 @@ def _order(conn, status="COMPLETED"):
     return orders.record_order(
         conn, "IN_PERSON",
         [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
-        status=status, packaging_kit_id=None,
+        status=status, packaging_kit_id=None, payment_method_id=sale_method(conn),
     )
 
 
@@ -183,12 +183,13 @@ def test_public_write_is_logged_as_one_labelled_operation(test_db, label):
 
 def test_a_failed_public_write_leaves_no_audit_rows(test_db):
     product_id = stocked_product(test_db, stock=1)
+    method = sale_method(test_db)
     before = test_db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
     with pytest.raises(Exception):
         orders.record_order(
             test_db, "IN_PERSON",
             [{"product_id": product_id, "quantity": 5, "unit_price": 3000}],
-            packaging_kit_id=None,
+            packaging_kit_id=None, payment_method_id=method,
         )
     assert test_db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == before
     assert test_db.execute("SELECT COUNT(*) FROM audit_context").fetchone()[0] == 0

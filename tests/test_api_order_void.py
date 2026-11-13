@@ -7,6 +7,7 @@ from pydantic import TypeAdapter
 
 from api.main import app
 from api.schemas.errors import ErrorEnvelope
+from tests.helpers import api_sale_method
 
 ENVELOPE = TypeAdapter(ErrorEnvelope)
 DAY = "2026-10-10"
@@ -35,14 +36,14 @@ def product(client):
     return created.json()["id"]
 
 
-def _sale(product, quantity=2, price=30_000, **extra):
+def _sale(client, product, quantity=2, price=30_000, **extra):
     return {"channel": "IN_PERSON", "items": [{"product_id": product, "quantity": quantity, "unit_price": price}],
-            "order_date": DAY, "packaging_kit_id": None, "payment_method_id": None, **extra}
+            "order_date": DAY, "packaging_kit_id": None, "payment_method_id": api_sale_method(client), **extra}
 
 
 @pytest.fixture
 def order(client, product):
-    created = client.post("/orders", json=_sale(product))
+    created = client.post("/orders", json=_sale(client, product))
     assert created.status_code == 201, created.text
     return created.json()["order"]
 
@@ -67,7 +68,7 @@ def test_the_preview_of_an_unknown_order_is_404(client):
 
 def test_the_preview_names_a_blocker_with_its_details(client, product):
     method = client.post("/payment-methods", json={"name": "Card", "settlement_rule": "IMMEDIATE"}).json()["id"]
-    order_id = client.post("/orders", json=_sale(product, payment_method_id=method)).json()["order"]["id"]
+    order_id = client.post("/orders", json=_sale(client, product, payment_method_id=method)).json()["order"]["id"]
     settlement = client.post("/settlements", json={"payment_method_id": method, "settled_date": DAY,
                                                    "amount_received": 60_000, "order_ids": [order_id]})
     assert settlement.status_code == 201, settlement.text
@@ -103,14 +104,14 @@ def test_a_second_void_and_a_draft_are_409_with_typed_details(client, order, pro
     assert again.status_code == 409
     error = _error(again)
     assert error["code"] == "ORDER_ALREADY_VOIDED" and error["details"]["order_id"] == order["id"]
-    draft = client.post("/orders", json=_sale(product, status="DRAFT")).json()["order"]["id"]
+    draft = client.post("/orders", json=_sale(client, product, status="DRAFT")).json()["order"]["id"]
     refused = client.post(f"/orders/{draft}/void", json={"reason": "x"})
     assert (refused.status_code, _error(refused)["code"]) == (409, "ORDER_NOT_COMMITTED")
 
 
 def test_correct_records_the_new_order_and_links_both_sides(client, order, product):
     response = client.post(f"/orders/{order['id']}/correct",
-                           json={"reason": "wrong price", "order": _sale(product, price=25_000)})
+                           json={"reason": "wrong price", "order": _sale(client, product, price=25_000)})
     assert response.status_code == 201, response.text
     new = response.json()
     assert new["customer_total"] == 50_000
@@ -123,27 +124,29 @@ def test_correct_records_the_new_order_and_links_both_sides(client, order, produ
 
 
 def test_correct_takes_the_channel_defaults_like_post_orders(client, order, product):
-    body = _sale(product, packaging_kit_id="default", payment_method_id="default")
+    method = api_sale_method(client)
+    assert client.patch("/settings/channels/IN_PERSON", json={"default_payment_method_id": method}).status_code == 200
+    body = _sale(client, product, packaging_kit_id="default", payment_method_id="default")
     response = client.post(f"/orders/{order['id']}/correct", json={"reason": "x", "order": body})
     assert response.status_code == 201, response.text
-    assert response.json()["order"]["payment_method_id"] is None  # IN_PERSON has no default method
+    assert response.json()["order"]["payment_method_id"] == method  # IN_PERSON's default method
 
 
 def test_a_refused_correction_leaves_the_old_order_as_it_was(client, order, product):
     future = client.post(f"/orders/{order['id']}/correct",
-                         json={"reason": "x", "order": _sale(product, order_date="2099-01-01")})
+                         json={"reason": "x", "order": _sale(client, product, order_date="2099-01-01")})
     assert future.status_code == 422
     assert (_error(future)["code"], _error(future)["field"]) == ("DATE_IN_FUTURE", "order_date")
-    draft = client.post(f"/orders/{order['id']}/correct", json={"reason": "x", "order": _sale(product, status="DRAFT")})
+    draft = client.post(f"/orders/{order['id']}/correct", json={"reason": "x", "order": _sale(client, product, status="DRAFT")})
     assert (draft.status_code, _error(draft)["field"]) == (422, "status")
-    short = client.post(f"/orders/{order['id']}/correct", json={"reason": "x", "order": _sale(product, quantity=50)})
+    short = client.post(f"/orders/{order['id']}/correct", json={"reason": "x", "order": _sale(client, product, quantity=50)})
     assert (short.status_code, _error(short)["type"]) == (409, "InsufficientStockError")
     assert client.get(f"/orders/{order['id']}").json()["order"]["status"] == "COMPLETED"
     assert _stock(client, product) == 8
 
 
 def test_the_order_list_hides_voided_orders_unless_asked(client, order, product):
-    kept = client.post("/orders", json=_sale(product, quantity=1)).json()["order"]["id"]
+    kept = client.post("/orders", json=_sale(client, product, quantity=1)).json()["order"]["id"]
     client.post(f"/orders/{order['id']}/void", json={"reason": "x"})
     assert [o["id"] for o in client.get("/orders").json()] == [kept]
     every = client.get("/orders", params={"include_voided": "true"}).json()

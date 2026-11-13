@@ -20,7 +20,7 @@ from db.recipes import add_recipe_item
 from db.returns import process_return
 from db.settlements import get_pending, record_settlement
 from db.stocktake import apply_stocktake
-from tests.helpers import cat, stocked_product
+from tests.helpers import cat, make_legacy_no_method, sale_method, stocked_product
 
 DAY = "2026-10-10"
 
@@ -28,6 +28,7 @@ DAY = "2026-10-10"
 def _sell(conn, product, quantity=1, price=3000, **kwargs):
     kwargs.setdefault("packaging_kit_id", None)
     kwargs.setdefault("order_date", DAY)
+    kwargs.setdefault("payment_method_id", sale_method(conn))
     return record_order(conn, "IN_PERSON", [{"product_id": product, "quantity": quantity, "unit_price": price}], **kwargs)
 
 
@@ -344,7 +345,7 @@ def test_the_plan_says_when_the_order_waits_for_settlement(test_db):
     method = add_payment_method(test_db, "Card", "IMMEDIATE")
     product = stocked_product(test_db)
     assert plan_void(test_db, _sell(test_db, product, payment_method_id=method))["pending_settlement"] == 1
-    assert plan_void(test_db, _sell(test_db, product, payment_method_id=None))["pending_settlement"] == 0
+    assert plan_void(test_db, make_legacy_no_method(test_db, _sell(test_db, product)))["pending_settlement"] == 0
 
 
 # ------------------------------------------------------------------ VOIDED and the other rules

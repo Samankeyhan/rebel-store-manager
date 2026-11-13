@@ -165,6 +165,16 @@ class OrderVoidedDetails(_Details):
     replaced_by_order_id: int | None
 
 
+class BulkIneligibleOrder(_Details):
+    order_id: int
+    invoice_number: str | None
+    status: str
+
+
+class OrderBulkNotEligibleDetails(_Details):
+    ineligible: list[BulkIneligibleOrder]
+
+
 class StocktakeAfterSaleDetails(_Details):
     order_id: int
     item_type: str
@@ -305,7 +315,7 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
         C.DISTRIBUTION_NO_ACTIVE_PARTNERS, C.DISTRIBUTION_PERCENT_SUM, C.DISTRIBUTION_EXCEEDS_UNDISTRIBUTED,
         C.DISTRIBUTION_PERIOD_ORDER,
         C.CATEGORY_HAS_SUBCATEGORIES, C.CATEGORY_PARENT_INACTIVE,
-        C.PAID_DATE_NOT_ALLOWED, C.VOID_REASON_REQUIRED,
+        C.PAID_DATE_NOT_ALLOWED, C.VOID_REASON_REQUIRED, C.PAYMENT_METHOD_REQUIRED,
     )},
     C.VALIDATION_FAILED: ValidationFailedDetails,
     C.QUANTITY_NOT_WHOLE: ValidationFailedDetails,
@@ -339,6 +349,7 @@ ERROR_DETAILS: dict[ErrorCode, type[_Details]] = {
     C.ORDER_HAS_RETURN: OrderNotPaidDetails,
     C.ORDER_NOT_COMMITTED: OrderNotPaidDetails,
     C.STOCKTAKE_AFTER_SALE: StocktakeAfterSaleDetails,
+    C.ORDER_BULK_NOT_ELIGIBLE: OrderBulkNotEligibleDetails,
     C.BACKUP_FAILED: BackupFailedDetails,
     C.NAME_DUPLICATE: NameDuplicateDetails,
     C.CATEGORY_DUPLICATE_NAME: NameDuplicateDetails,

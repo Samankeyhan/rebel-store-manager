@@ -5,6 +5,7 @@ from api.deps import get_db
 from api.main import app
 from db.connection import get_connection, init_db
 from db.constants import LEGACY_PRODUCT_CATEGORIES
+from tests.helpers import api_sale_method
 
 CD_ALBUM_UNIT_COST = 202_030
 
@@ -71,6 +72,7 @@ def _order(client, channel, product_id, quantity=1, unit_price=1000, expected=20
         "items": [
             {"product_id": product_id, "quantity": quantity, "unit_price": unit_price}
         ],
+        "payment_method_id": api_sale_method(client),
         **extra,
     }
     response = client.post("/orders", json=body)
@@ -341,6 +343,7 @@ def test_insufficient_stock_is_409_with_details(api, shop):
         json={
             "channel": "IN_PERSON",
             "items": [{"product_id": shop["product_id"], "quantity": 11, "unit_price": 1000}],
+            "payment_method_id": api_sale_method(client),
         },
     )
 
@@ -926,6 +929,7 @@ def _discounted_order(client, product_id, quantity, discount_amount):
         "channel": "IN_PERSON",
         "items": [{"product_id": product_id, "quantity": quantity, "unit_price": 1000,
                    "discount_amount": discount_amount}],
+        "payment_method_id": api_sale_method(client),
     })
 
 

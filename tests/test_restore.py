@@ -47,7 +47,7 @@ def fictional_shop(path: Path) -> dict:
         )
         add_partner(conn, "Fictional Partner", 100)
         conn.commit()
-        return {"order": order, "tee": tee, "box": box}
+        return {"order": order, "tee": tee, "box": box, "method": method}
     finally:
         conn.close()
 
@@ -112,7 +112,7 @@ def test_the_restored_copy_keeps_working_after_a_new_sale(tmp_path, monkeypatch)
     monkeypatch.setenv("REBEL_DB", str(restored))
     with TestClient(app) as client:
         response = client.post("/orders", json={
-            "channel": "WEBSITE", "shipping_charge": 0, "postage_cost": 0, "packaging_kit_id": None, "payment_method_id": None,
+            "channel": "WEBSITE", "shipping_charge": 0, "postage_cost": 0, "packaging_kit_id": None, "payment_method_id": ids["method"],
             "items": [{"product_id": ids["tee"], "quantity": 1, "unit_price": 3_000_000}],
         })
         assert response.status_code == 201, response.text

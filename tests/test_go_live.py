@@ -179,7 +179,7 @@ def test_counters_restart_and_the_next_documents_start_at_one(shop):
     apply_go_live(conn, archive(conn))
     assert {r["name"]: r["value"] for r in conn.execute("SELECT * FROM counters")} == {"INV": 0, "PUR": 0}
     conn.execute("UPDATE products SET current_stock = 5, unit_cost = 1 WHERE id = ?", (ids["shirt"],))
-    order = record_order(conn, "IN_PERSON", [{"product_id": ids["shirt"], "quantity": 1, "unit_price": 1000000}])
+    order = record_order(conn, "IN_PERSON", [{"product_id": ids["shirt"], "quantity": 1, "unit_price": 1000000}], payment_method_id=ids["card"])
     purchase = record_material_purchase(conn, ids["paper"], 1, 1000)
     assert order == 1 and purchase == 1
     assert conn.execute("SELECT invoice_number FROM orders WHERE id = 1").fetchone()[0] == "INV-000001"
@@ -342,7 +342,7 @@ def test_a_live_database_with_data_is_refused_even_after_a_later_plain_audit_res
     conn, ids = shop
     apply_go_live(conn, archive(conn))
     conn.execute("UPDATE products SET current_stock = 5, unit_cost = 1 WHERE id = ?", (ids["shirt"],))
-    record_order(conn, "IN_PERSON", [{"product_id": ids["shirt"], "quantity": 1, "unit_price": 1000000}])
+    record_order(conn, "IN_PERSON", [{"product_id": ids["shirt"], "quantity": 1, "unit_price": 1000000}], payment_method_id=ids["card"])
     reset_audit_log(conn, archive_path=_ARCHIVES["dir"] / "audit-archive-later.jsonl")
     assert [r["before_json"] for r in conn.execute("SELECT before_json FROM audit_log")][0].find(ARCHIVE_PREFIX) < 0
     assert live_markers(conn) == ["user_version", "settings_flag"]  # the audit tag is gone, the other two survive
@@ -431,7 +431,7 @@ def test_a_database_with_only_the_settings_flag_is_live_and_the_reset_refuses(sh
     apply_go_live(conn, archive(conn))
     conn.execute("PRAGMA user_version = 0")
     conn.execute("UPDATE products SET current_stock = 5, unit_cost = 1 WHERE id = ?", (ids["shirt"],))
-    record_order(conn, "IN_PERSON", [{"product_id": ids["shirt"], "quantity": 1, "unit_price": 1000000}])
+    record_order(conn, "IN_PERSON", [{"product_id": ids["shirt"], "quantity": 1, "unit_price": 1000000}], payment_method_id=ids["card"])
     reset_audit_log(conn, archive_path=_ARCHIVES["dir"] / "audit-archive-later.jsonl")  # the audit tag goes too
     assert live_markers(conn) == ["settings_flag"]
     before = snapshot(conn)

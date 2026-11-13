@@ -16,7 +16,7 @@ from db.partners import add_partner, deactivate_partner, update_partner_percenta
 from db.products import add_product
 from db.purchases import record_product_purchase
 from db.reports import get_profit_and_loss
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def distribution_setup(test_db):
         [{"product_id": product_id, "quantity": 2, "unit_price": 3000}],
         shipping_charge=100,
         postage_cost=50,
-        transaction_fee=20,
+        transaction_fee=20, payment_method_id=sale_method(test_db),
     )
     test_db.execute(
         "UPDATE orders SET order_date = ? WHERE id = ?",
@@ -332,7 +332,7 @@ def simple_distribution_setup(test_db):
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
         transaction_fee=0,
         order_date="2026-04-05",
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
 
     return {

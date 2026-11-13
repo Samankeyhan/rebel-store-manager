@@ -23,7 +23,7 @@ from db.purchases import record_material_purchase, record_product_purchase
 from db.recipes import add_recipe_item
 from db.returns import process_return
 from db.settlements import record_settlement
-from tests.helpers import cat, stocked_product
+from tests.helpers import cat, make_legacy_no_method, stocked_product
 from tools.integrity_check import __main__ as cli
 from tools.integrity_check.checks import run_checks, stock_tolerance
 from tools.integrity_check.readonly import open_readonly, schema_version
@@ -76,7 +76,7 @@ def shop(test_db, monkeypatch):
     ids["digi_a"] = order("digipay", "2026-09-10", 2_500_000, quantity=2)
     ids["digi_b"] = order("digipay", "2026-09-12", 640_000)
     ids["pending_order"] = order("digipay", "2026-10-01", 700_000)
-    ids["draft"] = order(None, "2026-10-02", 100_000, status="DRAFT")
+    ids["draft"] = order("card", "2026-10-02", 100_000, status="DRAFT")
     ids["cancelled"] = order("card", "2026-10-02", 100_000, status="PENDING")
     process_return(conn, ids["cancelled"], "CANCELLED")
     ids["refunded"] = order("card", "2026-09-02", 200_000)
@@ -240,10 +240,11 @@ def test_a_missing_paid_date_on_a_paid_order_with_a_method_is_named(shop, test_d
 
 
 def test_a_paid_order_with_no_method_and_no_paid_date_is_legacy_info_listing_the_ids(shop, test_db, capsys):
-    no_method = record_order(
+    # An order from before the payment-method rule: recorded with a method, then made method-less.
+    no_method = make_legacy_no_method(test_db, record_order(
         test_db, "WEBSITE", [{"product_id": shop["product"], "quantity": 1, "unit_price": 1000}],
-        shipping_charge=0, packaging_kit_id=None, postage_cost=0, payment_method_id=None, status="COMPLETED",
-    )
+        shipping_charge=0, packaging_kit_id=None, postage_cost=0, payment_method_id=shop["card"], status="COMPLETED",
+    ))
     test_db.commit()
     raw = writable(test_db)
     raw.execute("UPDATE orders SET paid_date = NULL, paid_jalali_year = NULL, paid_jalali_month = NULL WHERE id IN (?, ?)",

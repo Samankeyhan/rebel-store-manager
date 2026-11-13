@@ -7,7 +7,7 @@ from db.orders import record_order
 from db.products import add_product, get_product
 from db.recipes import add_recipe_item, calculate_recipe_cost
 from db.returns import process_return
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 
 # NOTE: the task's hand-calculated fixture claims calculate_recipe_cost(batch_qty=1)
 # == 202,033, listing addends 77,333 + 53,393 + 26,664 + 20,000 + 10,000 + 9,600 +
@@ -71,7 +71,7 @@ def test_in_person_order_fully_manufactured(test_db, cd_album_setup):
     order_id = record_order(
         test_db,
         "IN_PERSON",
-        [{"product_id": product_id, "quantity": 1, "unit_price": 570_000}],
+        [{"product_id": product_id, "quantity": 1, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
     )
 
     item = test_db.execute(
@@ -113,7 +113,7 @@ def test_quantity_three_scales_material_consumption(test_db, cd_album_setup):
     order_id = record_order(
         test_db,
         "IN_PERSON",
-        [{"product_id": product_id, "quantity": 3, "unit_price": 570_000}],
+        [{"product_id": product_id, "quantity": 3, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
     )
 
     item = test_db.execute(
@@ -134,7 +134,7 @@ def test_mixed_from_stock_and_manufactured(test_db, cd_album_setup):
     order_id = record_order(
         test_db,
         "IN_PERSON",
-        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}],
+        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
     )
 
     item = test_db.execute(
@@ -178,7 +178,7 @@ def test_sells_entirely_from_finished_stock_no_material_consumption(
     order_id = record_order(
         test_db,
         "IN_PERSON",
-        [{"product_id": product_id, "quantity": 1, "unit_price": 570_000}],
+        [{"product_id": product_id, "quantity": 1, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
     )
 
     item = test_db.execute(
@@ -209,7 +209,7 @@ def test_short_material_raises_and_writes_nothing(test_db, cd_album_setup):
         record_order(
             test_db,
             "IN_PERSON",
-            [{"product_id": product_id, "quantity": 3, "unit_price": 570_000}],
+            [{"product_id": product_id, "quantity": 3, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
         )
 
     assert exc_info.value.item_name == "Blank CD"
@@ -230,7 +230,7 @@ def test_made_to_order_with_no_recipe_raises_on_sale(test_db):
         record_order(
             test_db,
             "IN_PERSON",
-            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}], payment_method_id=sale_method(test_db),
         )
     assert exc_info.value.field == "made_to_order"
     assert _count_rows(test_db, "orders") == 0
@@ -247,7 +247,7 @@ def test_cancelled_restores_consumed_materials_and_adds_nothing_to_product_stock
         test_db,
         "IN_PERSON",
         [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}],
-        status="PAID",
+        status="PAID", payment_method_id=sale_method(test_db),
     )
     assert get_material(test_db, blank_cd_id)["current_stock"] == 98
     assert get_material(test_db, cd_case_id)["current_stock"] == 103
@@ -267,7 +267,7 @@ def test_refunded_adds_manufactured_units_to_stock_blended_by_weighted_average(
     order_id = record_order(
         test_db,
         "IN_PERSON",
-        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}],
+        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
     )
     assert get_product(test_db, product_id)["current_stock"] == 0
 
@@ -292,7 +292,7 @@ def test_normal_product_insufficient_stock_untouched_by_made_to_order_logic(test
         record_order(
             test_db,
             "IN_PERSON",
-            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}], payment_method_id=sale_method(test_db),
         )
 
     assert _count_rows(test_db, "stock_movements") == movements_before
@@ -314,7 +314,7 @@ def test_refund_blend_receives_an_exact_value_in(test_db, cd_album_setup, monkey
     order_id = record_order(
         test_db,
         "IN_PERSON",
-        [{"product_id": cd_album_setup["product_id"], "quantity": 2, "unit_price": 570_000}],
+        [{"product_id": cd_album_setup["product_id"], "quantity": 2, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
     )
     process_return(test_db, order_id, "REFUNDED")
     assert seen == [Fraction(2 * CD_ALBUM_UNIT_COST)]
@@ -359,7 +359,7 @@ def test_made_to_order_make_cost_is_exact_half_even(test_db, lines, quantity, un
     product_id = _boundary_product(test_db, *lines)
     order_id = record_order(
         test_db, "IN_PERSON",
-        [{"product_id": product_id, "quantity": quantity, "unit_price": 570_000}],
+        [{"product_id": product_id, "quantity": quantity, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
     )
     assert _line_cost_at_time(test_db, order_id) == unit_cost_at_time
 
@@ -369,7 +369,7 @@ def test_made_to_order_blend_of_stock_and_made_units_ties_to_even(test_db):
     product_id = _boundary_product(test_db, (0.3, "PER_UNIT", 15), stock=1, unit_cost=5)
     order_id = record_order(
         test_db, "IN_PERSON",
-        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}],
+        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
     )
     assert _line_cost_at_time(test_db, order_id) == 4
 
@@ -379,6 +379,6 @@ def test_made_to_order_blend_with_per_batch_line_and_stock(test_db):
     product_id = _boundary_product(test_db, (0.5, "PER_BATCH", 7), stock=1, unit_cost=6)
     order_id = record_order(
         test_db, "IN_PERSON",
-        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}],
+        [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}], payment_method_id=sale_method(test_db),
     )
     assert _line_cost_at_time(test_db, order_id) == 5

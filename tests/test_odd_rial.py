@@ -17,7 +17,7 @@ from db.products import get_product
 from db.purchases import get_product_purchase, record_product_purchase
 from db.reports import get_profit_and_loss
 from db.settlements import get_settlement, record_settlement
-from tests.helpers import stocked_product
+from tests.helpers import stocked_product, sale_method
 
 TODAY = date(2026, 10, 6)
 
@@ -37,7 +37,7 @@ def test_order_with_odd_rial_amounts(test_db):
         shipping_charge=1_800_005,
         postage_cost=3_333,
         transaction_fee=4_567,
-        packaging_kit_id=None,
+        packaging_kit_id=None, payment_method_id=sale_method(test_db),
     )
     detail = get_order(test_db, order_id)
     order, item = detail["order"], detail["items"][0]

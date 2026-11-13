@@ -7,7 +7,7 @@ from db.orders import record_order, update_order_status
 from db.packaging import add_kit_item, create_kit
 from db.products import add_product
 from db.recipes import add_recipe_item
-from tests.helpers import cat, stocked_product
+from tests.helpers import cat, stocked_product, sale_method
 
 
 def _movements(conn, order_id):
@@ -27,7 +27,7 @@ def _line(product_id, quantity=1, price=3000):
 
 def test_a_sale_from_stock_freezes_the_product_cost(test_db):
     product = stocked_product(test_db, stock=10, unit_cost=700)
-    order = record_order(test_db, "IN_PERSON", _line(product, 2), packaging_kit_id=None)
+    order = record_order(test_db, "IN_PERSON", _line(product, 2), packaging_kit_id=None, payment_method_id=sale_method(test_db))
     assert _movements(test_db, order) == [
         {"item_type": "PRODUCT", "item_id": product, "quantity_change": -2, "reason": "SALE", "unit_cost_at_time": 700}
     ]
@@ -41,7 +41,7 @@ def test_a_made_to_order_line_freezes_the_stock_part_and_each_consumed_material(
     add_recipe_item(test_db, product, print_service, 1)
     record_stock_adjustment(test_db, "PRODUCT", product, 1, "ADJUSTMENT", unit_cost=20_000)
 
-    order = record_order(test_db, "IN_PERSON", _line(product, 3), packaging_kit_id=None)
+    order = record_order(test_db, "IN_PERSON", _line(product, 3), packaging_kit_id=None, payment_method_id=sale_method(test_db))
 
     assert _movements(test_db, order) == [
         {"item_type": "PRODUCT", "item_id": product, "quantity_change": -1, "reason": "SALE", "unit_cost_at_time": 20_000},
@@ -58,7 +58,7 @@ def test_packaging_freezes_each_kit_material_cost_including_a_cost_of_zero(test_
     add_kit_item(test_db, kit, sticker, 2)
     product = stocked_product(test_db)
 
-    order = record_order(test_db, "WEBSITE", _line(product), packaging_kit_id=kit)
+    order = record_order(test_db, "WEBSITE", _line(product), packaging_kit_id=kit, payment_method_id=sale_method(test_db))
 
     packaging = {m["item_id"]: m for m in _movements(test_db, order) if m["reason"] == "PACKAGING"}
     assert packaging[box]["unit_cost_at_time"] == 3_000
@@ -67,7 +67,7 @@ def test_packaging_freezes_each_kit_material_cost_including_a_cost_of_zero(test_
 
 def test_the_frozen_cost_does_not_follow_a_later_cost_change(test_db):
     product = stocked_product(test_db, stock=5, unit_cost=500)
-    order = record_order(test_db, "IN_PERSON", _line(product), packaging_kit_id=None)
+    order = record_order(test_db, "IN_PERSON", _line(product), packaging_kit_id=None, payment_method_id=sale_method(test_db))
     record_stock_adjustment(test_db, "PRODUCT", product, 5, "ADJUSTMENT", unit_cost=1_500)
     # (4 × 500 + 5 × 1,500) ÷ 9, half-even
     assert test_db.execute("SELECT unit_cost FROM products WHERE id = ?", (product,)).fetchone()[0] == 1_056
@@ -76,7 +76,7 @@ def test_the_frozen_cost_does_not_follow_a_later_cost_change(test_db):
 
 def test_a_draft_writes_no_movement_until_it_commits(test_db):
     product = stocked_product(test_db, stock=5, unit_cost=800)
-    order = record_order(test_db, "IN_PERSON", _line(product), packaging_kit_id=None, status="DRAFT")
+    order = record_order(test_db, "IN_PERSON", _line(product), packaging_kit_id=None, status="DRAFT", payment_method_id=sale_method(test_db))
     assert _movements(test_db, order) == []
 
     update_order_status(test_db, order, "COMPLETED")

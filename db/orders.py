@@ -1,5 +1,6 @@
 """Sales orders and line items (a line quantity is a whole number): record, decrement product stock, order total/profit, revenue summary; valid channels and statuses.
-Payment side: method (explicit, none, or channel default via `USE_CHANNEL_DEFAULT`); `transaction_fee=None` means computed from the method, any int overrides.
+Payment side: method (explicit, or channel default via `USE_CHANNEL_DEFAULT`); a new order always has an active one (PAYMENT_METHOD_REQUIRED otherwise, any status incl. DRAFT; orders before this rule may have none and stay valid); `transaction_fee=None` means computed from the method, any int overrides.
+`bulk_update_order_status` moves many PAID orders to COMPLETED in one audited operation by calling `update_order_status` per order; all or nothing (ORDER_BULK_NOT_ELIGIBLE).
 `shipping_charge`/`postage_cost` None = channel default, 0 = real zero.
 `paid_date` freezes `expected_settlement_date` and `paid_jalali_year/month`; `set_paid_date`; closed-month guard; filters `payment_method_id`, `settlement_state`.
 The commit freezes each SALE / PACKAGING / PRODUCTION_CONSUMPTION movement's `unit_cost_at_time` (the item's unit cost at that moment), so a void can return the stock at it (section 20)."""
@@ -523,8 +524,9 @@ def record_order(
     payment_reference: str | None = None,
     paid_date: str | None = None,
 ) -> int:
-    """transaction_fee None means computed from the payment method (0 with no
-    method); an int, including 0, overrides it. paid_date is only for an order
+    """A payment method is required (explicit, or the channel default): no method is
+    PAYMENT_METHOD_REQUIRED, for every status. transaction_fee None means computed from
+    the payment method; an int, including 0, overrides it. paid_date is only for an order
     created PAID/COMPLETED and defaults to the local day of order_date.
     order_date may be in the past (a backdated sale, accounting-rules section 7)
     but its local day may not be after today (DATE_IN_FUTURE, field order_date)."""
@@ -557,6 +559,12 @@ def record_order(
 
     resolved_kit_id = _resolve_packaging_kit_id(conn, channel_settings, packaging_kit_id)
     method = _resolve_payment_method(conn, channel_settings, payment_method_id)
+    if method is None:
+        raise ValidationError(
+            "A payment method is required: choose one, or set the channel's default payment method.",
+            field="payment_method_id",
+            code=ErrorCode.PAYMENT_METHOD_REQUIRED,
+        )
 
     order_local_day = today_local(conn)
     if order_date is not None:
@@ -949,6 +957,61 @@ def update_order_status(
         )
         if current_status == "DRAFT":
             _commit_order(conn, order_id, postage_cost_override=None)
+
+
+BULK_STATUS_MAX = 200
+# new status -> the one status a bulk change moves from.
+_BULK_FROM_STATUS = {"COMPLETED": "PAID"}
+
+
+@audited()
+def bulk_update_order_status(
+    conn: sqlite3.Connection, order_ids: list[int], new_status: str = "COMPLETED"
+) -> list[dict]:
+    """Move every listed order to `new_status` (only COMPLETED, from PAID) in ONE audited operation
+    and transaction: all or nothing. If any order is not PAID, nothing is written and the refusal
+    (ORDER_BULK_NOT_ELIGIBLE) lists them. Each order moves through `update_order_status`, so the
+    single-order rules are the only rules. Returns [{id, invoice_number, status}] in the given order."""
+    if new_status not in _BULK_FROM_STATUS:
+        raise ValidationError(
+            f"A bulk status change only moves orders to: {', '.join(_BULK_FROM_STATUS)}", field="status"
+        )
+    if not isinstance(order_ids, (list, tuple)) or not order_ids:
+        raise ValidationError("order_ids must be a non-empty list", field="order_ids")
+    if len(order_ids) > BULK_STATUS_MAX:
+        raise ValidationError(f"At most {BULK_STATUS_MAX} orders at once", field="order_ids")
+    if any(isinstance(i, bool) or not isinstance(i, int) for i in order_ids):
+        raise ValidationError("order_ids must be integers", field="order_ids")
+    if len(set(order_ids)) != len(order_ids):
+        raise ValidationError("order_ids must not repeat an order", field="order_ids")
+
+    from_status = _BULK_FROM_STATUS[new_status]
+    with transaction(conn):
+        orders = []
+        for order_id in order_ids:
+            row = conn.execute(
+                "SELECT id, invoice_number, status FROM orders WHERE id = ?", (order_id,)
+            ).fetchone()
+            if row is None:
+                raise NotFoundError(f"Order with id {order_id} does not exist")
+            orders.append(row)
+        ineligible = [
+            {"order_id": row["id"], "invoice_number": row["invoice_number"], "status": row["status"]}
+            for row in orders
+            if row["status"] != from_status
+        ]
+        if ineligible:
+            raise ConflictError(
+                f"{len(ineligible)} of {len(orders)} orders are not {from_status}; nothing was changed.",
+                code=ErrorCode.ORDER_BULK_NOT_ELIGIBLE,
+                details={"ineligible": ineligible},
+            )
+        for order_id in order_ids:
+            update_order_status(conn, order_id, new_status)
+        return [
+            dict(conn.execute("SELECT id, invoice_number, status FROM orders WHERE id = ?", (i,)).fetchone())
+            for i in order_ids
+        ]
 
 
 @audited()

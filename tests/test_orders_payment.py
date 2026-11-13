@@ -19,7 +19,7 @@ from db.payment_methods import add_payment_method, deactivate_payment_method
 from db.returns import process_return
 from db.settings import get_channel_settings, update_channel_settings
 from db.settlements import record_settlement
-from tests.helpers import stocked_product
+from tests.helpers import make_legacy_no_method, stocked_product
 
 TODAY = date(2026, 10, 6)  # 14 Mehr 1405
 
@@ -52,6 +52,12 @@ def _order(conn, setup, method_id, **kwargs):
         "items", [{"product_id": setup["product_id"], "quantity": 1, "unit_price": 100000}]
     )
     return record_order(conn, "WEBSITE", items, payment_method_id=method_id, **kwargs)
+
+
+def _legacy_order(conn, setup, **kwargs):
+    """An order from before the payment-method rule (no method, so no expected settlement date): recorded
+    with a method, then made method-less. A new order can no longer be recorded without one."""
+    return make_legacy_no_method(conn, _order(conn, setup, setup["card"], **kwargs))
 
 
 def _row(conn, order_id):
@@ -117,7 +123,7 @@ def test_negative_manual_fee_rejected(test_db, setup):
 
 
 def test_no_method_means_zero_fee_and_no_expected_date(test_db, setup):
-    order_id = _order(test_db, setup, None, order_date="2026-09-22")
+    order_id = _legacy_order(test_db, setup, order_date="2026-09-22")
     order = _row(test_db, order_id)
     assert order["payment_method_id"] is None
     assert order["payment_method_name"] is None
@@ -127,7 +133,7 @@ def test_no_method_means_zero_fee_and_no_expected_date(test_db, setup):
 
 
 def test_no_method_manual_fee_kept(test_db, setup):
-    order_id = _order(test_db, setup, None, transaction_fee=2500)
+    order_id = _legacy_order(test_db, setup, transaction_fee=2500)
     assert _row(test_db, order_id)["transaction_fee"] == 2500
 
 
@@ -267,7 +273,7 @@ def test_status_change_future_paid_date_rejected(test_db, setup):
 
 
 def test_no_method_order_becoming_paid_gets_paid_day_only(test_db, setup):
-    order_id = _order(test_db, setup, None, status="PENDING")
+    order_id = _legacy_order(test_db, setup, status="PENDING")
     update_order_status(test_db, order_id, "PAID")
     assert _paid_fields(_row(test_db, order_id)) == ("2026-10-06", None, 1405, 7)
 
@@ -408,7 +414,9 @@ def test_closed_month_guard_is_per_method(test_db, setup):
     other = add_payment_method(test_db, "Other monthly", "DAY_OF_NEXT_MONTH", 5)
     _order(test_db, setup, other, order_date="2026-09-22")
     _order(test_db, setup, setup["zarinpal"], order_date="2026-09-22")
-    _order(test_db, setup, None, order_date="2026-09-22")
+    # A legacy order with no method has no month to be closed: it becomes paid in the settled month.
+    legacy = _legacy_order(test_db, setup, status="PENDING", order_date="2026-09-22")
+    update_order_status(test_db, legacy, "PAID", paid_date="2026-09-22")
 
 
 # ---------------------------------------------------------------- list_orders filters
@@ -419,7 +427,7 @@ def test_list_orders_filters_by_method_and_settlement_state(test_db, setup):
     card_settled = _order(test_db, setup, setup["card"], order_date="2026-10-02")
     card_pending_status = _order(test_db, setup, setup["card"], status="PENDING")
     zarinpal_paid = _order(test_db, setup, setup["zarinpal"], order_date="2026-10-03")
-    no_method = _order(test_db, setup, None, order_date="2026-10-04")
+    no_method = _legacy_order(test_db, setup, order_date="2026-10-04")
     record_settlement(test_db, setup["card"], "2026-10-05", 100000, order_ids=[card_settled])
 
     def ids(**filters):
@@ -493,11 +501,12 @@ def test_channel_default_is_per_channel(test_db, setup):
     assert get_channel_settings(test_db, "INSTAGRAM")["default_payment_method_id"] is None
 
 
-def test_explicit_none_overrides_channel_default(test_db, setup):
+def test_explicit_none_is_refused_even_with_a_channel_default(test_db, setup):
     update_channel_settings(test_db, "WEBSITE", default_payment_method_id=setup["zarinpal"])
-    order = _row(test_db, _order(test_db, setup, None))
-    assert order["payment_method_id"] is None
-    assert order["transaction_fee"] == 0
+    with pytest.raises(ValidationError) as exc_info:
+        _order(test_db, setup, None)
+    assert (exc_info.value.code, exc_info.value.field) == (ErrorCode.PAYMENT_METHOD_REQUIRED, "payment_method_id")
+    assert test_db.execute("SELECT COUNT(*) FROM orders").fetchone()[0] == 0
 
 
 def test_channel_default_missing_method_is_not_found(test_db, setup):

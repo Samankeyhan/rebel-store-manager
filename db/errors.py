@@ -17,6 +17,8 @@ class ErrorCode(StrEnum):
     ORDER_ALREADY_SETTLED            order_id, settlement_id
     DATE_IN_FUTURE                   today (YYYY-MM-DD); field says which date
     PAYMENT_METHOD_INACTIVE          payment_method_id
+    PAYMENT_METHOD_REQUIRED          - (field payment_method_id): a new or corrected order has no payment method (none
+                                     given, or none and the channel has no default); orders before this rule may have none
     PAYMENT_METHOD_NOT_FOUND         payment_method_id
     PAYMENT_METHOD_RULE_PENDING      pending_count
     PAYMENT_METHOD_DUPLICATE_NAME    entity, existing_id
@@ -64,6 +66,8 @@ class ErrorCode(StrEnum):
     STOCKTAKE_AFTER_SALE             order_id, item_type, item_id, item_name, stocktake_date (local day): a count
                                      recorded after the sale already took this item's stock as it was
     VOID_REASON_REQUIRED             - (field reason)
+    ORDER_BULK_NOT_ELIGIBLE          ineligible: [{order_id, invoice_number, status}]: a bulk status change found orders
+                                     that are not in the status it moves from (PAID for PAID -> COMPLETED); nothing changed
     SUPPLIER_REQUIRED_FOR_CREDIT     - (field supplier_id): a purchase not paid in full needs a supplier
     SUPPLIER_PAYMENT_EXCEEDS_DUE     purchase_id (the purchase invoice), outstanding: an allocation is larger than what
                                      the purchase still owes
@@ -115,6 +119,7 @@ class ErrorCode(StrEnum):
 
     # Payment methods
     PAYMENT_METHOD_INACTIVE = "PAYMENT_METHOD_INACTIVE"
+    PAYMENT_METHOD_REQUIRED = "PAYMENT_METHOD_REQUIRED"
     PAYMENT_METHOD_NOT_FOUND = "PAYMENT_METHOD_NOT_FOUND"
     PAYMENT_METHOD_RULE_PENDING = "PAYMENT_METHOD_RULE_PENDING"
     PAYMENT_METHOD_DUPLICATE_NAME = "PAYMENT_METHOD_DUPLICATE_NAME"
@@ -173,6 +178,7 @@ class ErrorCode(StrEnum):
     ORDER_NOT_COMMITTED = "ORDER_NOT_COMMITTED"
     STOCKTAKE_AFTER_SALE = "STOCKTAKE_AFTER_SALE"
     VOID_REASON_REQUIRED = "VOID_REASON_REQUIRED"
+    ORDER_BULK_NOT_ELIGIBLE = "ORDER_BULK_NOT_ELIGIBLE"
 
     # Supplier payables
     SUPPLIER_REQUIRED_FOR_CREDIT = "SUPPLIER_REQUIRED_FOR_CREDIT"

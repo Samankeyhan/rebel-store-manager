@@ -42,7 +42,7 @@ from db.recipes import add_recipe_item
 from db.settings import update_channel_settings
 from db.settlements import record_settlement
 from db.suppliers import update_supplier
-from tests.helpers import stocked_product
+from tests.helpers import sale_method, stocked_product
 
 TODAY = date(2026, 10, 6)  # 14 Mehr 1405; Shahrivar 1405 = 2026-08-23..2026-09-22
 
@@ -90,8 +90,8 @@ def test_explicit_code_and_details_override_the_default():
 
 
 def test_every_specific_code_is_raised_in_db():
-    """The 63 specific codes, not the class defaults (covered above)."""
-    assert len(SPECIFIC_CODES) == 63
+    """The 65 specific codes, not the class defaults (covered above)."""
+    assert len(SPECIFIC_CODES) == 65
     source = "\n".join(p.read_text(encoding="utf-8") for p in Path("db").glob("*.py") if p.name != "errors.py")
     unused = [c.name for c in SPECIFIC_CODES if not re.search(rf"ErrorCode\.{c.name}\b", source)]
     assert unused == []
@@ -505,7 +505,7 @@ def test_order_made_to_order_without_recipe(test_db, set_today):
     test_db.execute("UPDATE products SET made_to_order = 1 WHERE id = ?", (pid,))
     test_db.commit()
     _raises(
-        lambda: _order(test_db, pid, None, "2026-10-01"),
+        lambda: _order(test_db, pid, sale_method(test_db), "2026-10-01"),
         ValidationError, ErrorCode.PRODUCT_NO_RECIPE, "made-to-order but has no recipe",
         field="made_to_order", details=_product_details(pid),
     )
@@ -516,7 +516,7 @@ def test_order_without_unit_cost(test_db, set_today):
     test_db.execute("UPDATE products SET unit_cost = NULL WHERE id = ?", (pid,))
     test_db.commit()
     _raises(
-        lambda: _order(test_db, pid, None, "2026-10-01"),
+        lambda: _order(test_db, pid, sale_method(test_db), "2026-10-01"),
         ValidationError, ErrorCode.PRODUCT_NO_UNIT_COST, "has no unit_cost",
         field="unit_cost", details=_product_details(pid),
     )
@@ -529,7 +529,7 @@ def test_order_made_to_order_from_stock_without_unit_cost(test_db, set_today):
     test_db.execute("UPDATE products SET made_to_order = 1, unit_cost = NULL WHERE id = ?", (pid,))
     test_db.commit()
     _raises(
-        lambda: _order(test_db, pid, None, "2026-10-01"),
+        lambda: _order(test_db, pid, sale_method(test_db), "2026-10-01"),
         ValidationError, ErrorCode.PRODUCT_NO_UNIT_COST, "has no unit_cost",
         field="unit_cost", details=_product_details(pid),
     )
@@ -630,6 +630,6 @@ def test_request_validation_error_is_in_the_envelope(client):
 def test_openapi_lists_every_error_code():
     schemas = app.openapi()["components"]["schemas"]
     assert sorted(schemas["ErrorCode"]["enum"]) == sorted(c.value for c in ErrorCode)
-    assert len(schemas["ErrorCode"]["enum"]) == 68
+    assert len(schemas["ErrorCode"]["enum"]) == 70
     assert schemas["ErrorCode"]["type"] == "string"
     assert "ErrorEnvelope" in schemas

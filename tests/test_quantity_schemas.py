@@ -17,7 +17,7 @@ from tests.test_money_bounds import world  # noqa: F401  (fixture)
 
 def _order(i, v):
     return {"channel": "WEBSITE", "shipping_charge": 0, "postage_cost": 0, "packaging_kit_id": None,
-            "payment_method_id": None,
+            "payment_method_id": i["sale_method"],
             "items": [{"product_id": i["product"], "quantity": v, "unit_price": 1}]}
 
 
@@ -205,7 +205,7 @@ def test_db_refuses_a_non_integer_order_quantity_with_its_code(world):  # noqa: 
     for bad in (2.5, True, "2"):
         with pytest.raises(ValidationError) as exc_info:
             record_order(conn, "WEBSITE", [{"product_id": i["product"], "quantity": bad, "unit_price": 1}],
-                         shipping_charge=0, postage_cost=0, packaging_kit_id=None, payment_method_id=None)
+                         shipping_charge=0, postage_cost=0, packaging_kit_id=None, payment_method_id=i["sale_method"])
         assert exc_info.value.code == ErrorCode.QUANTITY_NOT_WHOLE and exc_info.value.field == "quantity"
 
 
@@ -214,6 +214,6 @@ def test_db_refuses_an_out_of_range_quantity_with_min_and_max(world):  # noqa: F
     for bad, expected in ((0, {"min": 0, "max": None}), (MAX_WHOLE_QUANTITY + 1, {"min": None, "max": MAX_WHOLE_QUANTITY})):
         with pytest.raises(ValidationError) as exc_info:
             record_order(conn, "WEBSITE", [{"product_id": i["product"], "quantity": bad, "unit_price": 1}],
-                         shipping_charge=0, postage_cost=0, packaging_kit_id=None, payment_method_id=None)
+                         shipping_charge=0, postage_cost=0, packaging_kit_id=None, payment_method_id=i["sale_method"])
         assert exc_info.value.code == ErrorCode.QUANTITY_OUT_OF_RANGE
         assert exc_info.value.details == expected

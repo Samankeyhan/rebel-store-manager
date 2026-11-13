@@ -17,7 +17,7 @@ from db.orders import record_order
 from db.partners import add_partner
 from db.payment_methods import add_payment_method
 from db.suppliers import add_supplier
-from tests.helpers import cat, stocked_product
+from tests.helpers import cat, sale_method, stocked_product
 
 TOO_BIG = [MAX_MONEY + 1, 2**63 - 1, 2**63, 2**64, 10**30]
 
@@ -34,6 +34,7 @@ def world(tmp_path):
         "material": add_material(conn, "Bounds Box", "STOCK", 1000, initial_stock=1000),
         "expense_category": add_expense_category(conn, "Bounds Rent"),
         "method": add_payment_method(conn, "Bounds Pay", "IMMEDIATE", fee_bps=100),
+        "sale_method": sale_method(conn),
         "category": cat(conn, "VINYL"),
         "supplier": add_supplier(conn, "Bounds Supplier"),
     }
@@ -64,7 +65,7 @@ def world(tmp_path):
 def _order_body(ids, **item):
     return {
         "channel": "WEBSITE", "shipping_charge": 0, "postage_cost": 0, "packaging_kit_id": None,
-        "payment_method_id": None,
+        "payment_method_id": ids["sale_method"],
         "items": [{"product_id": ids["product"], "quantity": 1, "unit_price": 1000, **item}],
     }
 

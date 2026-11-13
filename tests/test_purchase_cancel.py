@@ -20,7 +20,7 @@ from db.reports import get_purchases_summary
 from db.stocktake import apply_stocktake
 from db.supplier_payments import get_payables, list_supplier_payments, record_supplier_payment
 from db.suppliers import add_supplier
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 
 DAY = "2026-10-10"
 
@@ -113,7 +113,7 @@ def test_a_sale_between_keeps_its_frozen_cogs(shop):
     tee = ids["tee"]
     old = buy(conn, ids, [line(tee, 5, 1000, "PRODUCT")], purchase_date=DAY)  # tee cost 200
     purchase = buy(conn, ids, [line(tee, 5, 3000, "PRODUCT")], purchase_date=DAY)  # tee cost 400
-    order = record_order(conn, "IN_PERSON", [{"product_id": tee, "quantity": 2, "unit_price": 3000}], packaging_kit_id=None, order_date=DAY)
+    order = record_order(conn, "IN_PERSON", [{"product_id": tee, "quantity": 2, "unit_price": 3000}], packaging_kit_id=None, order_date=DAY, payment_method_id=sale_method(conn))
     frozen = get_order(conn, order)["items"][0]["unit_cost_at_time"]
     assert frozen == 400  # (5 x 200 + 3000) / 10
     cancel_purchase(conn, purchase, "x")  # 8 in stock, 5 go back out
@@ -222,7 +222,7 @@ def test_a_later_stock_in_is_a_later_cost_event(shop, event):
     elif event == "plain_gain":
         record_stock_adjustment(conn, "PRODUCT", tee, 1, "ADJUSTMENT")
     else:
-        order = record_order(conn, "IN_PERSON", [{"product_id": tee, "quantity": 1, "unit_price": 3000}], packaging_kit_id=None, order_date=DAY)
+        order = record_order(conn, "IN_PERSON", [{"product_id": tee, "quantity": 1, "unit_price": 3000}], packaging_kit_id=None, order_date=DAY, payment_method_id=sale_method(conn))
         void_order(conn, order, "mistake")
     details = _refused(conn, purchase, ErrorCode.PURCHASE_COST_CHANGED_SINCE)
     assert details["later"] and details["item_id"] == tee

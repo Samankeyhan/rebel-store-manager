@@ -137,13 +137,14 @@ class OrderCreate(BaseModel):
     # null = use the channel default (current estimate if the channel applies
     # postage, else 0); 0 = a real zero override.
     postage_cost: Money | None = None
-    # null (or omitted) = computed from the payment method (0 with no method);
+    # null (or omitted) = computed from the payment method;
     # an integer, including 0, overrides it.
     transaction_fee: Money | None = None
     notes: str | None = None
     status: str = "COMPLETED"
-    # "default" = the channel's default payment method (none if it has no
-    # default); null = no payment method; int = that method (must be active).
+    # "default" = the channel's default payment method; int = that method (must be
+    # active). null, or "default" on a channel with no default, is a 422
+    # PAYMENT_METHOD_REQUIRED: a sale always has a method.
     payment_method_id: StrictInt | Literal["default"] | None = "default"
     payment_reference: str | None = None
     # Only for a PAID/COMPLETED order: the local day the money was paid
@@ -158,6 +159,30 @@ class OrderStatusUpdate(BaseModel):
     # Only when the order becomes paid (DRAFT/PENDING -> PAID/COMPLETED);
     # default today. Anything else with a paid_date is a 422.
     paid_date: DateStr | None = None
+
+
+class OrderBulkStatus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # 1..200 distinct orders, all of them PAID (anything else is a 409 for the whole call).
+    order_ids: list[StrictInt] = Field(min_length=1, max_length=200)
+    # The only bulk move: PAID -> COMPLETED.
+    status: Literal["COMPLETED"]
+
+
+class OrderBulkStatusRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    invoice_number: str | None
+    status: str
+
+
+class OrderBulkStatusOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    count: int
+    orders: list[OrderBulkStatusRow]
 
 
 class OrderPaidDateUpdate(BaseModel):

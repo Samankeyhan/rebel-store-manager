@@ -12,7 +12,7 @@ from db.products import add_product, get_product
 from db.purchases import record_material_purchase, record_product_purchase
 from db.returns import process_return
 from db.settings import update_channel_settings
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 
 
 @pytest.fixture
@@ -83,7 +83,7 @@ def _record_completed_order(test_db, return_setup, status="COMPLETED"):
             {"product_id": return_setup["product_b_id"], "quantity": 1, "unit_price": 1500},
         ],
         customer_name="Alice",
-        status=status,
+        status=status, payment_method_id=sale_method(test_db),
     )
 
 
@@ -213,12 +213,12 @@ def test_get_revenue_summary_excludes_cancelled_and_refunded(test_db, return_set
     active_order = record_order(
         test_db,
         "INSTAGRAM",
-        [{"product_id": product_a_id, "quantity": 1, "unit_price": 3000}],
+        [{"product_id": product_a_id, "quantity": 1, "unit_price": 3000}], payment_method_id=sale_method(test_db),
     )
     refunded_order = record_order(
         test_db,
         "WEBSITE",
-        [{"product_id": product_b_id, "quantity": 1, "unit_price": 1500}],
+        [{"product_id": product_b_id, "quantity": 1, "unit_price": 1500}], payment_method_id=sale_method(test_db),
     )
     process_return(test_db, refunded_order, "REFUNDED")
 
@@ -266,7 +266,7 @@ def test_cancelled_from_paid_restores_products_and_packaging(test_db, canonical_
         test_db,
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 2, "unit_price": 2_500_000}],
-        status="PAID",
+        status="PAID", payment_method_id=sale_method(test_db),
     )
     assert get_product(test_db, vinyl_id)["current_stock"] == 8
     assert get_material(test_db, box_id)["current_stock"] == 99
@@ -289,7 +289,7 @@ def test_refunded_from_completed_restores_products_only(test_db, canonical_setup
         test_db,
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 2, "unit_price": 2_500_000}],
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
     assert get_material(test_db, box_id)["current_stock"] == 99
 
@@ -311,7 +311,7 @@ def test_refunded_from_draft_or_pending_raises_conflict(
         test_db,
         "IN_PERSON",
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
-        status=status,
+        status=status, payment_method_id=sale_method(test_db),
     )
 
     with pytest.raises(ConflictError):
@@ -324,7 +324,7 @@ def test_cancelling_draft_restores_nothing_and_does_not_fail(test_db, canonical_
         test_db,
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
-        status="DRAFT",
+        status="DRAFT", payment_method_id=sale_method(test_db),
     )
     assert get_product(test_db, vinyl_id)["current_stock"] == 10
 
@@ -347,7 +347,7 @@ def test_cancel_restores_packaging_from_actual_movements_not_current_kit(
         test_db,
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
-        status="PAID",
+        status="PAID", payment_method_id=sale_method(test_db),
     )
     assert get_material(test_db, filler_id)["current_stock"] == 49
 

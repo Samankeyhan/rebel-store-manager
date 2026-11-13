@@ -7,7 +7,9 @@
 - Writes return the resource re-fetched via the GET getter. Create 201, update/action 200. DELETE of a recipe/kit item returns 200 with the updated recipe/kit.
 - Partial updates (PATCH): `model_dump(exclude_unset=True)`; omitted = unchanged, explicit `null` = clear, except for fields that are NOT NULL: `PATCH /payment-methods` `fee_bps` and `fee_fixed` cannot be cleared with `null` (422, field set); only `fee_cap` can.
 - `POST /orders`:
-  - `packaging_kit_id` and `payment_method_id`: `"default"`/omitted = channel default, `null` = none, int = that one (strict int).
+  - `packaging_kit_id`: `"default"`/omitted = channel default, `null` = none, int = that one (strict int).
+  - `payment_method_id`: `"default"`/omitted = channel default, int = that one (strict int). A sale always has one: `null`, or a channel with no default, is 422 `PAYMENT_METHOD_REQUIRED` (every status, DRAFT too). Orders from before the rule may have none.
+  - `POST /orders/bulk-status`: PAID → COMPLETED for 1..200 orders, one transaction and audit operation; any non-PAID order is a 409 `ORDER_BULK_NOT_ELIGIBLE` for the whole call.
   - `shipping_charge`, `postage_cost`, `transaction_fee`: `null`/omitted = default/computed; `0` is a real override.
   - `paid_date` only for PAID/COMPLETED. Also on `POST /orders/{id}/status`; moved via `PATCH /orders/{id}/paid-date`.
 - `POST /settlements`: `order_ids` for IMMEDIATE/DAYS_AFTER; `jalali_year` + `jalali_month` for DAY_OF_NEXT_MONTH (`order_ids` there is a 422). `difference` comes from `db/`.

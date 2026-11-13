@@ -9,7 +9,7 @@ from PIL import Image
 from db.currency import format_display_number
 from db.orders import get_order, record_order
 from db.products import add_product
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 from pdf import invoice as invoice_module
 from pdf.invoice import generate_invoice_pdf
 
@@ -34,7 +34,7 @@ def invoice_order_setup(test_db, tmp_path):
         customer_name="Test Customer",
         shipping_charge=170_000,
         postage_cost=88_888,
-        transaction_fee=77_777,
+        transaction_fee=77_777, payment_method_id=sale_method(test_db),
     )
     return {
         "order_id": order_id,
@@ -194,7 +194,7 @@ def _discounted_order(test_db, product_id):
         customer_name="Test Customer",
         shipping_charge=170_000,
         postage_cost=88_888,
-        transaction_fee=77_777,
+        transaction_fee=77_777, payment_method_id=sale_method(test_db),
     )
 
 
@@ -280,7 +280,7 @@ def test_invoice_with_odd_rial_amounts(test_db, tmp_path, currency):
         customer_name="Test Customer",
         shipping_charge=1_800_005,
         postage_cost=3_333,
-        transaction_fee=4_567,
+        transaction_fee=4_567, payment_method_id=sale_method(test_db),
     )
     detail = get_order(test_db, order_id)
     item = detail["items"][0]
@@ -353,7 +353,7 @@ def test_invoice_unit_price_column_is_the_list_price(test_db, tmp_path, quantity
         [{"product_id": product_id, "quantity": quantity, "unit_price": 12_340,
           "discount_amount": discount, "discount_reason": "promo" if discount else None}],
         customer_name="Test Customer", shipping_charge=0, postage_cost=88_888,
-        transaction_fee=77_777, packaging_kit_id=None,
+        transaction_fee=77_777, packaging_kit_id=None, payment_method_id=sale_method(test_db),
     )
     assert get_order(test_db, order_id)["customer_total"] == net
 
@@ -382,6 +382,7 @@ def test_a_voided_invoice_is_marked_with_its_replacement_and_still_shows_only_cu
         test_db, order_id, "wrong quantity", "INSTAGRAM",
         [{"product_id": invoice_order_setup["product_id"], "quantity": 1, "unit_price": 3000}],
         shipping_charge=170_000, postage_cost=88_888, transaction_fee=77_777,
+        payment_method_id=sale_method(test_db),
     )
     detail = get_order(test_db, order_id)
     replacement = get_order(test_db, new_id)["order"]["invoice_number"]

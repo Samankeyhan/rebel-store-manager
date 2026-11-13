@@ -8,6 +8,8 @@ from fastapi.responses import Response
 from api.deps import get_db
 from api.schemas.common import DateStr
 from api.schemas.orders import (
+    OrderBulkStatus,
+    OrderBulkStatusOut,
     OrderCorrection,
     OrderCreate,
     OrderDetailOut,
@@ -20,6 +22,7 @@ from api.schemas.orders import (
 )
 from db.orders import (
     USE_CHANNEL_DEFAULT,
+    bulk_update_order_status,
     get_order,
     list_orders,
     record_order,
@@ -84,12 +87,14 @@ def create_order(
     postage_cost defaults to the current postage estimate if the channel
     applies postage, else 0. Sending `0` is a real zero override.
 
-    **payment_method_id** follows the packaging_kit_id pattern: `"default"` (or
-    omitted) = the channel's default method, `null` = no method, an integer =
-    that method (must be active).
+    **payment_method_id**: required in effect. `"default"` (or omitted) = the
+    channel's default method, an integer = that method (must be active). `null`,
+    or `"default"` on a channel with no default, is a 422 `PAYMENT_METHOD_REQUIRED`
+    (field `payment_method_id`), for every status including DRAFT. Orders recorded
+    before this rule may have no method; they are unchanged.
 
-    **transaction_fee**: `null` (or omitted) = computed from the payment method
-    (0 without one); an integer, including 0, overrides it.
+    **transaction_fee**: `null` (or omitted) = computed from the payment method;
+    an integer, including 0, overrides it.
 
     **order_date**: omitted = now; a past day backdates the sale (cost, stock and
     packaging are still frozen as of today); after today = 422 `DATE_IN_FUTURE`,
@@ -162,6 +167,17 @@ def change_order_status(
     paid_date (body value, default today)."""
     update_order_status(conn, order_id, body.status, paid_date=body.paid_date)
     return OrderDetailOut.model_validate(get_order(conn, order_id))
+
+
+@router.post("/orders/bulk-status", response_model=OrderBulkStatusOut)
+def bulk_change_order_status(
+    body: OrderBulkStatus, conn: sqlite3.Connection = Depends(get_db)
+) -> OrderBulkStatusOut:
+    """Move several PAID orders to COMPLETED in one call, one transaction and one audit operation (the same
+    rules as /orders/{id}/status for each). All or nothing: if any listed order is not PAID the whole call is a
+    409 `ORDER_BULK_NOT_ELIGIBLE` whose details list them; an unknown id is a 404."""
+    rows = bulk_update_order_status(conn, body.order_ids, body.status)
+    return OrderBulkStatusOut(count=len(rows), orders=rows)
 
 
 @router.patch("/orders/{order_id}/paid-date", response_model=OrderDetailOut)

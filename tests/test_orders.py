@@ -17,7 +17,7 @@ from db.products import add_product, get_product
 from db.purchases import record_material_purchase, record_product_purchase
 from db.reports import get_product_performance, get_profit_and_loss
 from db.settings import get_setting, set_setting, update_channel_settings
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 
 
 @pytest.fixture
@@ -89,7 +89,7 @@ def test_record_order_single_item_happy_path(test_db, order_setup):
         customer_name="Alice",
         shipping_charge=200,
         postage_cost=150,
-        transaction_fee=50,
+        transaction_fee=50, payment_method_id=sale_method(test_db),
     )
 
     assert order_id == 1
@@ -133,7 +133,7 @@ def test_record_order_multiple_items_happy_path(test_db, order_setup):
                 "unit_price": 1500,
                 "discount_amount": 300,
             },
-        ],
+        ], payment_method_id=sale_method(test_db),
     )
 
     assert _product_stock(test_db, product_a_id) == 9
@@ -172,7 +172,7 @@ def test_insufficient_stock_rolls_back_entire_order(test_db, order_setup):
             [
                 {"product_id": product_a_id, "quantity": 1, "unit_price": 3000},
                 {"product_id": product_b_id, "quantity": 25, "unit_price": 1500},
-            ],
+            ], payment_method_id=sale_method(test_db),
         )
 
     assert _product_stock(test_db, product_a_id) == stock_a_before
@@ -196,7 +196,7 @@ def test_stock_check_aggregates_needed_quantity_across_multiple_lines(test_db, o
             [
                 {"product_id": product_id, "quantity": 3, "unit_price": 3000},
                 {"product_id": product_id, "quantity": 3, "unit_price": 3000},
-            ],
+            ], payment_method_id=sale_method(test_db),
         )
 
     assert exc_info.value.needed == 6
@@ -212,7 +212,7 @@ def test_invalid_channel_raises_value_error(test_db, order_setup):
         record_order(
             test_db,
             "INVALID",
-            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}], payment_method_id=sale_method(test_db),
         )
 
     assert _count_rows(test_db, "orders") == 0
@@ -226,7 +226,7 @@ def test_invalid_status_raises_value_error(test_db, order_setup):
             test_db,
             "INSTAGRAM",
             [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
-            status="INVALID",
+            status="INVALID", payment_method_id=sale_method(test_db),
         )
 
     assert _count_rows(test_db, "orders") == 0
@@ -234,7 +234,7 @@ def test_invalid_status_raises_value_error(test_db, order_setup):
 
 def test_empty_items_raises_value_error(test_db):
     with pytest.raises(ValueError, match="at least one item"):
-        record_order(test_db, "INSTAGRAM", [])
+        record_order(test_db, "INSTAGRAM", [], payment_method_id=sale_method(test_db))
 
 
 def test_discount_exceeds_line_total_raises_value_error(test_db, order_setup):
@@ -251,7 +251,7 @@ def test_discount_exceeds_line_total_raises_value_error(test_db, order_setup):
                     "unit_price": 1000,
                     "discount_amount": 2500,
                 }
-            ],
+            ], payment_method_id=sale_method(test_db),
         )
 
     assert _count_rows(test_db, "orders") == 0
@@ -262,7 +262,7 @@ def test_nonexistent_product_raises_value_error(test_db, order_setup):
         record_order(
             test_db,
             "INSTAGRAM",
-            [{"product_id": 9999, "quantity": 1, "unit_price": 1000}],
+            [{"product_id": 9999, "quantity": 1, "unit_price": 1000}], payment_method_id=sale_method(test_db),
         )
 
     assert _count_rows(test_db, "orders") == 0
@@ -274,7 +274,7 @@ def test_cost_snapshot_frozen_after_product_cost_change(test_db, order_setup):
     order_id = record_order(
         test_db,
         "INSTAGRAM",
-        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
+        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}], payment_method_id=sale_method(test_db),
     )
 
     test_db.execute(
@@ -298,7 +298,7 @@ def test_selling_product_with_null_cost_raises_validation_error(test_db):
         record_order(
             test_db,
             "IN_PERSON",
-            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+            [{"product_id": product_id, "quantity": 1, "unit_price": 1000}], payment_method_id=sale_method(test_db),
         )
 
     assert _product_stock(test_db, product_id) == 5
@@ -322,7 +322,7 @@ def test_get_order_computed_total_and_profit(test_db, order_setup):
         ],
         shipping_charge=200,
         postage_cost=150,
-        transaction_fee=50,
+        transaction_fee=50, payment_method_id=sale_method(test_db),
     )
 
     detail = get_order(test_db, order_id)
@@ -350,13 +350,13 @@ def test_list_orders_filters_by_channel_and_status(test_db, order_setup):
         test_db,
         "INSTAGRAM",
         [{"product_id": product_a_id, "quantity": 1, "unit_price": 3000}],
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
     record_order(
         test_db,
         "WHOLESALE",
         [{"product_id": product_b_id, "quantity": 1, "unit_price": 1000}],
-        status="PENDING",
+        status="PENDING", payment_method_id=sale_method(test_db),
     )
 
     # INSTAGRAM applies the default shipping charge (1,800,000 Rial, the
@@ -381,7 +381,7 @@ def test_list_orders_includes_profit(test_db, canonical_setup):
         test_db,
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 2, "unit_price": 2_500_000}],
-        transaction_fee=50_000,
+        transaction_fee=50_000, payment_method_id=sale_method(test_db),
     )
 
     rows = list_orders(test_db, channel="WEBSITE")
@@ -399,7 +399,7 @@ def test_list_orders_includes_profit(test_db, canonical_setup):
         test_db,
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
-        status="DRAFT",
+        status="DRAFT", payment_method_id=sale_method(test_db),
     )
     draft_row = next(
         r for r in list_orders(test_db, status="DRAFT") if r["id"] == draft_id
@@ -413,7 +413,7 @@ def test_update_order_status(test_db, order_setup):
         test_db,
         "INSTAGRAM",
         [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
-        status="PENDING",
+        status="PENDING", payment_method_id=sale_method(test_db),
     )
 
     update_order_status(test_db, order_id, "PAID")
@@ -437,7 +437,7 @@ def test_record_order_accepts_lifecycle_statuses(test_db, order_setup, status):
         test_db,
         "INSTAGRAM",
         [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
-        status=status,
+        status=status, payment_method_id=sale_method(test_db),
     )
 
     assert get_order(test_db, order_id)["order"]["status"] == status
@@ -451,7 +451,7 @@ def test_record_order_rejects_cancelled_at_creation(test_db, order_setup):
             test_db,
             "INSTAGRAM",
             [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
-            status="CANCELLED",
+            status="CANCELLED", payment_method_id=sale_method(test_db),
         )
 
     assert _count_rows(test_db, "orders") == 0
@@ -465,7 +465,7 @@ def test_record_order_rejects_refunded_at_creation(test_db, order_setup):
             test_db,
             "INSTAGRAM",
             [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
-            status="REFUNDED",
+            status="REFUNDED", payment_method_id=sale_method(test_db),
         )
 
     assert _count_rows(test_db, "orders") == 0
@@ -477,7 +477,7 @@ def test_record_order_defaults_to_completed(test_db, order_setup):
     order_id = record_order(
         test_db,
         "INSTAGRAM",
-        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
+        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}], payment_method_id=sale_method(test_db),
     )
 
     assert get_order(test_db, order_id)["order"]["status"] == "COMPLETED"
@@ -490,7 +490,7 @@ def test_forward_status_transitions_draft_to_completed(test_db, order_setup):
         test_db,
         "INSTAGRAM",
         [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
-        status="DRAFT",
+        status="DRAFT", payment_method_id=sale_method(test_db),
     )
 
     update_order_status(test_db, order_id, "PENDING")
@@ -509,7 +509,7 @@ def test_record_order_assigns_invoice_number(test_db, order_setup):
     order_id = record_order(
         test_db,
         "INSTAGRAM",
-        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
+        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}], payment_method_id=sale_method(test_db),
     )
 
     invoice_number = get_order(test_db, order_id)["order"]["invoice_number"]
@@ -521,9 +521,9 @@ def test_order_invoice_numbers_increment_sequentially(test_db, order_setup):
     product_id = order_setup["product_a_id"]
     item = [{"product_id": product_id, "quantity": 1, "unit_price": 3000}]
 
-    first_id = record_order(test_db, "INSTAGRAM", item)
-    second_id = record_order(test_db, "WEBSITE", item)
-    third_id = record_order(test_db, "IN_PERSON", item)
+    first_id = record_order(test_db, "INSTAGRAM", item, payment_method_id=sale_method(test_db))
+    second_id = record_order(test_db, "WEBSITE", item, payment_method_id=sale_method(test_db))
+    third_id = record_order(test_db, "IN_PERSON", item, payment_method_id=sale_method(test_db))
 
     assert get_order(test_db, first_id)["order"]["invoice_number"] == "INV-000001"
     assert get_order(test_db, second_id)["order"]["invoice_number"] == "INV-000002"
@@ -546,7 +546,7 @@ def test_null_invoice_orders_do_not_break_numbering(test_db, order_setup):
     order_id = record_order(
         test_db,
         "INSTAGRAM",
-        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
+        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}], payment_method_id=sale_method(test_db),
     )
 
     assert get_order(test_db, order_id)["order"]["invoice_number"] == "INV-000001"
@@ -557,7 +557,7 @@ def test_duplicate_order_invoice_number_rejected_by_unique_index(test_db, order_
     order_id = record_order(
         test_db,
         "INSTAGRAM",
-        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}],
+        [{"product_id": product_id, "quantity": 1, "unit_price": 3000}], payment_method_id=sale_method(test_db),
     )
     invoice_number = get_order(test_db, order_id)["order"]["invoice_number"]
 
@@ -579,7 +579,7 @@ def test_invoice_number_shared_sequence_across_statuses(test_db, order_setup):
     expected_invoices = ["INV-000001", "INV-000002", "INV-000003", "INV-000004"]
 
     for status, expected_invoice in zip(statuses, expected_invoices):
-        order_id = record_order(test_db, "INSTAGRAM", item, status=status)
+        order_id = record_order(test_db, "INSTAGRAM", item, status=status, payment_method_id=sale_method(test_db))
         assert (
             get_order(test_db, order_id)["order"]["invoice_number"] == expected_invoice
         )
@@ -600,7 +600,7 @@ def test_canonical_website_order(test_db, canonical_setup):
         test_db,
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 2, "unit_price": 2_500_000}],
-        transaction_fee=50_000,
+        transaction_fee=50_000, payment_method_id=sale_method(test_db),
     )
 
     detail = get_order(test_db, order_id)
@@ -640,7 +640,7 @@ def test_in_person_order_has_no_shipping_postage_or_packaging_by_default(
     order_id = record_order(
         test_db,
         "IN_PERSON",
-        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
+        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}], payment_method_id=sale_method(test_db),
     )
 
     order = get_order(test_db, order_id)["order"]
@@ -658,7 +658,7 @@ def test_wholesale_order_no_shipping_but_postage_estimate_applies(
     order_id = record_order(
         test_db,
         "WHOLESALE",
-        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_000_000}],
+        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_000_000}], payment_method_id=sale_method(test_db),
     )
 
     order = get_order(test_db, order_id)["order"]
@@ -674,7 +674,7 @@ def test_overrides_shipping_charge_zero_and_no_packaging(test_db, canonical_setu
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
         shipping_charge=0,
-        packaging_kit_id=None,
+        packaging_kit_id=None, payment_method_id=sale_method(test_db),
     )
 
     order = get_order(test_db, order_id)["order"]
@@ -692,7 +692,7 @@ def test_explicit_postage_override_wins_even_when_channel_does_not_apply_postage
         test_db,
         "IN_PERSON",
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
-        postage_cost=99_999,
+        postage_cost=99_999, payment_method_id=sale_method(test_db),
     )
 
     order = get_order(test_db, order_id)["order"]
@@ -708,7 +708,7 @@ def test_draft_commit_uses_postage_estimate_live_at_commit_time(
         test_db,
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
-        status="DRAFT",
+        status="DRAFT", payment_method_id=sale_method(test_db),
     )
 
     order = get_order(test_db, order_id)["order"]
@@ -739,13 +739,13 @@ def test_draft_to_paid_fails_when_stock_ran_out_in_the_meantime(
         test_db,
         "WEBSITE",
         [{"product_id": vinyl_id, "quantity": 10, "unit_price": 2_500_000}],
-        status="DRAFT",
+        status="DRAFT", payment_method_id=sale_method(test_db),
     )
 
     record_order(
         test_db,
         "IN_PERSON",
-        [{"product_id": vinyl_id, "quantity": 10, "unit_price": 2_500_000}],
+        [{"product_id": vinyl_id, "quantity": 10, "unit_price": 2_500_000}], payment_method_id=sale_method(test_db),
     )
     assert get_product(test_db, vinyl_id)["current_stock"] == 0
 
@@ -770,7 +770,7 @@ def test_illegal_transitions_raise_conflict_error(
         test_db,
         "IN_PERSON",
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
-        status=from_status,
+        status=from_status, payment_method_id=sale_method(test_db),
     )
 
     with pytest.raises(ConflictError):
@@ -785,7 +785,7 @@ def test_changing_default_shipping_charge_does_not_affect_existing_order(
     order_id = record_order(
         test_db,
         "WEBSITE",
-        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
+        [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}], payment_method_id=sale_method(test_db),
     )
     # The seeded default: 1,800,000 Rial (180,000 x 10, migration 009).
     assert get_order(test_db, order_id)["order"]["shipping_charge"] == 1_800_000
@@ -805,7 +805,7 @@ def test_record_order_requires_a_whole_number_quantity(test_db, quantity):
     with pytest.raises(ValidationError) as exc_info:
         record_order(
             test_db, "IN_PERSON",
-            [{"product_id": product_id, "quantity": quantity, "unit_price": 3000}],
+            [{"product_id": product_id, "quantity": quantity, "unit_price": 3000}], payment_method_id=sale_method(test_db),
         )
     assert exc_info.value.field == "quantity"
     assert test_db.execute("SELECT COUNT(*) FROM order_items").fetchone()[0] == 0
@@ -819,7 +819,7 @@ def test_cogs_and_product_cost_are_integers(test_db):
     test_db.commit()
     record_order(
         test_db, "IN_PERSON",
-        [{"product_id": product_id, "quantity": 3, "unit_price": 3000}],
+        [{"product_id": product_id, "quantity": 3, "unit_price": 3000}], payment_method_id=sale_method(test_db),
     )
     assert get_profit_and_loss(test_db)["cogs"] == 1500
     assert isinstance(get_profit_and_loss(test_db)["cogs"], int)
@@ -843,7 +843,7 @@ def test_get_order_items_carry_the_list_unit_price(
     order_id = record_order(
         test_db, "IN_PERSON",
         [{"product_id": product_id, "quantity": quantity, "unit_price": unit_price,
-          "discount_amount": discount}],
+          "discount_amount": discount}], payment_method_id=sale_method(test_db),
     )
     (item,) = get_order(test_db, order_id)["items"]
     assert item["list_unit_price"] == list_unit
@@ -861,7 +861,7 @@ def test_list_unit_price_times_quantity_is_always_the_list_price(test_db):
         record_order(
             test_db, "IN_PERSON",
             [{"product_id": product_id, "quantity": quantity, "unit_price": unit_price,
-              "discount_amount": discount}],
+              "discount_amount": discount}], payment_method_id=sale_method(test_db),
         )
         for quantity, unit_price, discount in (
             (1, 12_345, 0), (3, 12_345, 7), (7, 999, 1), (13, 1, 13), (2, 0, 0),

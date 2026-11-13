@@ -64,7 +64,7 @@ def build_shop(conn: sqlite3.Connection) -> dict:
                      status="PAID"),
         record_order(conn, "WEBSITE", [{"product_id": ids["lp"], "quantity": 1, "unit_price": 3000000}], payment_method_id=ids["digipay_dup"],
                      status="PAID"),
-        record_order(conn, "IN_PERSON", [{"product_id": ids["made"], "quantity": 1, "unit_price": 900000}], status="COMPLETED"),
+        record_order(conn, "IN_PERSON", [{"product_id": ids["made"], "quantity": 1, "unit_price": 900000}], status="COMPLETED", payment_method_id=ids["card"]),
     ]
     ids["settlement"] = record_settlement(conn, ids["zarinpal"], day, 100, order_ids=[ids["orders"][0]])
     add_expense(conn, ids["expense_category"], 400000, "courier", day)

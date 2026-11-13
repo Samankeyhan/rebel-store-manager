@@ -15,7 +15,7 @@ from api.main import app
 from db.connection import get_connection, init_db
 from db.currency import format_display_number
 from pdf import invoice as invoice_module
-from tests.helpers import stocked_product
+from tests.helpers import make_legacy_no_method, stocked_product
 
 TODAY = date(2026, 10, 6)  # 14 Mehr 1405
 
@@ -449,10 +449,9 @@ def test_order_fee_must_be_strict_int(api, shop, bad):
 
 def test_order_without_method_field_uses_channel_default(api, shop):
     client, _ = api
-    # No channel default: "default" means no method, fee 0.
-    created = _order(client, shop)
-    assert created["order"]["payment_method_id"] is None
-    assert _fee(created) == 0
+    # No channel default: "default" resolves to no method, which a sale refuses.
+    error = _error(_order(client, shop, expected=422))
+    assert (error["code"], error["field"]) == ("PAYMENT_METHOD_REQUIRED", "payment_method_id")
 
     _call(client, "patch", "/settings/channels/WEBSITE", 200, json={"default_payment_method_id": shop["zarinpal"]})
     for extra in ({}, {"payment_method_id": "default"}):
@@ -465,7 +464,8 @@ def test_order_without_method_field_uses_channel_default(api, shop):
 def test_order_explicit_null_and_int_method(api, shop):
     client, _ = api
     _call(client, "patch", "/settings/channels/WEBSITE", 200, json={"default_payment_method_id": shop["zarinpal"]})
-    assert _order(client, shop, payment_method_id=None)["order"]["payment_method_id"] is None
+    error = _error(_order(client, shop, expected=422, payment_method_id=None))
+    assert (error["code"], error["field"]) == ("PAYMENT_METHOD_REQUIRED", "payment_method_id")
     created = _order(client, shop, payment_method_id=shop["digipay"], payment_reference="DG-1")
     assert created["order"]["payment_method_id"] == shop["digipay"]
     assert created["order"]["payment_reference"] == "DG-1"
@@ -560,7 +560,7 @@ def test_status_change_without_paid_date_uses_today(api, shop):
 
 def test_status_change_rejects_unknown_fields(api, shop):
     client, _ = api
-    order_id = _order(client, shop, status="PENDING")["order"]["id"]
+    order_id = _order(client, shop, status="PENDING", payment_method_id=shop["card"])["order"]["id"]
     response = _call(client, "post", f"/orders/{order_id}/status", 422, json={"status": "PAID", "paid": True})
     assert "paid" in _pydantic_fields(response)
 
@@ -908,9 +908,11 @@ def test_deactivated_method_still_settles_over_http(api, shop):
 
 
 def test_payment_method_report_endpoint(api, shop):
-    client, _ = api
+    client, conn = api
     _order(client, shop, payment_method_id=shop["zarinpal"], order_date="2026-10-01")
-    _order(client, shop, payment_method_id=None, order_date="2026-10-01", transaction_fee=700)
+    # An order from before the payment-method rule: recorded with a method, then made method-less.
+    legacy = _order(client, shop, payment_method_id=shop["card"], order_date="2026-10-01", transaction_fee=700)
+    make_legacy_no_method(conn, legacy["order"]["id"])
     rows = _call(client, "get", "/reports/payment-methods", 200)
     assert [r["name"] for r in rows] == ["Card to card", "Digipay", "Zarinpal", None]
     zarinpal = rows[2]

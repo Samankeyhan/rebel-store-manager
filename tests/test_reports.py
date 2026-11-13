@@ -24,7 +24,7 @@ from db.settings import update_channel_settings
 from db.supplier_payments import delete_supplier_payment, record_supplier_payment
 from db.suppliers import add_supplier
 from db.timeutil import to_utc_range
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def report_setup(test_db):
         [{"product_id": product_a_id, "quantity": 2, "unit_price": 3000}],
         shipping_charge=100,
         postage_cost=50,
-        transaction_fee=20,
+        transaction_fee=20, payment_method_id=sale_method(test_db),
     )
     test_db.execute(
         "UPDATE orders SET order_date = ? WHERE id = ?",
@@ -77,7 +77,7 @@ def report_setup(test_db):
     order_website = record_order(
         test_db,
         "WEBSITE",
-        [{"product_id": product_b_id, "quantity": 1, "unit_price": 1500}],
+        [{"product_id": product_b_id, "quantity": 1, "unit_price": 1500}], payment_method_id=sale_method(test_db),
     )
     test_db.execute(
         "UPDATE orders SET order_date = ? WHERE id = ?",
@@ -218,7 +218,7 @@ def _channel_order(conn, product_id, channel, price):
         postage_cost=0,
         transaction_fee=0,
         packaging_kit_id=None,
-        order_date="2026-03-10",
+        order_date="2026-03-10", payment_method_id=sale_method(conn),
     )
 
 
@@ -463,13 +463,13 @@ def test_get_shipping_summary_shipped_order_count(test_db):
         test_db,
         "IN_PERSON",
         [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
     record_order(
         test_db,
         "WEBSITE",
         [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
 
     shipping = get_shipping_summary(test_db)
@@ -504,10 +504,10 @@ def test_get_shipping_summary_excludes_non_shipping_channel_costs(test_db):
 
     record_order(
         test_db, "IN_PERSON", item,
-        packaging_kit_id=kit_id, shipping_charge=50_000, postage_cost=30_000,
+        packaging_kit_id=kit_id, shipping_charge=50_000, postage_cost=30_000, payment_method_id=sale_method(test_db),
     )
     for _ in range(2):
-        record_order(test_db, "WEBSITE", item, packaging_kit_id=kit_id, postage_cost=200_000)
+        record_order(test_db, "WEBSITE", item, packaging_kit_id=kit_id, postage_cost=200_000, payment_method_id=sale_method(test_db))
     postage.record_postage_batch(test_db, total_paid=200_000, order_count=1)
 
     shipping = get_shipping_summary(test_db)
@@ -558,10 +558,10 @@ def test_get_shipping_summary_estimated_fields_exclude_non_shipping_channel(test
 
     record_order(
         test_db, "IN_PERSON", item,
-        packaging_kit_id=kit_id, shipping_charge=50_000, postage_cost=30_000,
+        packaging_kit_id=kit_id, shipping_charge=50_000, postage_cost=30_000, payment_method_id=sale_method(test_db),
     )
     for _ in range(2):
-        record_order(test_db, "WEBSITE", item, packaging_kit_id=kit_id, postage_cost=200_000)
+        record_order(test_db, "WEBSITE", item, packaging_kit_id=kit_id, postage_cost=200_000, payment_method_id=sale_method(test_db))
     postage.record_postage_batch(test_db, total_paid=150_000, order_count=1)
 
     shipping = get_shipping_summary(test_db)
@@ -600,7 +600,7 @@ def test_get_shipping_summary_estimated_result_with_unpaid_postage(test_db):
             shipping_charge=50_000,
             packaging_kit_id=None,
             postage_cost=100_000,
-            status="PAID",
+            status="PAID", payment_method_id=sale_method(test_db),
         )
     postage.record_postage_batch(test_db, total_paid=100_000, order_count=1)
 
@@ -633,7 +633,7 @@ def test_get_shipping_summary_estimated_average_rounds_like_by_channel(test_db):
             [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
             shipping_charge=0,
             packaging_kit_id=None,
-            postage_cost=postage_cost,
+            postage_cost=postage_cost, payment_method_id=sale_method(test_db),
         )
 
     shipping = get_shipping_summary(test_db)
@@ -664,20 +664,20 @@ def test_get_shipping_by_channel(test_db):
         test_db,
         "WEBSITE",
         [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
     record_order(
         test_db,
         "WHOLESALE",
         [{"product_id": product_id, "quantity": 2, "unit_price": 1000}],
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
     # IN_PERSON never ships (applies_postage = 0) — must not appear at all.
     record_order(
         test_db,
         "IN_PERSON",
         [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
 
     rows = get_shipping_by_channel(test_db)
@@ -739,7 +739,7 @@ def full_scenario_setup(test_db):
         [{"product_id": vinyl_id, "quantity": 2, "unit_price": 2_500_000}],
         transaction_fee=50_000,
         order_date="2026-03-10",
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
 
     order_b_id = record_order(
@@ -748,7 +748,7 @@ def full_scenario_setup(test_db):
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
         transaction_fee=30_000,
         order_date="2026-03-11",
-        status="COMPLETED",
+        status="COMPLETED", payment_method_id=sale_method(test_db),
     )
     process_return(test_db, order_b_id, "REFUNDED")
 
@@ -848,7 +848,7 @@ def test_full_scenario_cancellation_contributes_fee_only_to_refund_losses(
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_500_000}],
         transaction_fee=25_000,
         order_date="2026-04-01",
-        status="PAID",
+        status="PAID", payment_method_id=sale_method(test_db),
     )
     assert get_product(test_db, vinyl_id)["current_stock"] == stock_before - 1
 
@@ -983,7 +983,7 @@ def channel_scenario(full_scenario_setup, test_db):
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_800_000}],
         transaction_fee=40_000,
         order_date="2026-03-13",
-        status="PAID",
+        status="PAID", payment_method_id=sale_method(test_db),
     )
     cancelled_id = record_order(
         test_db,
@@ -991,7 +991,7 @@ def channel_scenario(full_scenario_setup, test_db):
         [{"product_id": vinyl_id, "quantity": 1, "unit_price": 2_800_000}],
         transaction_fee=15_000,
         order_date="2026-03-13",
-        status="PAID",
+        status="PAID", payment_method_id=sale_method(test_db),
     )
     process_return(test_db, cancelled_id, "CANCELLED")
     return {**full_scenario_setup, "instagram_id": instagram_id, "cancelled_id": cancelled_id}
@@ -1242,7 +1242,7 @@ def test_shipping_averages_round_half_even(test_db, charges, expected):
             test_db, "WEBSITE",
             [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
             shipping_charge=charge, postage_cost=0, transaction_fee=0, packaging_kit_id=None,
-            status="COMPLETED",
+            status="COMPLETED", payment_method_id=sale_method(test_db),
         )
 
     shipping = get_shipping_summary(test_db)

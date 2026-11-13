@@ -18,7 +18,7 @@ from db.products import deactivate_product, get_product
 from db.purchases import record_product_purchase
 from db.reports import get_profit_and_loss
 from db.settlements import record_settlement
-from tests.helpers import stocked_product
+from tests.helpers import sale_method, stocked_product
 
 TODAY = date(2026, 10, 23)  # 1 Aban 1405
 DAY = "2026-10-10"  # Mehr 1405
@@ -37,12 +37,14 @@ def _line(product, quantity=1, price=3000):
 def _sell(conn, product, quantity=1, price=3000, **kwargs):
     kwargs.setdefault("packaging_kit_id", None)
     kwargs.setdefault("order_date", DAY)
+    kwargs.setdefault("payment_method_id", sale_method(conn))
     return record_order(conn, "IN_PERSON", _line(product, quantity, price), **kwargs)
 
 
 def _correct(conn, order_id, product, quantity=1, price=3000, reason="wrong price", **kwargs):
     kwargs.setdefault("packaging_kit_id", None)
     kwargs.setdefault("order_date", DAY)
+    kwargs.setdefault("payment_method_id", sale_method(conn))
     return correct_order(conn, order_id, reason, "IN_PERSON", _line(product, quantity, price), **kwargs)
 
 

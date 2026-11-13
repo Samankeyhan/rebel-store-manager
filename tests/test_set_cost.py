@@ -14,7 +14,7 @@ from db.products import add_product, get_product, set_product_cost
 from db.purchases import record_material_purchase
 from db.recipes import add_recipe_item, recipe_costs
 from tests.go_live_fixture import build_shop
-from tests.helpers import cat, stocked_product
+from tests.helpers import cat, sale_method, stocked_product
 from tools.integrity_check import __main__ as cli
 
 
@@ -39,7 +39,7 @@ def _sell(conn, product_id):
         shipping_charge=0,
         packaging_kit_id=None,
         postage_cost=0,
-        payment_method_id=None,
+        payment_method_id=sale_method(conn),
     )
 
 

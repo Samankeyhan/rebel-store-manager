@@ -11,7 +11,7 @@ from db.orders import record_order
 from db.products import add_product, get_product, list_products
 from db.recipes import add_recipe_item, calculate_recipe_cost, recipe_costs
 from db.reports import get_product_performance
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 
 
 def _product(conn, name="Album", made_to_order=True):
@@ -104,7 +104,7 @@ def test_recipe_cost_equals_calculate_recipe_cost_and_the_sale_make_cost(test_db
     add_recipe_item(test_db, product_id, setup, 1, "PER_BATCH")
     cost = recipe_costs(test_db)[product_id]["recipe_cost"]
     assert cost == calculate_recipe_cost(test_db, product_id, 1)
-    order_id = record_order(test_db, "IN_PERSON", [{"product_id": product_id, "quantity": 1, "unit_price": 570_000}])
+    order_id = record_order(test_db, "IN_PERSON", [{"product_id": product_id, "quantity": 1, "unit_price": 570_000}], payment_method_id=sale_method(test_db))
     frozen = test_db.execute("SELECT unit_cost_at_time FROM order_items WHERE order_id = ?", (order_id,)).fetchone()[0]
     assert frozen == cost
 
@@ -132,7 +132,7 @@ def test_performance_rows_carry_the_estimate_and_the_frozen_totals_do_not_move(t
     product_id = _product(test_db)
     cd = add_material(test_db, "Blank CD", "STOCK", 1_000, initial_stock=10)
     add_recipe_item(test_db, product_id, cd, 1)
-    record_order(test_db, "IN_PERSON", [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}])
+    record_order(test_db, "IN_PERSON", [{"product_id": product_id, "quantity": 2, "unit_price": 570_000}], payment_method_id=sale_method(test_db))
     test_db.execute("UPDATE materials SET unit_cost = 5000 WHERE id = ?", (cd,))  # the price rose after the sale
     (row,) = get_product_performance(test_db)
     assert row["total_cost"] == 2_000  # frozen at sale time
@@ -177,7 +177,7 @@ def test_api_products_and_report_expose_the_fields(api):
     assert one["recipe_cost_missing"] == listed["recipe_cost_missing"]
     conn.execute("UPDATE materials SET unit_cost = 500 WHERE id = ?", (sticker,))
     assert client.get(f"/products/{product_id}").json()["recipe_cost"] == 1_500
-    record_order(conn, "IN_PERSON", [{"product_id": product_id, "quantity": 1, "unit_price": 570_000}])
+    record_order(conn, "IN_PERSON", [{"product_id": product_id, "quantity": 1, "unit_price": 570_000}], payment_method_id=sale_method(conn))
     (report,) = client.get("/reports/products").json()
     assert report["recipe_cost"] == 1_500 and report["recipe_cost_status"] == "COMPLETE"
     assert report["recipe_cost_missing"] == [] and report["unit_cost"] is None

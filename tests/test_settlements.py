@@ -22,7 +22,7 @@ from db.settlements import (
     record_settlement,
     update_settlement,
 )
-from tests.helpers import stocked_product
+from tests.helpers import make_legacy_no_method, stocked_product
 
 TODAY = date(2026, 10, 6)  # 14 Mehr 1405
 
@@ -62,6 +62,11 @@ def _order(conn, setup, method_key, paid, price=100000, status="COMPLETED", **kw
         status=status,
         **kwargs,
     )
+
+
+def _legacy_order(conn, setup, paid, **kwargs):
+    """An order from before the payment-method rule (no method): recorded with one, then made method-less."""
+    return make_legacy_no_method(conn, _order(conn, setup, "card", paid, **kwargs))
 
 
 def _settlement_id_of(conn, order_id):
@@ -159,7 +164,7 @@ def test_pending_orders_include_every_method_sorted_by_name(test_db, setup):
 
 def test_pending_skips_methods_without_pending_orders_and_unpaid_orders(test_db, setup):
     _order(test_db, setup, "zarinpal", "2026-10-01", status="PENDING")
-    _order(test_db, setup, None, "2026-10-01")
+    _legacy_order(test_db, setup, "2026-10-01")
     assert get_pending(test_db) == []
 
 
@@ -515,7 +520,7 @@ def test_duplicate_order_ids_rejected(test_db, setup):
 def test_foreign_method_order_rejected(test_db, setup):
     mine = _order(test_db, setup, "card", "2026-10-01")
     foreign = _order(test_db, setup, "zarinpal", "2026-10-01")
-    no_method = _order(test_db, setup, None, "2026-10-01")
+    no_method = _legacy_order(test_db, setup, "2026-10-01")
     for bad in (foreign, no_method):
         with pytest.raises(ValidationError, match=f"Order #{bad} was not paid with 'Card to card'") as exc_info:
             record_settlement(test_db, setup["card"], "2026-10-02", 1, order_ids=[mine, bad])

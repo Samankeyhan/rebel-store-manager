@@ -18,7 +18,7 @@ from db.purchases import record_material_purchase, record_product_purchase
 from db.recipes import add_recipe_item
 from db.reports import get_profit_and_loss, get_purchases_summary, get_shipping_summary
 from db.suppliers import add_supplier
-from tests.helpers import cat
+from tests.helpers import cat, sale_method
 
 
 @pytest.fixture
@@ -75,13 +75,13 @@ def seeded(api):
 
     order_id = record_order(
         conn, "INSTAGRAM",
-        [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
+        [{"product_id": product_id, "quantity": 1, "unit_price": 1000}], payment_method_id=sale_method(conn),
     )
 
     draft_order_id = record_order(
         conn, "INSTAGRAM",
         [{"product_id": product_id, "quantity": 1, "unit_price": 1000}],
-        status="DRAFT",
+        status="DRAFT", payment_method_id=sale_method(conn),
     )
 
     partner_id = add_partner(conn, "Alex", 100)
