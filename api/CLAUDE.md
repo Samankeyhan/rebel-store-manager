@@ -12,6 +12,7 @@
   - `POST /orders/bulk-status`: PAID → COMPLETED for 1..200 orders, one transaction and audit operation; any non-PAID order is a 409 `ORDER_BULK_NOT_ELIGIBLE` for the whole call.
   - `shipping_charge`, `postage_cost`, `transaction_fee`: `null`/omitted = default/computed; `0` is a real override.
   - `paid_date` only for PAID/COMPLETED. Also on `POST /orders/{id}/status`; moved via `PATCH /orders/{id}/paid-date`.
+  - `PATCH /orders/{id}` (light edit, `OrderEdit`): only the sent fields change; `payment_method_id` and `paid_date` cannot be `null`; `transaction_fee` only with `payment_method_id` or `shipping_charge`. `POST /orders/{id}/edit-preview` takes the same body, writes nothing and returns before/after plus `blockers`.
 - `POST /settlements`: `order_ids` for IMMEDIATE/DAYS_AFTER; `jalali_year` + `jalali_month` for DAY_OF_NEXT_MONTH (`order_ids` there is a 422). `difference` comes from `db/`.
 - `PUT /settings/{key}`: only `VALID_SETTING_KEYS`, enforced in `db.settings.set_setting`.
 - Tests: `with TestClient(app)` runs `init_db` on `$REBEL_DB`; the autouse fixture in `tests/conftest.py` points it at a temp file. Keep it.

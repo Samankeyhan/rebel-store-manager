@@ -86,3 +86,16 @@ def test_today_local_follows_the_timezone_setting(test_db, zone):
     value = today_local(test_db)
     after = datetime.now(ZoneInfo(zone)).date()
     assert value in (before, after)
+
+
+def test_move_to_local_day_keeps_the_local_time_and_lands_on_the_day():
+    from datetime import date
+
+    from db.timeutil import local_day, move_to_local_day
+
+    # Tehran midnight (20:30 UTC the day before) stays midnight across a Jalali month end.
+    assert move_to_local_day("2026-10-21 20:30:00", date(2026, 10, 23)) == "2026-10-22 20:30:00"
+    assert move_to_local_day("2026-10-22 10:45:00", date(2026, 9, 1)) == "2026-09-01 10:45:00"
+    for moment in ("2026-10-21 20:30:00", "2026-10-21 20:29:59", "2026-10-22 00:00:00"):
+        for day in (date(2026, 3, 20), date(2026, 3, 21), date(2027, 1, 1)):
+            assert local_day(move_to_local_day(moment, day)) == day

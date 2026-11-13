@@ -94,6 +94,18 @@ def local_day(moment_utc: str, conn: sqlite3.Connection | None = None) -> date:
     return moment.astimezone(_get_timezone(conn)).date()
 
 
+def move_to_local_day(moment_utc: str, day: date, conn: sqlite3.Connection | None = None) -> str:
+    """The stored UTC moment moved to local calendar `day`, keeping its local time of day; `local_day` of the
+    result is always `day` (a local time that does not exist on that day, a DST gap, falls back to local midnight)."""
+    tz = _get_timezone(conn)
+    moment = datetime.strptime(moment_utc, _STORED_FORMAT).replace(tzinfo=UTC)
+    local_time = moment.astimezone(tz).time()
+    moved = _local_to_utc_text(datetime.combine(day, local_time), tz)
+    if local_day(moved, conn) != day:
+        moved = _local_to_utc_text(datetime.combine(day, datetime.min.time()), tz)
+    return moved
+
+
 def refuse_future_day(conn: sqlite3.Connection, day: date, field: str) -> None:
     """A record date after today_local() is refused: 422 DATE_IN_FUTURE, details {"today"}, `field` = the date."""
     today = today_local(conn)

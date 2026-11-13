@@ -266,3 +266,87 @@ class VoidPreviewOut(BaseModel):
     order_day: str
     order_jalali_year: int
     order_jalali_month: int
+
+
+class OrderEdit(BaseModel):
+    """A light edit (accounting-rules section 20, "Light edit"): only the fields sent change; omitted = unchanged.
+    Days are local "YYYY-MM-DD"; order_date keeps the order's local time of day. payment_method_id and paid_date
+    cannot be cleared; transaction_fee only with payment_method_id or shipping_charge (omitted = recomputed)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    order_date: DateStr | None = None
+    payment_method_id: StrictInt | None = None
+    transaction_fee: Money | None = None
+    payment_reference: str | None = None
+    paid_date: DateStr | None = None
+    shipping_charge: Money | None = None
+    postage_cost: Money | None = None
+    customer_name: str | None = None
+    notes: str | None = None
+
+
+class OrderEditBlockerOut(BaseModel):
+    """A rule that refuses the edit now: the ErrorCode the edit would answer with, and its details."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    details: dict[str, str | int | list[str] | None]
+
+
+class OrderEditChangeOut(BaseModel):
+    """One edited field, before and after (order_date as the local day; money as integer Rial)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    field: str
+    before: int | str | None
+    after: int | str | None
+
+
+class FigureRialOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    before: Rial
+    after: Rial
+
+
+class FigureRialOrNoneOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    before: Rial | None
+    after: Rial | None
+
+
+class FigureDayOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    before: str | None
+    after: str | None
+
+
+class OrderEditFiguresOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    order_day: FigureDayOut
+    customer_total: FigureRialOut
+    transaction_fee: FigureRialOut
+    profit: FigureRialOut
+    expected_settlement_date: FigureDayOut
+    paid_date: FigureDayOut
+    # customer_total − fee while the order is pending settlement (None when it is not).
+    settlement_amount: FigureRialOrNoneOut
+
+
+class OrderEditPreviewOut(BaseModel):
+    """What the edit would change; `blockers` is empty when it may be saved."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    order_id: int
+    invoice_number: str | None
+    status: str
+    changes: list[OrderEditChangeOut]
+    figures: OrderEditFiguresOut
+    blockers: list[OrderEditBlockerOut]

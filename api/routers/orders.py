@@ -13,6 +13,8 @@ from api.schemas.orders import (
     OrderCorrection,
     OrderCreate,
     OrderDetailOut,
+    OrderEdit,
+    OrderEditPreviewOut,
     OrderListItemOut,
     OrderPaidDateUpdate,
     OrderReturn,
@@ -29,6 +31,7 @@ from db.orders import (
     set_paid_date,
     update_order_status,
 )
+from db.order_edits import edit_order, plan_order_edit
 from db.order_voids import correct_order, plan_void, void_order
 from db.returns import process_return
 from pdf.invoice import generate_invoice_pdf
@@ -153,6 +156,26 @@ def correct(order_id: int, body: OrderCorrection, conn: sqlite3.Connection = Dep
     args = _record_args(body.order)
     new_id = correct_order(conn, order_id, body.reason, args.pop("channel"), args.pop("items"), **args)
     return OrderDetailOut.model_validate(get_order(conn, new_id))
+
+
+@router.post("/orders/{order_id}/edit-preview", response_model=OrderEditPreviewOut)
+def read_edit_preview(
+    order_id: int, body: OrderEdit, conn: sqlite3.Connection = Depends(get_db)
+) -> OrderEditPreviewOut:
+    """Read-only: what PATCH /orders/{order_id} with this body would change (each field and the derived figures,
+    before and after) and every rule that refuses it now (`blockers`). Input errors are 422, as the edit's."""
+    changes = body.model_dump(exclude_unset=True)
+    return OrderEditPreviewOut.model_validate(plan_order_edit(conn, order_id, changes))
+
+
+@router.patch("/orders/{order_id}", response_model=OrderDetailOut)
+def edit(order_id: int, body: OrderEdit, conn: sqlite3.Connection = Depends(get_db)) -> OrderDetailOut:
+    """Light edit (accounting-rules section 20): change the sent fields in place, in one audited operation. Items,
+    quantities, prices and the packaging kit go through /correct. 409 ORDER_ALREADY_VOIDED, ORDER_EDIT_NOT_ALLOWED,
+    ORDER_NOT_PAID, ORDER_ALREADY_SETTLED (postage_cost and the text fields are still allowed),
+    PERIOD_ALREADY_DISTRIBUTED, MONTH_ALREADY_SETTLED; 422 for an empty body or a bad value."""
+    edit_order(conn, order_id, **body.model_dump(exclude_unset=True))
+    return OrderDetailOut.model_validate(get_order(conn, order_id))
 
 
 @router.post("/orders/{order_id}/status", response_model=OrderDetailOut)

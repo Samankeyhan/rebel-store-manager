@@ -68,6 +68,8 @@ class ErrorCode(StrEnum):
     VOID_REASON_REQUIRED             - (field reason)
     ORDER_BULK_NOT_ELIGIBLE          ineligible: [{order_id, invoice_number, status}]: a bulk status change found orders
                                      that are not in the status it moves from (PAID for PAID -> COMPLETED); nothing changed
+    ORDER_EDIT_NOT_ALLOWED           order_id, status, fields (the money/date fields asked for): a light edit of
+                                     amounts or dates on an order that is not PENDING/PAID/COMPLETED and committed
     SUPPLIER_REQUIRED_FOR_CREDIT     - (field supplier_id): a purchase not paid in full needs a supplier
     SUPPLIER_PAYMENT_EXCEEDS_DUE     purchase_id (the purchase invoice), outstanding: an allocation is larger than what
                                      the purchase still owes
@@ -179,6 +181,7 @@ class ErrorCode(StrEnum):
     STOCKTAKE_AFTER_SALE = "STOCKTAKE_AFTER_SALE"
     VOID_REASON_REQUIRED = "VOID_REASON_REQUIRED"
     ORDER_BULK_NOT_ELIGIBLE = "ORDER_BULK_NOT_ELIGIBLE"
+    ORDER_EDIT_NOT_ALLOWED = "ORDER_EDIT_NOT_ALLOWED"
 
     # Supplier payables
     SUPPLIER_REQUIRED_FOR_CREDIT = "SUPPLIER_REQUIRED_FOR_CREDIT"
