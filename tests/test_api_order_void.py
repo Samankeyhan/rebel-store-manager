@@ -1,13 +1,16 @@
 """GET /orders/{id}/void-preview, POST /orders/{id}/void and /orders/{id}/correct, and VOIDED in GET /orders: the
 HTTP contract of voiding and correcting a sale entered by mistake (accounting-rules section 20)."""
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import TypeAdapter
 
 from api.main import app
 from api.schemas.errors import ErrorEnvelope
-from tests.helpers import api_sale_method
+from db.connection import get_connection
+from tests.helpers import api_sale_method, make_legacy_no_method
 
 ENVELOPE = TypeAdapter(ErrorEnvelope)
 DAY = "2026-10-10"
@@ -53,6 +56,12 @@ def _stock(client, product):
 
 
 def test_the_preview_lists_what_comes_back_and_no_blocker(client, order, product):
+    # The order is one from before a method was required: no method, so it never waits for settlement.
+    conn = get_connection(os.environ["REBEL_DB"])
+    try:
+        make_legacy_no_method(conn, order["id"])
+    finally:
+        conn.close()
     response = client.get(f"/orders/{order['id']}/void-preview")
     assert response.status_code == 200, response.text
     body = response.json()
