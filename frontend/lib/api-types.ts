@@ -460,7 +460,14 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit
+         * @description Light edit (accounting-rules section 20): change the sent fields in place, in one audited operation. Items,
+         *     quantities, prices and the packaging kit go through /correct. 409 ORDER_ALREADY_VOIDED, ORDER_EDIT_NOT_ALLOWED,
+         *     ORDER_NOT_PAID, ORDER_ALREADY_SETTLED (postage_cost and the text fields are still allowed),
+         *     PERIOD_ALREADY_DISTRIBUTED, MONTH_ALREADY_SETTLED; 422 for an empty body or a bad value.
+         */
+        patch: operations["edit_orders__order_id__patch"];
         trace?: never;
     };
     "/orders/{order_id}/void-preview": {
@@ -523,6 +530,27 @@ export interface paths {
          *     (the void's, the new sale's, a closed new day) leaves both as they were.
          */
         post: operations["correct_orders__order_id__correct_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{order_id}/edit-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Edit Preview
+         * @description Read-only: what PATCH /orders/{order_id} with this body would change (each field and the derived figures,
+         *     before and after) and every rule that refuses it now (`blockers`). Input errors are 422, as the edit's.
+         */
+        post: operations["read_edit_preview_orders__order_id__edit_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2699,6 +2727,21 @@ export interface components {
             code: "ORDER_BULK_NOT_ELIGIBLE";
             details: components["schemas"]["OrderBulkNotEligibleDetails"];
         };
+        /** ErrorBodyOrderEditNotAllowed */
+        ErrorBodyOrderEditNotAllowed: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "ORDER_EDIT_NOT_ALLOWED";
+            details: components["schemas"]["OrderEditNotAllowedDetails"];
+        };
         /** ErrorBodyOrderNotPaid */
         ErrorBodyOrderNotPaid: {
             /** Type */
@@ -3137,7 +3180,7 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             /** Error */
-            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodyMaterialRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodyOrderBulkNotEligible"] | components["schemas"]["ErrorBodySupplierRequiredForCredit"] | components["schemas"]["ErrorBodyPurchaseDue"] | components["schemas"]["ErrorBodySupplierBalance"] | components["schemas"]["ErrorBodyPurchaseSupplier"] | components["schemas"]["ErrorBodyAllocationMismatch"] | components["schemas"]["ErrorBodyPaymentBeforePurchase"] | components["schemas"]["ErrorBodySupplierPaymentRef"] | components["schemas"]["ErrorBodyPurchaseRef"] | components["schemas"]["ErrorBodyPurchaseDuplicateItem"] | components["schemas"]["ErrorBodyServicePurchaseNeedsTotal"] | components["schemas"]["ErrorBodyPurchaseAlreadyCancelled"] | components["schemas"]["ErrorBodyPurchaseHasPayments"] | components["schemas"]["ErrorBodyPurchaseStockUsed"] | components["schemas"]["ErrorBodyStocktakeAfterPurchase"] | components["schemas"]["ErrorBodyPurchaseCostChanged"] | components["schemas"]["ErrorBodyPurchaseLine"] | components["schemas"]["ErrorBodyPurchaseCorrectionBelowPaid"] | components["schemas"]["ErrorBodyBackupFailed"];
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodyMaterialRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodyOrderBulkNotEligible"] | components["schemas"]["ErrorBodyOrderEditNotAllowed"] | components["schemas"]["ErrorBodySupplierRequiredForCredit"] | components["schemas"]["ErrorBodyPurchaseDue"] | components["schemas"]["ErrorBodySupplierBalance"] | components["schemas"]["ErrorBodyPurchaseSupplier"] | components["schemas"]["ErrorBodyAllocationMismatch"] | components["schemas"]["ErrorBodyPaymentBeforePurchase"] | components["schemas"]["ErrorBodySupplierPaymentRef"] | components["schemas"]["ErrorBodyPurchaseRef"] | components["schemas"]["ErrorBodyPurchaseDuplicateItem"] | components["schemas"]["ErrorBodyServicePurchaseNeedsTotal"] | components["schemas"]["ErrorBodyPurchaseAlreadyCancelled"] | components["schemas"]["ErrorBodyPurchaseHasPayments"] | components["schemas"]["ErrorBodyPurchaseStockUsed"] | components["schemas"]["ErrorBodyStocktakeAfterPurchase"] | components["schemas"]["ErrorBodyPurchaseCostChanged"] | components["schemas"]["ErrorBodyPurchaseLine"] | components["schemas"]["ErrorBodyPurchaseCorrectionBelowPaid"] | components["schemas"]["ErrorBodyBackupFailed"];
         };
         /**
          * ErrorItem
@@ -3250,6 +3293,33 @@ export interface components {
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
             expected_amount: number;
+        };
+        /** FigureDayOut */
+        FigureDayOut: {
+            /** Before */
+            before: string | null;
+            /** After */
+            after: string | null;
+        };
+        /** FigureRialOrNoneOut */
+        FigureRialOrNoneOut: {
+            /** Before */
+            before: number | null;
+            /** After */
+            after: number | null;
+        };
+        /** FigureRialOut */
+        FigureRialOut: {
+            /**
+             * Before
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            before: number;
+            /**
+             * After
+             * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
+             */
+            after: number;
         };
         /** InsufficientStockDetails */
         InsufficientStockDetails: {
@@ -3614,6 +3684,92 @@ export interface components {
              * @description Integer Rial (the stored unit; Toman = Rial ÷ 10 is display only)
              */
             profit: number;
+        };
+        /**
+         * OrderEdit
+         * @description A light edit (accounting-rules section 20, "Light edit"): only the fields sent change; omitted = unchanged.
+         *     Days are local "YYYY-MM-DD"; order_date keeps the order's local time of day. payment_method_id and paid_date
+         *     cannot be cleared; transaction_fee only with payment_method_id or shipping_charge (omitted = recomputed).
+         */
+        OrderEdit: {
+            /** Order Date */
+            order_date?: string | null;
+            /** Payment Method Id */
+            payment_method_id?: number | null;
+            /** Transaction Fee */
+            transaction_fee?: number | null;
+            /** Payment Reference */
+            payment_reference?: string | null;
+            /** Paid Date */
+            paid_date?: string | null;
+            /** Shipping Charge */
+            shipping_charge?: number | null;
+            /** Postage Cost */
+            postage_cost?: number | null;
+            /** Customer Name */
+            customer_name?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * OrderEditBlockerOut
+         * @description A rule that refuses the edit now: the ErrorCode the edit would answer with, and its details.
+         */
+        OrderEditBlockerOut: {
+            /** Code */
+            code: string;
+            /** Details */
+            details: {
+                [key: string]: string | number | string[] | null;
+            };
+        };
+        /**
+         * OrderEditChangeOut
+         * @description One edited field, before and after (order_date as the local day; money as integer Rial).
+         */
+        OrderEditChangeOut: {
+            /** Field */
+            field: string;
+            /** Before */
+            before: number | string | null;
+            /** After */
+            after: number | string | null;
+        };
+        /** OrderEditFiguresOut */
+        OrderEditFiguresOut: {
+            order_day: components["schemas"]["FigureDayOut"];
+            customer_total: components["schemas"]["FigureRialOut"];
+            transaction_fee: components["schemas"]["FigureRialOut"];
+            profit: components["schemas"]["FigureRialOut"];
+            expected_settlement_date: components["schemas"]["FigureDayOut"];
+            paid_date: components["schemas"]["FigureDayOut"];
+            settlement_amount: components["schemas"]["FigureRialOrNoneOut"];
+        };
+        /** OrderEditNotAllowedDetails */
+        OrderEditNotAllowedDetails: {
+            /** Order Id */
+            order_id: number;
+            /** Status */
+            status: string;
+            /** Fields */
+            fields: string[];
+        };
+        /**
+         * OrderEditPreviewOut
+         * @description What the edit would change; `blockers` is empty when it may be saved.
+         */
+        OrderEditPreviewOut: {
+            /** Order Id */
+            order_id: number;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Status */
+            status: string;
+            /** Changes */
+            changes: components["schemas"]["OrderEditChangeOut"][];
+            figures: components["schemas"]["OrderEditFiguresOut"];
+            /** Blockers */
+            blockers: components["schemas"]["OrderEditBlockerOut"][];
         };
         /** OrderItemCreate */
         OrderItemCreate: {
@@ -5941,6 +6097,8 @@ export interface components {
          *     VOID_REASON_REQUIRED             - (field reason)
          *     ORDER_BULK_NOT_ELIGIBLE          ineligible: [{order_id, invoice_number, status}]: a bulk status change found orders
          *                                      that are not in the status it moves from (PAID for PAID -> COMPLETED); nothing changed
+         *     ORDER_EDIT_NOT_ALLOWED           order_id, status, fields (the money/date fields asked for): a light edit of
+         *                                      amounts or dates on an order that is not PENDING/PAID/COMPLETED and committed
          *     SUPPLIER_REQUIRED_FOR_CREDIT     - (field supplier_id): a purchase not paid in full needs a supplier
          *     SUPPLIER_PAYMENT_EXCEEDS_DUE     purchase_id (the purchase invoice), outstanding: an allocation is larger than what
          *                                      the purchase still owes
@@ -5977,7 +6135,7 @@ export interface components {
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_REQUIRED" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "MATERIAL_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "ORDER_BULK_NOT_ELIGIBLE" | "SUPPLIER_REQUIRED_FOR_CREDIT" | "SUPPLIER_PAYMENT_EXCEEDS_DUE" | "SUPPLIER_PAYMENT_EXCEEDS_BALANCE" | "SUPPLIER_PAYMENT_SUPPLIER_MISMATCH" | "SUPPLIER_PAYMENT_ALLOCATION_MISMATCH" | "SUPPLIER_PAYMENT_BEFORE_PURCHASE" | "SUPPLIER_PAYMENT_NOT_FOUND" | "PURCHASE_NOT_FOUND" | "PURCHASE_DUPLICATE_ITEM" | "SERVICE_PURCHASE_NEEDS_TOTAL" | "PURCHASE_ALREADY_CANCELLED" | "PURCHASE_HAS_PAYMENTS" | "PURCHASE_STOCK_USED" | "STOCKTAKE_AFTER_PURCHASE" | "PURCHASE_COST_CHANGED_SINCE" | "PURCHASE_COST_HISTORY_UNKNOWN" | "PURCHASE_CORRECTION_BELOW_PAID" | "BACKUP_FAILED";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_REQUIRED" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "MATERIAL_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "ORDER_BULK_NOT_ELIGIBLE" | "ORDER_EDIT_NOT_ALLOWED" | "SUPPLIER_REQUIRED_FOR_CREDIT" | "SUPPLIER_PAYMENT_EXCEEDS_DUE" | "SUPPLIER_PAYMENT_EXCEEDS_BALANCE" | "SUPPLIER_PAYMENT_SUPPLIER_MISMATCH" | "SUPPLIER_PAYMENT_ALLOCATION_MISMATCH" | "SUPPLIER_PAYMENT_BEFORE_PURCHASE" | "SUPPLIER_PAYMENT_NOT_FOUND" | "PURCHASE_NOT_FOUND" | "PURCHASE_DUPLICATE_ITEM" | "SERVICE_PURCHASE_NEEDS_TOTAL" | "PURCHASE_ALREADY_CANCELLED" | "PURCHASE_HAS_PAYMENTS" | "PURCHASE_STOCK_USED" | "STOCKTAKE_AFTER_PURCHASE" | "PURCHASE_COST_CHANGED_SINCE" | "PURCHASE_COST_HISTORY_UNKNOWN" | "PURCHASE_CORRECTION_BELOW_PAID" | "BACKUP_FAILED";
     };
     responses: never;
     parameters: never;
@@ -7723,6 +7881,68 @@ export interface operations {
             };
         };
     };
+    edit_orders__order_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     read_void_preview_orders__order_id__void_preview_get: {
         parameters: {
             query?: never;
@@ -7865,6 +8085,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderDetailOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    read_edit_preview_orders__order_id__edit_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderEditPreviewOut"];
                 };
             };
             /** @description App error (see ErrorBody.code) */

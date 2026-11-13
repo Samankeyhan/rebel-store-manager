@@ -8,6 +8,7 @@
 import { formatJalali } from "@/lib/jalali"
 import { currencyLabel, formatMoney, formatMoneyNumber } from "@/lib/money"
 import type { VoidRefusal } from "@/lib/order-correction"
+import type { EditRefusal } from "@/lib/order-edit"
 import { formatNumber, toPersianDigits } from "@/lib/persian-numbers"
 
 const fa = toPersianDigits
@@ -342,7 +343,7 @@ export const D = {
       case "closed":
         return `سود تا ${formatJalali(r.periodEnd)} بین شرکا تقسیم شده؛ فروش‌های این روزها دیگر تغییر نمی‌کند.`
       case "stocktake":
-        return `پس از این فروش، «${r.itemName}» در شمارش ${formatJalali(r.stocktakeDate)} شمرده شده؛ برگرداندن آن شمارش را به‌هم می‌زند.`
+        return `«${r.itemName}» بعد از این فروش در شمارش موجودی ${formatJalali(r.stocktakeDate)} شمرده شده است. باطل‌کردن یا اصلاح، کالای این سفارش را به موجودی برمی‌گرداند و آن شمارش دوبار حساب می‌شود. برای تاریخ، روش پرداخت، هزینهٔ ارسال یا پست از «ویرایش سفارش» استفاده کنید.`
       case "reason":
         return "دلیل باطل‌کردن را بنویسید."
     }
@@ -364,4 +365,77 @@ export const D = {
     "ممکن است نشانی اشتباه باشد یا ارتباط با سرور قطع شده باشد. اگر این سفارش را تازه ثبت کرده‌اید، چند لحظه بعد دوباره تلاش کنید.",
   notFoundBodyMobile: "ممکن است ارتباط قطع شده باشد. دوباره تلاش کنید.",
   backToOrders: "بازگشت به سفارش‌ها",
+  // ── light edit «ویرایش سفارش» (NEW) ──
+  editOrder: "ویرایش سفارش", // NEW
+  editTitle: (inv: string) => `ویرایش سفارش ${inv}`, // NEW
+  editSubtitle: "تاریخ، پرداخت، هزینهٔ ارسال، پست، مشتری و یادداشت؛ اقلام و تعداد با «اصلاح سفارش».", // NEW
+  editReview: "بررسی تغییرات", // NEW
+  editSave: "ذخیره تغییرات", // NEW
+  editBack: "بازگشت به فرم", // NEW
+  editNoChange: "چیزی تغییر نکرده است.", // NEW
+  editLoading: "در حال بررسی اثر تغییرات…", // NEW
+  editPreviewFailed: "اثر تغییرات خوانده نشد؛ دوباره تلاش کنید.", // NEW
+  editReviewLead: "این تغییرات ذخیره می‌شوند:", // NEW
+  editFiguresLead: "اثر روی حساب‌ها:", // NEW
+  editBefore: "قبل", // NEW
+  editAfter: "بعد", // NEW
+  editNone: "—", // NEW
+  toastEdited: "سفارش ویرایش شد", // NEW
+  editItemsNote: "اقلام، تعداد، قیمت، تخفیف و بسته‌بندی فقط با «اصلاح سفارش» تغییر می‌کنند.", // NEW
+  editLockedSettled: "این سفارش تسویه شده؛ تاریخ، روش پرداخت و هزینهٔ ارسال دیگر تغییر نمی‌کنند. هزینهٔ پست، مشتری و یادداشت هنوز قابل ویرایش‌اند.", // NEW
+  editLockedStatus: "برای این وضعیت فقط مشتری، شمارهٔ پیگیری و یادداشت قابل ویرایش‌اند.", // NEW
+  editPaidFollows: "تاریخ پرداخت هم همراه تاریخ سفارش جابه‌جا شد؛ در صورت نیاز تغییرش دهید.", // NEW
+  editOrderDateLabel: "تاریخ سفارش", // NEW
+  editMethodLabel: "روش پرداخت", // NEW
+  editMethodNone: "بدون روش پرداخت", // NEW
+  editMethodHelp: "کارمزد با قانون فعلی این روش دوباره حساب می‌شود.", // NEW
+  editReferenceLabel: "شمارهٔ پیگیری پرداخت", // NEW
+  editShippingLabel: "هزینهٔ ارسال (از مشتری)", // NEW
+  editShippingHelp: "جمع فاکتور و کارمزد تغییر می‌کنند؛ فاکتور را دوباره چاپ کنید.", // NEW
+  editPostageLabel: "هزینهٔ پست (هزینهٔ فروشگاه)", // NEW
+  editPostageHelp: "فقط سود این سفارش تغییر می‌کند.", // NEW
+  editCustomerLabel: "نام مشتری", // NEW
+  editNotesLabel: "یادداشت", // NEW
+  editFieldName: (field: string): string =>
+    ({
+      order_date: "تاریخ سفارش",
+      payment_method_id: "روش پرداخت",
+      transaction_fee: "کارمزد",
+      payment_reference: "شمارهٔ پیگیری",
+      paid_date: "تاریخ پرداخت",
+      shipping_charge: "هزینهٔ ارسال",
+      postage_cost: "هزینهٔ پست",
+      customer_name: "نام مشتری",
+      notes: "یادداشت",
+    })[field] ?? field, // NEW
+  editFigureName: (figure: string): string =>
+    ({
+      order_day: "روز فروش در گزارش‌ها",
+      customer_total: "جمع فاکتور",
+      transaction_fee: "کارمزد",
+      profit: "سود سفارش",
+      expected_settlement_date: "تاریخ مورد انتظار تسویه",
+      paid_date: "تاریخ پرداخت",
+      settlement_amount: "مبلغ در انتظار تسویه",
+    })[figure] ?? figure, // NEW
+  editRefusal: (r: EditRefusal): string => {
+    switch (r.kind) {
+      case "voided":
+        return "این سفارش باطل شده و دیگر ویرایش نمی‌شود."
+      case "notAllowed":
+        return "در این وضعیت تاریخ و مبلغ‌های سفارش تغییر نمی‌کنند؛ فقط مشتری، شمارهٔ پیگیری و یادداشت."
+      case "notPaid":
+        return "این سفارش هنوز پرداخت نشده و تاریخ پرداخت ندارد."
+      case "settled":
+        return r.settlementId == null
+          ? "این سفارش تسویه شده؛ تاریخ، روش پرداخت و هزینهٔ ارسال آن دیگر تغییر نمی‌کند."
+          : `این سفارش در تسویهٔ شمارهٔ ${formatNumber(r.settlementId)} آمده؛ تاریخ، روش پرداخت و هزینهٔ ارسال آن دیگر تغییر نمی‌کند.`
+      case "closed":
+        return `سود تا ${formatJalali(r.periodEnd)} بین شرکا تقسیم شده؛ مبلغ و تاریخ فروش‌های این روزها دیگر تغییر نمی‌کند.`
+      case "month":
+        return r.jalaliYear != null && r.jalaliMonth != null
+          ? `ماه ${fa(r.jalaliMonth)}/${fa(r.jalaliYear)} این روش پرداخت تسویه شده؛ تاریخ پرداخت یا روش دیگری انتخاب کنید.`
+          : "ماه این تاریخ پرداخت برای این روش تسویه شده؛ تاریخ یا روش دیگری انتخاب کنید."
+    }
+  }, // NEW
 } as const

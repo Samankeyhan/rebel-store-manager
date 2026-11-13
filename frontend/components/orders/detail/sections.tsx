@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Ban, CircleUserRound, Eraser, Info, Lock, PencilLine, Printer, Undo2 } from "lucide-react"
+import { Ban, CircleUserRound, Eraser, Info, Lock, PencilLine, Printer, SquarePen, Undo2 } from "lucide-react"
 import { ChannelBadge, StatusBadge, statusName } from "@/components/common/status"
 import { Btn, btnClass, cardClass } from "@/components/record-sale/primitives"
 import { categoryPath } from "@/lib/category-path"
@@ -56,8 +56,11 @@ export type Actions = {
   onChangePaidDate: () => void
   /** «باطل‌کردن سفارش» and «اصلاح سفارش»: offered for a committed PENDING / PAID / COMPLETED order. */
   canVoid: boolean
-  /** Why the void-preview refuses it now (Persian), or null; both buttons are then disabled. */
-  voidBlocked: string | null
+  /** Every reason the void-preview refuses it now (Persian), or null; both buttons are then disabled. */
+  voidBlocked: string[] | null
+  /** «ویرایش سفارش» (light edit): offered for every order that is not VOIDED. */
+  canEdit: boolean
+  onEdit: () => void
   onVoid: () => void
   onCorrect: () => void
 }
@@ -136,6 +139,7 @@ export function HeaderCard({
           {last ? print : null}
         </div>
         {!last && <div className="flex justify-end">{print}</div>}
+        <EditButton actions={actions} mobile />
       </section>
     )
   }
@@ -188,6 +192,7 @@ export function HeaderCard({
           </span>
         )}
         {print}
+        <EditButton actions={actions} />
         <span className="grow" />
         {CAN_CANCEL.has(order.status) && (
           <Btn
@@ -211,7 +216,7 @@ export function HeaderCard({
         )}
         {actions.canVoid && <VoidButtons actions={actions} />}
       </div>
-      {actions.canVoid && actions.voidBlocked && <VoidBlockedNote text={actions.voidBlocked} />}
+      {actions.canVoid && actions.voidBlocked && <VoidBlockedNote texts={actions.voidBlocked} />}
     </section>
   )
 }
@@ -238,12 +243,27 @@ function VoidButtons({ actions, mobile = false }: { actions: Actions; mobile?: b
   )
 }
 
-function VoidBlockedNote({ text }: { text: string }) {
+function VoidBlockedNote({ texts }: { texts: string[] }) {
   return (
-    <p className="flex items-start gap-1.5 text-[12.5px] leading-5 text-text-3">
-      <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-      <span>{text}</span>
-    </p>
+    <div className="flex flex-col gap-1">
+      {texts.map((text) => (
+        <p key={text} className="flex items-start gap-1.5 text-[12.5px] leading-5 text-text-3">
+          <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>{text}</span>
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/** «ویرایش سفارش»: the light edit (date, payment, shipping, postage, customer, notes). */
+function EditButton({ actions, mobile = false }: { actions: Actions; mobile?: boolean }) {
+  if (!actions.canEdit) return null
+  return (
+    <Btn size={mobile ? "lg" : "md"} className={mobile ? "h-12 w-full" : undefined} disabled={actions.busy} onClick={actions.onEdit}>
+      <SquarePen className="size-4" />
+      {D.editOrder}
+    </Btn>
   )
 }
 
@@ -321,7 +341,7 @@ export function SensitiveActions({ detail, actions }: { detail: OrderDetail; act
         </Btn>
       )}
       {actions.canVoid && <VoidButtons actions={actions} mobile />}
-      {actions.canVoid && actions.voidBlocked && <VoidBlockedNote text={actions.voidBlocked} />}
+      {actions.canVoid && actions.voidBlocked && <VoidBlockedNote texts={actions.voidBlocked} />}
     </section>
   )
 }

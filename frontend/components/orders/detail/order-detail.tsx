@@ -15,6 +15,7 @@ import {
   changeOrderStatus,
   getCatalog,
   getOrder,
+  editOrder,
   getVoidPreview,
   returnOrder,
   setOrderPaidDate,
@@ -31,6 +32,8 @@ import { classifyPaymentError } from "@/lib/payment-methods"
 import { DEFAULT_TZ, storeToday } from "@/lib/store-day"
 import { paymentErrorText } from "@/components/payment-methods/copy"
 import { canVoid, voidRefusal } from "@/lib/order-correction"
+import { canEdit, editRefusal } from "@/lib/order-edit"
+import { EditOrderDialog } from "./edit-dialog"
 import {
   CancelDialog,
   ChangePaidDateDialog,
@@ -60,6 +63,7 @@ type Dialog =
   | { kind: "paid"; target: string }
   | { kind: "paidDate" }
   | { kind: "void" }
+  | { kind: "edit" }
   | null
 
 const PAID = new Set(["PAID", "COMPLETED"])
@@ -163,6 +167,13 @@ export function OrderDetail() {
 
   /** Maps an action failure to what the screen shows; the API decides. */
   const handleError = async (error: unknown, d: Detail) => {
+    const editRefused = error instanceof ApiError ? editRefusal(error) : null
+    if (editRefused && dialog?.kind === "edit") {
+      setDialog(null)
+      setBanner({ tone: "err", title: D.actionFailed, text: D.editRefusal(editRefused) })
+      await refetch()
+      return
+    }
     const refusal = error instanceof ApiError ? voidRefusal(error) : null
     if (refusal && dialog?.kind === "void") {
       setDialog(null)
@@ -286,7 +297,9 @@ export function OrderDetail() {
     onChangePaidDate: () => openWithDay({ kind: "paidDate" }, d.order.paid_date ?? today()),
     canVoid: canVoid(d.order),
     voidBlocked:
-      preview?.status === "ready" && preview.preview.blockers.length > 0 ? voidBlockerTexts(preview.preview)[0] : null,
+      preview?.status === "ready" && preview.preview.blockers.length > 0 ? voidBlockerTexts(preview.preview) : null,
+    canEdit: canEdit(d.order),
+    onEdit: () => setDialog({ kind: "edit" }),
     onVoid: () => {
       setPreviewAttempt((a) => a + 1)
       setDialog({ kind: "void" })
@@ -376,6 +389,16 @@ export function OrderDetail() {
         current={d.order.paid_date ?? ""}
         paid={pick}
         onConfirm={() => run(d, () => setOrderPaidDate(d.order.id, pickedDay), () => D.toastPaidDate)}
+      />
+      <EditOrderDialog
+        open={dialog?.kind === "edit"}
+        onOpenChange={dialogProps.onOpenChange}
+        detail={d}
+        timeZone={timeZone}
+        today={today()}
+        mobile={mobile}
+        busy={busy}
+        onSave={(body) => run(d, () => editOrder(d.order.id, body), () => D.toastEdited)}
       />
       {toast && <Toast title={toast} onClose={() => setToast(null)} />}
     </>

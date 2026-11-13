@@ -195,6 +195,19 @@ export function voidOrder(orderId: number, reason: string): Promise<OrderDetail>
   return apiFetch<OrderDetail>(`/orders/${orderId}/void`, { method: "POST", body: JSON.stringify({ reason }) })
 }
 
+export type OrderEditPreview = Schemas["OrderEditPreviewOut"]
+export type OrderEditBody = Schemas["OrderEdit"]
+
+/** Read-only: what the light edit would change (each field, the figures before → after) and every refusal (`blockers`). */
+export function getEditPreview(orderId: number, body: OrderEditBody): Promise<OrderEditPreview> {
+  return apiFetch<OrderEditPreview>(`/orders/${orderId}/edit-preview`, { method: "POST", body: JSON.stringify(body) })
+}
+
+/** «ویرایش سفارش»: change the sent fields in place (accounting-rules section 20, "Light edit"). */
+export function editOrder(orderId: number, body: OrderEditBody): Promise<OrderDetail> {
+  return apiFetch<OrderDetail>(`/orders/${orderId}`, { method: "PATCH", body: JSON.stringify(body) })
+}
+
 export type OrderBulkStatusResult = Schemas["OrderBulkStatusOut"]
 
 /**
