@@ -13,23 +13,31 @@ import { Collapsible } from "@/components/common/collapsible"
 import { StateShell } from "@/components/common/screen-states"
 import { DateRangePopover } from "@/components/orders/list/date-range-popover"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
-import type { ProductionBatchListItem } from "@/lib/api"
+import type { Product, ProductionBatchListItem } from "@/lib/api"
+import { categoryPath } from "@/lib/category-path"
 import { formatJalali, formatJalaliDateTime, utcToLocal, type IsoRange } from "@/lib/jalali"
 import { formatNumber, toPersianDigits } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
+import { NO_FILTER, categoryOptions, filterBatches, isFiltering, type ProductFilter } from "@/lib/production-filter"
 import { cn } from "@/lib/utils"
 import { BatchSheet } from "./batch-sheet"
 import { R } from "./copy"
 import { groupBySitting, sittingIndex, type SittingGroup } from "./group-sessions"
+import { ProductFilterBar } from "./product-filter-bar"
 import type { Material } from "@/lib/api"
 
 /**
- * سوابق تولید: newest first. One fetch of GET /production; the product and
- * date filters apply client-side (the list has no date filter). No total-cost
+ * سوابق تولید: newest first. One fetch of GET /production; the search, category,
+ * product and date filters apply client-side (the list has none). The search and
+ * category go through the batch's product (`products`: a batch row has no category;
+ * they live in the URL, owned by the page). No total-cost
  * column — the list endpoint has no batch total; the detail sheet shows it.
  */
 export function HistoryTab({
   batches,
+  products,
+  filter,
+  onFilterChange,
   materials,
   timeZone,
   range,
@@ -38,6 +46,10 @@ export function HistoryTab({
   mobile,
 }: {
   batches: ProductionBatchListItem[]
+  /** Every product: a batch is searched and filtered by category through its product. */
+  products: Product[]
+  filter: ProductFilter
+  onFilterChange: (next: ProductFilter) => void
   materials: Material[]
   timeZone: string
   range: IsoRange
@@ -67,7 +79,14 @@ export function HistoryTab({
     return [...seen].sort((a, b) => a[1].localeCompare(b[1], "fa"))
   }, [batches])
 
-  const rows = batches.filter((b) => {
+  const productsById = React.useMemo(() => new Map(products.map((p) => [p.id, p])), [products])
+  // Categories of the products that have batches (the only ones the filter can find anything in).
+  const categoryChoices = React.useMemo(
+    () => categoryOptions(productsInHistory.flatMap(([id]) => productsById.get(id) ?? [])),
+    [productsInHistory, productsById]
+  )
+  // Search and category first, then the product dropdown and the date range (unchanged: a batch without a day is kept).
+  const rows = filterBatches(batches, productsById, filter).filter((b) => {
     if (productFilter && b.product_id !== Number(productFilter)) return false
     const day = utcToLocal(b.production_date, timeZone)?.iso
     return !day || (day >= range.from && day <= range.to)
@@ -90,8 +109,15 @@ export function HistoryTab({
     ? (productsInHistory.find(([id]) => id === Number(productFilter))?.[1] ?? R.filterAll)
     : R.filterAll
 
+  const filtering = isFiltering(filter) || productFilter !== ""
   const filters = (
-    <div className="flex flex-wrap items-center gap-2.5">
+    <ProductFilterBar
+      filter={filter}
+      onChange={onFilterChange}
+      options={categoryChoices}
+      count={filtering ? R.resultCountBatches(rows.length, batches.length) : null}
+      mobile={mobile}
+    >
       <DropdownMenu dir="rtl">
         <DropdownMenuTrigger asChild>
           <button
@@ -115,11 +141,12 @@ export function HistoryTab({
         </DropdownMenuContent>
       </DropdownMenu>
       <DateRangePopover value={range} onApply={onRangeChange} />
-    </div>
+    </ProductFilterBar>
   )
 
   const clear = () => {
     setProductFilter("")
+    onFilterChange(NO_FILTER)
     onRangeChange(defaultRange)
   }
 
@@ -146,7 +173,10 @@ export function HistoryTab({
           className="flex flex-col gap-1.5 rounded-md text-start outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
         >
           <span className="flex items-center justify-between gap-2">
-            <span className="font-bold">{b.product_name}</span>
+            <span className="flex min-w-0 flex-col">
+              <span className="font-bold">{b.product_name}</span>
+              <CategoryLine batch={b} products={productsById} />
+            </span>
             <span className="text-sm tabular-nums">{R.qtyUnits(b.quantity_produced)}</span>
           </span>
           <span className="flex items-center justify-between gap-2 text-xs text-text-3">
@@ -192,7 +222,10 @@ export function HistoryTab({
           <td className={cn("text-text-3 tabular-nums", inSitting && "border-s-[3px] border-s-border-strong")}>
             {formatJalaliDateTime(b.production_date, timeZone)}
           </td>
-          <td className="font-bold">{b.product_name}</td>
+          <td>
+            <span className="font-bold">{b.product_name}</span>
+            <CategoryLine batch={b} products={productsById} />
+          </td>
           <td className="text-end tabular-nums">{formatNumber(b.quantity_produced)}</td>
           <td className="max-w-[320px] truncate text-text-3">{b.notes || "—"}</td>
           <td onClick={(e) => e.stopPropagation()}>
@@ -275,6 +308,13 @@ export function HistoryTab({
       />
     </div>
   )
+}
+
+/** The batch's product category («والد › فرزند») as a muted line under the name; nothing when the product is gone. */
+function CategoryLine({ batch, products }: { batch: ProductionBatchListItem; products: ReadonlyMap<number, Product> }) {
+  const product = products.get(batch.product_id)
+  const path = product ? categoryPath(product) : ""
+  return path ? <span className="block text-xs font-normal text-text-3">{path}</span> : null
 }
 
 /**

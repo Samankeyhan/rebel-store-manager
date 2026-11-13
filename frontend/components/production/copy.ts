@@ -177,6 +177,17 @@ export const R = {
   colNote: "یادداشت",
   historyNoMatch: "تولیدی با این فیلترها پیدا نشد.", // NEW
   clearFilters: "پاک کردن فیلترها", // NEW
+
+  // search and category filter (recipe and history tabs) // NEW
+  searchPlaceholder: "جستجوی نام محصول", // NEW
+  searchAria: "جستجوی محصول بر اساس نام", // NEW
+  filterCategory: "دسته:", // NEW
+  filterAllCategories: "همه دسته‌ها", // NEW
+  filterAria: "جستجو و فیلتر محصولات", // NEW
+  resultCountProducts: (shown: number, all: number) => `${formatNumber(shown)} از ${formatNumber(all)} محصول`, // NEW
+  resultCountBatches: (shown: number, all: number) => `${formatNumber(shown)} از ${formatNumber(all)} تولید`, // NEW
+  noProductFilterMatch: "محصولی با این جستجو و دسته پیدا نشد.", // NEW
+  onlyNoRecipe: "فقط بدون دستور تولید", // NEW
   historyFootnote: "هزینه کل هر تولید در جزئیات آن آمده است.", // NEW
   qtyUnits: (n: number) => `${formatNumber(n)} عدد`,
 

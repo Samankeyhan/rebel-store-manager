@@ -18,10 +18,12 @@ import {
   type Recipe,
 } from "@/lib/api"
 import { batchPreview, lineCost, recipeSums } from "@/lib/costing"
+import { categoryOptions, filterProducts, isFiltering, type ProductFilter } from "@/lib/production-filter"
 import { formatQuantity, parseDecimal, quantityText } from "@/lib/persian-numbers"
 import { formatMoney } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
+import { ProductFilterBar } from "./product-filter-bar"
 import type { RecipeEntry } from "./use-production-data"
 
 type Basis = "PER_UNIT" | "PER_BATCH"
@@ -62,6 +64,10 @@ export function RecipeTab({
   productId,
   onProductChange,
   setRecipe,
+  filter,
+  onFilterChange,
+  noRecipeOnly,
+  onNoRecipeOnlyChange,
   mobile,
 }: {
   products: Product[]
@@ -70,10 +76,19 @@ export function RecipeTab({
   productId: number | null
   onProductChange: (id: number) => void
   setRecipe: (productId: number, recipe: Recipe) => void
+  /** Search by name and category (the page keeps them in the URL). */
+  filter: ProductFilter
+  onFilterChange: (next: ProductFilter) => void
+  /** «فقط بدون دستور تولید»: only the products known to have no recipe. */
+  noRecipeOnly: boolean
+  onNoRecipeOnlyChange: (on: boolean) => void
   mobile: boolean
 }) {
   const active = products.filter((p) => p.is_active === 1)
-  const product = active.find((p) => p.id === productId) ?? active[0] ?? null
+  // The list shows what the filter lets through; the editor keeps the picked product even if it is filtered out.
+  const visible = filterProducts(active, filter).filter((p) => !noRecipeOnly || recipes[p.id]?.status === "missing")
+  const filtering = isFiltering(filter) || noRecipeOnly
+  const product = active.find((p) => p.id === productId) ?? visible[0] ?? active[0] ?? null
   const entry = product ? recipes[product.id] : undefined
   const items: Item[] = entry?.status === "ok" ? entry.recipe.items : []
 
@@ -171,7 +186,7 @@ export function RecipeTab({
     return <p className={cn(cardClass, "px-5 py-10 text-center text-[13px] text-text-3")}>{R.noProducts}</p>
   }
 
-  const productItems: PickerItem[] = active.map((p) => {
+  const productItems: PickerItem[] = visible.map((p) => {
     const e = recipes[p.id]
     return {
       id: p.id,
@@ -184,7 +199,10 @@ export function RecipeTab({
     <nav aria-label={R.listLabel} className={cn(cardClass, "w-[280px] shrink-0 p-2")}>
       <div className="px-2.5 pt-1 pb-2 text-xs font-semibold text-text-3">{R.listLabel}</div>
       <ul className="flex flex-col">
-        {active.map((p) => (
+        {visible.length === 0 && (
+          <li className="px-2.5 py-4 text-center text-[13px] text-text-3">{R.noProductFilterMatch}</li>
+        )}
+        {visible.map((p) => (
           <li key={p.id}>
             <button
               type="button"
@@ -397,9 +415,30 @@ export function RecipeTab({
     </section>
   )
 
+  const filterBar = (
+    <ProductFilterBar
+      filter={filter}
+      onChange={onFilterChange}
+      options={categoryOptions(active)}
+      count={filtering ? R.resultCountProducts(visible.length, active.length) : null}
+      mobile={mobile}
+    >
+      <label className={cn("flex cursor-pointer items-center gap-2 text-[13px]", mobile ? "h-11" : "h-10")}>
+        <input
+          type="checkbox"
+          checked={noRecipeOnly}
+          onChange={(e) => onNoRecipeOnlyChange(e.target.checked)}
+          className="size-4 cursor-pointer accent-primary"
+        />
+        {R.onlyNoRecipe}
+      </label>
+    </ProductFilterBar>
+  )
+
   if (mobile) {
     return (
       <div className="flex flex-col gap-3">
+        {filterBar}
         <ItemPicker
           items={productItems}
           value={product.id}
@@ -415,9 +454,12 @@ export function RecipeTab({
     )
   }
   return (
-    <div className="flex items-start gap-6">
-      {list}
-      {editor}
+    <div className="flex flex-col gap-4">
+      {filterBar}
+      <div className="flex items-start gap-6">
+        {list}
+        {editor}
+      </div>
     </div>
   )
 }

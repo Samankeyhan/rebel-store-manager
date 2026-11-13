@@ -1,5 +1,8 @@
 """db/names.py: the stored form and the comparison key of a name (Persian/Arabic spelling variants)."""
 
+import json
+from pathlib import Path
+
 import pytest
 
 from db.names import name_key, stored_form
@@ -86,3 +89,13 @@ def test_key_has_no_arabic_variants_digits_or_zwnj():
     key = name_key("كيك‌٣۴")
     assert "ك" not in key and "ي" not in key and ZWNJ not in key
     assert key.endswith("34")
+
+
+def test_the_shared_vectors_match_the_function():
+    """The same vectors check the TypeScript port the production screens search with (frontend/lib/search-key.ts,
+    frontend/lib/search-key.test.mjs): change the function, the port and the vectors together."""
+    path = Path(__file__).parent / "fixtures" / "name_key_vectors.json"
+    vectors = json.loads(path.read_text(encoding="utf-8"))["vectors"]
+    assert len(vectors) >= 20
+    for vector in vectors:
+        assert name_key(vector["input"]) == vector["key"], vector["input"]

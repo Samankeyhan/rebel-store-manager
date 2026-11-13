@@ -9,6 +9,7 @@ import { Segment } from "@/components/common/segment"
 import { Toast } from "@/components/common/toast"
 import { Btn } from "@/components/record-sale/primitives"
 import { presetRange, type IsoRange } from "@/lib/jalali"
+import type { ProductFilter } from "@/lib/production-filter"
 import { cn } from "@/lib/utils"
 import { R } from "./copy"
 import { HistoryTab } from "./history-tab"
@@ -37,6 +38,12 @@ export function ProductionPage() {
   const tab: Tab = isTab(tabParam) ? tabParam : "run"
   const productParam = Number(params.get("product"))
   const productId = Number.isInteger(productParam) && productParam > 0 ? productParam : null
+  // The search and category filter of the recipe and history tabs live in the URL too (?q=, ?cat=, ?norecipe=1).
+  const q = params.get("q") ?? ""
+  const catParam = Number(params.get("cat"))
+  const categoryId = Number.isInteger(catParam) && catParam > 0 ? catParam : null
+  const noRecipeOnly = params.get("norecipe") === "1"
+  const filter = React.useMemo<ProductFilter>(() => ({ q, categoryId }), [q, categoryId])
 
   const setParams = React.useCallback(
     (patch: Record<string, string | null>) => {
@@ -61,6 +68,12 @@ export function ProductionPage() {
   const { base, recipes } = data
   const [toast, setToast] = React.useState<string | null>(null)
   const closeToast = React.useCallback(() => setToast(null), [])
+
+  const setFilter = React.useCallback(
+    (next: ProductFilter) => setParams({ q: next.q.trim() ? next.q : null, cat: next.categoryId != null ? String(next.categoryId) : null }),
+    [setParams]
+  )
+  const setNoRecipeOnly = React.useCallback((on: boolean) => setParams({ norecipe: on ? "1" : null }), [setParams])
 
   const goRecipe = (id: number | null) => setParams({ tab: "recipe", product: id ? String(id) : null })
   const pickProduct = (id: number) => setParams({ product: String(id) })
@@ -115,6 +128,10 @@ export function ProductionPage() {
           productId={productId}
           onProductChange={pickProduct}
           setRecipe={data.setRecipe}
+          filter={filter}
+          onFilterChange={setFilter}
+          noRecipeOnly={noRecipeOnly}
+          onNoRecipeOnlyChange={setNoRecipeOnly}
           mobile={mobile}
         />
       )
@@ -122,6 +139,9 @@ export function ProductionPage() {
       body = (
         <HistoryTab
           batches={base.batches}
+          products={base.products}
+          filter={filter}
+          onFilterChange={setFilter}
           materials={base.materials}
           timeZone={data.timeZone}
           range={range}
