@@ -6,7 +6,7 @@ import { buildOrderBody, initialState, reducer } from "../components/record-sale
 import { daysBetween, isFutureOrderDateError, isStaleSaleDay } from "./sale-date.ts"
 
 const TODAY = "2026-10-06"
-const NONE = { kind: "none" }
+const METHOD = { kind: "method", method: { id: 1, name: "Test cash", is_active: 1 } } // a sale always has a payment method
 const product = { id: 7, retail_price: 10_000, wholesale_price: 8_000 }
 const sale = () => reducer(initialState(1), { type: "pickProduct", key: 1, product })
 const pick = (s, value) => reducer(s, { type: "orderDate", value, today: TODAY })
@@ -31,13 +31,13 @@ test("orderDate action: a sale day on or before the picked payment day keeps it"
 })
 
 test("body: a backdated sale sends order_date and its own paid_date", () => {
-  const body = buildOrderBody(pick(sale(), "2026-09-20"), NONE, TODAY)
+  const body = buildOrderBody(pick(sale(), "2026-09-20"), METHOD, TODAY)
   assert.equal(body.order_date, "2026-09-20")
   assert.equal(body.paid_date, "2026-09-20")
 })
 
 test("body: a sale dated today sends neither order_date nor paid_date", () => {
-  const body = buildOrderBody(pick(pick(sale(), "2026-09-20"), TODAY), NONE, TODAY)
+  const body = buildOrderBody(pick(pick(sale(), "2026-09-20"), TODAY), METHOD, TODAY)
   assert.equal("order_date" in body, false)
   assert.equal("paid_date" in body, false)
 })

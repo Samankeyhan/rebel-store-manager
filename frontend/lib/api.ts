@@ -195,6 +195,16 @@ export function voidOrder(orderId: number, reason: string): Promise<OrderDetail>
   return apiFetch<OrderDetail>(`/orders/${orderId}/void`, { method: "POST", body: JSON.stringify({ reason }) })
 }
 
+export type OrderBulkStatusResult = Schemas["OrderBulkStatusOut"]
+
+/**
+ * PAID → COMPLETED for several orders in one call, one transaction and one audit operation (all or nothing):
+ * 409 ORDER_BULK_NOT_ELIGIBLE when any is not PAID (details.ineligible), 404 for an unknown id.
+ */
+export function bulkUpdateOrderStatus(body: Schemas["OrderBulkStatus"]): Promise<OrderBulkStatusResult> {
+  return apiFetch<OrderBulkStatusResult>("/orders/bulk-status", { method: "POST", body: JSON.stringify(body) })
+}
+
 /** Void the order and record `order` in its place, in one operation; returns the NEW order. */
 export function correctOrder(orderId: number, reason: string, order: OrderCreate): Promise<OrderDetail> {
   return apiFetch<OrderDetail>(`/orders/${orderId}/correct`, {

@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ORDER_STATUS_IDS } from "@/components/common/status"
 import { CHANNEL_IDS, CHANNELS } from "@/components/record-sale/copy"
-import { Btn, btnClass } from "@/components/record-sale/primitives"
+import { Toast } from "@/components/common/toast"
+import { Alert, Btn, btnClass } from "@/components/record-sale/primitives"
 import { Segment } from "@/components/common/segment"
-import { ApiError, listOrders, listPaymentMethods, type OrderListItem, type PaymentMethod } from "@/lib/api"
+import { ApiError, bulkUpdateOrderStatus, listOrders, listPaymentMethods, type OrderListItem, type PaymentMethod } from "@/lib/api"
+import { bulkBody, ineligibleCount, planBulk, setIds, toggleId, type Selection } from "@/lib/order-bulk"
 import { listedUnder } from "@/lib/order-correction"
 import { useStoreTimeZone } from "@/components/dashboard/use-dashboard-data"
 import { last30Range } from "@/lib/default-range"
@@ -27,12 +29,14 @@ import { cn } from "@/lib/utils"
 import { L } from "../copy"
 import { LIST_QUERY_KEY, matchesSearch } from "../order-figures"
 import { DateRangePopover } from "./date-range-popover"
+import { BulkBar, BulkConfirm } from "./bulk-bar"
 import { MobileFilterSheet, MobileFilterChips } from "./mobile-filters"
 import { OrderCards } from "./order-cards"
 import { OrdersTable, PAGE_SIZE } from "./orders-table"
 import { EmptyState, ErrorState, LoadingState } from "./states"
 import { useCurrency } from "@/lib/use-currency"
 
+const NO_SELECTION: Selection = new Set<number>()
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/
 /** Store time zone (accounting-rules header) until /settings answers. */
 const DEFAULT_TZ = "Asia/Tehran"
@@ -211,6 +215,62 @@ export function OrdersList() {
   const storeEmpty = load.status === "ready" && !load.storeHasOrders
   const retry = () => setAttempt((a) => a + 1)
 
+  // Bulk «پرداخت‌شده» → «تکمیل‌شده». The ticked ids keep across pages and are dropped when a filter, the tab,
+  // the search or the loaded rows change (the key), so a tick never refers to a row that is no longer listed.
+  const selectionKey = `${filters.status}|${filters.q}|${fetchKey}`
+  const [selection, setSelection] = React.useState<{ key: string; ids: Selection }>({ key: "", ids: NO_SELECTION })
+  const selected = selection.key === selectionKey ? selection.ids : NO_SELECTION
+  const plan = React.useMemo(() => planBulk(rows, selected), [rows, selected])
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
+  const [bulkBusy, setBulkBusy] = React.useState(false)
+  const [bulkError, setBulkError] = React.useState<string | null>(null)
+  const [bulkNotice, setBulkNotice] = React.useState<string | null>(null)
+  const [toast, setToast] = React.useState<string | null>(null)
+  const closeToast = React.useCallback(() => setToast(null), [])
+  const onToggle = (id: number) => setSelection({ key: selectionKey, ids: toggleId(selected, id) })
+  const onTogglePage = (ids: number[], on: boolean) => setSelection({ key: selectionKey, ids: setIds(selected, ids, on) })
+  const clearSelection = () => setSelection({ key: selectionKey, ids: NO_SELECTION })
+
+  const runBulk = async () => {
+    if (!plan.canRun || bulkBusy) return
+    setBulkBusy(true)
+    setBulkError(null)
+    try {
+      const result = await bulkUpdateOrderStatus(bulkBody(plan.chosen))
+      setConfirmOpen(false)
+      setBulkNotice(null)
+      setToast(L.bulkDone(result.count))
+      retry() // new rows, new key: the selection is dropped with them
+    } catch (error) {
+      const stale = error instanceof ApiError ? ineligibleCount(error) : null
+      if (stale != null) {
+        // Some order stopped being PAID meanwhile; the server changed nothing. Read the list again.
+        setConfirmOpen(false)
+        setBulkNotice(L.bulkStale(stale))
+        retry()
+      } else {
+        setBulkError(L.bulkFailed)
+      }
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+  const bulkBar =
+    selected.size > 0 ? (
+      <BulkBar count={selected.size} plan={plan} onRun={() => { setBulkError(null); setConfirmOpen(true) }} onClear={clearSelection} mobile={mobile} />
+    ) : null
+  const bulkDialogs = (
+    <>
+      <BulkConfirm open={confirmOpen && plan.canRun} onOpenChange={setConfirmOpen} plan={plan} busy={bulkBusy} error={bulkError} onConfirm={runBulk} mobile={mobile} />
+      {toast && <Toast title={toast} onClose={closeToast} closeLabel={L.close} />}
+    </>
+  )
+  const notice = bulkNotice ? (
+    <Alert tone="warn" title={L.bulkStaleTitle}>
+      {bulkNotice}
+    </Alert>
+  ) : null
+
   if (mobile) {
     return (
       <div className="flex flex-col gap-3 pb-24">
@@ -220,6 +280,7 @@ export function OrdersList() {
             <MobileFilterChips filters={filters} methods={methods} defaultRange={defaultRange} onOpen={() => setSheetOpen(true)} />
           </>
         )}
+        {notice}
         {load.status === "loading" && <LoadingState mobile />}
         {load.status === "error" && <ErrorState code={load.code} onRetry={retry} mobile />}
         {storeEmpty && <EmptyState mobile />}
@@ -229,6 +290,9 @@ export function OrdersList() {
             timeZone={timeZone}
             resetKey={`${filters.status}|${filters.q}|${fetchKey}`}
             onClearFilters={clearFilters}
+            selected={selected}
+            onToggle={onToggle}
+            onTogglePage={onTogglePage}
           />
         )}
         <MobileFilterSheet
@@ -241,7 +305,7 @@ export function OrdersList() {
           onApply={(patch) => setFilters(patch)}
           onClear={clearFilters}
         />
-        {!storeEmpty && (
+        {!storeEmpty && !bulkBar && (
           <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card px-4 pt-3 pb-5">
             <Link href="/sales/new" className={btnClass("primary", "lg", "w-full")}>
               <Plus className="size-[18px]" />
@@ -249,6 +313,8 @@ export function OrdersList() {
             </Link>
           </div>
         )}
+        {bulkBar}
+        {bulkDialogs}
       </div>
     )
   }
@@ -285,6 +351,8 @@ export function OrdersList() {
         </div>
       )}
 
+      {notice}
+      {bulkBar}
       {load.status === "loading" && <LoadingState mobile={false} />}
       {load.status === "error" && <ErrorState code={load.code} onRetry={retry} mobile={false} />}
       {storeEmpty && <EmptyState mobile={false} />}
@@ -299,8 +367,12 @@ export function OrdersList() {
           onStatus={(status) => setFilters({ status })}
           onPage={(p) => setFilters({ page: p })}
           onClearFilters={clearFilters}
+          selected={selected}
+          onToggle={onToggle}
+          onTogglePage={onTogglePage}
         />
       )}
+      {bulkDialogs}
     </div>
   )
 }

@@ -421,12 +421,14 @@ export interface paths {
          *     postage_cost defaults to the current postage estimate if the channel
          *     applies postage, else 0. Sending `0` is a real zero override.
          *
-         *     **payment_method_id** follows the packaging_kit_id pattern: `"default"` (or
-         *     omitted) = the channel's default method, `null` = no method, an integer =
-         *     that method (must be active).
+         *     **payment_method_id**: required in effect. `"default"` (or omitted) = the
+         *     channel's default method, an integer = that method (must be active). `null`,
+         *     or `"default"` on a channel with no default, is a 422 `PAYMENT_METHOD_REQUIRED`
+         *     (field `payment_method_id`), for every status including DRAFT. Orders recorded
+         *     before this rule may have no method; they are unchanged.
          *
-         *     **transaction_fee**: `null` (or omitted) = computed from the payment method
-         *     (0 without one); an integer, including 0, overrides it.
+         *     **transaction_fee**: `null` (or omitted) = computed from the payment method;
+         *     an integer, including 0, overrides it.
          *
          *     **order_date**: omitted = now; a past day backdates the sale (cost, stock and
          *     packaging are still frozen as of today); after today = 422 `DATE_IN_FUTURE`,
@@ -544,6 +546,28 @@ export interface paths {
          *     paid_date (body value, default today).
          */
         post: operations["change_order_status_orders__order_id__status_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/bulk-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Change Order Status
+         * @description Move several PAID orders to COMPLETED in one call, one transaction and one audit operation (the same
+         *     rules as /orders/{id}/status for each). All or nothing: if any listed order is not PAID the whole call is a
+         *     409 `ORDER_BULK_NOT_ELIGIBLE` whose details list them; an unknown id is a 404.
+         */
+        post: operations["bulk_change_order_status_orders_bulk_status_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2122,6 +2146,15 @@ export interface components {
             /** Items */
             items: components["schemas"]["BackupItem"][];
         };
+        /** BulkIneligibleOrder */
+        BulkIneligibleOrder: {
+            /** Order Id */
+            order_id: number;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Status */
+            status: string;
+        };
         /** CatalogOut */
         CatalogOut: {
             /** Products */
@@ -2528,7 +2561,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            code: "APP_ERROR" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CONFLICT" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_PERIOD_ORDER" | "NOT_FOUND" | "PAID_DATE_NOT_ALLOWED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_NOT_MONTHLY" | "SETTLEMENT_RACED" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "VOID_REASON_REQUIRED";
+            code: "APP_ERROR" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CONFLICT" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_PERIOD_ORDER" | "NOT_FOUND" | "PAID_DATE_NOT_ALLOWED" | "PAYMENT_METHOD_REQUIRED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_NOT_MONTHLY" | "SETTLEMENT_RACED" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "VOID_REASON_REQUIRED";
             details: components["schemas"]["NoDetails"];
         };
         /** ErrorBodyInsufficientStock */
@@ -2650,6 +2683,21 @@ export interface components {
              */
             code: "CATEGORY_DUPLICATE_NAME" | "NAME_DUPLICATE" | "PAYMENT_METHOD_DUPLICATE_NAME";
             details: components["schemas"]["NameDuplicateDetails"];
+        };
+        /** ErrorBodyOrderBulkNotEligible */
+        ErrorBodyOrderBulkNotEligible: {
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            code: "ORDER_BULK_NOT_ELIGIBLE";
+            details: components["schemas"]["OrderBulkNotEligibleDetails"];
         };
         /** ErrorBodyOrderNotPaid */
         ErrorBodyOrderNotPaid: {
@@ -3089,7 +3137,7 @@ export interface components {
         /** ErrorEnvelope */
         ErrorEnvelope: {
             /** Error */
-            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodyMaterialRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodySupplierRequiredForCredit"] | components["schemas"]["ErrorBodyPurchaseDue"] | components["schemas"]["ErrorBodySupplierBalance"] | components["schemas"]["ErrorBodyPurchaseSupplier"] | components["schemas"]["ErrorBodyAllocationMismatch"] | components["schemas"]["ErrorBodyPaymentBeforePurchase"] | components["schemas"]["ErrorBodySupplierPaymentRef"] | components["schemas"]["ErrorBodyPurchaseRef"] | components["schemas"]["ErrorBodyPurchaseDuplicateItem"] | components["schemas"]["ErrorBodyServicePurchaseNeedsTotal"] | components["schemas"]["ErrorBodyPurchaseAlreadyCancelled"] | components["schemas"]["ErrorBodyPurchaseHasPayments"] | components["schemas"]["ErrorBodyPurchaseStockUsed"] | components["schemas"]["ErrorBodyStocktakeAfterPurchase"] | components["schemas"]["ErrorBodyPurchaseCostChanged"] | components["schemas"]["ErrorBodyPurchaseLine"] | components["schemas"]["ErrorBodyPurchaseCorrectionBelowPaid"] | components["schemas"]["ErrorBodyBackupFailed"];
+            error: components["schemas"]["ErrorBodyEmpty"] | components["schemas"]["ErrorBodyValidationFailed"] | components["schemas"]["ErrorBodyInsufficientStock"] | components["schemas"]["ErrorBodyMonthSettled"] | components["schemas"]["ErrorBodyOrderNotPaid"] | components["schemas"]["ErrorBodyOrderSettled"] | components["schemas"]["ErrorBodyDateInFuture"] | components["schemas"]["ErrorBodyPaymentMethodRef"] | components["schemas"]["ErrorBodyRulePending"] | components["schemas"]["ErrorBodyNameDuplicate"] | components["schemas"]["ErrorBodyMonthEnd"] | components["schemas"]["ErrorBodyJalaliMonth"] | components["schemas"]["ErrorBodyLatestPaid"] | components["schemas"]["ErrorBodyOrderRef"] | components["schemas"]["ErrorBodyDistributionOverlap"] | components["schemas"]["ErrorBodyPeriodDistributed"] | components["schemas"]["ErrorBodyCategoryInUse"] | components["schemas"]["ErrorBodyProductRef"] | components["schemas"]["ErrorBodyCostRef"] | components["schemas"]["ErrorBodyMaterialRef"] | components["schemas"]["ErrorBodySupplierRef"] | components["schemas"]["ErrorBodyAmountTooLarge"] | components["schemas"]["ErrorBodyQuantityOutOfRange"] | components["schemas"]["ErrorBodyKitRef"] | components["schemas"]["ErrorBodyStocktakeStale"] | components["schemas"]["ErrorBodyOrderVoided"] | components["schemas"]["ErrorBodyStocktakeAfterSale"] | components["schemas"]["ErrorBodyOrderBulkNotEligible"] | components["schemas"]["ErrorBodySupplierRequiredForCredit"] | components["schemas"]["ErrorBodyPurchaseDue"] | components["schemas"]["ErrorBodySupplierBalance"] | components["schemas"]["ErrorBodyPurchaseSupplier"] | components["schemas"]["ErrorBodyAllocationMismatch"] | components["schemas"]["ErrorBodyPaymentBeforePurchase"] | components["schemas"]["ErrorBodySupplierPaymentRef"] | components["schemas"]["ErrorBodyPurchaseRef"] | components["schemas"]["ErrorBodyPurchaseDuplicateItem"] | components["schemas"]["ErrorBodyServicePurchaseNeedsTotal"] | components["schemas"]["ErrorBodyPurchaseAlreadyCancelled"] | components["schemas"]["ErrorBodyPurchaseHasPayments"] | components["schemas"]["ErrorBodyPurchaseStockUsed"] | components["schemas"]["ErrorBodyStocktakeAfterPurchase"] | components["schemas"]["ErrorBodyPurchaseCostChanged"] | components["schemas"]["ErrorBodyPurchaseLine"] | components["schemas"]["ErrorBodyPurchaseCorrectionBelowPaid"] | components["schemas"]["ErrorBodyBackupFailed"];
         };
         /**
          * ErrorItem
@@ -3475,6 +3523,37 @@ export interface components {
              * @enum {string}
              */
             payment_status: "UNPAID" | "PARTIAL" | "PAID";
+        };
+        /** OrderBulkNotEligibleDetails */
+        OrderBulkNotEligibleDetails: {
+            /** Ineligible */
+            ineligible: components["schemas"]["BulkIneligibleOrder"][];
+        };
+        /** OrderBulkStatus */
+        OrderBulkStatus: {
+            /** Order Ids */
+            order_ids: number[];
+            /**
+             * Status
+             * @constant
+             */
+            status: "COMPLETED";
+        };
+        /** OrderBulkStatusOut */
+        OrderBulkStatusOut: {
+            /** Count */
+            count: number;
+            /** Orders */
+            orders: components["schemas"]["OrderBulkStatusRow"][];
+        };
+        /** OrderBulkStatusRow */
+        OrderBulkStatusRow: {
+            /** Id */
+            id: number;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Status */
+            status: string;
         };
         /** OrderCorrection */
         OrderCorrection: {
@@ -5811,6 +5890,8 @@ export interface components {
          *     ORDER_ALREADY_SETTLED            order_id, settlement_id
          *     DATE_IN_FUTURE                   today (YYYY-MM-DD); field says which date
          *     PAYMENT_METHOD_INACTIVE          payment_method_id
+         *     PAYMENT_METHOD_REQUIRED          - (field payment_method_id): a new or corrected order has no payment method (none
+         *                                      given, or none and the channel has no default); orders before this rule may have none
          *     PAYMENT_METHOD_NOT_FOUND         payment_method_id
          *     PAYMENT_METHOD_RULE_PENDING      pending_count
          *     PAYMENT_METHOD_DUPLICATE_NAME    entity, existing_id
@@ -5858,6 +5939,8 @@ export interface components {
          *     STOCKTAKE_AFTER_SALE             order_id, item_type, item_id, item_name, stocktake_date (local day): a count
          *                                      recorded after the sale already took this item's stock as it was
          *     VOID_REASON_REQUIRED             - (field reason)
+         *     ORDER_BULK_NOT_ELIGIBLE          ineligible: [{order_id, invoice_number, status}]: a bulk status change found orders
+         *                                      that are not in the status it moves from (PAID for PAID -> COMPLETED); nothing changed
          *     SUPPLIER_REQUIRED_FOR_CREDIT     - (field supplier_id): a purchase not paid in full needs a supplier
          *     SUPPLIER_PAYMENT_EXCEEDS_DUE     purchase_id (the purchase invoice), outstanding: an allocation is larger than what
          *                                      the purchase still owes
@@ -5894,7 +5977,7 @@ export interface components {
          *     item_name, needed, available.
          * @enum {string}
          */
-        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "MATERIAL_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "SUPPLIER_REQUIRED_FOR_CREDIT" | "SUPPLIER_PAYMENT_EXCEEDS_DUE" | "SUPPLIER_PAYMENT_EXCEEDS_BALANCE" | "SUPPLIER_PAYMENT_SUPPLIER_MISMATCH" | "SUPPLIER_PAYMENT_ALLOCATION_MISMATCH" | "SUPPLIER_PAYMENT_BEFORE_PURCHASE" | "SUPPLIER_PAYMENT_NOT_FOUND" | "PURCHASE_NOT_FOUND" | "PURCHASE_DUPLICATE_ITEM" | "SERVICE_PURCHASE_NEEDS_TOTAL" | "PURCHASE_ALREADY_CANCELLED" | "PURCHASE_HAS_PAYMENTS" | "PURCHASE_STOCK_USED" | "STOCKTAKE_AFTER_PURCHASE" | "PURCHASE_COST_CHANGED_SINCE" | "PURCHASE_COST_HISTORY_UNKNOWN" | "PURCHASE_CORRECTION_BELOW_PAID" | "BACKUP_FAILED";
+        ErrorCode: "APP_ERROR" | "NOT_FOUND" | "VALIDATION_FAILED" | "CONFLICT" | "INSUFFICIENT_STOCK" | "MONTH_ALREADY_SETTLED" | "ORDER_NOT_PAID" | "ORDER_ALREADY_SETTLED" | "DATE_IN_FUTURE" | "PAYMENT_METHOD_INACTIVE" | "PAYMENT_METHOD_REQUIRED" | "PAYMENT_METHOD_NOT_FOUND" | "PAYMENT_METHOD_RULE_PENDING" | "PAYMENT_METHOD_DUPLICATE_NAME" | "SETTLEMENT_MONTH_NOT_ENDED" | "SETTLEMENT_NOTHING_PENDING" | "SETTLEMENT_RACED" | "SETTLEMENT_CONFLICT" | "SETTLEMENT_DATE_BEFORE_MONTH_END" | "SETTLEMENT_DATE_BEFORE_PAID" | "SETTLEMENT_WHOLE_MONTHS_ONLY" | "SETTLEMENT_ORDER_WRONG_METHOD" | "SETTLEMENT_NOT_MONTHLY" | "DISTRIBUTION_PERIOD_OVERLAP" | "DISTRIBUTION_NO_ACTIVE_PARTNERS" | "DISTRIBUTION_PERCENT_SUM" | "DISTRIBUTION_EXCEEDS_UNDISTRIBUTED" | "DISTRIBUTION_PERIOD_ORDER" | "PERIOD_ALREADY_DISTRIBUTED" | "CATEGORY_IN_USE" | "CATEGORY_HAS_SUBCATEGORIES" | "CATEGORY_PARENT_INACTIVE" | "CATEGORY_DUPLICATE_NAME" | "PRODUCT_NO_RECIPE" | "PRODUCT_NO_UNIT_COST" | "COST_ALREADY_SET" | "MATERIAL_NO_UNIT_COST" | "SUPPLIER_NOT_FOUND" | "NAME_DUPLICATE" | "AMOUNT_TOO_LARGE" | "QUANTITY_NOT_WHOLE" | "QUANTITY_OUT_OF_RANGE" | "PAID_DATE_NOT_ALLOWED" | "PACKAGING_KIT_NOT_FOUND" | "PACKAGING_KIT_INACTIVE" | "STOCKTAKE_STALE" | "ORDER_ALREADY_VOIDED" | "ORDER_HAS_RETURN" | "ORDER_NOT_COMMITTED" | "STOCKTAKE_AFTER_SALE" | "VOID_REASON_REQUIRED" | "ORDER_BULK_NOT_ELIGIBLE" | "SUPPLIER_REQUIRED_FOR_CREDIT" | "SUPPLIER_PAYMENT_EXCEEDS_DUE" | "SUPPLIER_PAYMENT_EXCEEDS_BALANCE" | "SUPPLIER_PAYMENT_SUPPLIER_MISMATCH" | "SUPPLIER_PAYMENT_ALLOCATION_MISMATCH" | "SUPPLIER_PAYMENT_BEFORE_PURCHASE" | "SUPPLIER_PAYMENT_NOT_FOUND" | "PURCHASE_NOT_FOUND" | "PURCHASE_DUPLICATE_ITEM" | "SERVICE_PURCHASE_NEEDS_TOTAL" | "PURCHASE_ALREADY_CANCELLED" | "PURCHASE_HAS_PAYMENTS" | "PURCHASE_STOCK_USED" | "STOCKTAKE_AFTER_PURCHASE" | "PURCHASE_COST_CHANGED_SINCE" | "PURCHASE_COST_HISTORY_UNKNOWN" | "PURCHASE_CORRECTION_BELOW_PAID" | "BACKUP_FAILED";
     };
     responses: never;
     parameters: never;
@@ -7844,6 +7927,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderDetailOut"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description App error (see ErrorBody.code) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    bulk_change_order_status_orders_bulk_status_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderBulkStatus"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderBulkStatusOut"];
                 };
             };
             /** @description App error (see ErrorBody.code) */

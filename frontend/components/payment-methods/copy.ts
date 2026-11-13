@@ -66,8 +66,9 @@ export const PM = {
   paidDateNotAllowed: "تاریخ پرداخت فقط برای سفارشی که پرداخت می‌شود ثبت می‌شود.", // NEW
   inactiveMethod: (name: string | null) =>
     name
-      ? `روش پرداخت «${name}» غیرفعال است؛ روش دیگری یا «بدون روش» انتخاب کنید.` // NEW
-      : "این روش پرداخت غیرفعال است؛ روش دیگری یا «بدون روش» انتخاب کنید.", // NEW
+      ? `روش پرداخت «${name}» غیرفعال است؛ روش پرداخت دیگری انتخاب کنید.` // NEW
+      : "این روش پرداخت غیرفعال است؛ روش پرداخت دیگری انتخاب کنید.", // NEW
+  methodRequired: "برای ثبت فروش، یک روش پرداخت انتخاب کنید.", // NEW
   inactiveDefault: "این روش پرداخت غیرفعال است و نمی‌تواند پیش‌فرض کانال باشد.", // NEW
   methodGone: "این روش پرداخت دیگر وجود ندارد.", // NEW
   methodsReloaded: "فهرست روش‌های پرداخت دوباره خوانده شد.", // NEW
@@ -94,5 +95,7 @@ export function paymentErrorText(e: PaymentError, methodName: string | null = nu
       return PM.inactiveMethod(methodName)
     case "inactiveDefault":
       return PM.inactiveDefault
+    case "methodRequired":
+      return PM.methodRequired
   }
 }

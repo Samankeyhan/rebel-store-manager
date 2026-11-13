@@ -22,8 +22,6 @@ import { Btn, Help, InlineMessage, Label, MoneyInput, inputClass } from "./primi
 import { orderDay, paidDay, type Action, type FormState, type ResolvedMethod } from "./state"
 import type { FeePreview } from "./use-fee-preview"
 
-const NONE = "none"
-
 /** Everything the payment fields need beyond the form state. */
 export type PaymentUi = {
   /** Every method (inactive included), or null when the list couldn't be loaded. */
@@ -45,10 +43,12 @@ function issueFor(state: FormState, field: "paid_date" | "payment_method_id" | "
 }
 
 /**
- * «روش پرداخت»: active methods plus «بدون روش», preselected from the channel
- * default. An inactive default is shown (warn) but can't be chosen and blocks
- * saving; a list that failed to load offers a retry. Under it, the rule in
- * words — never a date computed in the browser.
+ * «روش پرداخت»: the active methods, preselected from the channel default. A
+ * sale always has one, so there is no «بدون روش» choice: with nothing chosen
+ * the field says so and saving stays blocked. An inactive default is shown
+ * (warn) but can't be chosen and blocks saving; a list that failed to load
+ * offers a retry. Under it, the rule in words — never a date computed in the
+ * browser.
  */
 export function PaymentMethodField({ state, dispatch, payment, mobile }: Props) {
   const { methods, resolved } = payment
@@ -78,18 +78,18 @@ export function PaymentMethodField({ state, dispatch, payment, mobile }: Props) 
     return (
       <div className="flex flex-col gap-1.5">
         <Label>{T.methodLabel}</Label>
-        <Help>
+        <InlineMessage severity="warn">
           {T.noMethods}{" "}
           <Link href="/settings/#pay" className="font-bold text-heading hover:text-primary">
             {T.noMethodsLink}
           </Link>
-        </Help>
+        </InlineMessage>
       </div>
     )
   }
 
   const active = (methods ?? []).filter((m) => m.is_active === 1)
-  const value = resolved.kind === "method" ? String(resolved.method.id) : resolved.kind === "none" ? NONE : ""
+  const value = resolved.kind === "method" ? String(resolved.method.id) : ""
   const name =
     resolved.kind === "method"
       ? resolved.method.name
@@ -98,9 +98,9 @@ export function PaymentMethodField({ state, dispatch, payment, mobile }: Props) 
           ? T.methodDefaultInactive(resolved.method.name)
           : PM.inactive(resolved.method.name)
         : resolved.kind === "none"
-          ? T.methodNone
+          ? T.methodPlaceholder
           : "—"
-  const warn = resolved.kind === "inactive" || resolved.kind === "unavailable" || !!serverError
+  const warn = resolved.kind === "inactive" || resolved.kind === "unavailable" || resolved.kind === "none" || !!serverError
   const failedRefresh = methods === null
 
   return (
@@ -125,7 +125,7 @@ export function PaymentMethodField({ state, dispatch, payment, mobile }: Props) 
           <DropdownMenuRadioGroup
             value={value}
             onValueChange={(v) =>
-              dispatch({ type: "payment", choice: v === NONE ? { kind: "none" } : { kind: "method", id: Number(v) } })
+              dispatch({ type: "payment", choice: { kind: "method", id: Number(v) } })
             }
           >
             {active.map((m) => (
@@ -136,7 +136,6 @@ export function PaymentMethodField({ state, dispatch, payment, mobile }: Props) 
                 </span>
               </DropdownMenuRadioItem>
             ))}
-            <DropdownMenuRadioItem value={NONE}>{T.methodNone}</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -144,6 +143,8 @@ export function PaymentMethodField({ state, dispatch, payment, mobile }: Props) 
         <InlineMessage severity="error">{PM.inactiveMethod(resolved.method.name)}</InlineMessage>
       ) : serverError ? (
         <InlineMessage severity="error">{serverError}</InlineMessage>
+      ) : resolved.kind === "none" ? (
+        <InlineMessage severity="warn">{T.methodRequired}</InlineMessage>
       ) : resolved.kind === "method" ? (
         <Help>{PM.settleLine(resolved.method.settlement_rule, resolved.method.settlement_days)}</Help>
       ) : null}

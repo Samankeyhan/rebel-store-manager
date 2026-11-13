@@ -91,7 +91,7 @@ function classifyOrderError(
   const payment = classifyPaymentError(error)
   if (payment) {
     const field =
-      payment.kind === "inactiveMethod" ? "payment_method_id" : "paid_date"
+      payment.kind === "inactiveMethod" || payment.kind === "methodRequired" ? "payment_method_id" : "paid_date"
     return { kind: "payment", field, message: paymentErrorText(payment, methodName) }
   }
   if (error.status === 404 && error.code === "PAYMENT_METHOD_NOT_FOUND") {
@@ -252,7 +252,7 @@ function SaleForm({
   )
   const payment: PaymentUi = { methods, resolved, preview, today, retryMethods: reloadMethods, methodsLoading }
 
-  const d = derive(state, catalog, products, recipes, { resolved, preview })
+  const d = derive(state, catalog, products, recipes, { resolved, preview, methods })
 
   const onChannel = (channel: Channel) => dispatch({ type: "channel", channel, products })
   const toDraft = () => dispatch({ type: "status", status: "DRAFT" })

@@ -118,6 +118,27 @@ export const L = {
   filteredEmptyTitle: "هیچ سفارشی با این فیلترها پیدا نشد",
   filteredEmptyBody: "وضعیت یا بازه تاریخ را تغییر دهید.",
   filteredEmptyAction: "پاک کردن فیلترها",
+
+  // ── list: bulk «پرداخت‌شده» → «تکمیل‌شده» (NEW) ──
+  selectRow: (invoice: string) => `انتخاب سفارش ${invoice}`, // NEW
+  selectShown: "انتخاب همه سفارش‌های نمایش‌داده‌شده", // NEW
+  selectShownMobile: "انتخاب همه", // NEW
+  bulkSelected: (n: number) => `${fa(n)} سفارش انتخاب شده`, // NEW
+  bulkAction: "تغییر به «تکمیل‌شده»", // NEW
+  bulkClear: "لغو انتخاب", // NEW
+  bulkIneligible: (n: number) =>
+    `${fa(n)} سفارش از انتخاب‌ها در وضعیت «پرداخت‌شده» نیست؛ این تغییر فقط برای سفارش‌های پرداخت‌شده ممکن است.`, // NEW
+  bulkTooMany: (max: number) => `حداکثر ${fa(max)} سفارش را می‌توان یکجا تغییر داد.`, // NEW
+  bulkConfirmTitle: (n: number) => `تکمیل ${fa(n)} سفارش`, // NEW
+  bulkConfirmSubtitle: "وضعیت این سفارش‌ها از «پرداخت‌شده» به «تکمیل‌شده» تغییر می‌کند.", // NEW
+  bulkConfirmNote: "فقط وضعیت عوض می‌شود؛ موجودی، مبلغ‌ها، تاریخ پرداخت و تسویه تغییری نمی‌کنند.", // NEW
+  bulkInvoices: "شماره فاکتورها", // NEW
+  bulkConfirm: "تغییر وضعیت", // NEW
+  bulkDone: (n: number) => `${fa(n)} سفارش تکمیل شد`, // NEW
+  bulkFailed: "تغییر وضعیت انجام نشد؛ دوباره تلاش کنید.", // NEW
+  bulkStaleTitle: "هیچ سفارشی تغییر نکرد", // NEW
+  bulkStale: (n: number) =>
+    `${fa(n)} سفارش دیگر در وضعیت «پرداخت‌شده» نیست. فهرست دوباره خوانده شد؛ انتخاب را از نو انجام دهید.`, // NEW
   emptySubtitle: "هنوز سفارشی ندارید",
   emptyTitle: "هنوز سفارشی ثبت نشده",
   emptyBody: "هر فروشی که ثبت کنید با شماره فاکتور، کانال، وضعیت، مبلغ و سود این‌جا فهرست می‌شود.",

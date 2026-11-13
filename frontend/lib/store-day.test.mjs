@@ -35,7 +35,7 @@ test("a store in Los Angeles: the order dated today is paid today, so paid_date 
   assert.equal(paidDateForBody(s, today), undefined)
   // Picking the 6th there is a future day for the store; it is sent as picked (the API refuses it, 422).
   const picked = reducer(s, { type: "paidDate", value: "2026-10-06" })
-  assert.equal(buildOrderBody(picked, { kind: "none" }, today).paid_date, "2026-10-06")
+  assert.equal(buildOrderBody(picked, { kind: "method", method: { id: 1, name: "Test cash", is_active: 1 } }, today).paid_date, "2026-10-06")
   // In Tehran the 6th is today: omitted.
   assert.equal(paidDateForBody(picked, storeToday(NOW, "Asia/Tehran")), undefined)
 })

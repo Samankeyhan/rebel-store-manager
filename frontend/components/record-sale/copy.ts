@@ -204,11 +204,13 @@ export const T = {
   feeLabel: "کارمزد تراکنش",
   methodLabel: "روش پرداخت", // NEW
   methodAria: "روش پرداخت سفارش", // NEW
-  methodNone: "بدون روش", // NEW
+  methodNone: "بدون روش", // NEW (only as the label of an old order that has no method; a new sale can't pick it)
+  methodPlaceholder: "انتخاب روش پرداخت", // NEW
+  methodRequired: "برای ثبت فروش، یک روش پرداخت انتخاب کنید.", // NEW
   methodDefaultInactive: (name: string) => `${name} (پیش‌فرض کانال، غیرفعال)`, // NEW
   methodsFailed: "فهرست روش‌های پرداخت بارگذاری نشد.", // NEW
   methodsRetry: "تلاش دوباره", // NEW
-  noMethods: "هنوز روش پرداختی تعریف نشده؛ کارمزد را دستی وارد کنید.", // NEW
+  noMethods: "هنوز روش پرداختی تعریف نشده. بدون روش پرداخت فروش ثبت نمی‌شود؛ ابتدا یک روش پرداخت بسازید.", // NEW
   noMethodsLink: "تعریف روش پرداخت در تنظیمات", // NEW
   feeAuto: "کارمزد درگاه (خودکار)", // NEW
   feeManual: "کارمزد درگاه (دستی)", // NEW
@@ -323,7 +325,9 @@ export const T = {
   v4Summary: (name: string) => `تخفیف «${name}» از جمع ردیف بیشتر است.`,
   v5: "حداقل یک قلم به سفارش اضافه کنید.",
   vMoney: "مبلغی که وارد شده دقیق نیست؛ آن را اصلاح کنید.", // NEW (MoneyInput null: no exact amount; the field says why)
-  vMethodInactive: (name: string) => `روش پرداخت «${name}» غیرفعال است؛ روش دیگری یا «بدون روش» انتخاب کنید.`, // NEW
+  vMethodInactive: (name: string) => `روش پرداخت «${name}» غیرفعال است؛ روش پرداخت دیگری انتخاب کنید.`, // NEW
+  vMethodRequired: "روش پرداخت انتخاب نشده است.", // NEW
+  vNoMethods: "روش پرداختی تعریف نشده؛ ابتدا در تنظیمات یک روش پرداخت بسازید.", // NEW
   vMethodUnavailable: "فهرست روش‌های پرداخت بارگذاری نشد و این کانال روش پیش‌فرض دارد؛ دوباره تلاش کنید.", // NEW
   v6: "تعداد باید حداقل ۱ باشد.",
   saveFailedTitle: "ثبت سفارش انجام نشد",

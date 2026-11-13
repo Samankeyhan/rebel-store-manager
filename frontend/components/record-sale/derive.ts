@@ -8,9 +8,10 @@
  * errors are shown as returned (see classifyOrderError in record-sale.tsx).
  */
 
-import type { Catalog } from "@/lib/api"
+import type { Catalog, PaymentMethod } from "@/lib/api"
 import { categoryPath } from "@/lib/category-path"
 import { recipeBatchTotal, type RecipeLine } from "@/lib/costing"
+import { methodBlock } from "@/lib/payment-methods"
 import { formatNumber, formatQuantity } from "@/lib/persian-numbers"
 import { CHANNELS, T } from "./copy"
 import { channelPrice, defaultShipping, moneyBlocked, orderTotal, type FormState, type Kit, type Line, type Product, type ResolvedMethod } from "./state"
@@ -107,8 +108,8 @@ export function resolveKit(state: FormState, catalog: Catalog): Kit | null {
 // Kept in state.ts (no imports) so lib tests and the verification script use the same code.
 export { defaultShipping, orderTotal } from "./state"
 
-/** What the screen knows about the order's payment method and its fee. */
-export type PaymentView = { resolved: ResolvedMethod; preview: FeePreview }
+/** What the screen knows about the order's payment method and its fee (`methods`: null when the list couldn't be loaded). */
+export type PaymentView = { resolved: ResolvedMethod; preview: FeePreview; methods: PaymentMethod[] | null }
 
 export function derive(
   state: FormState,
@@ -307,6 +308,13 @@ export function derive(
   const resolved = payment.resolved
   if (resolved.kind === "inactive") errors.push(T.vMethodInactive(resolved.method.name))
   if (resolved.kind === "unavailable") errors.push(T.vMethodUnavailable)
+  // A sale always has a payment method (every status, DRAFT too): none chosen blocks saving.
+  const block = methodBlock(
+    resolved.kind,
+    payment.methods ? payment.methods.filter((m) => m.is_active === 1).length : null
+  )
+  if (block === "pick") errors.push(T.vMethodRequired)
+  if (block === "create") errors.push(T.vNoMethods)
 
   const ch = catalog.settings.channels[state.channel]
   const shippingDefault = defaultShipping(state, catalog)

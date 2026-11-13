@@ -14,6 +14,7 @@ import { ChannelBadge, ORDER_STATUS_IDS, StatusBadge, statusName } from "@/compo
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import { invoicePdfUrl, type OrderListItem } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
+import { pageState, type Selection } from "@/lib/order-bulk"
 import { toPersianDigits } from "@/lib/persian-numbers"
 import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
@@ -64,6 +65,9 @@ export function OrdersTable({
   onStatus,
   onPage,
   onClearFilters,
+  selected,
+  onToggle,
+  onTogglePage,
 }: {
   rows: OrderListItem[]
   counts: Record<string, number>
@@ -74,11 +78,17 @@ export function OrdersTable({
   onStatus: (status: string) => void
   onPage: (page: number) => void
   onClearFilters: () => void
+  /** The ticked orders (all pages): the row checkboxes and the header's «select the rows shown». */
+  selected: Selection
+  onToggle: (id: number) => void
+  onTogglePage: (ids: number[], on: boolean) => void
 }) {
   const router = useRouter()
   const start = (page - 1) * PAGE_SIZE
   const pageRows = rows.slice(start, start + PAGE_SIZE)
   const totals = pageTotals(pageRows)
+  const pageIds = pageRows.map((o) => o.id)
+  const shown = pageState(selected, pageIds)
   const tabs = [{ id: "", name: L.tabAll }, ...ORDER_STATUS_IDS.map((id) => ({ id, name: statusName(id) }))]
 
   return (
@@ -135,6 +145,19 @@ export function OrdersTable({
           <table className="w-full border-separate border-spacing-0 text-[13.5px]">
             <thead>
               <tr className="text-xs font-semibold text-text-3 [&>th]:h-10 [&>th]:border-b [&>th]:border-border [&>th]:bg-surface-2 [&>th]:px-4 [&>th]:text-start [&>th]:whitespace-nowrap">
+                <th scope="col" className="w-10 pe-0!">
+                  <input
+                    type="checkbox"
+                    aria-label={L.selectShown}
+                    checked={shown === "all"}
+                    ref={(el) => {
+                      if (el) el.indeterminate = shown === "some"
+                    }}
+                    disabled={pageIds.length === 0}
+                    onChange={() => onTogglePage(pageIds, shown !== "all")}
+                    className="size-4 cursor-pointer accent-primary"
+                  />
+                </th>
                 <th scope="col">{L.colInvoice}</th>
                 <th scope="col">{L.colDate}</th>
                 <th scope="col">{L.colChannel}</th>
@@ -160,9 +183,19 @@ export function OrdersTable({
                   className={cn(
                     "cursor-pointer hover:[&>td]:bg-surface-2 [&>td]:h-[52px] [&>td]:border-b [&>td]:border-border [&>td]:px-4 [&>td]:whitespace-nowrap last:[&>td]:border-b-0",
                     // A voided order (entered by mistake) stays readable but steps back.
-                    o.status === "VOIDED" && "[&>td]:text-text-3 [&>td]:opacity-75"
+                    o.status === "VOIDED" && "[&>td]:text-text-3 [&>td]:opacity-75",
+                    selected.has(o.id) && "[&>td]:bg-surface-2"
                   )}
                 >
+                  <td className="pe-0!" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={L.selectRow(o.invoice_number ?? `#${o.id}`)}
+                      checked={selected.has(o.id)}
+                      onChange={() => onToggle(o.id)}
+                      className="size-4 cursor-pointer accent-primary"
+                    />
+                  </td>
                   <td>
                     <Link
                       href={orderHref(o.id)}

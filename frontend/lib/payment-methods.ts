@@ -89,6 +89,22 @@ export type PaymentError =
   | { kind: "paidDateNotAllowed" }
   | { kind: "inactiveMethod" }
   | { kind: "inactiveDefault" }
+  | { kind: "methodRequired" }
+
+/**
+ * What stops a new sale (or a correction) that has no payment method yet: a sale always has one
+ * (db/orders.py record_order, PAYMENT_METHOD_REQUIRED). `kind` is the form's resolved method
+ * (record-sale/state.ts ResolvedMethod.kind); `activeCount` is how many active methods exist, or null
+ * when the list couldn't be loaded. "pick" = choose one; "create" = there is none to choose, so one
+ * must be defined in Settings first; null = nothing missing (an inactive or unavailable method has
+ * its own message).
+ */
+export type MethodBlock = "pick" | "create" | null
+
+export function methodBlock(kind: string, activeCount: number | null): MethodBlock {
+  if (kind !== "none") return null
+  return activeCount === 0 ? "create" : "pick"
+}
 
 /**
  * Classifies a payment-related API error by its code and details
@@ -125,6 +141,7 @@ export function classifyPaymentError(e: CodedError): PaymentError | null {
       return null // not a date: no screen can send one
     }
     if (e.field === "payment_method_id" && hasCode(e, "PAYMENT_METHOD_INACTIVE")) return { kind: "inactiveMethod" }
+    if (e.field === "payment_method_id" && hasCode(e, "PAYMENT_METHOD_REQUIRED")) return { kind: "methodRequired" }
     if (e.field === "default_payment_method_id") return { kind: "inactiveDefault" }
   }
   return null

@@ -7,6 +7,7 @@ import { ChannelBadge, StatusBadge } from "@/components/common/status"
 import { Btn, cardClass } from "@/components/record-sale/primitives"
 import type { OrderListItem } from "@/lib/api"
 import { formatJalaliDateTime } from "@/lib/jalali"
+import { pageState, type Selection } from "@/lib/order-bulk"
 import { Money } from "@/components/common/money"
 import { cn } from "@/lib/utils"
 import { L } from "../copy"
@@ -20,18 +21,27 @@ export function OrderCards({
   timeZone,
   resetKey,
   onClearFilters,
+  selected,
+  onToggle,
+  onTogglePage,
 }: {
   rows: OrderListItem[]
   timeZone: string
   /** Changes whenever the filters do, which resets the load-more count. */
   resetKey: string
   onClearFilters: () => void
+  /** The ticked orders (all pages); «انتخاب همه» ticks the cards shown. */
+  selected: Selection
+  onToggle: (id: number) => void
+  onTogglePage: (ids: number[], on: boolean) => void
 }) {
   const [shown, setShown] = React.useState({ key: resetKey, count: PAGE_SIZE })
   const count = shown.key === resetKey ? shown.count : PAGE_SIZE
   const visible = rows.slice(0, count)
   const remaining = rows.length - visible.length
   const totals = pageTotals(rows)
+  const shownIds = visible.map((o) => o.id)
+  const shownState = pageState(selected, shownIds)
 
   if (rows.length === 0) {
     return (
@@ -59,41 +69,64 @@ export function OrderCards({
           </b>
         </span>
       </div>
+      <label className="flex h-9 cursor-pointer items-center gap-2.5 text-[13px] text-text-2">
+        <input
+          type="checkbox"
+          checked={shownState === "all"}
+          ref={(el) => {
+            if (el) el.indeterminate = shownState === "some"
+          }}
+          onChange={() => onTogglePage(shownIds, shownState !== "all")}
+          className="size-5 cursor-pointer accent-primary"
+        />
+        {L.selectShownMobile}
+      </label>
       {visible.map((o) => (
-        <Link
-          key={o.id}
-          href={orderHref(o.id)}
-          className={cn(
-            cardClass,
-            "flex flex-col gap-1.5 px-3.5 py-3 text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
-            o.status === "VOIDED" && "text-text-3 opacity-75"
-          )}
-        >
-          <span className="flex items-center justify-between gap-2">
-            <span dir="ltr" className="font-mono text-[12.5px] font-semibold text-heading">
-              {o.invoice_number}
+        <div key={o.id} className="flex items-stretch gap-2">
+          <label className="flex w-9 shrink-0 cursor-pointer items-center justify-center">
+            <input
+              type="checkbox"
+              aria-label={L.selectRow(o.invoice_number ?? `#${o.id}`)}
+              checked={selected.has(o.id)}
+              onChange={() => onToggle(o.id)}
+              className="size-5 cursor-pointer accent-primary"
+            />
+          </label>
+          <Link
+            href={orderHref(o.id)}
+            className={cn(
+              cardClass,
+              "flex min-w-0 grow flex-col gap-1.5 px-3.5 py-3 text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+              o.status === "VOIDED" && "text-text-3 opacity-75",
+              selected.has(o.id) && "border-heading"
+            )}
+          >
+            <span className="flex items-center justify-between gap-2">
+              <span dir="ltr" className="font-mono text-[12.5px] font-semibold text-heading">
+                {o.invoice_number}
+              </span>
+              <StatusBadge status={o.status} />
             </span>
-            <StatusBadge status={o.status} />
-          </span>
-          <span className="flex items-center justify-between gap-2 text-[13px]">
-            <span className="flex min-w-0 items-center gap-2">
-              <ChannelBadge channel={o.channel} />
-              {o.payment_method_name && (
-                <span className="max-w-[96px] shrink-0 truncate rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-text-2">
-                  {o.payment_method_name}
-                </span>
-              )}
-              <span className="truncate">{o.customer_name || "—"}</span>
+            <span className="flex items-center justify-between gap-2 text-[13px]">
+              <span className="flex min-w-0 items-center gap-2">
+                <ChannelBadge channel={o.channel} />
+                {o.payment_method_name && (
+                  <span className="max-w-[96px] shrink-0 truncate rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-text-2">
+                    {o.payment_method_name}
+                  </span>
+                )}
+                <span className="truncate">{o.customer_name || "—"}</span>
+              </span>
+              <b>
+                <Money value={o.customer_total} />
+              </b>
             </span>
-            <b>
-              <Money value={o.customer_total} />
-            </b>
-          </span>
-          <span className="flex items-start justify-between gap-2 text-xs">
-            <span className="text-text-3 tabular-nums">{formatJalaliDateTime(o.order_date, timeZone)}</span>
-            <ProfitFigure view={profitView(o.status, o.profit, o)} prefix={L.mobileProfit("")} className="text-end" />
-          </span>
-        </Link>
+            <span className="flex items-start justify-between gap-2 text-xs">
+              <span className="text-text-3 tabular-nums">{formatJalaliDateTime(o.order_date, timeZone)}</span>
+              <ProfitFigure view={profitView(o.status, o.profit, o)} prefix={L.mobileProfit("")} className="text-end" />
+            </span>
+          </Link>
+        </div>
       ))}
       {remaining > 0 && (
         <Btn className="h-11 w-full" onClick={() => setShown({ key: resetKey, count: count + PAGE_SIZE })}>

@@ -401,8 +401,8 @@ export function paidDateForBody(state: FormState, today: string): string | undef
 }
 
 /**
- * The POST /orders body. `resolved` is resolveMethod's answer (only "none"
- * or "method" can be submitted). `today` is the STORE's calendar day
+ * The POST /orders body. `resolved` is resolveMethod's answer (only "method"
+ * can be submitted: a sale always has a payment method). `today` is the STORE's calendar day
  * ("YYYY-MM-DD" in settings.timezone, lib/store-day.ts storeToday — the zone
  * the backend's today_local uses), read at submit time, never the browser's
  * local day. Notes are omitted.
@@ -410,10 +410,10 @@ export function paidDateForBody(state: FormState, today: string): string | undef
 export function buildOrderBody(state: FormState, resolved: ResolvedMethod, today: string): OrderCreate {
   // derive() already disables saving; this is the last line of defence.
   if (moneyBlocked(state)) throw new Error("An amount isn't exact; the order can't be submitted.")
-  if (resolved.kind !== "none" && resolved.kind !== "method") {
-    throw new Error("The payment method can't be used; the order can't be submitted.")
+  if (resolved.kind !== "method") {
+    throw new Error("A sale needs a usable payment method; the order can't be submitted.")
   }
-  const method = resolved.kind === "method" ? resolved.method : null
+  const method = resolved.method
   const reference = state.reference.trim()
   const paid = paidDateForBody(state, today)
   const customer = state.customerName.trim()
@@ -436,10 +436,10 @@ export function buildOrderBody(state: FormState, resolved: ResolvedMethod, today
       state.kit.kind === "default" ? "default" : state.kit.kind === "none" ? null : state.kit.id,
     // No actual-postage entry on this screen: always the channel default.
     postage_cost: null,
-    // The resolved method, explicitly (the same one the fee preview used); null = no method.
-    payment_method_id: method ? method.id : null,
+    // The resolved method, explicitly (the same one the fee preview used); a sale always has one.
+    payment_method_id: method.id,
     // null = the backend computes the fee from the method; an integer (0 too) is an override.
-    transaction_fee: method && state.feeMode === "auto" ? null : state.fee,
+    transaction_fee: state.feeMode === "auto" ? null : state.fee,
     payment_reference: reference || null,
     status: state.status,
     ...(state.orderDate ? { order_date: state.orderDate } : {}),

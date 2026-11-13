@@ -1,7 +1,7 @@
 // Run with `npm test` (node --test; Node 22 strips the .ts types itself).
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { BPS_MAX, capError, capForSave, classifyPaymentError, formatPercent, parsePercent } from "./payment-methods.ts"
+import { BPS_MAX, capError, capForSave, classifyPaymentError, formatPercent, methodBlock, parsePercent } from "./payment-methods.ts"
 import { feeText, paymentErrorText, ruleText } from "../components/payment-methods/copy.ts"
 import { formatMoney, parseMoneyInput, setCurrency } from "./money.ts"
 
@@ -157,6 +157,9 @@ const CASES = [
     { kind: "inactiveMethod" }],
   [{ status: 422, code: "PAYMENT_METHOD_INACTIVE", details: { payment_method_id: 1 }, field: "default_payment_method_id", message: "Payment method 'Card' is not active and cannot be a channel's default payment method" },
     { kind: "inactiveDefault" }],
+  [{ status: 422, code: "PAYMENT_METHOD_REQUIRED", details: {}, field: "payment_method_id", message: "A payment method is required: choose one, or set the channel's default payment method." },
+    { kind: "methodRequired" }],
+  [{ status: 422, code: "PAYMENT_METHOD_REQUIRED", details: {}, field: "items", message: "x" }, null],
   [{ status: 409, code: "CONFLICT", message: "Cannot transition order #1 from COMPLETED to PAID" }, null],
   [{ status: 422, code: "PRODUCT_NO_UNIT_COST", details: { product_id: 1, product_name: "Test LP" }, field: "unit_cost", message: "no cost" }, null],
 ]
@@ -180,4 +183,20 @@ test("paymentErrorText", () => {
   )
   assert.match(paymentErrorText({ kind: "rulePending", count: 3 }), /^۳ سفارش/)
   assert.match(paymentErrorText({ kind: "inactiveMethod" }, "Digipay"), /«Digipay»/)
+  assert.equal(paymentErrorText({ kind: "methodRequired" }), "برای ثبت فروش، یک روش پرداخت انتخاب کنید.")
+})
+
+test("methodBlock: a sale with no method chosen must pick one, or create one when none is active", () => {
+  assert.equal(methodBlock("none", 3), "pick")
+  assert.equal(methodBlock("none", null), "pick") // the list couldn't be loaded: choose or retry
+  assert.equal(methodBlock("none", 0), "create")
+})
+
+test("methodBlock: a chosen, inactive or unavailable method has nothing missing (they have their own messages)", () => {
+  for (const kind of ["method", "inactive", "unavailable"]) assert.equal(methodBlock(kind, 0), null, kind)
+})
+
+test("no payment copy offers «بدون روش» as a way out of an inactive method", () => {
+  assert.doesNotMatch(paymentErrorText({ kind: "inactiveMethod" }, "Digipay"), /بدون روش/)
+  assert.doesNotMatch(paymentErrorText({ kind: "inactiveMethod" }, null), /بدون روش/)
 })

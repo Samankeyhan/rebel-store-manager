@@ -25,9 +25,11 @@ function typeInto(state, field, onExact, text, currency) {
 const product = { id: 7, retail_price: 10_000, wholesale_price: 8_000 }
 
 const TODAY = "2026-10-06"
-const NO_METHOD = { kind: "none" }
-/** The body of an order with no payment method, built on TODAY. */
-const buildOrderBody = (s) => buildWithMethod(s, NO_METHOD, TODAY)
+/** A sale always has a payment method; these tests are about the other fields, so any active method will do. */
+const SALE_METHOD = { kind: "method", method: { id: 1, name: "Test cash", is_active: 1 } }
+/** The body of an order on TODAY, with the typed fee sent (manual fee) so the fee field is still what the body carries. */
+const buildOrderBody = (s) =>
+  buildWithMethod(s.feeMode === "manual" ? s : reducer(s, { type: "feeMode", mode: "manual", fee: s.fee }), SALE_METHOD, TODAY)
 
 function saleWithOneLine() {
   let s = initialState(1)
@@ -141,12 +143,13 @@ test("resolveMethod: an inactive default or choice blocks; unloaded methods bloc
   // The methods request failed and the channel has a default: never fall back to "no method".
   assert.deepEqual(resolveMethod({ kind: "default" }, 2, null), { kind: "unavailable", id: 2 })
   assert.deepEqual(resolveMethod({ kind: "default" }, 99, METHODS), { kind: "unavailable", id: 99 })
-  // No default on the channel: the sale goes ahead without a method (manual fee, as before).
+  // No default on the channel: nothing resolves (a sale can't be saved until a method is chosen).
   assert.deepEqual(resolveMethod({ kind: "default" }, null, null), { kind: "none" })
 })
 
-test("buildOrderBody refuses an unresolved method", () => {
+test("buildOrderBody refuses an unresolved method, and «no method»: a sale always has one", () => {
   const s = saleWithOneLine()
+  assert.throws(() => buildWithMethod(s, { kind: "none" }, TODAY))
   assert.throws(() => buildWithMethod(s, { kind: "inactive", method: oldCard, isDefault: true }, TODAY))
   assert.throws(() => buildWithMethod(s, { kind: "unavailable", id: 2 }, TODAY))
 })
@@ -169,10 +172,10 @@ test("fee: automatic with a method sends null; manual sends the integer, 0 inclu
   assert.equal(buildWithMethod(s, asMethod(zarinpal), TODAY).transaction_fee, null)
 })
 
-test("fee: with no method the typed fee is sent exactly as before", () => {
+test("fee: a typed fee is sent exactly, and the method is always sent", () => {
   let s = saleWithOneLine()
   let body = buildOrderBody(s)
-  assert.equal(body.payment_method_id, null)
+  assert.equal(body.payment_method_id, 1)
   assert.equal(body.transaction_fee, 0)
   s = reducer(s, { type: "fee", value: 2500 })
   assert.equal(buildOrderBody(s).transaction_fee, 2500)
